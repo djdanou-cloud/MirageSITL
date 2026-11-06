@@ -65,13 +65,19 @@ function builtInDisplay(): { width: number; height: number; scale: number; refre
   throw new Error("No built-in display found");
 }
 
-interface Frames { count: number; medianMs: number; p95Ms: number; p99Ms: number; maxMs: number }
+/** The lock screen covers the window, so frames timed behind it say nothing about the flight view. */
+const screenLocked = () => /"IOConsoleLocked" = Yes/.test(execFileSync("ioreg", ["-n", "Root", "-d1"], { encoding: "utf8" }));
+const UNLOCKED = "The Mac must stay unlocked and untouched for the whole run";
+
+interface LongInterval { at: string; ms: number }
+interface Frames { count: number; medianMs: number; p95Ms: number; p99Ms: number; maxMs: number; long: LongInterval[] }
 function quantile(sorted: readonly number[], q: number): number {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))] ?? Number.NaN;
 }
 
 test("the flight view holds 60 FPS on the M5's built-in display during an ArduPilot SITL hover", async ({ browser, baseURL }) => {
   test.setTimeout(900000);
+  expect(screenLocked(), UNLOCKED).toBe(false);
   // Its own context: the built-in display's size and scale factor, not the project's fixed 1920 x 1080 at 1x.
   const display = builtInDisplay();
   const context = await browser.newContext({ viewport: { width: display.width, height: display.height }, deviceScaleFactor: display.scale, baseURL });
@@ -98,30 +104,35 @@ test("the flight view holds 60 FPS on the M5's built-in display during an ArduPi
     await expect(panel.getByTestId("sitl-stage")).toHaveText("Flying", { timeout: 180000 });
     await panel.getByTestId("flight-view").scrollIntoViewIfNeeded();
 
-    const measure = (seconds: number) => page.evaluate(async (seconds: number) => {
-      const intervals: number[] = [];
+    const measure = (seconds: number) => page.evaluate(async ({ seconds, longMs }: { seconds: number; longMs: number }) => {
+      const intervals: number[] = [], long: LongInterval[] = [];
       await new Promise<void>(done => {
         let last = -1, warm = -1;
         const frame = (now: number) => {
           if (warm < 0) warm = now;
           if (now - warm >= 5000) {
-            if (last >= 0) intervals.push(now - last);
+            if (last >= 0) {
+              intervals.push(now - last);
+              // When it happened, to set beside the system log: one late frame says nothing about its cause.
+              if (now - last > longMs) long.push({ at: new Date(performance.timeOrigin + now).toISOString(), ms: now - last });
+            }
             last = now;
           }
           if (last < 0 || intervals.reduce((a, b) => a + b, 0) < seconds * 1000) requestAnimationFrame(frame); else done();
         };
         requestAnimationFrame(frame);
       });
-      return { intervals, hidden: document.hidden };
-    }, seconds);
-    const summarize = (intervals: number[]): Frames => {
+      return { intervals, long, hidden: document.hidden };
+    }, { seconds, longMs: MAC_MAX_INTERVAL_MS });
+    const summarize = ({ intervals, long }: { intervals: number[]; long: LongInterval[] }): Frames => {
       const sorted = [...intervals].sort((a, b) => a - b);
-      return { count: sorted.length, medianMs: quantile(sorted, 0.5), p95Ms: quantile(sorted, 0.95), p99Ms: quantile(sorted, 0.99), maxMs: sorted.at(-1) ?? Number.NaN };
+      return { count: sorted.length, medianMs: quantile(sorted, 0.5), p95Ms: quantile(sorted, 0.95), p99Ms: quantile(sorted, 0.99), maxMs: sorted.at(-1) ?? Number.NaN, long };
     };
     const external = await measure(60);
     await panel.getByRole("radio", { name: "Onboard" }).check();
     const onboard = await measure(30);
     expect(external.hidden || onboard.hidden).toBe(false);
+    expect(screenLocked(), UNLOCKED).toBe(false);
     // The aircraft was still flying throughout.
     await expect(panel.getByTestId("sitl-stage")).toHaveText("Flying");
 
@@ -135,11 +146,16 @@ test("the flight view holds 60 FPS on the M5's built-in display during an ArduPi
     const report = { schema: "mirage-frame-times/1", criterion: "A-06",
       limits: mac ? { medianMs: MEDIAN_LIMIT_MS, maxMs: MAC_MAX_INTERVAL_MS, p99Ms: "reported" } : { medianMs: MEDIAN_LIMIT_MS, p99Ms: P99_LIMIT_MS },
       browser: browser.version(), host: execFileSync("sysctl", ["-n", "hw.model"], { encoding: "utf8" }).trim(), display, ...environment,
-      external: summarize(external.intervals), onboard: summarize(onboard.intervals) };
+      recordedAt: new Date().toISOString(),
+      application: { commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), uncommitted: execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).split("\n").filter(line => line !== "") },
+      external: summarize(external), onboard: summarize(onboard) };
     const directory = join(ROOT, "test-results/browser/frame-times");
     mkdirSync(directory, { recursive: true });
     const path = join(directory, `flight-view-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
     writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
+    // TASK-191: the acceptance report judges this copy of the latest run.
+    mkdirSync(join(ROOT, "test-results/validation"), { recursive: true });
+    writeFileSync(join(ROOT, "test-results/validation/phase1-frame-times.json"), `${JSON.stringify(report, null, 2)}\n`);
     console.info(`Frame times: ${JSON.stringify({ external: report.external, onboard: report.onboard, gpu: report.gpu, screen: report.screen,
       window: report.window, dpr: report.devicePixelRatio })} -> ${path}`);
     expect(readFileSync(path, "utf8")).toContain("A-06");

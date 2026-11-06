@@ -143,6 +143,25 @@ export function openTasksOf(roadmap: string): OpenItem[] {
   }
   return open;
 }
+/** A-06 with its macOS amendment of 2026-11-01: the window filling the screen, in both views a median within 16.680 ms and no interval above 25 ms, so no frame was skipped. */
+export const A06_MEDIAN_LIMIT_MS = 16.68, A06_MAX_INTERVAL_MS = 25;
+const FRAME_TIMES_RUN = 'MIRAGE_FRAME_TIME=1 npx playwright test tests/browser/flight-view-frames.spec.ts opens a full-screen Chrome that must not be disturbed';
+/** A-06 as its own report shows it: nothing when it passes, otherwise what stands open. The report's own limits are not read: an agent never sets its own. */
+export function frameTimesItem(report: unknown, inHistory: (commit: string) => boolean): OpenItem | null {
+  const item = (status: string, what: string): OpenItem => ({ id: 'A-06', kind: 'measurement', status, what });
+  const field = (value: unknown, key: string): unknown => (typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined);
+  if (report === null || report === undefined) return item('NOT_RUN', `No frame-time report: ${FRAME_TIMES_RUN}`);
+  const commit = field(field(report, 'application'), 'commit');
+  if (typeof commit !== 'string' || !inHistory(commit)) return item('NOT_RUN', `The frame-time report is from a commit not in this checkout's history: ${FRAME_TIMES_RUN}`);
+  if (field(report, 'fullScreen') !== true) return item('FAIL', 'The frame-time run did not fill the screen');
+  for (const view of ['external', 'onboard']) {
+    const median = field(field(report, view), 'medianMs'), longest = field(field(report, view), 'maxMs');
+    if (typeof median !== 'number' || typeof longest !== 'number') return item('FAIL', `The frame-time report has no ${view} view`);
+    if (median > A06_MEDIAN_LIMIT_MS) return item('FAIL', `The ${view} view's median frame time is ${median} ms, above ${A06_MEDIAN_LIMIT_MS} ms`);
+    if (longest > A06_MAX_INTERVAL_MS) return item('FAIL', `The ${view} view's longest interval is ${longest} ms, above ${A06_MAX_INTERVAL_MS} ms`);
+  }
+  return null;
+}
 /** Accepted only with every cell PASS and nothing open; the reasons say what stands in the way. */
 export function acceptanceOf(assessment: Pick<MatrixAssessment, 'status' | 'counts'>, open: readonly OpenItem[]): { readonly accepted: boolean; readonly reasons: readonly string[] } {
   const reasons = [...(assessment.status === 'PASS' ? [] : [`The matrix is ${assessment.status}: ${Object.entries(assessment.counts).map(([verdict, count]) => `${count} ${verdict}`).join(', ')}`]),

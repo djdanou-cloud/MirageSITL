@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { acceptanceOf, assessMatrix, openTasksOf, parseMatrix, type EvidenceAccess } from '../scripts/phase1/acceptance-rules.ts';
+import { acceptanceOf, assessMatrix, frameTimesItem, openTasksOf, parseMatrix, type EvidenceAccess } from '../scripts/phase1/acceptance-rules.ts';
 
 // TASK-188. Hand-built reports and matrices: what is forged, stale or missing must never stand as PASS, a failure must stay one, and
 // the repository's own matrix must be whole.
@@ -113,6 +115,44 @@ describe('the matrix itself', () => {
     expect(run.stdout).toMatch(/\d+ PASS, \d+ FAIL/);
     const written: unknown = JSON.parse(readFileSync('test-results/phase1/acceptance-test.json', 'utf8'));
     expect(written).toMatchObject({ task: 'TASK-191', kind: 'phase1-acceptance' });
+  });
+  it('and writes to an absolute --out path as it stands, not to a folder of that name inside the repository', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'mirage-acceptance-'));
+    try {
+      const target = join(directory, 'report.json');
+      const run = spawnSync(process.execPath, ['scripts/phase1/acceptance.mjs', '--out', target], { encoding: 'utf8' });
+      expect([0, 1, 2]).toContain(run.status);
+      expect(existsSync(target)).toBe(true);
+      expect(existsSync(join(process.cwd(), target))).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the frame times of A-06 count from their own report (TASK-191)', () => {
+  const frames = (medianMs = 16.665, maxMs = 18.675) => ({ count: 3601, medianMs, p95Ms: 18.65, p99Ms: 18.67, maxMs });
+  const run = (extra: Record<string, unknown> = {}) => ({ fullScreen: true, application: { commit: COMMIT, uncommitted: [] }, external: frames(), onboard: frames(), ...extra });
+  const known = (commit: string) => commit === COMMIT;
+  it('opens nothing when both views are within the limits', () => {
+    expect(frameTimesItem(run(), known)).toBeNull();
+    expect(frameTimesItem(run({ onboard: frames(16.68, 25) }), known)).toBeNull();
+  });
+  it('fails a median or a longest interval past the limit, in either view', () => {
+    expect(frameTimesItem(run({ external: frames(16.681) }), known)).toMatchObject({ id: 'A-06', status: 'FAIL', what: expect.stringContaining('external') as string });
+    expect(frameTimesItem(run({ onboard: frames(16.665, 25.001) }), known)).toMatchObject({ status: 'FAIL', what: expect.stringContaining('onboard') as string });
+  });
+  it('reads no limit from the report', () => {
+    expect(frameTimesItem(run({ limits: { medianMs: 99, maxMs: 99 }, external: frames(17) }), known)?.status).toBe('FAIL');
+  });
+  it('fails a run that did not fill the screen or lacks a view', () => {
+    expect(frameTimesItem(run({ fullScreen: false }), known)?.status).toBe('FAIL');
+    expect(frameTimesItem(run({ onboard: undefined }), known)?.status).toBe('FAIL');
+  });
+  it('counts no report, or one from a commit outside this history, as not run', () => {
+    expect(frameTimesItem(null, known)?.status).toBe('NOT_RUN');
+    expect(frameTimesItem(run({ application: { commit: 'c'.repeat(40) } }), known)?.status).toBe('NOT_RUN');
+    expect(frameTimesItem(run({ application: undefined }), known)?.status).toBe('NOT_RUN');
   });
 });
 

@@ -393,13 +393,12 @@ By task count, the longest chain of open tasks to the acceptance report is TASK-
 
 ## 6. Decisions and evidence still required
 
-**Acceptance on 2026-11-06.** The matrix stands at 51 PASS on current evidence
-(TASK-191), and Phase 1 is not declared accepted. What stands in the way is the
-stakeholder's to supply or decide: measured data for TASK-099, TASK-100, TASK-101,
-TASK-145 and TASK-184; a built FABDEM output for TASK-186; decisions D-01 and D-02
-and a clean installation on the final code for TASK-190; and the A-06 frame-time run,
-which opens a full-screen Chrome. `node scripts/phase1/acceptance.mjs` prints the
-current list.
+**Acceptance on 2026-11-06.** The matrix stands at 51 PASS on evidence from a clean
+installation of the final code (TASK-191), and Phase 1 is not declared accepted. What
+stands in the way: measured data for TASK-099, TASK-100, TASK-101, TASK-145 and
+TASK-184, and decision D-01 for TASK-190, each the stakeholder's to supply or
+decide. A-06 passed five frame-time runs in a row that day, after one failing run.
+`node scripts/phase1/acceptance.mjs` prints the current list.
 
 Scope section 3 lists D-01–D-09. D-10–D-12 arose from this inventory. A
 decision belongs to the stakeholder; a task records it with its date and does
@@ -444,6 +443,9 @@ Decisions taken by the stakeholder on 2026-10-28:
   stay BLOCKED_EXTERNAL, labeled as not validated.
 * D-12: the manual screen-reader sign-off of TASK-080 is not part of Phase 1
   acceptance; the automated keyboard and axe checks remain.
+* D-02 (decided by the stakeholder on 2026-11-06): ArduPilot SITL is built natively on
+  the user's Mac from the pinned source. There is no virtual machine or container, and
+  no prebuilt SITL binary is distributed; shipping one would need its own decision.
 
 TASK-136 defined the project-archive part of D-05 on 2026-10-28: project
 archive v1 (`.mirageproj`) and its import rules, in

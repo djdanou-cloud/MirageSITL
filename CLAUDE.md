@@ -431,23 +431,29 @@ implementation.
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
   scripting matrix drive all five S19 configurations, 16 motors included
   ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). That is the
-  evidence for D-01 and D-02; the stakeholder has not recorded either
-  decision yet. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
+  evidence for D-01, which the stakeholder has not recorded yet (stable Copter-4.7.2 was
+  tested beside the pin on 2026-11-06, in the same record), and for D-02,
+  which the stakeholder decided on 2026-11-06: the native build on the user's Mac. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
   waits until resume, and acceleration is host-limited
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its
   component-card format and TASK-140 its measured-data format. TASK-073,
   TASK-080, TASK-082 and TASK-083 below are not Phase 1 gates; see their Phase 1
-  dispositions in the roadmap. On 2026-11-06 the matrix stands at 51 PASS on current
-  evidence (`node scripts/phase1/acceptance.mjs`), Phase 1 not yet accepted: TASK-187
-  feeds per-tick terrain planes to the contact and records `truth.contact` and
-  `events.contact`; TASK-189 flew the 16-motor hour (`node scripts/phase1/endurance.mjs`,
-  3.70 times real time, 250 MB, 3.25 GB); `node scripts/phase1/global-workflows.mjs`
-  runs the global workflows with the network blocked per process under `sandbox-exec`,
-  no system setting changed; `node scripts/release-manifest.mjs --delivery` writes the
-  delivery manifest; TASK-190 and TASK-191 wait on the stakeholder's D-01, D-02, a clean
-  installation and the A-06 run, and TASK-099, TASK-100, TASK-101, TASK-145, TASK-184
-  and TASK-186 on measured data or a built FABDEM output. TASK-090's
+  dispositions in the roadmap. On 2026-11-06 the matrix stands at 51 PASS on evidence from a
+  clean installation of the final code (`node scripts/phase1/acceptance.mjs`), Phase 1 not yet
+  accepted: TASK-187 feeds per-tick terrain planes to the contact and records `truth.contact`
+  and `events.contact`; TASK-189 flew the 16-motor hour (`node scripts/phase1/endurance.mjs`,
+  2.87 times real time with the Mac in use for its last part, 249 MB, 3.30 GB);
+  `node scripts/phase1/global-workflows.mjs` runs the global workflows with the network blocked
+  per process under `sandbox-exec`, no system setting changed; `node scripts/release-manifest.mjs
+  --delivery` writes the delivery manifest; TASK-186 is DONE on a real FABDEM build
+  (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
+  clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
+  of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
+  patches now size those lists from the tree (TASK-095). TASK-190 and TASK-191 wait on the
+  stakeholder's D-01, and TASK-099, TASK-100, TASK-101, TASK-145 and TASK-184 on
+  measured data. A-06 passes: five runs in a row on 2026-11-06, after one failing run with
+  a 50.01 ms interval of unproven cause. TASK-090's
   `scripts/fidelity-capture.mjs` writes a capture from two logs; TASK-108 and TASK-115
   are DEFERRED with their Phase 1 parts done. The bridge's message limit follows the
   run's rate and speed-up (TASK-175): a flat 4096 per second closed any run above 5.1

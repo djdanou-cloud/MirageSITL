@@ -46,674 +46,199 @@
     "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        1.28564453125,
-        1.90576171875,
-        1.94140625
+        1.80224609375,
+        1.6416015625,
+        1.99169921875
       ],
       "after": [
-        1.765625,
-        2.08447265625,
-        2.07470703125
+        4.37158203125,
+        4.1298828125,
+        3.39208984375
       ]
     }
   },
   "application": {
-    "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+    "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
     "uncommitted": [
       {
         "status": " M",
-        "path": "CLAUDE.md",
-        "sha256": "7710a78a937ad7b7343e7236db43db0e5331e9572b252f2361262b108ef5eeb4"
-      },
-      {
-        "status": " M",
-        "path": "apps/bridge/src/server.ts",
-        "sha256": "f96b7c5186bd4d9db42cabdc2318344b49857da85c14ee4536c3f189ee290f3b"
-      },
-      {
-        "status": " M",
-        "path": "apps/bridge/src/session.ts",
-        "sha256": "eea9ca1c802dab052125153d72641960b29560aef4b18fcf5318155c87554831"
-      },
-      {
-        "status": " M",
-        "path": "apps/launcher/src/connections.ts",
-        "sha256": "170dd609791d5c5439341bcaba56dcabdc22894a88a257d2c47e7d07c67417ee"
-      },
-      {
-        "status": " M",
-        "path": "apps/launcher/src/server.ts",
-        "sha256": "24675235db414c7321d35ebd85c7b3dc76e7321143a6d8e8a9e36ca30057ada9"
-      },
-      {
-        "status": " M",
-        "path": "apps/web/src/analysis/TruthVsEstimate.tsx",
-        "sha256": "482bf52cd2e255ae1e1dbf0c0bbd77ebbaf9d87580f09da1f4573b30958f7679"
-      },
-      {
-        "status": " M",
-        "path": "apps/web/src/logging/run-recorder.ts",
-        "sha256": "b5c813b9bfa0ad41caf679f70e1da7a9a968defe29693d114d84a07007c14292"
-      },
-      {
-        "status": " M",
         "path": "apps/web/src/physics.worker.ts",
-        "sha256": "2353e2a30b32c992204d458a4b66036cc67e09d54e56bd2d1c0980f02d64491f"
+        "sha256": "d0218be4a48c771839bb35cbd9e5b604f779aca72d910f1d2540dd1be6f19821"
       },
       {
         "status": " M",
         "path": "apps/web/src/run/session-controller.ts",
-        "sha256": "7da1a74027a554776bfc25fff0fb86467ed3eb2bb23f225725de357d6d02353a"
+        "sha256": "4979e45e6c6c99d888fc69b09b3748a6316a1eb8efe201ecec8d55c3b0c82304"
       },
       {
         "status": " M",
-        "path": "apps/web/src/runtime.ts",
-        "sha256": "d3543a12b0c70fc945e9b1b320c9556bfad3af794f0d8427eb3f205accbe9c46"
-      },
-      {
-        "status": " M",
-        "path": "apps/web/src/weather/local-terrain.ts",
-        "sha256": "f5f467268e50ece95818a7d4d0b5fb80abf16373e37506bceca8fb6a6af46edf"
-      },
-      {
-        "status": " M",
-        "path": "docs/PROJECT_ROADMAP.md",
-        "sha256": "fa8fd8641480083e1163d89e05a6c49b84e27c6627d84d0bcfd76e24fffbdb60"
-      },
-      {
-        "status": " M",
-        "path": "docs/SPECS_SHARED_MEMORY.md",
-        "sha256": "b0f6f109464f26d9b2e6f24db50b08e463d3cd584b59c17cb5ddab214f6b9eac"
+        "path": "config/offline-inventory.json",
+        "sha256": "d8b48a95e8a0bff99c30031e646dc8db05b7e574f5dac4783461d945dcb7a8f3"
       },
       {
         "status": " M",
         "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "ebe2b86ead4f39880016472a0862edbe24604b44efdf204064683bc033e2265b"
+        "sha256": "fbbbcc16d570732150641c4771672a72631fd670916269dc2c06091e9dfdf333"
       },
       {
         "status": " M",
         "path": "docs/architecture.md",
-        "sha256": "ae6cdee8151f443effce617cbc028e7465f0099a5948cc59c2b2bd4b094f2b90"
+        "sha256": "7c1ab4acb3c5802e6767bd03936abe56b90f38eecf5748f3a7f18be9a8af5b86"
       },
       {
         "status": " M",
         "path": "docs/operations/install-macos.md",
-        "sha256": "407a6d972b165d5adc160ad68e7f7a6e38c7e0909ce281762809200a61b53919"
+        "sha256": "749af51933e83ae78d333cf5f1371d2f4ed3af4520453da17b9588f1dbb5d286"
       },
       {
         "status": " M",
-        "path": "docs/ru/CLAUDE.md",
-        "sha256": "7a43fec35b089d76adf8559fcfd8d413f554a47fd4bcc1cc27184bdc85047162"
+        "path": "docs/operations/offline-inventory.md",
+        "sha256": "ed17e303319db67e173db589a1e948e5d6a616c6051fc66963a02b8cbcffedd9"
       },
       {
         "status": " M",
-        "path": "docs/ru/PROJECT_ROADMAP.md",
-        "sha256": "349c5306f89190a3355c76c4785f6068249fb0405bf6b432eb223597ceb0ed2e"
-      },
-      {
-        "status": " M",
-        "path": "docs/ru/SPECS_SHARED_MEMORY.md",
-        "sha256": "e17ad3c33aafa9561b51a8202a6a1f181852cf7861c433d01bb3dc2707b86965"
+        "path": "docs/operations/runbook.md",
+        "sha256": "43d543f1393a4e43312d9e5c4be34676511025135cb39c8114336af56ff42e7e"
       },
       {
         "status": " M",
         "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "ad7b79ff6f81f9a5acf7083433739c2b47ef6ab0bdf0ff9842d08d6380013eb6"
+        "sha256": "76eafb201116419b32591433b8c1eb5ab3970397c98c560439431973b1b0f04a"
       },
       {
         "status": " M",
         "path": "docs/ru/architecture.md",
-        "sha256": "395a03552468398879a9d0f664f40a007f0cf2665d684f6d97e972519d59cc74"
+        "sha256": "b558f204fa2ca4c35b50b9184a682a5c7bb01aa53a2197c9b03056fd404707bf"
       },
       {
         "status": " M",
         "path": "docs/ru/install-macos.md",
-        "sha256": "917c79ccf0a070fd8bace7d33d6222777500d1032cdc629e3fb627153ccdbd35"
+        "sha256": "7e1821b74750b0a58ea6206e983cae23495d089a2847efbb60a762aa9c878e70"
       },
       {
         "status": " M",
-        "path": "docs/validation/model-report.schema.json",
-        "sha256": "ff8a757e8914cabb36b561f50de39c1ddca1520defee8d65bac852689474adad"
+        "path": "docs/ru/offline-inventory.md",
+        "sha256": "47434519451bc437834f260f88ddbff2029272bbde70a0db25e68f4d40fae2c3"
       },
       {
         "status": " M",
-        "path": "native/bet/examples/propeller_points.rs",
-        "sha256": "c51d13937062e37ba53a36273513248ea28b3125245d5ec142174a9e460cac6d"
+        "path": "docs/ru/runbook.md",
+        "sha256": "beefb179520222d1a4ff00726fcadbd51f896ee56a9795267cde2dae1b89b7cf"
       },
       {
         "status": " M",
-        "path": "native/bet/include/bet_bound.h",
-        "sha256": "ad5cd25bb64e0017dae2ebe3e84d1a5c92a368b21e4e3046a4e73e5f204dfcd8"
+        "path": "native/contact/src/lib.rs",
+        "sha256": "8245ff7aca969575a77df73aac8a539b905b6624a55f9bfead76bced1bd02fab"
       },
       {
         "status": " M",
-        "path": "native/bet/src/blade.rs",
-        "sha256": "af520eb172ce56e787dccea8a19eb693a1d467462a15573f36faac4e2ecfa846"
+        "path": "native/contact/tests/contact.rs",
+        "sha256": "f5cf83c05053ca984fcf652a5dfa90e6dc1aa5fc0ce24c5dfd58988b597e0934"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bound.rs",
-        "sha256": "06b25dd08f27ace6a24f075c56d7dabcda11581d5689a64bf7dc8c650b677cb4"
+        "path": "native/rapier/patches/parry-halfspace-reuse.patch",
+        "sha256": "eac310515375fbedf182ac39210a165ef325ca3bfbf66e644c7624644deccd79"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bound_v2.rs",
-        "sha256": "48ca5c8d2531baeedb161678653d393ead909420426209f5490f5e6d6d78b221"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/inflow.rs",
-        "sha256": "d9d7622d8b184eb7027686da584e7670dfc30017d14e5cfd5015a7047fd4ca88"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/lib.rs",
-        "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/polar.rs",
-        "sha256": "9b34c1b9143c056c5bf64578a2e1a2fec2db1978a473fc5050f63859e0906a70"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/propeller.rs",
-        "sha256": "9a2e98ab58ef8a6874c2042bff2c93cdc7a6b31d2afb2feba3e2dd2fdf925573"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/propeller_bem.rs",
-        "sha256": "77c45f4589cbedcdbcfa82705bb25f537754b2db8237c37e3636f88ba3b61ac3"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/quadrature.rs",
-        "sha256": "090af27959b4ee96a98f5d54c8d38fd3263921b1f57b85fa22bbc6512f000fbd"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/src/test_exports.rs",
-        "sha256": "6f524a354e05b789232970a9db179fb2279f301c29bb1f95ea3ee99b546fd3ce"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/tests/blade.rs",
-        "sha256": "bc1f7badc6ddae4b8d2454b710d60bf72dcbfd5df77bb76e66ddbbd73f6f4560"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/tests/bound.rs",
-        "sha256": "5d530108ad9ec2bab4a72b9ee563d06d8cb9ce72f7ce55e234ab04c9909f1f39"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/tests/bound_v2.rs",
-        "sha256": "6d9cf56014434898b7d39369a0ad0c0d71926e4f3717ffb82cb4d8ccbb00e30e"
-      },
-      {
-        "status": " M",
-        "path": "native/bet/tests/polar.rs",
-        "sha256": "8b08b8b303d274cde06b50d3077d04bac7b84720494c6cda8c38544da01befd4"
-      },
-      {
-        "status": " M",
-        "path": "packages/aar/src/recorder-v2-host.ts",
-        "sha256": "e39909c1b9ec87b85ad7b7eb27e929abcf03b0b6d2e43a37c2739b75e5c99603"
-      },
-      {
-        "status": " M",
-        "path": "packages/aar/src/recorder-v2.ts",
-        "sha256": "9185c3febbe75dd8d372bcddd56a34dca97be6ec7efeae55c57a3630fb1c5a1d"
-      },
-      {
-        "status": " M",
-        "path": "packages/aar/src/signal-catalog.ts",
-        "sha256": "305334beb9e450e595ce70bf9dbce31d8f00c7e742e5be6a9de2dbc90c5a65cf"
-      },
-      {
-        "status": " M",
-        "path": "packages/analysis/src/truth-vs-estimate.ts",
-        "sha256": "e9408dfce6f16ae0055f91cdeec1ccbb712a16f4f2dfd354e17de8d4d7050662"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/package.json",
-        "sha256": "411a0a2a8d3b1d165a32353dc00e544903a68f8d268497350bfb2a04457bbeb2"
+        "path": "native/rapier/patches/reuse-step-buffers.patch",
+        "sha256": "9e5d7df38bef975a5fe19bf475557889ccc53744454dda44125371bc52e24da1"
       },
       {
         "status": " M",
         "path": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "8b5ec195057abb24245d3d014c085cc885505eccdb2cbde833f7b77c27bd6f1b"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/polar-catalog.ts",
-        "sha256": "78eb802d1954f2b0d0b7e9cde6be6a36751eda595dee69698ddd3ed217abf173"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/profile-dynamics.ts",
-        "sha256": "57ff474a419e1ad6f828c6f3af44d72cfb1b0a775a707a1523aa602460d992ab"
+        "sha256": "ee824714afad5156279e330642fd48f0bcc9edb700b2030b3a8ca594627159e0"
       },
       {
         "status": " M",
         "path": "packages/physics/src/session-v2.ts",
-        "sha256": "f763038232d1c0bf6a5b704da7ade0e498bc821195d811e18d72129e44da4d6c"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/terrain-contact.ts",
-        "sha256": "1996e608ebc9ba034784c8c489e3a596a70f27b1b87bf694f2ed90fc5733100d"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/thrust-capacity.ts",
-        "sha256": "7a0ca779162876cc5b5220442491c30bdb3b9263b0eaaffcb6685da229003bc8"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/uiuc-propeller.ts",
-        "sha256": "7d135195c11968dfc0841dc9281449291bbd7fc92aecf445ddef13b02b0f4d50"
-      },
-      {
-        "status": " M",
-        "path": "packages/physics/src/vehicle-manifest.ts",
-        "sha256": "533c1aae6a90394a7b772e8677cd67db5c6e98996296c0cbb973486221d8d3dd"
-      },
-      {
-        "status": " M",
-        "path": "packages/protocol/src/control-v3.schema.json",
-        "sha256": "ce67aa2df04008fca8e43e00ab889820071a9c883521ebeceaf15b8266368507"
-      },
-      {
-        "status": " M",
-        "path": "packages/protocol/src/control-v3.ts",
-        "sha256": "7fae63ed19e808e220142831afd94970cd78a17b2d4e7af9c1f9062b9a1b820f"
-      },
-      {
-        "status": " M",
-        "path": "packages/wasm-bet/src/rotor.ts",
-        "sha256": "27b7874bcd03cb6246f2df5610f1906a9875bd68d718f63e9d5f89644ef5ea75"
-      },
-      {
-        "status": " M",
-        "path": "scripts/bench-bet.mjs",
-        "sha256": "2365158345fa92db8c4a675efb21926918d2fc5e2a3da9042ef2dc72e5580e94"
-      },
-      {
-        "status": " M",
-        "path": "scripts/bench-flight-contact.mjs",
-        "sha256": "211bdece78e0fadc76a2899602018975e7afe5dbb6922693da7ac682f13835e1"
-      },
-      {
-        "status": " M",
-        "path": "scripts/bet-runtime-graphs.ts",
-        "sha256": "5de174b038fe2df8bbc154902f526930db676dfe15550c14252a59ad9522f09b"
-      },
-      {
-        "status": " M",
-        "path": "scripts/check-bet-runtime.mjs",
-        "sha256": "b9ea4ec6d414666817ea8c226e928ac8ab7b9a8d4110d045b43715a79e37a06a"
-      },
-      {
-        "status": " M",
-        "path": "scripts/check-fidelity.mjs",
-        "sha256": "0bb0e909f74cd9158fac33076ae22243d1fbe945f5cb6d517c11deb4ecc1ebc9"
+        "sha256": "ed8eb89fe72f7d75a4fb4a76fbfc649f61194d2ee0131278d1694f6e663c9874"
       },
       {
         "status": " M",
         "path": "scripts/install-macos.mjs",
-        "sha256": "e1d20884da1733578a484f45d0f15fa2c2d5bec295ce0182cac3b3b1275f5ae6"
+        "sha256": "8e5b6c39235322bc2ccf36fdaac23edc52ee5a1265ca2d89e67dec130f6344da"
       },
       {
         "status": " M",
-        "path": "scripts/phase1/nominal-flight.mjs",
-        "sha256": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab"
+        "path": "scripts/install/install-rules.ts",
+        "sha256": "199097c4220b3aee3c98c3b365493c1ad90573ddb8c453dabdc3f4cd061fb9b3"
       },
       {
         "status": " M",
-        "path": "scripts/release-manifest.mjs",
-        "sha256": "8caa63a43b9b034dafbad2166404ff65187379f1ce56ec206753e3c09a04d856"
+        "path": "scripts/phase1/acceptance-rules.ts",
+        "sha256": "dcd28a622e9708a59151ba2bfffd942b08e7378309b8f1ee2546ce30621570d2"
       },
       {
         "status": " M",
-        "path": "scripts/validate-models.mjs",
-        "sha256": "0a7256e599bc969dfc90719dd1f6c910678829c776d043a1d7456f0b07f78808"
+        "path": "scripts/phase1/acceptance.mjs",
+        "sha256": "e83be939552c731025cba7f391891647d408650edc87e3d4c74c585f2feaec3b"
       },
       {
         "status": " M",
-        "path": "test-results/bench/bet-modes.json",
-        "sha256": "f0971cf79eab70576b5a750b51ce9a2ec38c4bfb573d944a0820d54785f9b89c"
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       {
         "status": " M",
-        "path": "test-results/bench/bet.json",
-        "sha256": "58a3219fd7a2b01d96e654c880d7d4655e09e693105754a83caad27197ae53e5"
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       {
         "status": " M",
-        "path": "test-results/bench/profile-dynamics-16.json",
-        "sha256": "92c0f29c546cfdbe035f260fe7ae2fa6ba03d3ef30a8bc4be37ed44a3d134433"
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       {
         "status": " M",
-        "path": "test-results/validation/model-report.json",
-        "sha256": "5acbb7c365261cbaf643b800679e742aff245b088b94d99cc4e66a36b917c9ac"
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       {
         "status": " M",
-        "path": "tests/bet-runtime-graphs.test.ts",
-        "sha256": "bc2ce070e8e01f56cf8b2d440553161815fdad8a66275b133bbb38a651ead9dd"
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       {
         "status": " M",
-        "path": "tests/bet-runtime.test.ts",
-        "sha256": "bd00fa46f51388a9f62e3dbee5b8afa4e2b119befb60c1e7a1b36c592d23dfdd"
+        "path": "tests/browser/flight-view-frames.spec.ts",
+        "sha256": "4f8081963b0a707f77ae190e5fb0cc98670cc9902989e09d0516a89db303733c"
       },
       {
         "status": " M",
-        "path": "tests/bridge.test.ts",
-        "sha256": "4356698111019f802c76a8968fee0ac7723e9cb7578482dea7669fcc35695f93"
-      },
-      {
-        "status": " M",
-        "path": "tests/browser/faults-tab.spec.ts",
-        "sha256": "3df4bbd47a7183b29268489f95c01b1c14e033519f4ae74d7a61dd4cff948837"
-      },
-      {
-        "status": " M",
-        "path": "tests/browser/instructor.spec.ts",
-        "sha256": "ae1c7c710f320f270d62e10e221a58e8e7e180938e4a7b7f1063d8a4c093abbc"
-      },
-      {
-        "status": " M",
-        "path": "tests/browser/location-flight.spec.ts",
-        "sha256": "47e2b008f5a60dab797ed49c16bda8d2698ef0bdb0f4e7f017c5be345e81ccfa"
-      },
-      {
-        "status": " M",
-        "path": "tests/browser/profile-dynamics.spec.ts",
-        "sha256": "6ed0e505b90772a65bf1684212b3a67d348c119bd43620ff4682f7050aed066b"
-      },
-      {
-        "status": " M",
-        "path": "tests/browser/simulation.spec.ts",
-        "sha256": "70b1d5576690f2a26b809d84f8397648622fae6da01c0d7004ba872727c19506"
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071"
       },
       {
         "status": " M",
         "path": "tests/browser/terrain-sitl.spec.ts",
-        "sha256": "516fa5d14bfa6541376d1d2bce576ed9fd449ccc0b33b4a7f7cb748661f09543"
+        "sha256": "5e7556cf3cf754b85250bf8143eea4d31d87cb5649deb4977a63c05cb35019dd"
       },
       {
         "status": " M",
-        "path": "tests/browser/weather-sitl.spec.ts",
-        "sha256": "8cdafcec4ad8828067662c25f703688aea8abe587a188c50caf12d5172927d51"
+        "path": "tests/install-macos.test.ts",
+        "sha256": "4394e5857a542a8db56989129294a128881927e864fe35ae8beecde591af2176"
       },
       {
         "status": " M",
-        "path": "tests/control-v3.test.ts",
-        "sha256": "139dfa9764e03c2bf57097cd77293dab043100e7ea2376aa064aa07513992a5f"
+        "path": "tests/launcher.test.ts",
+        "sha256": "979cc9f49cf93eb5eb5a6e8d89cfef5a442c2e9ee08a508696d348a5b56180fc"
       },
       {
         "status": " M",
-        "path": "tests/delivery-effects.test.ts",
-        "sha256": "2ed179d94c7673ac53f555cb1752568888ca2fa23fd405b13656efa7c71ed297"
-      },
-      {
-        "status": " M",
-        "path": "tests/effect-controls.test.ts",
-        "sha256": "acdf265ba3d493bab48c190400fe529b105522db08916cb62ed5ccb816ee6dff"
-      },
-      {
-        "status": " M",
-        "path": "tests/ekf-drift.test.ts",
-        "sha256": "a32c6207cc68bfbd9df8b5969f0956c8c6d35b827419602b351e9da3c7cbc5dd"
-      },
-      {
-        "status": " M",
-        "path": "tests/experiment-compare.test.ts",
-        "sha256": "1d8f1f6982e7fbaec996d20b7d0903576fc02ff3ae7a47e6dd38ad848121c520"
-      },
-      {
-        "status": " M",
-        "path": "tests/fidelity-metrics.test.ts",
-        "sha256": "5835998c92ff3540e4fb8868ba354cae5c47cb252dfc20af4462856821d3ff00"
-      },
-      {
-        "status": " M",
-        "path": "tests/fixtures/registry.json",
-        "sha256": "b83388a04693f2538559fb0f5815b60dd8b55c950e9b1479f75b0cb464b544f9"
-      },
-      {
-        "status": " M",
-        "path": "tests/fixtures/validation/reference-manifest.json",
-        "sha256": "f61ee6afa5124d5dfb2d70eea92975e287b7c916e378ecf51f0c418a3ba72500"
-      },
-      {
-        "status": " M",
-        "path": "tests/fixtures/wasm-abi/generate.py",
-        "sha256": "3c2178a3c1fca53c9e6a93355c8ca5a1f25ffdb0b48c0f8d6ca4f6cda262f4fd"
-      },
-      {
-        "status": " M",
-        "path": "tests/fixtures/wasm-abi/interface-v2.json",
-        "sha256": "e478d5551869711fa43238f951211d6f61c2c4bed89f52c82731798c4b324d20"
-      },
-      {
-        "status": " M",
-        "path": "tests/integration/flight-tasks-sitl.test.ts",
-        "sha256": "0593e2f8c9850fb07e9c38f70b2097fe33a3afb28da5ad382eef623e874d12b8"
-      },
-      {
-        "status": " M",
-        "path": "tests/model-validation.test.ts",
-        "sha256": "03a3951a8316f060886431243ff66420dad2401a6ed44b8c8d42b64b4e7550c7"
-      },
-      {
-        "status": " M",
-        "path": "tests/polar-catalog.test.ts",
-        "sha256": "3799430e9bb14d1bf1ba9b8bf27fd82ee29de2631c53e5da7c6c2d7356b6613b"
-      },
-      {
-        "status": " M",
-        "path": "tests/profile-dynamics.test.ts",
-        "sha256": "6d6c2a3bec6ea05a699284f912b4b0bfb03c9068a3cef582bf6708b9f99f24a5"
-      },
-      {
-        "status": " M",
-        "path": "tests/recorder-v2.test.ts",
-        "sha256": "98946d8eceb54a56b2463013cc1a28ca9f9bf14101fdc7440dead19bdbc20da3"
-      },
-      {
-        "status": " M",
-        "path": "tests/release-manifest.test.ts",
-        "sha256": "459daec619640c583a32599e1737900b963d7364787dedf47d117b095e10440a"
-      },
-      {
-        "status": " M",
-        "path": "tests/resolve-components.test.ts",
-        "sha256": "9f6ebfed9afc7f20fcd4555b718516f5996223c656be5111ad2b4dc5b2e65cd2"
-      },
-      {
-        "status": " M",
-        "path": "tests/rotor-kernels.test.ts",
-        "sha256": "59a385281bab0bb58827c098634d3959fc964d53a65ffb0c3fabfb2aaed7ad31"
+        "path": "tests/phase1-acceptance.test.ts",
+        "sha256": "6a8eb4085877d7116489638fbcc0e7abbdb5e9e50452d18c031cbb275944877d"
       },
       {
         "status": " M",
         "path": "tests/run-controller.test.ts",
-        "sha256": "67538a58cc814b3aed2fdfc11e789ae2f3c30cedaf8bd035e704ea24d7eecef7"
-      },
-      {
-        "status": " M",
-        "path": "tests/size-estimate.test.ts",
-        "sha256": "8cd74c625e611408556c49270c6d948e6d4e7af0d1c78dc8c937e38e6b3dd9e2"
-      },
-      {
-        "status": " M",
-        "path": "tests/support/hover-trim.ts",
-        "sha256": "87dbd90063a0350ac0edc52806689f50bb1bc7ada234f1f3a6facab40bde961b"
-      },
-      {
-        "status": " M",
-        "path": "tests/support/run-tab.ts",
-        "sha256": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e"
-      },
-      {
-        "status": " M",
-        "path": "tests/terrain-contact.test.ts",
-        "sha256": "39f0fefd35bfd1c4421e85e3d0158acaafa5db3436de4ff968758750e2f0a587"
-      },
-      {
-        "status": " M",
-        "path": "tests/terrain-pause.test.ts",
-        "sha256": "d6d8d19d2651290e8701497ea0878f31a38adbe837f5eb987ba6fb67f21e9604"
-      },
-      {
-        "status": " M",
-        "path": "tests/thrust-capacity.test.ts",
-        "sha256": "8ae2eca53ae53dfb00d8cb5c424a96ecb02018d9b8b92f2ea67c4d47da0789ec"
+        "sha256": "e36fcc0b320fadf5212b331151e2be6e705b5b86c5c200b1a5b14271f1efb044"
       },
       {
         "status": "??",
-        "path": "native/bet/src/ground_effect.rs",
-        "sha256": "ac6cfc9a25064796a723eec37eaeefa3e9b19c626f734453bce7a3a3f3a81262"
-      },
-      {
-        "status": "??",
-        "path": "native/bet/tests/descent_inflow.rs",
-        "sha256": "fdd3cc625065806ff3c868847dd8bee14c701161bfe8ab2880f9747b6a1868d5"
-      },
-      {
-        "status": "??",
-        "path": "native/bet/tests/dynamic_inflow.rs",
-        "sha256": "3090fd0d23c1e19432470d96eb7cf383fe8af69bd3596e03501f9cb8feb88338"
-      },
-      {
-        "status": "??",
-        "path": "native/bet/tests/ground_effect.rs",
-        "sha256": "ef3ff64587fac05984edb1a7d4b4e5a16ddf35e21ed305c62ea85b2e7de01782"
-      },
-      {
-        "status": "??",
-        "path": "native/bet/tests/wake.rs",
-        "sha256": "d9e78e51027e39a3fa1b9856f459311574137fbf6b802d178fe9f8640f225d24"
-      },
-      {
-        "status": "??",
-        "path": "packages/physics/polars/naca0012-extended-v1.json",
-        "sha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43"
-      },
-      {
-        "status": "??",
-        "path": "packages/physics/polars/naca6409-extended-v1.json",
-        "sha256": "526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b"
-      },
-      {
-        "status": "??",
-        "path": "packages/physics/src/rotor-wake.ts",
-        "sha256": "dd431958a02778c0f98d4ed604f1702eb24474177a6030d4d7dade33058bd63f"
-      },
-      {
-        "status": "??",
-        "path": "scripts/fidelity-capture.mjs",
-        "sha256": "66ae387c03ddf32e3945f0e8efbc4149284d506a8f42a39b136c629b18e82306"
-      },
-      {
-        "status": "??",
-        "path": "scripts/phase1/endurance-rules.ts",
-        "sha256": "f23f086110d0d93d329a71f44b79916cb599a2a11409f32c5d3999ae43c31943"
-      },
-      {
-        "status": "??",
-        "path": "scripts/phase1/endurance.mjs",
-        "sha256": "cc9b37bac3d36aa89d43a3fde8d6f225aad67c291b31e33de1a47e21cc848c29"
-      },
-      {
-        "status": "??",
-        "path": "scripts/phase1/global-rules.ts",
-        "sha256": "a741383d46a82159a6e6cffc63818204fbcf35c9e8f164dd9235888d42cd5499"
-      },
-      {
-        "status": "??",
-        "path": "scripts/phase1/global-workflows.mjs",
-        "sha256": "fcadc919783d72aa89a992f69c8d97afffa8df4e3c55e2bcb6cbf56a6b4fa40b"
-      },
-      {
-        "status": "??",
-        "path": "scripts/phase1/run-facts.mjs",
-        "sha256": "4902ac0cc21e5c1b2a048d07625e37b527571ce8d4ff704417fd3387b081146e"
-      },
-      {
-        "status": "??",
-        "path": "tests/browser/bet-compute-worker.ts",
-        "sha256": "fe413408a80bd7c175b736243a64ecf4d46d2f7bf5c56213b2788fc2cd576a6f"
-      },
-      {
-        "status": "??",
-        "path": "tests/browser/bet-compute.spec.ts",
-        "sha256": "4f671822720fcf611ab5c031f80656e039d01c4334c15618c67586caea6eb845"
-      },
-      {
-        "status": "??",
-        "path": "tests/browser/phase1-endurance.spec.ts",
-        "sha256": "2f71054cacd98907afce70e4ca8bf479d33f80d5ef2d172cf3c622bc8ed99cd6"
-      },
-      {
-        "status": "??",
-        "path": "tests/browser/terrain-contact-session.spec.ts",
-        "sha256": "b491de8db8fdbcfb68410d1ffa763c680891a53f28cf7896795cb418c1f0c2ee"
-      },
-      {
-        "status": "??",
-        "path": "tests/fixtures/polars/generate_extended.py",
-        "sha256": "8a63cff175e57af84775665323de4781c70e42bacae208e215126aff75e406fb"
-      },
-      {
-        "status": "??",
-        "path": "tests/fixtures/polars/naca0012-extended.json",
-        "sha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43"
-      },
-      {
-        "status": "??",
-        "path": "tests/fixtures/polars/naca6409-extended.json",
-        "sha256": "526a0d5837349dad49b0d09487177329be285f49fa2203240f49a3b3d492be6b"
-      },
-      {
-        "status": "??",
-        "path": "tests/fixtures/polars/sda1075-extended.json",
-        "sha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3"
-      },
-      {
-        "status": "??",
-        "path": "tests/integration/phase1-endurance.test.ts",
-        "sha256": "36616df9e3b9fa1c43a354976e9b0c66d27c5ef127c05aae1d9a3ec7bdb8d429"
-      },
-      {
-        "status": "??",
-        "path": "tests/integration/recovery-drill.test.ts",
-        "sha256": "2647ff766d63f6838fcb26002c4df253808ff29024b80f91da05df38af56d887"
-      },
-      {
-        "status": "??",
-        "path": "tests/polar-extension.test.ts",
-        "sha256": "dd4ceb5ec80a6d12e7172a1adb7cfa2f6f7d4611038e6f33735febae4e457d35"
-      },
-      {
-        "status": "??",
-        "path": "tests/rotor-ground-effect.test.ts",
-        "sha256": "9fe3e58eae85d5b79c89ba10fc5c1138b4abb9d622fe0cab8fb24947ac37e11e"
-      },
-      {
-        "status": "??",
-        "path": "tests/rotor-interference.test.ts",
-        "sha256": "fc5d36c7d7e7ad948e34b8a9e120352a04f5456b1eff57836421b1ee27d78c0d"
-      },
-      {
-        "status": "??",
-        "path": "tests/terrain-slope-contact.test.ts",
-        "sha256": "366068e06dcbb7bf394381d690a4450f0c2b2f8d64c76cd5dc9fc6cddf5cedf4"
+        "path": "scripts/geodata/setup-macos.sh",
+        "sha256": "b1233b1c4c121dc7813de52114ccf9cdfb2d196b9bbfcb72befacc06babf59cb"
       }
     ]
   },
@@ -732,11 +257,11 @@
   "run": {
     "schema": "mirage-phase1-endurance-run/1",
     "configuration": "octo-paired-16",
-    "startedAt": "2026-11-06T01:05:09.715Z",
-    "finishedAt": "2026-11-06T01:21:46.995Z",
+    "startedAt": "2026-11-06T13:16:00.432Z",
+    "finishedAt": "2026-11-06T13:37:09.670Z",
     "chrome": "156.0.8078.80",
-    "profileSha256": "a335ac72956afbac92f3bd32169508c2c58cd4bf7bebf349a588bf8e453ab287",
-    "experimentSha256": "29103d24bf8eadd97645446ce00b36c7216bda58b0342a051f099e8558c6247f",
+    "profileSha256": "b293b241da25aec47cdbc921b572524408504737f41ab6a4af0e7a920f847e13",
+    "experimentSha256": "5f04f71b144682432197401a4d9b835a6fd4bba72fdca76a6b992ee21b73b68f",
     "physicsHz": 800,
     "workload": {
       "routePoints": 48,
@@ -751,12 +276,12 @@
     },
     "rate": {
       "mode": "as-fast-as-possible",
-      "averageRatio": 3.6981396386236454,
-      "simElapsedS": 3644.9,
-      "runningWallS": 985.6036700000167,
-      "executedHz": 2959.3233961881965,
+      "averageRatio": 2.8748222776928687,
+      "simElapsedS": 3613.6,
+      "runningWallS": 1256.982049999982,
+      "executedHz": 2300.494267201382,
       "droppedIntervals": 0,
-      "steps": 2916720,
+      "steps": 2891680,
       "lost": 0,
       "resent": 0,
       "held": 0
@@ -767,36 +292,36 @@
     "accidents": 0,
     "recording": {
       "status": "closed",
-      "bytes": 250111288,
-      "chunks": 3959,
+      "bytes": 248544128,
+      "chunks": 4515,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0,
-      "durationS": 3645.1,
+      "durationS": 3614.5,
       "rows": {
-        "events.limit": 1474,
-        "events.validity": 61391,
-        "truth.position": 182302,
-        "truth.velocity": 182302,
-        "truth.attitude": 182302,
-        "truth.bodyRates": 182302,
-        "truth.acceleration": 182302,
-        "truth.specificForce": 182302,
-        "truth.air": 182302,
-        "pilot": 182302,
-        "actuators": 182302,
-        "motors.speed": 182302,
-        "motors.current": 182302,
-        "motors.busCurrent": 182302,
-        "motors.power": 182302,
-        "motors.command": 182302,
-        "battery": 182302,
-        "truth.contact": 182302,
+        "events.limit": 1418,
+        "events.validity": 61108,
+        "truth.position": 180742,
+        "truth.velocity": 180742,
+        "truth.attitude": 180742,
+        "truth.bodyRates": 180742,
+        "truth.acceleration": 180742,
+        "truth.specificForce": 180742,
+        "truth.air": 180742,
+        "pilot": 180742,
+        "actuators": 180742,
+        "motors.speed": 180742,
+        "motors.current": 180742,
+        "motors.busCurrent": 180742,
+        "motors.power": 180742,
+        "motors.command": 180742,
+        "battery": 180742,
+        "truth.contact": 180742,
         "events.parameter": 39,
-        "autopilot.ekf": 28751,
-        "autopilot.globalPosition": 30868,
-        "autopilot.gps": 30764,
-        "events.flightTask": 36014,
+        "autopilot.ekf": 28624,
+        "autopilot.globalPosition": 33231,
+        "autopilot.gps": 33166,
+        "events.flightTask": 35708,
         "events.contact": 1
       },
       "rates": {
@@ -819,17 +344,17 @@
       }
     },
     "memory": {
-      "samples": 65,
-      "peakBytes": 3251388416,
-      "lastBytes": 3251388416
+      "samples": 83,
+      "peakBytes": 3300491264,
+      "lastBytes": 3300491264
     },
     "flight": {
-      "samples": 62,
-      "minimumAltitudeM": 19.91,
+      "samples": 80,
+      "minimumAltitudeM": 19.88,
       "maximumAltitudeM": 20.09,
       "taskState": "running",
       "armed": true,
-      "stateOfCharge": 0.35600000000000004
+      "stateOfCharge": 0.361
     }
   }
 }

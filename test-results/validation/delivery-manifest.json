@@ -3,12 +3,12 @@
   "kind": "delivery-manifest",
   "status": "BLOCKED_DECISION",
   "reasons": [
-    "ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version.",
+    "ardupilot-source: restricted, and waiting for a decision: D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision.",
     "The checkout has uncommitted changes, so this manifest describes no commit"
   ],
   "metrics": {},
   "sources": {
-    "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+    "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
     "dirty": true,
     "node": "v24.22.1",
     "locks": {
@@ -155,23 +155,23 @@
     },
     {
       "path": "packages/physics/dist/contact/contact.wasm",
-      "sha256": "1cd7aca68ed131bc5757fd456051894f76347900923b8b89e82fca35d2f73b0d",
-      "bytes": 2062039,
+      "sha256": "30bed7ed2558bb90f22dd8a9a22a73812b4acaf8718da51886e016a5cf2ca976",
+      "bytes": 2062734,
       "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
     },
     {
       "path": "packages/physics/dist/contact/manifest.json",
-      "sha256": "9b6c0915987f968909d610a7a96b9bc1de186d1f688449463620f188dec63519",
+      "sha256": "c78eb30b1a9d8f3c36218e4ddf831d5da0b22a5ecd0c309ed7dbef0b3f7f3a17",
       "bytes": 2356,
       "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
     }
   ],
-  "totalBytes": 12907860,
+  "totalBytes": 12908555,
   "restricted": [
     {
       "id": "ardupilot-source",
       "used": true,
-      "decision": "D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version."
+      "decision": "D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision."
     },
     {
       "id": "ardupilot-parameter-metadata",
@@ -386,7 +386,7 @@
     {
       "id": "geodata-pipeline-toolchain",
       "category": "toolchain",
-      "version": "As pinned in scripts/geodata/setup-wsl.sh",
+      "version": "As pinned in scripts/geodata/setup-wsl.sh and scripts/geodata/setup-macos.sh",
       "license": "Open-source tools, per tool",
       "licenseStatus": "reviewed",
       "status": "not-needed-phase1"
@@ -401,13 +401,13 @@
     }
   ],
   "installed": {
-    "createdAt": "2026-10-31T09:18:04.787Z",
+    "createdAt": "2026-11-06T13:57:36.042Z",
     "items": [
       {
         "id": "mirage-sitl",
-        "version": "7fb6640201fb894b0d8e84a3b704cc675085065d",
-        "sha256": "5e634d38cb3db913771b15a6a99f4f28a9d203b463d7f22fecb4c9d877ac6f55",
-        "bytes": 169665,
+        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+        "sha256": "d76aad7264cdb823d490bcd360ee91df7ff6a5193ca2e18cfc68d3b47893331a",
+        "bytes": 170264,
         "license": "Project-owned; the repository declares no license"
       },
       {
@@ -453,9 +453,28 @@
       {
         "id": "uavlogviewer-build",
         "version": "01f9d510b7df31687819a6c87415161041d73ae6",
-        "sha256": "7a4a43978880c4458e5a9ac88635b001726e714d2656a45fe1d0a9fb8bbbf966",
-        "bytes": 1351,
+        "sha256": "058c0a046fc29daadb36af16a0ef34b3c7df4d9b87c64f0b788e1049df4acd0b",
+        "bytes": 1626,
         "license": "GPL-3.0 (LICENSE file); the build ships licenses/ with the GPL texts, the patches and every production npm package's notice"
+      },
+      {
+        "id": "rust-toolchain",
+        "version": "1.97.0",
+        "license": "MIT OR Apache-2.0"
+      },
+      {
+        "id": "wasm-bet-artifacts",
+        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+        "sha256": "ec3560cf51dc19e86b519a497770c26a668fb867042ab15fa8e06523bdcf80a4",
+        "bytes": 599,
+        "license": "Project-owned; the crate has no external dependencies"
+      },
+      {
+        "id": "contact-wasm",
+        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+        "sha256": "23b4286b4c7fe6ecdc6066693f902df3db898119dce3019d95a3986dd7ca64b3",
+        "bytes": 2356,
+        "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
       }
     ]
   }

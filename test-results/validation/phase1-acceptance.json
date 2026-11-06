@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "task": "TASK-191",
   "kind": "phase1-acceptance",
-  "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
+  "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
   "matrix": {
     "path": "docs/validation/phase1-matrix.json",
-    "sha256": "5e78919ec60de2b2d608c860cef5319668f529f12072ec9eba79791220db8131"
+    "sha256": "5a8f0046e30f0bed12b7e66cfbc7b04603d2f93a50acd1015d62c660a7ef27d4"
   },
   "status": "PASS",
   "counts": {
@@ -23,7 +23,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -35,7 +35,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -47,7 +47,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -59,7 +59,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -71,7 +71,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -83,7 +83,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -95,7 +95,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -107,7 +107,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -119,7 +119,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -131,7 +131,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -143,7 +143,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -155,7 +155,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -167,7 +167,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -179,7 +179,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -191,7 +191,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -203,7 +203,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -215,7 +215,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -227,7 +227,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -239,7 +239,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -251,7 +251,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -263,7 +263,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -275,7 +275,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -287,7 +287,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -299,7 +299,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -311,7 +311,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -323,7 +323,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -335,7 +335,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -347,7 +347,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -359,7 +359,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -371,7 +371,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -383,7 +383,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -395,7 +395,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -407,7 +407,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -419,7 +419,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -431,7 +431,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -443,7 +443,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -455,7 +455,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -467,7 +467,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -479,7 +479,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -491,7 +491,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -503,7 +503,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -515,7 +515,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -527,7 +527,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -539,7 +539,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -551,7 +551,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -563,7 +563,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
-        "sha256": "688e76edbd609602d62ec1c4ef7f451000b96a7a4f8f4bfe346e4a0e13e4a0d4"
+        "sha256": "db897a0c15f35a1d52b0b4fdf88fdad77a2f4ed9097e6db24c479e97dd51f16a"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -575,7 +575,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/installation-restart.json",
-        "sha256": "33040872ef80392472c3e52654e26340a88a8f2f62647035ad47022a20e80ba3"
+        "sha256": "38221113d1b130407415047cc37d84539423cc362f3827721af71a0d43fa62ef"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -587,7 +587,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/offline-workflow.json",
-        "sha256": "186407771b9ab7f7a00c24733b27ea7d59d0e6ad4c6d213c7961fa275e83be9c"
+        "sha256": "390fc06435d7a0e1e6493ee35f665d78feb3f33dbd1a2e67f8242b146f251b00"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -599,7 +599,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/export-import.json",
-        "sha256": "c99b981c5927ea326d89ed477c0723d8634a4b729c6ef8812ed4c85fad7e0792"
+        "sha256": "8341f60eaaa0812591fcab7f3e4df4d909b262823b4e0c4a523eeb2ad842923f"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -611,7 +611,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/comparisons.json",
-        "sha256": "14e8e31d9a2270f66bdde5e9d8c87b9da1dc715e3e4869f2ffeceaf273ac0108"
+        "sha256": "ff1ab797c1664629150b6c0b161fad48cd9f116345f8c6686cb2e5549db16eef"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -623,7 +623,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/parameter-export.json",
-        "sha256": "cdbaaf1d7ccb29f83bc0c3361768fa243f2082307cf079d6c06a866ecaa6a2fd"
+        "sha256": "cf915a4fe1119e94d91936f811d29c273c3135918df7a4b19bfc859fabdb551c"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -639,7 +639,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -649,10 +649,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -679,7 +679,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -689,10 +689,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -719,7 +719,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -729,10 +729,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -759,7 +759,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -769,10 +769,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -799,7 +799,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -809,10 +809,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -839,7 +839,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -849,10 +849,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -879,7 +879,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -889,10 +889,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -919,7 +919,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -929,10 +929,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -959,7 +959,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -969,10 +969,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -999,7 +999,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -1009,10 +1009,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1039,7 +1039,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -1049,10 +1049,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1079,7 +1079,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -1089,10 +1089,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1119,7 +1119,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -1129,10 +1129,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1159,7 +1159,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -1169,10 +1169,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1199,7 +1199,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -1209,10 +1209,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1239,7 +1239,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -1249,10 +1249,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1279,7 +1279,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -1289,10 +1289,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1319,7 +1319,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -1329,10 +1329,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1359,7 +1359,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -1369,10 +1369,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1399,7 +1399,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -1409,10 +1409,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1439,7 +1439,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -1449,10 +1449,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1479,7 +1479,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -1489,10 +1489,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1519,7 +1519,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -1529,10 +1529,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1559,7 +1559,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -1569,10 +1569,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1599,7 +1599,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -1609,10 +1609,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1639,7 +1639,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -1649,10 +1649,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1679,7 +1679,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -1689,10 +1689,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1719,7 +1719,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -1729,10 +1729,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1759,7 +1759,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -1769,10 +1769,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1799,7 +1799,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -1809,10 +1809,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1839,7 +1839,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -1849,10 +1849,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1879,7 +1879,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -1889,10 +1889,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1919,7 +1919,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -1929,10 +1929,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1959,7 +1959,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -1969,10 +1969,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -1999,7 +1999,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -2009,10 +2009,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2039,7 +2039,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -2049,10 +2049,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2079,7 +2079,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -2089,10 +2089,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2119,7 +2119,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -2129,10 +2129,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2159,7 +2159,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -2169,10 +2169,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2199,7 +2199,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -2209,10 +2209,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2239,7 +2239,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "f77b5b5e86ce97e05ce5dd504630b02fef9877322bf980963ef9aa24b7dde8aa"
+        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
       },
       "device": {
         "model": "Mac17,4",
@@ -2249,10 +2249,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2279,7 +2279,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "6f0e4df5b1c8f0219c921741e22767962cd97b85cd8fe61b14adaaefce915028"
+        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
       },
       "device": {
         "model": "Mac17,4",
@@ -2289,10 +2289,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2319,7 +2319,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "e5576bae5a291abc27d8cf55ec26762a1e920405b84934e0e0db1592a8e47da6"
+        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
       },
       "device": {
         "model": "Mac17,4",
@@ -2329,10 +2329,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2359,7 +2359,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "3c4add42c2cf879048fd5935180f4021b95dd8d0ac438740e8d303b2b63686b3"
+        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
       },
       "device": {
         "model": "Mac17,4",
@@ -2369,10 +2369,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2399,7 +2399,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "dbd53fcd1bff928ebe42807e69f8a77667d4e8cb51b45aa3868427fc25067144"
+        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
       },
       "device": {
         "model": "Mac17,4",
@@ -2409,10 +2409,10 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 133,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 31,
       "sources": {
-        "tests/browser/phase1-nominal.spec.ts": "69c2ee549cb6b814d2c88404465a79c166adbe454f2312ba843d0ef166a905e5",
+        "tests/browser/phase1-nominal.spec.ts": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071",
         "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
         "scripts/phase1/nominal-rules.ts": "fd983873987f42474ee4f4a0d2460e4e2bec6064821574bfcaa743472bedb457",
         "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
@@ -2439,7 +2439,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
-        "sha256": "688e76edbd609602d62ec1c4ef7f451000b96a7a4f8f4bfe346e4a0e13e4a0d4"
+        "sha256": "db897a0c15f35a1d52b0b4fdf88fdad77a2f4ed9097e6db24c479e97dd51f16a"
       },
       "device": {
         "model": "Mac17,4",
@@ -2449,8 +2449,8 @@
         "chrome": "156.0.8078.80",
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 36,
       "sources": {
         "tests/browser/phase1-endurance.spec.ts": "2f71054cacd98907afce70e4ca8bf479d33f80d5ef2d172cf3c622bc8ed99cd6",
         "scripts/phase1/endurance.mjs": "cc9b37bac3d36aa89d43a3fde8d6f225aad67c291b31e33de1a47e21cc848c29",
@@ -2472,7 +2472,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/installation-restart.json",
-        "sha256": "33040872ef80392472c3e52654e26340a88a8f2f62647035ad47022a20e80ba3"
+        "sha256": "38221113d1b130407415047cc37d84539423cc362f3827721af71a0d43fa62ef"
       },
       "device": {
         "model": "Mac17,4",
@@ -2482,15 +2482,15 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 37,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
         "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
         "tests/browser/first-run.spec.ts": "b9d67580191ebafad429c8af891687f6167ea1587292808dc653fdba847ac333",
-        "tests/install-macos.test.ts": "d44e76015f9710a96e8a0d71c8588ee85d5139bc024de44b15304bc4ae006599",
-        "tests/launcher.test.ts": "3e2a43b60513370367c326be0857471195db6c5d834b067a4d50697dd0782844",
+        "tests/install-macos.test.ts": "4394e5857a542a8db56989129294a128881927e864fe35ae8beecde591af2176",
+        "tests/launcher.test.ts": "979cc9f49cf93eb5eb5a6e8d89cfef5a442c2e9ee08a508696d348a5b56180fc",
         "tests/integration/recovery-drill.test.ts": "2647ff766d63f6838fcb26002c4df253808ff29024b80f91da05df38af56d887"
       }
     },
@@ -2502,7 +2502,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/offline-workflow.json",
-        "sha256": "186407771b9ab7f7a00c24733b27ea7d59d0e6ad4c6d213c7961fa275e83be9c"
+        "sha256": "390fc06435d7a0e1e6493ee35f665d78feb3f33dbd1a2e67f8242b146f251b00"
       },
       "device": {
         "model": "Mac17,4",
@@ -2512,8 +2512,8 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 37,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
@@ -2534,7 +2534,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/export-import.json",
-        "sha256": "c99b981c5927ea326d89ed477c0723d8634a4b729c6ef8812ed4c85fad7e0792"
+        "sha256": "8341f60eaaa0812591fcab7f3e4df4d909b262823b4e0c4a523eeb2ad842923f"
       },
       "device": {
         "model": "Mac17,4",
@@ -2544,8 +2544,8 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 37,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
@@ -2561,7 +2561,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/comparisons.json",
-        "sha256": "14e8e31d9a2270f66bdde5e9d8c87b9da1dc715e3e4869f2ffeceaf273ac0108"
+        "sha256": "ff1ab797c1664629150b6c0b161fad48cd9f116345f8c6686cb2e5549db16eef"
       },
       "device": {
         "model": "Mac17,4",
@@ -2571,8 +2571,8 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 37,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
@@ -2590,7 +2590,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/parameter-export.json",
-        "sha256": "cdbaaf1d7ccb29f83bc0c3361768fa243f2082307cf079d6c06a866ecaa6a2fd"
+        "sha256": "cf915a4fe1119e94d91936f811d29c273c3135918df7a4b19bfc859fabdb551c"
       },
       "device": {
         "model": "Mac17,4",
@@ -2600,8 +2600,8 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "bac978200f34697cf4fdcc47e02ec2ce358149a1",
-      "uncommittedFiles": 131,
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "uncommittedFiles": 37,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
@@ -2614,54 +2614,83 @@
     "A-04": {
       "physicsHz": 800
     },
+    "A-06": {
+      "evidence": {
+        "path": "test-results/validation/phase1-frame-times.json",
+        "sha256": "3931164dd17047e4f30e2a2a7dab87e1fce23e75daca0683fceac6ab7cef7b5f"
+      },
+      "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+      "browser": "156.0.8078.80",
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+      "screen": [
+        1710,
+        1107
+      ],
+      "external": {
+        "count": 3601,
+        "medianMs": 16.66500000000815,
+        "p95Ms": 18.635000000009313,
+        "p99Ms": 18.665000000000873,
+        "maxMs": 18.67500000000291,
+        "long": []
+      },
+      "onboard": {
+        "count": 1801,
+        "medianMs": 16.66500000000815,
+        "p95Ms": 18.614999999990687,
+        "p99Ms": 18.664999999993597,
+        "maxMs": 18.670000000012806,
+        "long": []
+      }
+    },
     "A-05": {
       "realTimeRuns": [
         {
           "configuration": "quad",
-          "averageRatio": 1.001163032846357,
-          "droppedIntervals": 0
+          "averageRatio": 1.0011672378719483,
+          "droppedIntervals": 1
         },
         {
           "configuration": "hexa",
-          "averageRatio": 1.0010426279966362,
-          "droppedIntervals": 0
+          "averageRatio": 1.0010959290908048,
+          "droppedIntervals": 1
         },
         {
           "configuration": "octo",
-          "averageRatio": 1.0010661936458076,
+          "averageRatio": 1.0010590576360292,
           "droppedIntervals": 1
         },
         {
           "configuration": "x8",
-          "averageRatio": 1.001030443547442,
+          "averageRatio": 1.0009975974695446,
           "droppedIntervals": 1
         },
         {
           "configuration": "octo-paired-16",
-          "averageRatio": 1.00079480276413,
+          "averageRatio": 1.0008897367548424,
           "droppedIntervals": 1
         }
       ],
       "hour": {
         "mode": "as-fast-as-possible",
-        "averageRatio": 3.6981396386236454,
-        "simElapsedS": 3644.9,
-        "runningWallS": 985.6036700000167,
-        "executedHz": 2959.3233961881965,
+        "averageRatio": 2.8748222776928687,
+        "simElapsedS": 3613.6,
+        "runningWallS": 1256.982049999982,
+        "executedHz": 2300.494267201382,
         "droppedIntervals": 0,
-        "steps": 2916720,
+        "steps": 2891680,
         "lost": 0,
         "resent": 0,
         "held": 0
       }
     },
     "A-08": {
-      "recordingBytes": 250111288,
-      "simulatedS": 3645.1,
+      "recordingBytes": 248544128,
+      "simulatedS": 3614.5,
       "limitBytesPerSimHour": 2000000000
     },
     "A-12": {
-      "peakResidentBytes": 3251388416,
+      "peakResidentBytes": 3300491264,
       "limitBytes": 8000000000
     }
   },
@@ -2697,12 +2726,6 @@
       "what": "Fidelity assessment per profile version and regime"
     },
     {
-      "id": "TASK-186",
-      "kind": "task",
-      "status": "BLOCKED_EXTERNAL",
-      "what": "Terrain source selection, coverage and missing-terrain pause"
-    },
-    {
       "id": "TASK-190",
       "kind": "task",
       "status": "BLOCKED_DECISION",
@@ -2712,13 +2735,7 @@
       "id": "ardupilot-source",
       "kind": "decision",
       "status": "BLOCKED_DECISION",
-      "what": "ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version."
-    },
-    {
-      "id": "A-06",
-      "kind": "measurement",
-      "status": "NOT_RUN",
-      "what": "The frame times of the Run tab on this code: MIRAGE_FRAME_TIME=1 opens a full-screen Chrome that must not be disturbed, last run 2026-11-01 (median 16.665 ms, no late frame)"
+      "what": "ardupilot-source: restricted, and waiting for a decision: D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision."
     }
   ],
   "accepted": false,
@@ -2728,10 +2745,8 @@
     "TASK-101 is BLOCKED_EXTERNAL: Rotor–rotor and rotor–airframe interference",
     "TASK-145 is BLOCKED_EXTERNAL: Measured-mode propulsion calibration",
     "TASK-184 is BLOCKED_EXTERNAL: Fidelity assessment per profile version and regime",
-    "TASK-186 is BLOCKED_EXTERNAL: Terrain source selection, coverage and missing-terrain pause",
     "TASK-190 is BLOCKED_DECISION: macOS delivery: installation, restart, offline operation and recovery",
-    "ardupilot-source is BLOCKED_DECISION: ardupilot-source: restricted, and waiting for a decision: D-02 (TASK-127): building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs a recorded decision. D-01 (TASK-128) selects the version.",
-    "A-06 is NOT_RUN: The frame times of the Run tab on this code: MIRAGE_FRAME_TIME=1 opens a full-screen Chrome that must not be disturbed, last run 2026-11-01 (median 16.665 ms, no late frame)"
+    "ardupilot-source is BLOCKED_DECISION: ardupilot-source: restricted, and waiting for a decision: D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision."
   ],
   "fidelity": "Fidelity comparisons are data without verdicts (SA-01, TASK-133): they are not part of this report's verdicts."
 }

@@ -16,9 +16,9 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { acceptanceOf, assessMatrix, openTasksOf } from './acceptance-rules.ts';
+import { acceptanceOf, assessMatrix, frameTimesItem, openTasksOf } from './acceptance-rules.ts';
 import { deliveryOpenItems } from '../release-manifest.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -41,7 +41,7 @@ const access = {
 };
 
 const { matrix, out } = parseArguments(process.argv.slice(2));
-const bytes = readFileSync(join(ROOT, matrix)), assessment = assessMatrix(JSON.parse(bytes.toString('utf8')), access);
+const bytes = readFileSync(resolve(ROOT, matrix)), assessment = assessMatrix(JSON.parse(bytes.toString('utf8')), access);
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const parsed = JSON.parse(bytes.toString('utf8'));
 const criterionOf = workflow => parsed.workflows.find(item => item.id === workflow)?.criterion ?? null;
@@ -57,21 +57,25 @@ const s19 = assessment.cells.map(cell => {
     commit: evidence?.application?.commit ?? null, uncommittedFiles: evidence?.application?.uncommitted?.length ?? null, sources: evidence?.sources ?? null };
 });
 const inventory = JSON.parse(readFileSync(join(ROOT, 'config/offline-inventory.json'), 'utf8'));
+const FRAME_TIMES = 'test-results/validation/phase1-frame-times.json';
+const frameTimesRaw = access.read(FRAME_TIMES), frameTimes = frameTimesRaw === null ? null : JSON.parse(frameTimesRaw.toString('utf8'));
+const frameTimesOpen = frameTimesItem(frameTimes, access.inHistory);
 const open = [...openTasksOf(readFileSync(join(ROOT, 'docs/PROJECT_ROADMAP.md'), 'utf8')),
   ...deliveryOpenItems(inventory.items).blockers.map(reason => ({ id: reason.split(':')[0], kind: 'decision', status: 'BLOCKED_DECISION', what: reason })),
-  { id: 'A-06', kind: 'measurement', status: 'NOT_RUN', what: 'The frame times of the Run tab on this code: MIRAGE_FRAME_TIME=1 opens a full-screen Chrome that must not be disturbed, last run 2026-11-01 (median 16.665 ms, no late frame)' }];
+  ...(frameTimesOpen === null ? [] : [frameTimesOpen])];
 // The hardware decisions of TASK-132, as these runs measured them. Reported beside the verdicts, and judged where their own run judges them.
 const hour = evidenceOf(assessment.cells.find(cell => cell.workflow === 'one-hour-recording') ?? {})?.run ?? null;
 const realTime = assessment.cells.filter(cell => cell.workflow === 'flight-task').map(cell => {
   const speed = evidenceOf(cell)?.captures?.speed ?? null;
   return { configuration: cell.configuration, averageRatio: speed?.average ?? null, droppedIntervals: speed?.dropped ?? null };
 });
-const performance = { 'A-04': { physicsHz: hour?.physicsHz ?? null }, 'A-05': { realTimeRuns: realTime, hour: hour?.rate ?? null },
+const performance = { 'A-04': { physicsHz: hour?.physicsHz ?? null },
+  'A-06': frameTimes === null ? null : { evidence: { path: FRAME_TIMES, sha256: sha256(frameTimesRaw) }, commit: frameTimes.application?.commit ?? null, browser: frameTimes.browser, gpu: frameTimes.gpu, screen: frameTimes.screen, external: frameTimes.external, onboard: frameTimes.onboard }, 'A-05': { realTimeRuns: realTime, hour: hour?.rate ?? null },
   'A-08': hour ? { recordingBytes: hour.recording.bytes, simulatedS: hour.recording.durationS, limitBytesPerSimHour: 2e9 } : null,
   'A-12': hour ? { peakResidentBytes: hour.memory.peakBytes, limitBytes: 8e9 } : null };
 const report = { schemaVersion: 1, task: 'TASK-191', kind: 'phase1-acceptance', commit, matrix: { path: matrix, sha256: sha256(bytes) }, ...assessment, s19, performance, open, ...acceptanceOf(assessment, open),
   fidelity: 'Fidelity comparisons are data without verdicts (SA-01, TASK-133): they are not part of this report\'s verdicts.' };
-const target = join(ROOT, out);
+const target = resolve(ROOT, out);
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`);
 for (const cell of assessment.cells) {
