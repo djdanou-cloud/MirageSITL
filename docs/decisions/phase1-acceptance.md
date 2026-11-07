@@ -29,7 +29,7 @@ to A-08, A-11 and A-12; D-05 includes A-09.
 | A-10 | Which paired or coaxial configuration the matrix uses (arm count and motor pairing) | X8: four arms with two coaxial motors each (8 motors). Other configurations, such as eight arms with 16 motors, are tested separately on request | Decided | Stakeholder | 2026-10-28 | TASK-138, TASK-188 |
 | A-11 | TASK-073 is not a Phase 1 gate; its evidence is preserved | Decided | Confirmed by the stakeholder | Stakeholder | 2026-10-28 | TASK-191 |
 | A-12 | Application memory budget | The whole application (browser tabs, Workers and the local services it starts, including ArduPilot SITL) stays below 8 GB of memory on the reference machine | Decided | Stakeholder | 2026-10-28 | TASK-144, TASK-162, TASK-189, TASK-191 |
-| A-13 | Hover steadiness in the nominal flight acceptance | In each 10 s hold of TASK-158's still-air flight, the standard deviation of the roll, pitch and yaw rates in ArduPilot's own log is at most 1 °/s on each axis; flights in wind or gusts are not judged by it. The quad flies its acceptance with `INS_GYRO_FILTER` at 40 Hz, typed into the Parameters tab during the run; the other configurations fly stock settings | Decided | Stakeholder | 2026-11-04 | TASK-158 |
+| A-13 | Hover steadiness in the nominal flight acceptance | In each 10 s hold of TASK-158's still-air flight, the standard deviation of the roll, pitch and yaw rates in ArduPilot's own log is at most 1 °/s on each axis; flights in wind or gusts are not judged by it. All five configurations fly stock settings: the quad's 40 Hz `INS_GYRO_FILTER`, which it flew with from 2026-11-04, was dropped by the stakeholder on 2026-11-07 | Decided | Stakeholder | 2026-11-04 | TASK-158 |
 
 ## Context for the decisions
 
@@ -94,7 +94,7 @@ and none of them is Phase 1 acceptance evidence.
   On 2026-11-06 (TASK-198) a bisection on `8ab6afd` read a roll of 59.39 °/s on the commit
   before TASK-098 and 0.08 °/s on it, and the control now reads 0.09 °/s on V4.7.2. So this
   flight no longer shows a failure, and `tests/integration/phase1-nominal.test.ts` holds the
-  limit to hand-built readings. The quad keeps the 40 Hz filter until the stakeholder decides otherwise.
+  limit to hand-built readings. On 2026-11-07 the stakeholder dropped the filter. The quad then flew its acceptance at stock settings and held body-rate standard deviations of 0.10, 0.09 and 0.05 °/s (roll, pitch, yaw); the other four, flown again because the rules file changed, held at most 0.29 °/s, and the matrix holds 51 PASS.
 
 ## TASK-073 reconciliation (A-11)
 

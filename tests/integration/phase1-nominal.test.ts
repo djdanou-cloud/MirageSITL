@@ -38,8 +38,8 @@ const PASSING = {
         binarySha256: SHA('c'), defaultParametersSha256: SHA('d') },
       hashed: { binarySha256: SHA('c'), defaultParametersSha256: SHA('d') },
     } },
-    // The quad's one tuned setting (decision of 2026-11-04), typed into the Parameters tab after READY.
-    tuning: { error: null, facts: { writes: [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: false, shown: '40' }] } },
+    // No configuration is tuned since the stakeholder dropped the quad's 40 Hz filter on 2026-11-07: nothing is typed in.
+    tuning: { error: null, facts: { writes: [] } },
     parameters: { error: null, facts: { writes: [{ name: 'RTL_ALT_FINAL_M', value: 1, outcome: 'confirmed', rebootRequired: false, shown: '1' }] } },
     motorCheck: { error: null, facts: { state: 'passed', summary: 'All 4 motors turn as the profile and ArduPilot\'s frame expect.',
       rows: [[1, 1], [2, 4], [3, 2], [4, 3]].map(([order, motor]) => ({ order, motor, output: motor, pass: true })) } },
@@ -60,7 +60,7 @@ const PASSING = {
     speed: { verdict: 'Real time', average: 0.998, dropped: 0, simElapsedS: 102.4, runningWallS: 102.6 },
     power: { hover: { voltageV: 15.8, currentA: 13.2, powerW: 208, commandPercent: [41, 41, 41, null] }, limitEvents: [] },
     steadiness: { hold: QUIET, afterResume: QUIET },
-    flownSettings: [{ name: 'INS_GYRO_FILTER', value: 40 }, { name: 'ATC_RAT_RLL_P', value: 0.13500000536441803 }, { name: 'ATC_RAT_RLL_I', value: 0.13500000536441803 },
+    flownSettings: [{ name: 'INS_GYRO_FILTER', value: 20 }, { name: 'ATC_RAT_RLL_P', value: 0.13500000536441803 }, { name: 'ATC_RAT_RLL_I', value: 0.13500000536441803 },
       { name: 'ATC_RAT_RLL_D', value: 0.003599999938160181 }, { name: 'ATC_RAT_PIT_P', value: 0.13500000536441803 }, { name: 'ATC_RAT_PIT_I', value: 0.13500000536441803 },
       { name: 'ATC_RAT_PIT_D', value: 0.003599999938160181 }],
   },
@@ -107,10 +107,7 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
         'output-mapping', /motor 2 turned on output 3; the Aircraft tab maps it to 2/],
       ['motorCheck', f => { f.state = 'failed'; }, 'output-mapping', /the motor check ended failed/],
       ['mapping', f => { f.outputs = [1, 2, 3, 4].map(motor => ({ motor, output: motor === 4 ? 3 : motor })); }, 'output-mapping', /two motors share an output/],
-      ['tuning', f => { f.writes = []; }, 'flight-task', /INS_GYRO_FILTER was not written/],
-      ['tuning', f => { f.writes = [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'refused', rebootRequired: false, shown: '20' }]; }, 'flight-task', /INS_GYRO_FILTER: refused, not confirmed/],
-      ['tuning', f => { f.writes = [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: true, shown: '40' }]; }, 'flight-task', /INS_GYRO_FILTER needs a restart/],
-      ['tuning', f => { f.writes = [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: false, shown: '20' }]; }, 'flight-task', /INS_GYRO_FILTER reads 20, not 40/],
+      ['tuning', f => { f.writes = [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: false, shown: '40' }]; }, 'flight-task', /INS_GYRO_FILTER was written, and this run plans no such setting/],
       ['start', f => { f.physicsHz = 400; }, 'start', /physics at 400 Hz, not 800 Hz \(A-04\)/],
       ['start', f => { f.speedup = 4; }, 'start', /speed 4, not real time/],
       ['start', f => { f.profileSha256 = SHA('f'); }, 'start', /another profile version/],
@@ -221,12 +218,12 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
     expect(judgeRun(withCaptures(c => { c.steadiness = null; }))['flight-task'].reasons).toEqual(['the hold: no RATE records in the flight\'s log']);
   });
 
-  it('checks in the flight\'s own log that it flew its tuned setting and stock values for the rest', () => {
+  it('checks in the flight\'s own log that it flew stock values', () => {
     const flown = (name: string, value: number | null) => (c: Mutable) => {
       c.flownSettings = (PASSING.captures.flownSettings as { name: string; value: number }[]).map(item => (item.name === name ? { name, value } : item));
     };
-    // The write was confirmed, yet the flight's log shows the stock filter.
-    expect(judgeRun(withCaptures(flown('INS_GYRO_FILTER', 20)))['flight-task']).toEqual({ verdict: 'FAIL', reasons: ['INS_GYRO_FILTER flew at 20, not 40'] });
+    // The quad flies the stock 20 Hz filter: a log that shows another fails.
+    expect(judgeRun(withCaptures(flown('INS_GYRO_FILTER', 40)))['flight-task']).toEqual({ verdict: 'FAIL', reasons: ['INS_GYRO_FILTER flew at 40, not 20'] });
     // Nothing else may have been tuned; float32 rounding of the stock value is not a change.
     expect(judgeRun(withCaptures(flown('ATC_RAT_RLL_P', 0.108)))['flight-task'].reasons).toEqual(['ATC_RAT_RLL_P flew at 0.108, not 0.135']);
     expect(judgeRun(withCaptures(flown('ATC_RAT_PIT_D', null)))['flight-task'].reasons).toEqual(['the flight\'s log does not show ATC_RAT_PIT_D']);
@@ -247,7 +244,8 @@ describe('the verdicts of a nominal run (TASK-158)', () => {
     expect(hexa(() => undefined)['flight-task']).toEqual({ verdict: 'PASS', reasons: [] });
     expect(hexa((run) => { (run.captures as Mutable).flownSettings = Object.entries(STOCK_SETTINGS).map(([name, value]) => ({ name, value: name === 'INS_GYRO_FILTER' ? 40 : value })); })['flight-task'].reasons)
       .toEqual(['INS_GYRO_FILTER flew at 40, not 20']);
-    expect(hexa((_, steps) => { const step = steps.tuning; if (step) step.facts = PASSING.steps.tuning.facts; })['flight-task'].reasons).toEqual(['INS_GYRO_FILTER was written, and this run plans no such setting']);
+    expect(hexa((_, steps) => { const step = steps.tuning; if (step) step.facts = { writes: [{ name: 'INS_GYRO_FILTER', value: 40, outcome: 'confirmed', rebootRequired: false, shown: '40' }] }; })['flight-task'].reasons)
+      .toEqual(['INS_GYRO_FILTER was written, and this run plans no such setting']);
   });
 
   it('fails the flight task of a flight whose capture cannot stand as its evidence, and asks for no capture of a flight not reached', () => {
@@ -392,8 +390,8 @@ describe('where the verdicts may be written (A-01) and how', () => {
   it('declares the criteria the TASK-158 status lists', () => {
     expect(CRITERIA).toEqual({ physicsHz: 800, speedup: 1, takeoffAltitudeM: 5, hoverBandM: 0.5, holdSimS: 10, minimumReadings: 4, pauseWallS: 30,
       pauseSimS: 1, restToleranceM: 0.006, resentPerPause: 1, polar: 'naca6409-neuralfoil-v1', dataflashStatuses: ['complete', 'truncated'], steadinessSdDegS: 1 });
-    // Decision of 2026-11-04: the quad alone is tuned, by the one setting; the other four fly stock.
-    expect(NOMINAL_CONFIGURATIONS.map(c => [c.id, c.tuning])).toEqual([['quad', [{ name: 'INS_GYRO_FILTER', value: 40 }]], ['hexa', []], ['octo', []], ['x8', []], ['octo-paired-16', []]]);
+    // The stakeholder dropped the quad's 40 Hz filter on 2026-11-07 (A-13): all five fly stock.
+    expect(NOMINAL_CONFIGURATIONS.map(c => [c.id, c.tuning])).toEqual([['quad', []], ['hexa', []], ['octo', []], ['x8', []], ['octo-paired-16', []]]);
     expect(STOCK_SETTINGS).toEqual({ INS_GYRO_FILTER: 20, ATC_RAT_RLL_P: 0.135, ATC_RAT_RLL_I: 0.135, ATC_RAT_RLL_D: 0.0036, ATC_RAT_PIT_P: 0.135, ATC_RAT_PIT_I: 0.135, ATC_RAT_PIT_D: 0.0036 });
   });
 });

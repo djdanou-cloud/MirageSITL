@@ -51,11 +51,12 @@ export const STOCK_SETTINGS = {
 const FLOAT32_TOLERANCE = 1e-6;
 
 /**
- * `tuning` lists the settings typed into the Parameters tab after READY, by the user's decision of 2026-11-04. The quad X at
- * stock settings holds its altitude in a 10 Hz attitude oscillation (docs/SPECS_SIMULATION_ENGINES.md); the others fly stock.
+ * `tuning` lists the settings typed into the Parameters tab after READY. Decision A-13 of 2026-11-04 gave the quad X a 40 Hz gyro
+ * filter against a 10 Hz attitude oscillation; TASK-098's inflow removed that oscillation, and on 2026-11-07 the stakeholder
+ * dropped the filter, so every configuration flies stock (docs/SPECS_SIMULATION_ENGINES.md).
  */
 export const NOMINAL_CONFIGURATIONS = [
-  { id: 'quad', fixture: 'quad-x', recipe: 'Quad X', motors: 4, tuning: [{ name: 'INS_GYRO_FILTER', value: 40 }] },
+  { id: 'quad', fixture: 'quad-x', recipe: 'Quad X', motors: 4, tuning: [] },
   { id: 'hexa', fixture: 'hexa-x', recipe: 'Hexa X', motors: 6, tuning: [] },
   { id: 'octo', fixture: 'octa-x', recipe: 'Octa X', motors: 8, tuning: [] },
   { id: 'x8', fixture: 'coaxial-x8', recipe: 'Coaxial X8', motors: 8, tuning: [] },
