@@ -49,22 +49,3 @@ export function armMounts(layout: AircraftLayout): [number, number, number][] {
   }
   return [...sums.entries()].sort((a, b) => a[0] - b[0]).map(([, [x, y, z, n]]) => [x / n, y / n, z / n]);
 }
-
-/** TASK-194: what the scheme draws of a described landing gear, body FRD: each foot's bottom, its strut, and each skid's runner. */
-export interface GearDrawing {
-  readonly kind: "legs" | "skids" | "wheels";
-  /** The bottom of each foot or wheel with the struts fully extended. */
-  readonly feet: readonly (readonly [number, number, number])[];
-  /** Each strut from the reference plane (z = 0 above the foot) down to its foot. */
-  readonly struts: readonly { readonly from: readonly [number, number, number]; readonly to: readonly [number, number, number] }[];
-  /** Skids only: each runner between its two ends, supports 2i and 2i + 1. */
-  readonly runners: readonly { readonly from: readonly [number, number, number]; readonly to: readonly [number, number, number] }[];
-}
-export function gearDrawing(gear: { readonly kind: GearDrawing["kind"]; readonly feetBodyM: readonly (readonly number[])[] }): GearDrawing {
-  const feet = gear.feetBodyM.map(foot => [foot[0] ?? 0, foot[1] ?? 0, foot[2] ?? 0] as const);
-  const runners = gear.kind === "skids" ? feet.flatMap((foot, i) => {
-    const other = feet[i + 1];
-    return i % 2 === 0 && other ? [{ from: foot, to: other }] : [];
-  }) : [];
-  return { kind: gear.kind, feet, struts: feet.map(foot => ({ from: [foot[0], foot[1], 0] as const, to: foot })), runners };
-}

@@ -1,7 +1,7 @@
 {
   "task": "TASK-186",
-  "firmware": "arducopter-8ab6afde",
-  "record": "d8bd762c5e7249889a8f63ea3c24f62545a992a93fa782512e7659247e59769c",
+  "firmware": "arducopter-fb773567",
+  "record": "7f3f59745a01a439566d8e31ac2c3da4da0ef2dd425421684f1bbda21a3d7a0f",
   "terrain": {
     "sourceId": "fabdem-elevation",
     "layerSha256": "9f2541dfa42cc3e7ed44b11fe29421538ed83f00d249fa3adeee2cf9db01f3bb",
@@ -20,6 +20,6 @@
   },
   "layerSha256": "9f2541dfa42cc3e7ed44b11fe29421538ed83f00d249fa3adeee2cf9db01f3bb",
   "manifestSha256": "61e982d59d0627c420a67f7520116aaa5c88bc6c4e63571b6260a26d81760855",
-  "lastNorthM": 0.014449829768133457,
-  "lastEastM": -0.02434609181936974
+  "lastNorthM": 0.02435141816507543,
+  "lastEastM": -0.030004076396648836
 }

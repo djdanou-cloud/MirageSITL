@@ -93,9 +93,12 @@ function frameSource(name: string): ParameterSource {
  * counts, a neutral one (an explicit zero, or an IMU position at the CG)
  * included: the profile configures the term, and this path applies none.
  */
+/** MirageSITL-owned errors the Run tab applies: the horizontal GNSS error, by the run controller's receiver stream (mapping 4, TASK-117). */
+const APPLIED_MIRAGE_ERRORS: ReadonlySet<string> = new Set(["gnss.horizontalSigmaM"]);
 function refuseMirageSensorErrors(profile: AircraftProfile): void {
   const owned = resolveSensorConfiguration(profile.sensorConfiguration).fields
-    .filter(field => field.owner === "mirage" && field.effective.kind === "specified").map(field => `${sensorField(field.path).label} (${field.path})`);
+    .filter(field => field.owner === "mirage" && field.effective.kind === "specified" && !APPLIED_MIRAGE_ERRORS.has(field.path))
+    .map(field => `${sensorField(field.path).label} (${field.path})`);
   if (owned.length > 0) {
     throw new Error(`The Run tab does not apply MirageSITL-owned sensor errors yet; clear ${owned.join(", ")} in the Sensors tab, or use Ideal`);
   }

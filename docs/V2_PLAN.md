@@ -278,6 +278,9 @@ start-up:
   * at zero airflow it must reproduce the bench data (B3) within a tolerance
     declared before the comparison;
   * at forward speeds it must agree with any available flight-log segments.
+* **Status:** TASK-103 implements the format, the interpolation and the flags, with a Reynolds-number
+  axis added because density alone does not rescale a rotor. No table from the team's simulator
+  exists yet, and none has been compared with a flight log.
 
 ### B5. Prop wash and descent through own wake (R9)
 

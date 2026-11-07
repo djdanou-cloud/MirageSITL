@@ -7,7 +7,7 @@ import {
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.ts';
 import { deriveLayout } from '../packages/aircraft/src/layout.ts';
-import { profileDraft, validateAircraftProfile, withBody, withLandingGear, withPropellerPolars, type AircraftProfile, type ProfileGear } from '../packages/aircraft/src/profile.ts';
+import { profileDraft, validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '../packages/aircraft/src/profile.ts';
 import { STANDARD_GEAR, standardLandingGear } from '../packages/aircraft/src/standard-gear.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import { prepareVehicle } from '../apps/web/src/sitl/sitl-run.ts';
@@ -264,50 +264,5 @@ describe('run admission', () => {
     });
     const vehicle = await prepareVehicle(fixed.store, fixed.version);
     expect(vehicle.derived.manifest.rotors).toHaveLength(4);
-  });
-});
-
-// TASK-194: on a described gear the aircraft rests level with each support carrying its share, the mean foot depth less the strut
-// under the share minus its foot and the foot under the whole share; parts below that height are on the ground.
-describe('propeller clearance on a described landing gear (TASK-194)', () => {
-  const nothing = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null, footStiffnessNpm: null,
-    unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
-  const legs = (depthM: number, values: Partial<ProfileGear['values']> = {}): ProfileGear => ({
-    kind: 'legs', feetBodyM: [[0.15, 0.15, depthM], [0.15, -0.15, depthM], [-0.15, -0.15, depthM], [-0.15, 0.15, depthM]], positionSource: 'Drawing',
-    values: { ...nothing, ...values },
-    provenance: { ...nothing, ...Object.fromEntries(Object.entries(values).map(([key]) => [key, 'Drawing'])) },
-  });
-  test('rests at the closed-form height, and a gear too short to hold the body off the ground puts it on the ground', () => {
-    const tall = withLandingGear(fixture('quad-x'), legs(0.1, { strutStiffnessNpm: 2000, footStiffnessNpm: 30000, unsprungMassKg: 0.004 }));
-    const share = 1.5 / 4, g = 9.80665, compression = ((share - 0.004) * g) / 2000 + (share * g) / 30000;
-    const report = propellerClearance(tall, radius(SYNTHETIC_R));
-    expect(report.groundClearanceM).toBeCloseTo(0.1 - compression, 15);
-    expect(report.clashes).toEqual([]);
-    // The standard body is 0.4·0.25·0.225 = 0.0225 m half-height: feet 15 mm down cannot hold it up.
-    const short = propellerClearance(withLandingGear(fixture('quad-x'), legs(0.015)), radius(SYNTHETIC_R));
-    expect(short.clashes.map(clash => clash.kind === 'ground' ? clash.part.kind : clash.kind)).toContain('body');
-  });
-});
-
-// TASK-196: the checks use the entered body. A body wider than the standard one reaches the propellers it clears, and a pod that
-// hangs below the resting height is on the ground, named.
-describe('propeller clearance with a described body (TASK-196)', () => {
-  const body = (radiusM: number, podBottomM: number) => ({ radiusM, halfHeightM: 0.02, centerDownM: 0, armRadiusM: null, source: 'Drawing',
-    parts: [{ name: 'Camera pod', shape: 'cylinder' as const, centerBodyM: [0, 0, podBottomM - 0.015], radiusM: 0.03, halfHeightM: 0.015 }] });
-  test('a body wider than the hubs allow reaches each propeller by R + r minus the hub distance', () => {
-    // The quad X's hubs are 0.225 m from the axis; synthetic propellers of 0.14 m leave 0.085 m for the body.
-    const report = propellerClearance(withBody(fixture('quad-x'), body(0.1, 0.05)), radius(SYNTHETIC_R));
-    const reaching = report.clashes.filter(clash => clash.kind === 'propeller-body');
-    expect(reaching.map(clash => clash.kind === 'propeller-body' && clash.motorId)).toEqual([1, 2, 3, 4]);
-    for (const clash of reaching) expect(clash.kind === 'propeller-body' && clash.overlapM).toBeCloseTo(0.1 + SYNTHETIC_R - 0.225, 12);
-    expect(propellerClearance(withBody(fixture('quad-x'), body(0.08, 0.05)), radius(SYNTHETIC_R)).clashes).toEqual([]);
-  });
-  test('a pod below the stated resting height is on the ground and named', () => {
-    // The quad X states a 0.12 m clearance: a pod reaching 0.125 m below the reference point is 5 mm in the ground.
-    const report = propellerClearance(withBody(fixture('quad-x'), body(0.06, 0.125)), radius(SYNTHETIC_R));
-    const [clash] = report.clashes;
-    expect(clash).toMatchObject({ kind: 'ground', part: { kind: 'body-part', name: 'Camera pod' } });
-    expect(clash?.kind === 'ground' && clash.depthM).toBeCloseTo(0.005, 12);
-    expect(describeClash(clash!)).toContain('The body part Camera pod');
   });
 });

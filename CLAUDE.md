@@ -137,12 +137,20 @@ implementation.
   TASK-195 is DONE: no run starts from a profile whose propellers overlap each
   other, reach the body or the ground, and the Aircraft tab proposes the fix
   (longer arms or a larger clearance) and saves it only on confirmation.
-  TASK-194 and TASK-196 are DONE on the user's approval of 2026-11-07, outside
-  the Phase 1 acceptance: profile schema 7 describes a landing gear (legs, skids
-  or wheels, each value known with its source or taken from the standard gear's
-  rules and named as assumed) and a body with named parts in place of the
-  standard supports and hull, the Aircraft tab edits and draws both, and a
-  profile without them keeps its schema and derived bytes.
+  TASK-196 is DONE: profile schema 7 describes the body, the arm thickness and
+  up to seven body parts such as a camera pod, which the Aircraft tab edits and
+  both 3D views draw; they replace the standard hull in the manifest, the
+  clearance check and the accident report, which names a struck part as the body.
+  TASK-116 is IN_PROGRESS: five barometer effects stream into ArduPilot's
+  SIM_BAROn_GLITCH, its ground-effect compensation was exercised in native SITL,
+  and real forum logs (`data/flight-logs/inventory.json`, kept outside the
+  repository, `node scripts/check-baro-dips.mjs --dir DIRECTORY`) reproduced three
+  of four held-out landing dips; by the stakeholder's decision of 2026-11-07 the
+  task stays open for more landings rather than accept the miss. TASK-145 is
+  DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
+  Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
+  atmosphere, terrain and jamming stream into SIM_GPS1_*, and the inductive motor,
+  its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
@@ -433,13 +441,13 @@ implementation.
   interrupted. The Logging tab and the Run tab's wiring are TASK-163/165.
   Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
-  ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
+  ArduCopter builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
   scripting matrix drive all five S19 configurations, 16 motors included
-  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). That is the
-  evidence for D-01, which the stakeholder has not recorded yet (stable Copter-4.7.2 was
-  tested beside the pin on 2026-11-06, in the same record), and for D-02,
-  which the stakeholder decided on 2026-11-06: the native build on the user's Mac. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
+  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). The stakeholder
+  decided D-01 on 2026-11-06: stable ArduCopter V4.7.2, commit `fb77356` (TASK-198), and
+  D-02 the same day: the native build on the user's Mac. The browser WASM firmware
+  keeps its own lock at `8ab6afd`. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
   waits until resume, and acceleration is host-limited
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its
@@ -456,10 +464,10 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 and TASK-191 wait on the
-  stakeholder's D-01, and TASK-099, TASK-100, TASK-101, TASK-145 and TASK-184 on
-  measured data. A-06 passes: five runs in a row on 2026-11-06, after one failing run with
-  a 50.01 ms interval of unproven cause. TASK-090's
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured data for TASK-099, TASK-100 and TASK-101;
+  TASK-145 and TASK-184 are DONE on T-Motor's datasheet and a forum flight log (2026-11-07). A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
+  failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
+  stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
   `scripts/fidelity-capture.mjs` writes a capture from two logs; TASK-108 and TASK-115
   are DEFERRED with their Phase 1 parts done. The bridge's message limit follows the
   run's rate and speed-up (TASK-175): a flat 4096 per second closed any run above 5.1
@@ -539,7 +547,12 @@ implementation.
   wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
   any other in reach, on by default, so a coaxial pair is not twice one rotor,
   and the airframe's download from the hull; only its comparison with measured
-  data stays BLOCKED_EXTERNAL (D-11). TASK-093 is DONE: `weather.set`
+  data stays BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode
+  (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
+  Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
+  the profile. TASK-103 is DONE: 9 of 111 left-out stand points miss the declared
+  3 %, by the data's own scatter, and the stakeholder accepted that on 2026-11-07.
+  TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed
@@ -872,3 +885,28 @@ layout coverage. It cannot judge the semantic quality of a translation;
 agents must review that explicitly. Root and docs sources are English;
 only `docs/ru/` contains Russian prose. Recheck package.json/HEAD before the
 next code task and update this baseline only from observed implementation.
+
+## 11. Communicating with the stakeholder
+
+By the stakeholder's instruction of 2026-11-07, everything an agent tells the
+stakeholder follows one protocol: every question, every report of a finished
+task or increment, every status update and every explanation of a result.
+Write as for a junior developer with little prior experience:
+
+* **Background first.** Say what the thing is, what it is for and why it
+  matters now, before any detail, number or option.
+* **All the information needed.** Give every fact the reader needs to follow
+  or decide, without assuming they remember earlier messages, tasks or
+  decision IDs; name what a TASK, decision or parameter is when you use it.
+* **Plain language.** Define each technical term the first time, use an
+  analogy where it helps, and say what each number means in practice (what a
+  0.39 m error or a 1 °/s limit means for the aircraft).
+* **Decisions.** For each question, list the options with what each means for
+  the user and the project, its cost and risk, and a recommendation with the
+  reason. Ask one decision at a time, in the question itself.
+* **Reports.** Say what now works and why it matters, then the evidence, then
+  what is not done or not verified, and why. Never report only test counts
+  and commit hashes.
+
+Keep the full technical detail in the specifications, the roadmap and the
+code; messages explain it, they do not replace it.

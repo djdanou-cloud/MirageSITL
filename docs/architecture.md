@@ -344,7 +344,8 @@ fixed IMU noise floors can be switched off.
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
 
 Fidelity is selected per vehicle as a tier. Tier A (rotor lookup tables,
-TASK-103) serves faster-than-real-time regression. Tier B (optimized BET with
+TASK-103, selected per rotor in the flight model and not yet in the aircraft
+profile) serves faster-than-real-time regression. Tier B (optimized BET with
 inflow v2, the electromechanical drive and compliant contact) serves real-time
 training and HIL. Tier C (blade-by-blade rotors, dynamic stall, flexible modes,
 wakes) runs offline in lockstep and may be slower than real time. TASK-090
@@ -472,8 +473,9 @@ absent column and is never filled in. Bench CSV v2 extends the TASK-090 file
 with the conditions and optional torque, voltage and current; its bounds
 refuse common unit mistakes, such as a temperature in °C or a thrust in
 grams. A profile in measured mode binds sets, and a motor is labeled
-`measured-input` only when a bound set has exactly its combination; every
-other motor stays `preliminary`, and the aircraft takes the weakest label
+`measured-input` only when a bound set has exactly its combination, or its
+motor, propeller and ESC on a laboratory supply (stakeholder's decision of
+2026-11-07); every other motor stays `preliminary`, and the aircraft takes the weakest label
 (TASK-133). The Components tab (`apps/web/src/library/`) lists the cards,
 uploads or takes typed bench data, and switches each profile's mode while
 showing each motor's label, missing quantities and limits of use. The contract
@@ -865,7 +867,13 @@ byte-identical artifact across clean target directories.
 mandatory baseline, and `simd128` (`-C target-feature=+simd128`), each in
 its own target directory, and writes `manifest.json` with schema version,
 crate, ABI version read back from the built module, toolchain, and per
-artifact file name, SHA-256, size, and target features.
+artifact file name, SHA-256, size, and target features. Runs may overlap, as
+they do in the parallel unit suite: each holds an exclusive lock per target
+directory (`native/target/wasm-<variant>.build-lock`,
+`scripts/exclusive-lock.ts`) across its cargo build and its copy of the
+artifact, because every cargo run replaces that file even with nothing to
+build, and it publishes artifacts and manifest by atomic rename, so a reader
+never sees a partial file.
 `packages/wasm-bet/src/loader.ts` treats the manifest as unknown input and
 validates it exactly. It probes SIMD128 with `WebAssembly.validate` on a
 minimal v128 module and loads `simd128` only when the probe succeeds,

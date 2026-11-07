@@ -1,9 +1,8 @@
 import {
-  airframeDragOf, bodyOf, landingGearOf, propellerPolarsOf, propulsionCalibrationsOf, validateAircraftProfile, withProfileContent, type AircraftProfile,
-  type BodyPart, type BoundCalibration, type CalculationSettings, type GearKind, type GearValues, type ProfileBody, type ProfileGear, type ProfileMotor,
-  type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
+  airframeDragOf, bodyOf, MAX_HULL_SHAPES, propellerPolarsOf, validateAircraftProfile, withAirframeDrag, withBody, withPropellerPolars, type AircraftProfile,
+  type BodySpec, type CalculationSettings, type ProfileMotor, type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
 } from '@mirage/aircraft/profile';
-import { GEAR_VALUES, mapGearValues } from '@mirage/aircraft/profile-gear';
+import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
 import type { AirframeDrag, MassProperties } from '@mirage/physics/vehicle-manifest';
 import { parseDecimal } from '../library/library-data';
@@ -60,38 +59,22 @@ export interface DragForm {
   readonly maxAirspeedMps: string;
   readonly source: string;
 }
-/** TASK-194: one gear value as typed and its source; both empty when the value is not known. */
-export interface GearValueForm {
-  readonly value: string;
-  readonly source: string;
-}
-/** TASK-194: a landing gear the user describes. Positions are the bottom of each foot or wheel with the struts fully extended. */
-export interface GearForm {
-  readonly kind: GearKind;
-  /** Body x, y and z of each foot, m (z down). */
-  readonly feet: readonly (readonly [string, string, string])[];
-  readonly positionSource: string;
-  readonly values: { readonly [K in keyof GearValues]: GearValueForm };
-}
-/** TASK-196: one named part of the body as typed: a vertical cylinder (centre, radius, half-height) or a capsule (two ends, radius). */
+/** TASK-196: a part fixed to the body, a vertical cylinder; depths are below the reference point. */
 export interface BodyPartForm {
   readonly name: string;
-  readonly shape: 'cylinder' | 'capsule';
-  readonly center: readonly [string, string, string];
-  readonly halfHeightM: string;
-  readonly start: readonly [string, string, string];
-  readonly end: readonly [string, string, string];
-  readonly radiusM: string;
+  readonly xM: string;
+  readonly yM: string;
+  readonly bottomDepthM: string;
+  readonly diameterM: string;
+  readonly heightM: string;
 }
-/** TASK-196: the body the user describes, in body axes from the reference point (z down). */
+/** TASK-196: the body the user describes, in place of the standard hull. */
 export interface BodyForm {
-  readonly radiusM: string;
-  readonly halfHeightM: string;
-  readonly centerDownM: string;
-  /** Empty for the standard arm thickness. */
-  readonly armRadiusM: string;
+  readonly diameterM: string;
+  readonly heightM: string;
+  readonly bottomDepthM: string;
+  readonly armDiameterM: string;
   readonly parts: readonly BodyPartForm[];
-  readonly source: string;
 }
 export interface ProfileForm {
   readonly arms: readonly ArmForm[];
@@ -112,16 +95,10 @@ export interface ProfileForm {
   readonly dragStated: boolean;
   /** Kept while the drag is not stated, so stating it again restores the values. */
   readonly drag: DragForm;
-  /** TASK-194: whether the profile describes its landing gear; otherwise it stands on the standard supports. */
-  readonly gearDescribed: boolean;
-  /** Kept while the gear is not described, so describing it again restores the values. */
-  readonly gear: GearForm;
   /** TASK-196: whether the profile describes its body; otherwise it flies the standard hull. */
-  readonly bodyDescribed: boolean;
+  readonly bodyStated: boolean;
   /** Kept while the body is not described, so describing it again restores the values. */
   readonly body: BodyForm;
-  /** The propulsion calibrations (TASK-145), carried unchanged: the Components tab binds them. */
-  readonly propulsionCalibrations: readonly BoundCalibration[];
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -161,40 +138,30 @@ function dragForm(drag: StatedAirframeDrag): DragForm {
   return { areas: [a[0] ?? '', a[1] ?? '', a[2] ?? ''], cop: [c[0] ?? '', c[1] ?? '', c[2] ?? ''], maxAirspeedMps: String(drag.maxAirspeedMps),
     source: drag.source };
 }
-/** A camera pod under the body's centre, to edit. */
-export function emptyBodyPart(): BodyPartForm {
-  return { name: 'Camera pod', shape: 'cylinder', center: ['0', '0', '0.06'], halfHeightM: '0.02', start: ['-0.05', '0', '0.06'], end: ['0.05', '0', '0.06'], radiusM: '0.03' };
-}
-/** A body 0.06 m across the radius and 0.05 m tall about the reference point, without parts; nothing about it is known yet. */
 export function emptyBody(): BodyForm {
-  return { radiusM: '0.06', halfHeightM: '0.025', centerDownM: '0', armRadiusM: '', parts: [], source: '' };
+  return { diameterM: '', heightM: '', bottomDepthM: '', armDiameterM: '', parts: [] };
 }
-const text3 = (values: readonly number[]): readonly [string, string, string] => [String(values[0]), String(values[1]), String(values[2])];
-function bodyForm(body: ProfileBody): BodyForm {
+export function emptyBodyPart(): BodyPartForm {
+  return { name: '', xM: '0', yM: '0', bottomDepthM: '', diameterM: '', heightM: '' };
+}
+/** The most parts a body of this many arms can have: the hull holds at most 16 shapes. */
+export function maxBodyParts(armCount: number): number {
+  return Math.max(0, MAX_HULL_SHAPES - 1 - armCount);
+}
+/** TASK-196: the body form filled from the standard hull (body cylinder, then arm capsules), for the user to replace. */
+export function bodyFormFromHull(hull: readonly HullShape[]): BodyForm {
+  const body = hull[0], arms = hull.slice(1).flatMap(shape => (shape.kind === 'capsule' ? [shape.radiusM] : []));
+  if (!body || body.kind !== 'cylinder') return emptyBody();
   return {
-    radiusM: String(body.radiusM), halfHeightM: String(body.halfHeightM), centerDownM: String(body.centerDownM),
-    armRadiusM: body.armRadiusM === null ? '' : String(body.armRadiusM), source: body.source,
-    parts: body.parts.map((part): BodyPartForm => part.shape === 'cylinder'
-      ? { ...emptyBodyPart(), name: part.name, shape: 'cylinder', center: text3(part.centerBodyM), halfHeightM: String(part.halfHeightM), radiusM: String(part.radiusM) }
-      : { ...emptyBodyPart(), name: part.name, shape: 'capsule', start: text3(part.startBodyM), end: text3(part.endBodyM), radiusM: String(part.radiusM) }),
+    diameterM: shown(2 * body.radiusM), heightM: shown(2 * body.halfHeightM), bottomDepthM: shown((body.centerBodyM[2] ?? 0) + body.halfHeightM),
+    armDiameterM: arms.length > 0 ? shown(2 * Math.max(...arms)) : '', parts: [],
   };
 }
-const NO_VALUE: GearValueForm = { value: '', source: '' };
-/** Four legs in a square under a 0.15 m stance, to edit; nothing about them is known yet. */
-export function emptyGear(): GearForm {
+function bodyForm(body: BodySpec): BodyForm {
   return {
-    kind: 'legs', feet: [['0.15', '0.15', '0.1'], ['0.15', '-0.15', '0.1'], ['-0.15', '-0.15', '0.1'], ['-0.15', '0.15', '0.1']], positionSource: '',
-    values: mapGearValues(() => NO_VALUE),
-  };
-}
-function gearForm(gear: ProfileGear): GearForm {
-  const entry = (key: keyof GearValues): GearValueForm => {
-    const value = gear.values[key];
-    return value === null ? NO_VALUE : { value: String(value), source: gear.provenance[key] ?? '' };
-  };
-  return {
-    kind: gear.kind, feet: gear.feetBodyM.map(foot => [String(foot[0]), String(foot[1]), String(foot[2])] as const), positionSource: gear.positionSource,
-    values: mapGearValues(entry),
+    diameterM: String(body.diameterM), heightM: String(body.heightM), bottomDepthM: String(body.bottomDepthM), armDiameterM: String(body.armDiameterM),
+    parts: body.parts.map(part => ({ name: part.name, xM: String(part.xM), yM: String(part.yM), bottomDepthM: String(part.bottomDepthM),
+      diameterM: String(part.diameterM), heightM: String(part.heightM) })),
   };
 }
 export function emptyMass(): MassForm {
@@ -205,7 +172,7 @@ export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
     calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [], dragStated: false, drag: emptyDrag(),
-    gearDescribed: false, gear: emptyGear(), bodyDescribed: false, body: emptyBody(), propulsionCalibrations: [],
+    bodyStated: false, body: emptyBody(),
   };
 }
 
@@ -238,17 +205,12 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
     calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
     propellerPolars: propellerPolarsOf(profile), ...dragOf(profile),
-    gearDescribed: landingGearOf(profile) !== null, gear: gearOfProfile(profile), propulsionCalibrations: propulsionCalibrationsOf(profile),
-    ...bodyOfProfile(profile),
+    ...bodyFormOf(profile),
   };
 }
-function bodyOfProfile(profile: AircraftProfile): { bodyDescribed: boolean; body: BodyForm } {
+function bodyFormOf(profile: AircraftProfile): { bodyStated: boolean; body: BodyForm } {
   const body = bodyOf(profile);
-  return { bodyDescribed: body !== null, body: body ? bodyForm(body) : emptyBody() };
-}
-function gearOfProfile(profile: AircraftProfile): GearForm {
-  const gear = landingGearOf(profile);
-  return gear ? gearForm(gear) : emptyGear();
+  return { bodyStated: body !== null, body: body ? bodyForm(body) : emptyBody() };
 }
 function dragOf(profile: AircraftProfile): { dragStated: boolean; drag: DragForm } {
   const stated = airframeDragOf(profile);
@@ -334,9 +296,23 @@ export function profileFromForm(form: ProfileForm): FormResult {
     if (d.source.trim() === '') read.errors.push('Say where the drag areas come from');
     drag = { dragAreasM2, centerOfPressureBodyM, maxAirspeedMps, source: d.source.trim() };
   }
-  const gear = form.gearDescribed ? readGear(read, form.gear) : null;
-  const body = form.bodyDescribed ? readBody(read, form.body) : null;
-  if (gear && groundClearanceM !== null) read.errors.push('With a described landing gear the resting height follows from it: leave the ground clearance empty');
+  let body: BodySpec | null = null;
+  if (form.bodyStated) {
+    const b = form.body;
+    const parts = b.parts.map((part, index) => {
+      const label = `Body part ${index + 1}`;
+      if (part.name.trim() === '') read.errors.push(`Give ${label.toLowerCase()} a name`);
+      return {
+        name: part.name.trim(), xM: read.number(part.xM, `${label} x`), yM: read.number(part.yM, `${label} y`),
+        bottomDepthM: read.number(part.bottomDepthM, `${label} bottom depth`), diameterM: read.positive(part.diameterM, `${label} diameter`, 'm'),
+        heightM: read.positive(part.heightM, `${label} height`, 'm'),
+      };
+    });
+    body = {
+      diameterM: read.positive(b.diameterM, 'Body diameter', 'm'), heightM: read.positive(b.heightM, 'Body height', 'm'),
+      bottomDepthM: read.number(b.bottomDepthM, 'Body bottom depth'), armDiameterM: read.positive(b.armDiameterM, 'Arm thickness', 'm'), parts,
+    };
+  }
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
   const candidate = {
     schemaVersion: form.sensorConfiguration ? 3 : form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
@@ -345,50 +321,16 @@ export function profileFromForm(form: ProfileForm): FormResult {
   };
   try {
     const used = new Set(motors.map(motor => motor.components.propeller));
-    // The lowest schema that holds the content: polars (TASK-144, schema 4), stated drag (TASK-096, schema 5), the propulsion
-    // calibrations carried from the stored version (TASK-145, schema 6) and a described gear (TASK-194, schema 7).
-    const profile = withProfileContent(validateAircraftProfile(candidate), {
-      propellerPolars: form.propellerPolars.filter(entry => used.has(entry.card)), airframeDrag: drag,
-      propulsionCalibrations: form.propulsionCalibrations, landingGear: gear, body,
-    });
+    // Schema 4 exactly when a polar is chosen (TASK-144).
+    const polars = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
+    // Schema 5 exactly when drag is stated (TASK-096).
+    const dragged = drag ? withAirframeDrag(polars, drag) : polars;
+    // Schema 7 exactly when the body is described (TASK-196).
+    const profile = body ? withBody(dragged, body) : dragged;
     return { ok: true, profile };
   } catch (cause) {
     return { ok: false, errors: [cause instanceof Error ? cause.message.replace(/^Invalid aircraft profile: /, '') : String(cause)] };
   }
-}
-
-/** The gear a form describes; its rules (the support polygon, the values among themselves) are the profile's to check. */
-function readGear(read: Reader, form: GearForm): ProfileGear {
-  const feetBodyM = form.feet.map((foot, i) => foot.map((text, axis) => read.number(text, `Support ${i + 1} ${'xyz'[axis] ?? ''}`)));
-  if (form.positionSource.trim() === '') read.errors.push('Say where the landing gear positions come from');
-  const label = (key: keyof GearValues) => GEAR_VALUES.find(item => item.key === key)?.label ?? key;
-  const values = mapGearValues(key => {
-    const text = form.values[key].value.trim(), source = form.values[key].source.trim();
-    if (text === '') {
-      if (source !== '') read.errors.push(`${label(key)} has a source but no value`);
-      return null;
-    }
-    if (source === '') read.errors.push(`Say where the ${label(key).toLowerCase()} comes from`);
-    return read.number(text, label(key));
-  });
-  const provenance = mapGearValues(key => (form.values[key].value.trim() === '' ? null : form.values[key].source.trim()));
-  return { kind: form.kind, feetBodyM, positionSource: form.positionSource.trim(), values, provenance };
-}
-
-/** The body a form describes; its rules (the part count, the names) are the profile's to check. */
-function readBody(read: Reader, form: BodyForm): ProfileBody {
-  const vector = (texts: readonly string[], label: string) => texts.map((text, axis) => read.number(text, `${label} ${'xyz'[axis] ?? ''}`));
-  const radiusM = read.positive(form.radiusM, 'Body radius', 'm'), halfHeightM = read.positive(form.halfHeightM, 'Body half-height', 'm');
-  const centerDownM = read.number(form.centerDownM, 'Body centre below the reference point');
-  const armRadiusM = form.armRadiusM.trim() === '' ? null : read.positive(form.armRadiusM, 'Arm thickness radius', 'm');
-  if (form.source.trim() === '') read.errors.push('Say where the body dimensions come from');
-  const parts = form.parts.map((part, i): BodyPart => {
-    const label = `Body part ${i + 1}`, name = part.name.trim(), radius = read.positive(part.radiusM, `${label} radius`, 'm');
-    return part.shape === 'cylinder'
-      ? { name, shape: 'cylinder', centerBodyM: vector(part.center, `${label} centre`), radiusM: radius, halfHeightM: read.positive(part.halfHeightM, `${label} half-height`, 'm') }
-      : { name, shape: 'capsule', startBodyM: vector(part.start, `${label} start`), endBodyM: vector(part.end, `${label} end`), radiusM: radius };
-  });
-  return { radiusM, halfHeightM, centerDownM, armRadiusM, parts, source: form.source.trim() };
 }
 
 export interface EvenLayoutText {

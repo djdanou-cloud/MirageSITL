@@ -14,7 +14,7 @@
     ]
   },
   "settings": "stock",
-  "recordedAt": "2026-11-04T20:14:58.101Z",
+  "recordedAt": "2026-11-06T21:00:06.684Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -57,17 +57,17 @@
       "mode": "1710 x 1107 @ 60.00Hz",
       "pixels": "3420 x 2214"
     },
-    "lowPowerMode": true,
+    "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        1.365234375,
-        1.6728515625,
-        1.625
+        2.7099609375,
+        2.54443359375,
+        2.56494140625
       ],
       "after": [
-        1.73193359375,
-        1.6904296875,
-        1.6376953125
+        2.1845703125,
+        2.46484375,
+        2.5283203125
       ]
     }
   },
@@ -84,140 +84,445 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "9d490589c39291db7edbfb64ddfdcb24bd04a602",
+    "commit": "060050797e8b44126e027e8f1b557676c90241ed",
     "uncommitted": [
       {
         "status": " M",
-        "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "ca652aa695b9930fe9322c7377c24a7cbe609f387e1a48ce3620e7b2bc4315d4"
+        "path": "apps/bridge/src/ardupilot-json.ts",
+        "sha256": "786b98c873d7afd1dbf392d61c588a12aa7256998cc79d0a29e6c40ed827b966"
       },
       {
         "status": " M",
-        "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "20c3940c842237c151985203f0a5b7efe6bb394d282c54d0fbe16510f27bbbd8"
+        "path": "apps/launcher/src/catalog.ts",
+        "sha256": "67381747731cdf7c2b2dc52137337d782cf3ea99d282848dc01fed09be34be62"
       },
       {
         "status": " M",
-        "path": "native/bet/include/bet_bound.h",
-        "sha256": "8196dc88bae16dc7c4f27dd492459c759a3502086944e04c4d27ac6ccddd62c1"
+        "path": "apps/web/src/params/ParametersTab.tsx",
+        "sha256": "cd268161f03ad2aae932b2a1aa461acbb8a4fc009580cdfc54f6ac3be7d6ce12"
       },
       {
         "status": " M",
-        "path": "native/bet/src/battery.rs",
-        "sha256": "e86878b57f504b624f7b8e3868efe1408e3104934e189000adbb57e056ea31ec"
+        "path": "apps/web/src/params/parameter-sets.ts",
+        "sha256": "7105e474c566ad86259e5d9a3903abc4552aadc0abc153b30245ada2635e9036"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bound_v2.rs",
-        "sha256": "99e110c69b68330eb285c8a283e9e5c3bfe58d0dfefeff55d243385734e3a595"
+        "path": "apps/web/src/run/ManualConnect.tsx",
+        "sha256": "ff8622bf76365702ff42ff55246f5b0489df7adb260b4d0cbdee29a759e1ac11"
       },
       {
         "status": " M",
-        "path": "native/bet/src/bus_abi.rs",
-        "sha256": "2252b2120362d8fcd2ca4726e8b77d9509455515c99be82d4dec7e1c7d3b1697"
+        "path": "apps/web/src/run/session-controller.ts",
+        "sha256": "18ffd39f674c7e088aa6c1a16640caf02ce1b8327b33230a9d4c559dd806a759"
       },
       {
         "status": " M",
-        "path": "native/bet/src/lib.rs",
-        "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+        "path": "config/offline-inventory.json",
+        "sha256": "c221dd92c0f69565aa5bb4b00a685e7faa02442e7775f4416cc7d5e1ac3d714b"
       },
       {
         "status": " M",
-        "path": "native/bet/src/motor.rs",
-        "sha256": "072258fc95a561cdb85e3f4098dd7829aa675119a9a20c5ee117a4c395667bb3"
+        "path": "data/ardupilot/declination.json",
+        "sha256": "338563f59085e70c38aa6eb939b9f39d238904b37ae72d8753bb329113f6a6f5"
       },
       {
         "status": " M",
-        "path": "native/bet/tests/allocation.rs",
-        "sha256": "8a0dd49f8ebfbbc0ce1f6b3764b801f037416943c099a9e46e82964109a3f96f"
+        "path": "data/ardupilot/param-metadata.json",
+        "sha256": "ce46ec5ac58e59e4e7f581a981f3d7399676394842666fb6674d0937da1c1931"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "a81a1aba61904bf5b05adb9f2cc411737a5e94fc0c71819cff15b4716dd55767"
+        "path": "docs/hardware/hitl-matrix.md",
+        "sha256": "5c9ba8eb5d162b12ec0fb6b17af3c1fa165c98a074eef102dd141e8eaa0b97b2"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/thrust-capacity.ts",
-        "sha256": "7c76726cdb5b0f2c48c19e762ec7f7e025615f4f26cdaa4ba63f837eeae4f67a"
+        "path": "docs/ru/hitl-matrix.md",
+        "sha256": "65d9d792c51d0bf02070c671286a3388b590d69376d76a5d49465e4be3806229"
       },
       {
         "status": " M",
-        "path": "packages/wasm-bet/src/rotor-v2.ts",
-        "sha256": "c7a686676317466915d55471c419bdda403b66fdf33b9a36256e487dd578c4ec"
+        "path": "native/ardupilot/patches/imu-noise-floor.patch",
+        "sha256": "0d2e38182895df422faf0be9ffb13fbacdfe6a4214b31e3ade68e0e3724419f1"
       },
       {
         "status": " M",
-        "path": "scripts/check-bet-runtime.mjs",
-        "sha256": "c5f603030be2d0c880720b408f1800cda1fc21ad776d675901f1c912c160202d"
+        "path": "packages/aircraft/src/sensor-config.ts",
+        "sha256": "7171416e2f6114bf89a5349fd6396242e040b529af8571b0a467c1e2aa200259"
       },
       {
         "status": " M",
-        "path": "tests/browser/native-bootstrap.spec.ts",
-        "sha256": "920abb720e469e3f4ba24f2c3f7f4132efb90a42ae553303439293bfaf9be416"
+        "path": "packages/aircraft/src/sensor-fields.ts",
+        "sha256": "8dd9e8f96026bd8a31a512585d0b0e65133e3e83cafa842084002a0b96601503"
+      },
+      {
+        "status": " M",
+        "path": "packages/aircraft/src/sensor-ownership.ts",
+        "sha256": "9361c4186942aace3b56843addc06afd31cdd65d559630f63eb8df0a50c4c5b9"
+      },
+      {
+        "status": " M",
+        "path": "packages/aircraft/src/sensor-parameters.ts",
+        "sha256": "bdd1d090d0ffb024aa4fb3b2e0f4bca492d989fd0c511210107eb6b1c0f35acd"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/autopilot-version.ts",
+        "sha256": "122c0d1ea4ad5381d66813777cc50e88c6a65208497caf67680a743e3db5dee7"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/error-ownership.ts",
+        "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/external-sitl.ts",
+        "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/ground-station.ts",
+        "sha256": "7f66f73890ff0281ca79a10861639419f536226dcc4d3241c9b4dad206045952"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/hitl-capabilities.ts",
+        "sha256": "a7512e62d49633add33fa3727ce3da012bc81312ad1434c1288a51a9ba9ffc53"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/motor-test.ts",
+        "sha256": "4f23a7b093c54795bff89129a074a473d77a86567f3b90f1c8222a8e735651e5"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/param-file.ts",
+        "sha256": "05a57fb68b53ab358812f41d4c2b623b15b95e44c350b96f1d1451c91012d186"
+      },
+      {
+        "status": " M",
+        "path": "packages/autopilot/src/param-service.ts",
+        "sha256": "f8ea6ac397612002f36cb9de42cb46710f70f457bf42b3053ec299ee95ec2622"
+      },
+      {
+        "status": " M",
+        "path": "scripts/bench-hitl.mjs",
+        "sha256": "f2f5671e6efddf00f72cb5735405133ed05539b63e8c3fb89c50d631aa55cd09"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-sitl-frames.mjs",
+        "sha256": "0352e8b95df8fcbde17da038d0cc1de20a770b5731879b45e3897099bfcc8b5b"
+      },
+      {
+        "status": " M",
+        "path": "scripts/check-sitl-pause.mjs",
+        "sha256": "c8e3f1e675cbd4465dc9a6b0fed01b8675ef80f656e1b7366c35fbd53ff91e81"
+      },
+      {
+        "status": " M",
+        "path": "scripts/freeze-ew.mjs",
+        "sha256": "5497c13817efecc81299efaa1da7ecc5a0dfb5679e2a1656bc10688c4f7cf279"
+      },
+      {
+        "status": " M",
+        "path": "scripts/phase1/nominal-rules.ts",
+        "sha256": "d9f73e3322757fd0a974da0fca761f9d9794549a91f7044f34858aa76348dc39"
+      },
+      {
+        "status": " M",
+        "path": "scripts/run-virtual-hitl.mjs",
+        "sha256": "dd7cba1f281eb6fb8bc41e3444388ab92b0cc8a20b3e1605bf46504b9e44b9b0"
+      },
+      {
+        "status": " M",
+        "path": "scripts/sitl.lock.json",
+        "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
+      },
+      {
+        "status": " M",
+        "path": "tests/batch.test.ts",
+        "sha256": "bc431d003c9ace7a7624687b7c04a3d23ea4d8d468416bcc1c5a4def9443d0f6"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/batch.spec.ts",
+        "sha256": "0d4da87d06bb1d4856662e4fe1cb15141201ca2a5053fdfd8bfb27193de4d52d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/compare-experiments.spec.ts",
+        "sha256": "503b4f47381d10ba980363bfe35bab895691b950a7b632c0af23b0d890c0e1b3"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/ekf-drift.spec.ts",
+        "sha256": "c8836751ea3ef87b3f663bc7715a536b08a4b7ef0243948888859906421cfafa"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/experiments-tab.spec.ts",
+        "sha256": "fc0c1415c4006634af065a03c2bb966dbdc17d5933aeed359390b168aaede9d6"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/external-sitl.spec.ts",
+        "sha256": "72e9db996515a4b7ea7e9e519a8e5993d0575ebad7b0eb7a6033bd57e18a1150"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/faults-tab.spec.ts",
+        "sha256": "e29d5ba358cee5d1fec1db0875d4c135588c13a775cfe47e39efd9145230ae7d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/fidelity-report.spec.ts",
+        "sha256": "5ddf6ec485059d257cac73b9e6fdbbf4e5bee00e9c02050405863cc4a5e355b5"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/first-run.spec.ts",
+        "sha256": "680fb09f096dff084d00c4357134e50bf1aad1b962b3d0174ba075df001f4a9e"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/flight-tasks.spec.ts",
+        "sha256": "6074f4a51f47b34aff56ec4c3fa2ef2610f3ea0312f6f1b99a908751e37ed49f"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/from-log-compare.spec.ts",
+        "sha256": "eedbb7cce135bda46bc732cef9b2b98125dbfdfbd7909a2a62e3c6aa936102d7"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/from-log.spec.ts",
+        "sha256": "0e92bf684081caa7fd27d87822873be1f941040a06a34d17670283f6b9f8688e"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/location-flight.spec.ts",
+        "sha256": "d1d5d3cb111e593f5555318c732ee09b2876d688bf46a08f833ccaaf7273a053"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/log-viewer-experiments.spec.ts",
+        "sha256": "c7b44a410fab0708732d025d24aaa417e09ac62c91e70c889990401bd651bd61"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/logging-tab.spec.ts",
+        "sha256": "4cf620a0a3d5f11cef93ede548872228baf452f11d5b275a1074c8048d723048"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/maneuvers.spec.ts",
+        "sha256": "ce4cf257f7e1bda4414844c466a0c9e03b1686ce188d2f94d83b21c4977110d7"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/manual-connect.spec.ts",
+        "sha256": "e74dd4b9df1c419b1c5d5e7f84331c6ffda053f75bc3c09f7b963a014c7bb4b9"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/manual-flight.spec.ts",
+        "sha256": "f321fbdd0806bce019aa37186ed5887a4916b070341a8479671bce326402d895"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/parameter-export.spec.ts",
+        "sha256": "3f148bbe2e179640033153d074d099ad29d0fad25509f1ff4e470b1340c46861"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/parameters-tab.spec.ts",
+        "sha256": "c6e32156085e0ee3b8be68860158010abf57a470d3b671756ab2656339f960b0"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "b8b9bb771bb6894235d446ab361d1d378ad40720edc7edd1e2c0f27c68aa1f3e"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "722138d8fae7daf97b3ff2c2c49e01f65b840aa326bfdb497fac1f32aea8eff3"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/propeller-clearance.spec.ts",
+        "sha256": "2770d91b0c591cbf1a72064ebaeaa4cd6c985ebe0cd99c4c488b95a912ecccd0"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/run-speed.spec.ts",
+        "sha256": "170a96c6b1169016345473318b3829eb0b5fd3643b0da75589f29d419a18bf0d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/sensors-tab.spec.ts",
+        "sha256": "1265e2c2580bdd89149b00ddb65624d35e5e0e3aa9f7a556c1483306d1fbdf3b"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/sitl-pause.spec.ts",
+        "sha256": "2e8e3ccf7568405369859d2fbd691f127fe5aa4869d7957c0ba82232e939d095"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/terrain-contact-session.spec.ts",
+        "sha256": "0007c3bc2924fe76e72a29344a843c4a1aa214d87a64278d400f233ef68cb964"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/terrain-sitl.spec.ts",
+        "sha256": "101ad8ddd2e2516beada2c45a95b19c166720e7bf4aac489dda8b13ed8345a81"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/weather-sitl.spec.ts",
+        "sha256": "07a94fefe1a681e12f8c588cf127d972d695f7b0d82325263ae22f45b79dfe15"
+      },
+      {
+        "status": " M",
+        "path": "tests/dataflash-capture.test.ts",
+        "sha256": "d6d676994775ddd8fe650142d8d56327f5a3b746ed7dc590265c250ba1e34fb7"
+      },
+      {
+        "status": " M",
+        "path": "tests/error-ownership.test.ts",
+        "sha256": "26c01dabd3b1abaf06b1068c413f368afc3eb6e4145f3c96b085ddc24e6b819b"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-adapter.test.ts",
+        "sha256": "5ac80ea0639c0857a8f2c3c1bb108e3d82c143de9fa6dacfe69bb3755085699b"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-compare.test.ts",
+        "sha256": "f24bb5a65cb608b0ff62b66755c1587729daac98d5227b8eb115d3ad0f031d0d"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-record.test.ts",
+        "sha256": "5c31475900998adb5f90f6cc21377580465da070961d1ed61181508e67da7922"
       },
       {
         "status": " M",
         "path": "tests/fixtures/registry.json",
-        "sha256": "e03d2e442338aa9ecd0228fd9025cb3d028eb3ec7618bb0c926504137cc86e60"
+        "sha256": "e082bc1da4796482e17aa6659fdf74baa215cbe3574851d967ba353efbfcf162"
       },
       {
         "status": " M",
-        "path": "tests/fixtures/wasm-abi/generate.py",
-        "sha256": "8197dae4c02c6bd0491473807fb09f4733c6057f7af5e3903852171f5694b7f8"
+        "path": "tests/fixtures/sitl/ardupilot-catalog.json",
+        "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
       },
       {
         "status": " M",
-        "path": "tests/fixtures/wasm-abi/interface-v2.json",
-        "sha256": "7a5a48ae03148f11f3eed55c364c2d0af35fb8f509520ebf9b78d698e854248e"
+        "path": "tests/fixtures/sitl/error-ownership.json",
+        "sha256": "4526b0cfc802397c5dc61783681af3c46f25bd17935739af2504d88459687805"
       },
       {
         "status": " M",
-        "path": "tests/integration/flight-tasks-sitl.test.ts",
-        "sha256": "2f1c8afb7b0addc0361f8f7d04cfa23d3690770d7eb055d6c87001fef0b1daee"
+        "path": "tests/fixtures/sitl/frames.json",
+        "sha256": "fa0da3eaa29127fdfa4fe3ed4ae7ccd99454163731613c6a6878cee539ea2493"
       },
       {
         "status": " M",
-        "path": "tests/limit-monitor.test.ts",
-        "sha256": "20c34f55e8d874327585dacdce4eba8beb9ba6a3966113d0ebafb0b70ab7adf0"
+        "path": "tests/fixtures/sitl/generate.py",
+        "sha256": "3571bd4b3ef12c3fe02eda474854b36b685bf7b2681586c1f5f933fb37cf07a0"
       },
       {
         "status": " M",
-        "path": "tests/support/quad-profile.ts",
-        "sha256": "3dd46cefb63fe7a0b5a4e9c4ea4d98fb6f23206a843ac77b10b6d3f911ae11f6"
+        "path": "tests/fixtures/sitl/generate_frames.py",
+        "sha256": "99d20b2e27b751617132fdfaba741664a3f3d0956d9d9ca7aa214bc1e6cae635"
       },
       {
         "status": " M",
-        "path": "tests/thrust-capacity.test.ts",
-        "sha256": "ffc17ce30c3460bfef63738691c7e1793a40d256461db083a4f8279cca20a052"
+        "path": "tests/fixtures/sitl/json-protocol.json",
+        "sha256": "3c6f7c9b4e66017664c617966cd2e57a7abf7e42c2db49e2f7f3517012dd5e72"
       },
       {
         "status": " M",
-        "path": "tests/wasm-abi-v2.test.ts",
-        "sha256": "cfacac64f21bc05585b998dd506b6bb278b6921bec2d6299c82684cd2eab863c"
+        "path": "tests/hitl-report.test.ts",
+        "sha256": "2ce10c221e1f6f055ecb07985252e7501d13857f4632197193bf971a0714e0f0"
       },
       {
-        "status": "??",
-        "path": "native/bet/src/bus_solve.rs",
-        "sha256": "fa4cbf276319e6eeaf2894fc94a881227168a1a7c4fafd8292366bb7f8ece11b"
+        "status": " M",
+        "path": "tests/integration/phase1-nominal.test.ts",
+        "sha256": "aef45eb857e355a11cde5efa0acdacfc67dc5c58329de4788531c220367599b4"
       },
       {
-        "status": "??",
-        "path": "native/bet/tests/bus_solve.rs",
-        "sha256": "8e59086c8591900ba56804742bc365abe46dd59097cefca3214daeab5f9ed5f4"
+        "status": " M",
+        "path": "tests/integration/recovery-drill.test.ts",
+        "sha256": "2c9b00af5b8416270b2c759c76d8a663395702dbcfa654b2ba06888908fa1675"
       },
       {
-        "status": "??",
-        "path": "tests/bus-coupling.test.ts",
-        "sha256": "89a49abeb67bf861b8c9e944d75acfec9177eaa423751e72090d410c1d2f9e9c"
+        "status": " M",
+        "path": "tests/launcher-connections.test.ts",
+        "sha256": "be888184a208c664d3c22c087f8112b8467b5100dc6ebe5587489043bdcbcc3e"
+      },
+      {
+        "status": " M",
+        "path": "tests/launcher.test.ts",
+        "sha256": "35d8f304fe1ca4c2ec09fcbd38a291a07ccd6f9366d5bcbd54359ceda742c286"
+      },
+      {
+        "status": " M",
+        "path": "tests/offline-inventory.test.ts",
+        "sha256": "92f85fffda09890d3c7fa0d493622f351f2832d31113e2af959f8f4d0baad9f9"
+      },
+      {
+        "status": " M",
+        "path": "tests/param-file.test.ts",
+        "sha256": "fcfc37ca86c29c7f7d6d249f5127eb40211c285f333ad29a3f77820eaa53f653"
+      },
+      {
+        "status": " M",
+        "path": "tests/param-service.test.ts",
+        "sha256": "ac252e8cffaeda2cf0e67a9109bed6ee1fd4adf941f06842e191bb345d497bef"
+      },
+      {
+        "status": " M",
+        "path": "tests/parameter-readback.test.ts",
+        "sha256": "a2948fd9ea9a9065412584766265cf0ee24a578d6ba9cc6ee8738eb30717b8f1"
+      },
+      {
+        "status": " M",
+        "path": "tests/parameter-sets.test.ts",
+        "sha256": "a2b19a497d2d0c22eb66ae193458776e72342db0a5d1a00d0ee1236185c9a301"
+      },
+      {
+        "status": " M",
+        "path": "tests/recorder-v2.test.ts",
+        "sha256": "b8a4dc1d54faef046bcbf012ece835b9350547a90e1b23fbc78236a2d107f9c3"
+      },
+      {
+        "status": " M",
+        "path": "tests/run-controller.test.ts",
+        "sha256": "b315894c77e29780a149ae2a65c17299d84276682803dd1d175701c17ff86014"
+      },
+      {
+        "status": " M",
+        "path": "tests/sensor-config.test.ts",
+        "sha256": "b03d09de88552a514897617bb874549cfb128f81ecefccabbd55dcac2d91204b"
+      },
+      {
+        "status": " M",
+        "path": "tests/sensor-form.test.ts",
+        "sha256": "35bf5d61b67c18cc0f931675abe3b4823bc9f4ad14955ab6e412f90011bdf9a1"
       }
     ]
   },
   "firmware": {
-    "id": "arducopter-8ab6afde",
-    "firmwareVersion": "ArduCopter V4.8.0-dev",
-    "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
-    "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+    "id": "arducopter-fb773567",
+    "firmwareVersion": "ArduCopter V4.7.2",
+    "commit": "fb773567896014da007bca58358704d4a0d8516f",
+    "binarySha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
     "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
   },
   "verdicts": {
@@ -234,113 +539,123 @@
       "reasons": []
     },
     "flight-task": {
-      "verdict": "FAIL",
-      "reasons": [
-        "the hold: roll rate varies by 59.26 deg/s, above the 1 deg/s limit (A-13)",
-        "the hold: pitch rate varies by 1.80 deg/s, above the 1 deg/s limit (A-13)"
-      ]
+      "verdict": "PASS",
+      "reasons": []
     },
     "pause-resume": {
-      "verdict": "FAIL",
-      "reasons": [
-        "the hold after Resume: roll rate varies by 61.04 deg/s, above the 1 deg/s limit (A-13)",
-        "the hold after Resume: pitch rate varies by 1.00 deg/s, above the 1 deg/s limit (A-13)"
-      ]
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "parameter-changes": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "recording": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "reopen-results": {
+      "verdict": "PASS",
+      "reasons": []
+    },
+    "unsupported-refusal": {
+      "verdict": "PASS",
+      "reasons": []
     }
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-04T20-12-34-461Z/quad.json",
-      "bytes": 10122,
-      "sha256": "d6467163294f6e54e7efa3342eb6e6b3d9cab402748c32607f60ac19d3eee7b8"
+      "path": "test-results/phase1/nominal/2026-11-06T20-57-41-359Z/quad.json",
+      "bytes": 11042,
+      "sha256": "296ae57398591d83738fd845fad4c71288ada43d2ed6826095c0e0a146d33b4d"
     },
     "experimentRecord": {
-      "sha256": "00e4bb62ce4b950c9d82121138054ddf8b65b8cbcf2e0825976e9c5ffc16e9b5",
-      "launcherExperimentId": "20261104201244279-8bf0c694"
+      "sha256": "312e6572138100c5b03fcd568787d176fbe11ee13a8ada8db3fac1e3bd1f6c74",
+      "launcherExperimentId": "20261106205748049-1a3b8c80"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 2568192,
-        "sha256": "5b00f2ebc545b5a8bc50092bb2125690bb93d68f69ff6dae1617f1e32a0a8cc3",
-        "status": "complete",
-        "records": 51507,
-        "truncatedBytes": 0,
+        "bytes": 2633728,
+        "sha256": "e3e22336641f98b9a68885e1ccfb14ea1ff510a143af7054d516c7a42c8e49aa",
+        "status": "truncated",
+        "records": 53820,
+        "truncatedBytes": 13,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "1bbe6a428f8666cd2c352bebeb979fe6",
+      "recordId": "80a00e764a58fb0448d7e60aae163a83",
       "status": "closed",
-      "chunks": 136,
-      "bytes": 6839720,
+      "chunks": 198,
+      "bytes": 6711744,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.0010849979871774,
-      "dropped": 0,
-      "simElapsedS": 98.9,
-      "runningWallS": 98.79281000000239
+      "average": 1.0011352230128985,
+      "dropped": 1,
+      "simElapsedS": 99.6,
+      "runningWallS": 99.48706000000239
     },
     "power": {
       "hover": {
-        "voltageV": 16.41,
-        "currentA": 18.5,
-        "powerW": 303,
+        "voltageV": 16.6,
+        "currentA": 9.4,
+        "powerW": 156,
         "commandPercent": [
-          40,
-          47,
-          49,
-          38
+          45,
+          43,
+          45,
+          44
         ]
       },
       "limitEvents": [
-        "Limited 94.44 s Motor 3: motor current at the drive's limit ended, -28.47 A (limit 30.00 A)",
-        "Limited 94.44 s Motor 2: motor current at the drive's limit ended, -29.07 A (limit 30.00 A)",
-        "Limited 94.42 s Motor 3: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
-        "Limited 94.42 s Motor 2: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
-        "Limited 94.41 s Motor 4: motor current at the drive's limit ended, -22.07 A (limit 30.00 A)",
-        "Limited 94.41 s Motor 3: motor current at the drive's limit ended, 29.38 A (limit 30.00 A)",
-        "Limited 94.41 s Motor 2: motor current at the drive's limit ended, 27.41 A (limit 30.00 A)",
-        "Limited 94.40 s Motor 1: motor current at the drive's limit ended, -27.70 A (limit 30.00 A)"
+        "Limited 96.01 s Motor 4: motor current at the drive's limit ended, -28.47 A (limit 30.00 A)",
+        "Limited 96.01 s Motor 1: motor current at the drive's limit ended, -29.30 A (limit 30.00 A)",
+        "Limited 96.01 s Motor 2: motor current at the drive's limit ended, -29.09 A (limit 30.00 A)",
+        "Limited 96.01 s Motor 2: motor current at the drive's limit, -29.76 A (limit 30.00 A)",
+        "Limited 96.01 s Motor 1: motor current at the drive's limit, -29.36 A (limit 30.00 A)",
+        "Limited 96.01 s Motor 4: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
+        "Limited 42.11 s Battery: regeneration into a full pack ended, 1.00 (limit 1.00)",
+        "Limited 42.11 s Battery: regeneration into a full pack, 1.00 (limit 1.00)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 63,
-        "toS": 73.3,
-        "samples": 103,
+        "fromS": 64.9,
+        "toS": 74.9,
+        "samples": 100,
         "roll": {
-          "sdDegS": 59.258771423499454,
-          "peakDegS": 85.07701110839844
+          "sdDegS": 0.09081506899535782,
+          "peakDegS": 0.22208355367183685
         },
         "pitch": {
-          "sdDegS": 1.7975246770795226,
-          "peakDegS": 4.4586992263793945
+          "sdDegS": 0.08599517327951765,
+          "peakDegS": 0.19972701370716095
         },
         "yaw": {
-          "sdDegS": 0.6564139677240073,
-          "peakDegS": 1.1483031511306763
+          "sdDegS": 0.03978943411223967,
+          "peakDegS": 0.12952569127082825
         }
       },
       "afterResume": {
-        "fromS": 73.7,
-        "toS": 83.7,
+        "fromS": 75.3,
+        "toS": 85.3,
         "samples": 100,
         "roll": {
-          "sdDegS": 61.03859953195359,
-          "peakDegS": 84.52430725097656
+          "sdDegS": 0.07421443916315396,
+          "peakDegS": 0.19426412880420685
         },
         "pitch": {
-          "sdDegS": 1.0011548772023136,
-          "peakDegS": 2.0289456844329834
+          "sdDegS": 0.07666059235168322,
+          "peakDegS": 0.31121790409088135
         },
         "yaw": {
-          "sdDegS": 0.6295483579133011,
-          "peakDegS": 1.0463926792144775
+          "sdDegS": 0.04273077728615779,
+          "peakDegS": 0.10870057344436646
         }
       }
     },
@@ -381,30 +696,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "8d5eea0c0b971f78c90f6b42409b1adab6e229c3f48aa9c57c156eed7a40a283",
+            "sha256": "47d92e64c6fa5fb7c9f620f7365d3ae50ded5fd119f4b2b2397128c68f6900e6",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "a487ffb9270d3a03dace406ca328d52ef5b3822da96f4ff928b4e4140b67b3ed",
+            "sha256": "9fb27f7d6ca3c4b2ecfa6ce8c96ebb8136fd47e978f895019b76bfb14b7660e9",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "8986fb9f39d1d0ed77f7c4cd15a5bbcaace79aa181362fc94538b70b7bdb9452",
+            "sha256": "d56162c82c59bb964165e49e8c435fc75a0ce4a86bbb14cc3a1404cdc77dcc41",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "4d4dd570460d752e397f2605d7fd4b817f101f61c51295ed6d81491b8641ceea",
+            "sha256": "556ad4fd5247725299a2c2771e0778d44c2aa48a0994d4e3f85d530ca77af006",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "4f02d8a0138ea93cad8949abddebb087495032d36cbbe25de9c2dd8eed060544",
+        "sha256": "7475552c92ead9f500c4a73287243e331f16800a82152f19cfba46c0c51529d8",
         "version": 1,
         "motors": 4,
         "differences": []
@@ -435,26 +750,65 @@
       },
       "error": null
     },
+    "refusal": {
+      "facts": {
+        "problems": [
+          "Output 1 is assigned to motors 1 and 4"
+        ],
+        "saveDisabled": true,
+        "layoutErrors": [
+          "The layout needs 1 to 8 arms"
+        ],
+        "versions": 1
+      },
+      "error": null
+    },
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41.5,
-        "recordSha256": "00e4bb62ce4b950c9d82121138054ddf8b65b8cbcf2e0825976e9c5ffc16e9b5",
-        "profileSha256": "4f02d8a0138ea93cad8949abddebb087495032d36cbbe25de9c2dd8eed060544",
+        "readyAtSimS": 41.7,
+        "recordSha256": "312e6572138100c5b03fcd568787d176fbe11ee13a8ada8db3fac1e3bd1f6c74",
+        "profileSha256": "7475552c92ead9f500c4a73287243e331f16800a82152f19cfba46c0c51529d8",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
         "firmware": {
-          "id": "arducopter-8ab6afde",
-          "firmwareVersion": "ArduCopter V4.8.0-dev",
-          "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
-          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "id": "arducopter-fb773567",
+          "firmwareVersion": "ArduCopter V4.7.2",
+          "commit": "fb773567896014da007bca58358704d4a0d8516f",
+          "binarySha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
           "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
         },
         "hashed": {
-          "binarySha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+          "binarySha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
           "defaultParametersSha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e"
         }
+      },
+      "error": null
+    },
+    "parameters": {
+      "facts": {
+        "writes": [
+          {
+            "name": "RTL_ALT_FINAL_M",
+            "value": 1,
+            "outcome": "confirmed",
+            "rebootRequired": false,
+            "shown": "1"
+          }
+        ]
+      },
+      "error": null
+    },
+    "reopen": {
+      "facts": {
+        "listed": 1,
+        "recordId": "80a00e764a58fb0448d7e60aae163a83",
+        "recordingText": "50 Hz common rate, record 80a00e764a58fb0448d7e60aae163a83",
+        "profileText": "Quad X, version 1",
+        "truthRows": 5037,
+        "missingChunks": 0,
+        "corruptChunks": 0
       },
       "error": null
     },
@@ -502,35 +856,29 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 63,
-        "endSimS": 73.3,
+        "startSimS": 64.9,
+        "endSimS": 74.9,
         "readingsM": [
-          5,
-          4.99,
-          4.99,
-          5,
-          5,
           5.01,
+          5.01,
+          5.01,
+          5.01,
+          5.02,
           5.02,
           5.03,
           5.03,
-          5.03,
           5.04,
           5.04,
+          5.04,
+          5.05,
           5.05,
           5.05,
           5.05,
           5.05,
           5.05,
-          5.05,
-          5.05,
           5.04,
           5.04,
           5.04,
-          5.04,
-          5.04,
-          5.04,
-          5.05,
           5.05,
           5.05,
           5.05,
@@ -541,7 +889,13 @@
           5.06,
           5.06,
           5.06,
-          5.06
+          5.07,
+          5.07,
+          5.07,
+          5.07,
+          5.07,
+          5.07,
+          5.08
         ]
       },
       "error": null
@@ -550,69 +904,69 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 73.4,
-          "altitudeM": 5.06,
-          "stepped": 58720
+          "simS": 75.1,
+          "altitudeM": 5.08,
+          "stepped": 60080
         },
         "after": {
-          "simS": 73.4,
-          "altitudeM": 5.06,
-          "stepped": 58720
+          "simS": 75.1,
+          "altitudeM": 5.08,
+          "stepped": 60080
         },
-        "wallS": 31.272,
+        "wallS": 31.47,
         "resumedStage": "Flying",
-        "resumedAtSimS": 73.4,
+        "resumedAtSimS": 75.3,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 73.7,
-          "endSimS": 83.7,
+          "startSimS": 75.3,
+          "endSimS": 85.3,
           "readingsM": [
-            5.06,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07,
-            5.07
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.08,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09,
+            5.09
           ]
         },
         "failsafeMessages": [],
         "log": {
           "count": 1,
           "reason": "user",
-          "wallS": 32.5
+          "wallS": 32.7
         }
       },
       "error": null
@@ -625,7 +979,7 @@
         "ready": "READY",
         "altitudeM": 0.1,
         "restAltitudeM": 0.0999951111111111,
-        "frames": "80000 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "80480 stepped, 0 lost, 1 resent, 27 held",
         "failsafeMessages": []
       },
       "error": null
@@ -633,7 +987,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261104201244279-8bf0c694 stopped",
+        "text": "Run 20261106205748049-1a3b8c80 stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],
@@ -644,12 +998,12 @@
     }
   },
   "sources": {
-    "tests/browser/phase1-nominal.spec.ts": "9493c6ad1eb3030dc8700fc4a8dc9762a940994a415265ea72f53ad63c090747",
-    "scripts/phase1/nominal-flight.mjs": "13c12ae3cc46e79056620a03d80e6e2cd2e584cdda4f363e01155f654b662cc3",
-    "scripts/phase1/nominal-rules.ts": "1befdd06a787a338c53b0feb95c57d58bff023c82ec0cca76905591900643205",
+    "tests/browser/phase1-nominal.spec.ts": "722138d8fae7daf97b3ff2c2c49e01f65b840aa326bfdb497fac1f32aea8eff3",
+    "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
+    "scripts/phase1/nominal-rules.ts": "d9f73e3322757fd0a974da0fca761f9d9794549a91f7044f34858aa76348dc39",
     "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",
     "tests/support/aircraft-recipes.ts": "e4d5d0f1c99e06af4f11b633dae321a24e1a33247ad4a58da6207fee323236b1",
-    "tests/support/run-tab.ts": "d6401fb950087ec3b84bb5c3eb149ddb9ceefcb7b97129dfae198f09db11dd0d",
+    "tests/support/run-tab.ts": "9cc28dc5ac110f9f5114cc4482fbcdf5050cd7c2b7d8dd837a7070fd829ef78e",
     "tests/support/standard-gear.ts": "7c43a4427fe7b8f56159990b8d3f99e4f2ef534e6cd563b247543aae3b1cb22d",
     "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
     "tests/fixtures/components/motor-example.json": "8da613982ca1f4f6bc5cfa06a397426a2d0d1da3342e156c8d54f02622e2aece",

@@ -57,7 +57,7 @@ export function auditPauseCapture(input){
  assert.deepEqual(run.contract,PAUSE_CONTRACT);assert.equal(run.frameId,'quad-x');assert.equal(run.phase,'flight');
  assert.deepEqual(run.configuration,referenceConfiguration('quad-x'));
  assert.equal(run.host.platform,'darwin');assert.equal(run.host.architecture,'arm64');assert.equal(run.nativeBinary.format,'mach-o64');
- assert.equal(run.sourceCommit,'8ab6afde107a91df1b5f60ade8f333cb8a61b190');
+ assert.equal(run.sourceCommit,'fb773567896014da007bca58358704d4a0d8516f');
  for(const source of run.sourceInputs){assert(!source.file.includes('..')&&!source.file.startsWith('/'));assert.equal(sha(readFileSync(join(root,source.file))),source.sha256,`Source changed: ${source.file}`);}
  assert.equal(read('frame.parm').toString(),frameParameters('quad-x')+'LOG_DISARMED 1\n');
  const expected={AHRS_EKF_TYPE:3,EK3_ENABLE:1,WP_SPD:10};

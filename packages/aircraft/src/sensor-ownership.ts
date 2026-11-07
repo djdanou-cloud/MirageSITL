@@ -7,7 +7,7 @@ import { readAircraftProfile } from './profile.ts';
 import { readField } from './sensor-config.ts';
 import {
   OTHER_ARDUPILOT_TERMS, SENSOR_FIELDS, SENSOR_KINDS, SENSOR_OWNERSHIP_MAPPING_VERSION, type FieldOwner, type FieldValue,
-  type PresetReference, type SensorConfiguration, type SensorFieldPath, type SensorKind, type SensorPath,
+  type PresetReference, type SensorConfiguration, type SensorOwnershipMappingVersion, type SensorFieldPath, type SensorKind, type SensorPath,
 } from './sensor-fields.ts';
 import { findSensorPreset, presetCatalog, type PresetCitation } from './sensor-presets.ts';
 
@@ -43,7 +43,7 @@ export type ResidualId = 'imu-accel-noise-floor' | 'imu-gyro-noise-floor' | 'gns
 export interface Residual { readonly id: ResidualId; readonly text: string; readonly verified: boolean }
 export type SensorState = 'ardupilot-defaults' | 'specified' | 'ideal';
 export interface ResolvedSensorConfiguration {
-  readonly mappingVersion: typeof SENSOR_OWNERSHIP_MAPPING_VERSION;
+  readonly mappingVersion: SensorOwnershipMappingVersion;
   readonly path: SensorPath;
   readonly state: SensorState;
   /** SENSOR_FIELDS order. */
@@ -57,7 +57,7 @@ export const RESIDUALS: { readonly [id in ResidualId]: Residual } = Object.freez
   'imu-accel-noise-floor': { id: 'imu-accel-noise-floor', verified: true, text: 'ArduPilot adds uniform noise of up to ±0.01 m/s² to each accelerometer axis on every sample (σ = 5.77×10⁻³ m/s²). No ArduPilot parameter switches it off. MirageSITL runs stock ArduPilot (decision D-10: no imu-noise-floor patch), so Ideal sensors keep it.' },
   'imu-gyro-noise-floor': { id: 'imu-gyro-noise-floor', verified: true, text: 'ArduPilot adds uniform noise of up to ±0.04 °/s (±6.98×10⁻⁴ rad/s, σ = 4.03×10⁻⁴ rad/s) to each gyroscope axis on every sample, and adds it a second time while the motors are stopped and no vibration is configured. No ArduPilot parameter switches it off on stock ArduPilot (D-10), so Ideal sensors keep it.' },
   'gnss-sitl-receiver': { id: 'gnss-sitl-receiver', verified: true, text: 'ArduPilot\'s simulated GNSS receiver keeps its own update rate (5 Hz stock) and reports a fixed 0.3 m accuracy; Ideal removes its position wander, velocity error and 100 ms lag.' },
-  'gnss-wander-model': { id: 'gnss-wander-model', verified: true, text: 'ArduPilot\'s receiver models a GNSS position error as a slow deterministic wander with a 12.6 s period, a horizontal circle and a vertical sine, not random noise; the 1σ per axis matches it, and its velocity error is uniform noise.' },
+  'gnss-wander-model': { id: 'gnss-wander-model', verified: true, text: 'ArduPilot\'s receiver models a GNSS altitude error as a slow deterministic sine with a 12.6 s period, not random noise, and the 1σ matches it; it has no horizontal position error, and its velocity error is uniform noise.' },
   'ins-accel-calibration': { id: 'ins-accel-calibration', verified: true, text: 'ArduPilot\'s copter and JSON defaults set INS_ACCOFFS 0.001 m/s² and INS_ACCSCAL 1.001, a calibration that the simulated accelerometer does not have; the TASK-147 capture shows every accelerometer change scaled by 1.001.' },
   'imu-sample-rates': { id: 'imu-sample-rates', verified: true, text: 'IMU sample rates are compiled into ArduPilot SITL: IMU 1 at 1000 Hz, IMU 2 at 760 Hz (gyro) and 800 Hz (accelerometer).' },
   'ekf-assumed-delays': { id: 'ekf-assumed-delays', verified: true, text: 'The EKF assumes 60 ms barometer and magnetometer delays and a 120 ms GNSS delay, while SITL simulates 0 ms, 0 ms and 100 ms.' },
@@ -137,12 +137,12 @@ export function otherArduPilotTerms(config: SensorConfiguration | null): readonl
     state: ideal ? 'switched off in Ideal' : term.stock === 'none' ? 'ArduPilot default: none' : `ArduPilot default: ${term.stock}` }));
 }
 
-/** 2 since TASK-147: mapping 2, a schema 3 matrix and the residual texts. */
-export const SENSOR_SNAPSHOT_VERSION = 2;
+/** 2 since TASK-147: mapping 2, a schema 3 matrix and the residual texts. 3 since ArduCopter V4.7.2 (D-01): mapping 3 and its residual text. */
+export const SENSOR_SNAPSHOT_VERSION = 3;
 export interface SensorSnapshot {
   readonly schemaVersion: typeof SENSOR_SNAPSHOT_VERSION;
   readonly profileSha256: string;
-  readonly mappingVersion: typeof SENSOR_OWNERSHIP_MAPPING_VERSION;
+  readonly mappingVersion: SensorOwnershipMappingVersion;
   /** The stored configuration; null is the ArduPilot defaults. */
   readonly configuration: SensorConfiguration | null;
   readonly resolution: ResolvedSensorConfiguration;

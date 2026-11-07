@@ -1,5 +1,6 @@
 /** Production-built bound rotor ABI v1; no hot-path host objects or views. */
 import type { BetRotorConfig } from './arena.ts';
+import { encodeRotorMap, type RotorMapTable, type RotorModel } from './rotor-map.ts';
 
 export interface BoundPolar {
   alphaRad: readonly number[]; reynolds: readonly number[]; mach: readonly number[];
@@ -16,6 +17,9 @@ export interface BoundRotorDefinition {
   dynamicInflow?: boolean;
   /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state in descent, its thrust fluctuation seeded by this unsigned integer. */
   vortexRingSeed?: number;
+  /** TASK-103: `map` takes this rotor's loads from `rotorMap` instead of the blade-element kernel. Absent is `bet`. */
+  rotorModel?: RotorModel;
+  rotorMap?: RotorMapTable;
 }
 /** Kernel option (configuration version 2, TASK-091): the half-step prediction uses azimuth samples 0 and N/2. */
 export const KERNEL_OPTION_REDUCED_PREDICTOR = 1;
@@ -146,6 +150,12 @@ export function syntheticRotor(config: unknown, polarValue: unknown, options: {
 
 /** Fixed little-endian payload, validated semantically by the native initializer. */
 export function encodeBoundRotor(d: BoundRotorDefinition, dtS: number): Uint8Array<ArrayBuffer> {
+  if(d.rotorModel==='map') {
+    if(!d.rotorMap)throw Error('A map rotor needs its table');
+    const shaft=d.geometry;
+    return encodeRotorMap(d.rotorMap,{radiusM:shaft.radiusM,spinSign:shaft.spinSign,shaftInertiaKgM2:shaft.shaftInertiaKgM2,
+      bearingViscousNmPerRadS:shaft.bearingViscousNmPerRadS,initialOmegaRadS:d.initialOmegaRadS},dtS);
+  }
   const g=d.geometry,p=d.polar,ns=g.radialStationM.length,na=p.alphaRad.length,nr=p.reynolds.length,nm=p.mach.length;
   const count=na*nr*nm;
   if (ns<1 || ns>64 || na<1 || na>361 || nr<1 || nr>32 || nm<1 || nm>8 || count>16384 ||

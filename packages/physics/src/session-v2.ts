@@ -12,6 +12,9 @@ import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_DISCRETE_DOWN, WEATHER_DISCRETE
   WEATHER_WIND_NORTH } from './atmosphere.ts';
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
+import type { BarometerEffectIndex } from './barometer.ts';
+/** TASK-116: how often the session samples the barometer error the run controller delivers, in simulated time. */
+export const BAROMETER_SAMPLE_HZ = 10;
 
 // Physics Worker session on ABI v2 (TASK-085). Owns the state ring writer,
 // pilot mailbox reader, actuator queue consumer, Control Protocol v2
@@ -162,6 +165,10 @@ export interface SessionDynamics {
   readonly contactLoads?: ContactLoads | null;
   /** TASK-166: ends the weather at its tick boundary, allocation-free: as if no weather had been set. */
   clearWeather?(): void;
+  /** TASK-116: one barometer effect on with its values, or off, from this tick, allocation-free; absent where the backend has none. */
+  setBarometer?(effect: BarometerEffectIndex, active: boolean, values: ArrayLike<number>): void;
+  /** TASK-116: the barometer's errors after the last step. */
+  readonly barometer?: { readonly active: boolean; readonly errorPa: number };
   readonly weatherActive?: boolean;
   /** TASK-166, TASK-148: `air` holds the air at the CG, of a weather or of the location's origin air; otherwise the configured atmosphere is in place. */
   readonly airActive?: boolean;
@@ -201,6 +208,13 @@ export class PhysicsSessionV2 {
   private validityCount = 0;
   private validityDropped = 0;
   private lastValidity = 0;
+  /**
+   * TASK-116: the barometer error the run controller delivers, sampled every tenth of a second of simulated time while a
+   * barometer effect is on, and once more on the tick the last one goes off: [samples so far, tick, simulated time s, error Pa,
+   * 1 while on].
+   */
+  readonly barometerSample = new Float64Array(5);
+  private barometerWasActive = false;
   /** TASK-186: how many ticks found the terrain missing, the last one's tick, the north and east position there, m, and its simulated time, s. */
   readonly terrainMissing = new Float64Array(5);
   private ground: SessionGround | null = null;
@@ -521,7 +535,11 @@ export class PhysicsSessionV2 {
           return null;
         }
         // Admission keeps these out of the queue.
-        case "sensor": case "ardupilot": return NOT_MODELED;
+        case "sensor": case "ardupilot": case "gnss": return NOT_MODELED;
+        case "barometer":
+          if (!this.dynamics.setBarometer) return NOT_MODELED;
+          this.dynamics.setBarometer(effective.index, effective.active, effective.values);
+          return null;
         default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
       }
     }
@@ -618,6 +636,10 @@ export class PhysicsSessionV2 {
         case "sensor": return `A running session cannot change ${command.control.effect}; sensor errors are set on the Sensors tab, before the run`;
         case "delivery": return this.delivery.attached ? null : `${command.control.effect} acts on the link to ArduPilot, and this session has none`;
         case "ardupilot": return `${command.control.effect} is ArduPilot's own fault parameter, which the run controller writes; a session cannot apply it`;
+        case "gnss": return `${command.control.effect} is worked out and written to ArduPilot's receiver by the run controller; a session cannot apply it`;
+        case "barometer":
+          if (!this.dynamics.setBarometer) return `This backend has no barometer model; ${command.control.effect} is not supported`;
+          return this.delivery.attached ? null : `${command.control.effect} reaches ArduPilot's barometer, and this session has no link to ArduPilot`;
         default: { const never: never = effective; throw new Error(`Unhandled effect ${String(never)}`); }
       }
     }
@@ -808,6 +830,15 @@ export class PhysicsSessionV2 {
       context.northM = d.north; context.eastM = d.east; context.downM = d.down;
       if (!this.faults.advanceInto(context)) this.enterFault("EW step rejected");
       if (this.delivery.attached) this.faults.deliveryInto?.(this.delivery);
+    }
+    const barometer = this.dynamics.barometer;
+    if (barometer && (barometer.active || this.barometerWasActive)) {
+      const t = tickToNumber(tick), every = Math.round(this.policy.hz / BAROMETER_SAMPLE_HZ);
+      if (!barometer.active || !this.barometerWasActive || t % every === 0) {
+        const sample = this.barometerSample;
+        sample[0] = (sample[0] ?? 0) + 1; sample[1] = t; sample[2] = t / this.policy.hz; sample[3] = barometer.errorPa; sample[4] = barometer.active ? 1 : 0;
+      }
+      this.barometerWasActive = barometer.active;
     }
     if (this.dynamics.fault) this.enterFault(this.dynamics.fault);
     // Presentation time is the scheduled deadline in the shared wall timebase; freshness above used actual time.

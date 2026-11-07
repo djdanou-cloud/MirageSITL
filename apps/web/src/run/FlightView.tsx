@@ -5,9 +5,9 @@ import { BufferAttribute, BufferGeometry, Group, Line, LineBasicMaterial, Mesh, 
 import type { AircraftLayout } from "@mirage/aircraft/layout";
 import { FpvCamera } from "@mirage/cameras/fpv-camera";
 import { interpolatePoseInto, interpolationAlpha, newPowerSnapshotV1, newRenderPoseV2, wallNow } from "@mirage/protocol";
-import { BODY_COLOR, BodyMeshes, GearMeshes, Rotor, SPIN_COLORS, Strut } from "../aircraft/AircraftScheme3D";
-import type { ProfileBody } from "@mirage/aircraft/profile";
-import { armMounts, frdToRender, schemeDimensions, type GearDrawing } from "../aircraft/scheme-geometry";
+import { BODY_COLOR, HullShapes, renderedHull, Rotor, SPIN_COLORS, Strut, type RenderedHullShape } from "../aircraft/AircraftScheme3D";
+import type { HullShape } from "@mirage/physics/vehicle-manifest";
+import { armMounts, frdToRender, schemeDimensions } from "../aircraft/scheme-geometry";
 import { nedToRenderBasis, nedToRenderPositionInto } from "../coordinates";
 import type { SimulationRuntime } from "../runtime";
 import { chaseOffset, drawnSpinRadS, onboardCamera, TRAIL_CAPACITY, TrailBuffer } from "./flight-view-geometry";
@@ -23,7 +23,8 @@ import { TURNING_RPM } from "@mirage/autopilot/motor-test";
 // minutes of the trajectory are drawn, and the route and its points when a
 // flight task provides one (TASK-172). The ground is the synthetic level pad:
 // real terrain belongs to TASK-186. During the motor check (TASK-157) a ring
-// marks the rotor the physics actually turns, in its spin colour.
+// marks the rotor the physics actually turns, in its spin colour. A profile
+// that describes its body (TASK-196) flies with that body drawn at its size.
 
 /** A route point in local NED metres from the session origin. */
 export interface RoutePoint { readonly northM: number; readonly eastM: number; readonly downM: number; readonly label: string }
@@ -40,6 +41,8 @@ export interface FlightViewProbe {
   readonly routePoints: number;
   /** The motor whose rotor is ringed as turning (motor check), or null. */
   readonly ringed: number | null;
+  /** TASK-196: the drawn hull shapes of a described body, in the aircraft's own frame; empty for the schematic body. */
+  readonly hull: readonly RenderedHullShape[];
   /** Renderer resources, to show that switching views leaks nothing. */
   readonly geometries: number;
   readonly textures: number;
@@ -48,9 +51,9 @@ export interface FlightViewProbe {
 
 const PROBE_EVERY_FRAMES = 20;
 
-function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning, body, gear }: {
-  layout: AircraftLayout; runtime: RefObject<SimulationRuntime | null>; aircraft: RefObject<Group | null>; spinners: RefObject<(Group | null)[]>;
-  rings: RefObject<(Mesh | null)[]>; ringTurning: boolean; body: ProfileBody | null; gear: GearDrawing | null;
+function Aircraft({ layout, hull, hullNames, runtime, aircraft, spinners, rings, ringTurning }: {
+  layout: AircraftLayout; hull: readonly HullShape[] | null; hullNames: readonly string[]; runtime: RefObject<SimulationRuntime | null>;
+  aircraft: RefObject<Group | null>; spinners: RefObject<(Group | null)[]>; rings: RefObject<(Mesh | null)[]>; ringTurning: boolean;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -90,20 +93,18 @@ function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning, bod
   });
   return (
     <group ref={aircraft} name="aircraft">
-      {/* TASK-196 and TASK-194: a described body and landing gear at their size; otherwise the symbolic body of the scheme. */}
-      {body ? <BodyMeshes body={body} /> : (
+      {hull ? <HullShapes hull={hull} names={hullNames} /> : (
         <mesh castShadow>
           <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
           <meshStandardMaterial color={BODY_COLOR} />
         </mesh>
       )}
-      {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
       {/* Forward (body x) is render -z. */}
       <mesh position={[0, 0, -span * 0.12]} rotation={[-Math.PI / 2, 0, 0]}>
         <coneGeometry args={[span * 0.03, span * 0.07, 12]} />
         <meshStandardMaterial color="#9af0d1" />
       </mesh>
-      {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={body?.armRadiusM ? 2 * body.armRadiusM : span * 0.015} />)}
+      {!hull && mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
       {layout.rotors.map((rotor, index) => {
         const [x, y, z] = frdToRender(rotor.hubPositionBodyM);
         return (
@@ -255,8 +256,11 @@ function Probe({ mode, aircraft, trail, routePoints, layout, rings, onProbe }: {
     });
     rotors.sort((a, b) => a.motorId - b.motorId);
     const ringedIndex = rings.current.findIndex(ring => ring?.visible === true);
+    // The hull in the aircraft's own frame, as the rotors are reported.
+    const hull = renderedHull(group).map(shape => ({ ...shape,
+      position: new Vector3(...shape.position).sub(group.position).applyQuaternion(inverse).toArray() }));
     const probe: FlightViewProbe = { mode, rotors, aircraft: group.position.toArray(), trailPoints: trail.count, routePoints,
-      ringed: ringedIndex < 0 ? null : layout.rotors[ringedIndex]?.motorId ?? null,
+      ringed: ringedIndex < 0 ? null : layout.rotors[ringedIndex]?.motorId ?? null, hull,
       geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, programs: gl.info.programs?.length ?? 0 };
     const json = JSON.stringify(probe);
     if (json !== last.current) { last.current = json; onProbe(probe); }
@@ -264,13 +268,12 @@ function Probe({ mode, aircraft, trail, routePoints, layout, rings, onProbe }: {
   return null;
 }
 
-export function FlightView({ runtime, layout, name, route = [], active, ringTurning = false, body = null, gear = null, onProbe }: {
+export function FlightView({ runtime, layout, hull = null, hullNames = [], name, route = [], active, ringTurning = false, onProbe }: {
   runtime: RefObject<SimulationRuntime | null>;
   layout: AircraftLayout;
-  /** TASK-196: the profile's described body, or null for the symbolic one. */
-  body?: ProfileBody | null;
-  /** TASK-194: the profile's described landing gear, or null: the standard supports are not drawn. */
-  gear?: GearDrawing | null;
+  /** TASK-196: the hull of a described body, drawn at its size; null draws the schematic body. */
+  hull?: readonly HullShape[] | null;
+  hullNames?: readonly string[];
   name: string;
   route?: readonly RoutePoint[];
   /** False while the Run tab is hidden: the view stops drawing and the session runs on. */
@@ -305,7 +308,7 @@ export function FlightView({ runtime, layout, name, route = [], active, ringTurn
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
             <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
           </mesh>
-          <Aircraft layout={layout} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} body={body} gear={gear} />
+          <Aircraft layout={layout} hull={hull} hullNames={hullNames} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} />
           <Trail runtime={runtime} aircraft={aircraft} trail={trail} />
           <Route route={route} size={Math.max(0.15, span * 0.08)} />
           <Cameras mode={mode} layout={layout} runtime={runtime} aircraft={aircraft} />

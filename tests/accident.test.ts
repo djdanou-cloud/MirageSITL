@@ -120,7 +120,8 @@ describe('accident records', () => {
   });
   it('names the part as the profile does', () => {
     expect(describeAccident(propeller)).toBe('The propeller of motor 3 struck the ground at 0.03 s: 20.0 N, 0.4 mm deep');
-    expect(describeAccident(arm, [1, 5, 7])).toBe('Arm 5 struck the ground at 0.03 s: 20.0 N, 0.4 mm deep');
+    expect(describeAccident(arm, ['The body', 'Arm 1', 'Arm 5', 'Arm 7'])).toBe('Arm 5 struck the ground at 0.03 s: 20.0 N, 0.4 mm deep');
+    expect(describeAccident(arm)).toContain('Hull shape 2 struck');
     expect(describeAccident({ ...arm, part: { part: 'hull', hullId: 0 } })).toContain('The body struck');
   });
 });

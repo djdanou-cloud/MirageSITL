@@ -1,5 +1,5 @@
 // ArduPilot JSON SITL lockstep (TASK-041), pinned to ArduPilot commit
-// 8ab6afde107a91df1b5f60ade8f333cb8a61b190 libraries/SITL/SIM_JSON.{h,cpp}
+// fb773567896014da007bca58358704d4a0d8516f libraries/SITL/SIM_JSON.{h,cpp}
 // (hashes in tests/fixtures/sitl/json-protocol.json).
 //
 // Upstream contract:

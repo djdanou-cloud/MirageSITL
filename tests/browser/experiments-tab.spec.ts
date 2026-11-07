@@ -6,7 +6,7 @@ import { expect, test, type Download, type Locator, type Page } from "@playwrigh
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 
-// TASK-165 (S16): the experiment lifecycle with native ArduCopter 8ab6afde,
+// TASK-165 (S16): the experiment lifecycle with native ArduCopter fb773567,
 // through the application alone. An original run, then its Repeat, loaded in
 // the Run tab with the same inputs locked, records the same trajectory at
 // every common tick before any command; Create variant runs it at another
@@ -18,7 +18,7 @@ import { seedQuadProject } from "../support/run-tab";
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 

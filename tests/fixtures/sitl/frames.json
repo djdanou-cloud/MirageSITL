@@ -1,17 +1,22 @@
 {
   "schemaVersion": 1,
-  "ardupilotCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
-  "firmwareVersion": "ArduCopter V4.8.0-dev",
+  "ardupilotCommit": "fb773567896014da007bca58358704d4a0d8516f",
+  "firmwareVersion": "ArduCopter V4.7.2",
   "upstream": [
     {
       "path": "ArduCopter/version.h",
-      "sha256": "64b94f3cd3b5775564c73294e8815edae884a40ec197e449b792bdb350a6f3bd",
-      "bytes": 540
+      "sha256": "56aa77ac9f04d68b074001c459d23a16ddbaf5db2263cb5a88eb0e36f22f8d40",
+      "bytes": 546
     },
     {
       "path": "libraries/AP_Motors/AP_Motors_Class.h",
-      "sha256": "47ae49b837110199abe0fd1116c3ce7d9e340def562913dea9096b321386f963",
-      "bytes": 20371
+      "sha256": "13394f23e3a5bdf4e409ae87698cb70daa64759ed36f413392d74a4669a50ab0",
+      "bytes": 19293
+    },
+    {
+      "path": "libraries/AP_Motors/AP_Motors_config.h",
+      "sha256": "e0e87675e5df2c0cb4013a98184b9d5b04bf62b29854c966fdd2a247699242f3",
+      "bytes": 2210
     },
     {
       "path": "libraries/AP_Motors/AP_MotorsMatrix.h",
@@ -25,8 +30,8 @@
     },
     {
       "path": "libraries/AP_Scripting/AP_Scripting_config.h",
-      "sha256": "40dd28dda581661d66663c6ea4794a5c5f14b6af2c5c6c77b097d8714de49f4f",
-      "bytes": 1211
+      "sha256": "10b90df2f16e34782521cc5a99ffd1a4dbf4d63cbcf1e176b32d267b54fe5a9c",
+      "bytes": 1099
     },
     {
       "path": "libraries/AP_Scripting/examples/MotorMatrix_dotriaconta_octaquad_x.lua",
@@ -35,28 +40,28 @@
     },
     {
       "path": "libraries/AP_Scripting/generator/description/bindings.desc",
-      "sha256": "8d9a70227c48863ee220082a23e64ef1f7176b01152dcce3ce5fcbdddf492553",
-      "bytes": 74186
+      "sha256": "42bae2bdd50408ea43ce5195119dfe4cff5f77d922155d5784b34b2f48ca450a",
+      "bytes": 71870
     },
     {
       "path": "libraries/SRV_Channel/SRV_Channel.h",
-      "sha256": "69cb7714c94d013c284f50b4a129fc1342c24f229534f9c9c749de6e08108a42",
-      "bytes": 27848
+      "sha256": "4d9549e031c11523206199d0a217a08d3cd23da38c6d80a8115dcdcb41274575",
+      "bytes": 27499
     },
     {
       "path": "libraries/SRV_Channel/SRV_Channel_config.h",
-      "sha256": "5267b66cdfe365ca3a1e668a343887ef331c6c15306b2ed3a34620143561f103",
-      "bytes": 295
+      "sha256": "7fbecb9707f78ee17a31260d139b95c1942ef923dfa8a7fe7d492b6b202df5a6",
+      "bytes": 398
     },
     {
       "path": "libraries/SRV_Channel/SRV_Channels.cpp",
-      "sha256": "b61d5c48443654f5c6fe4df750748478f600f4b3a33d1c4697e0ff26fb71f324",
-      "bytes": 19304
+      "sha256": "34be642dfa3d5f7ed5d8d57f7b6bfa7e81fb76180be9713e6e42c745e532ce19",
+      "bytes": 19643
     },
     {
       "path": "libraries/AP_HAL/board/sitl.h",
-      "sha256": "cf8544e7427aec11a4c12bfe4a33d9e1c9791eead9d774b9eb1252cd4c79a11e",
-      "bytes": 3285
+      "sha256": "0ef16c8b5be44c7d6235dfd6ee64b45eb1000203b346024ef0d256af8f17be92",
+      "bytes": 2982
     },
     {
       "path": "libraries/SITL/SIM_JSON.h",
@@ -65,18 +70,18 @@
     },
     {
       "path": "libraries/SITL/SIM_JSON.cpp",
-      "sha256": "9d61150869b2df651b96d7735523693bcaaefa3ef1496144bacd3b8b121118cc",
-      "bytes": 19926
+      "sha256": "c6383cff7a95cdb3497931a83c2217b19e71607059c408149d8eba78b8118cbc",
+      "bytes": 19711
     },
     {
       "path": "ArduCopter/motor_test.cpp",
-      "sha256": "201a65bb1d33326b7c41894f75ef8dc1afe0fb2612b81454421fea04658298e9",
-      "bytes": 7681
+      "sha256": "df946f0fa132422618e5dd7a669029ae107636b517d4daaabd43c3bd560be4b9",
+      "bytes": 7938
     },
     {
       "path": "libraries/AP_Arming/AP_Arming.cpp",
-      "sha256": "96b6a3f0cc23a94240daaadc279bd9cccbc76bc717a8507730ec680854fb39cb",
-      "bytes": 76629
+      "sha256": "45c543394639f72bc53e87ccb725bfe3f481b6a2f428f58c359eb09ccbd23a93",
+      "bytes": 74985
     }
   ],
   "description": "TASK-128 Phase 1 frame subset; source-derived static X tables and declared synthetic stock-Lua paired-16 geometry",

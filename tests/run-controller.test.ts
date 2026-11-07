@@ -44,6 +44,10 @@ import type { AccidentEvent } from '../packages/physics/src/accident.ts';
 import type { SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
 import { parseFlightTask, type FlightTaskDefinition, type FlightTaskStep } from '../packages/scenarios/src/flight-tasks.ts';
 import { siteParameters } from '@mirage/aircraft/site-parameters';
+import { barometerAltitudePerPascal } from '@mirage/aircraft/sensor-parameters';
+import { barometerGlitchM } from '@mirage/physics/barometer';
+import { WGS84_E2, primeVerticalRadiusM } from '@mirage/sensors/geodesy';
+import { gnssSolution, walkerConstellation } from '@mirage/sensors/gnss';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
@@ -142,6 +146,10 @@ const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [
   ['SIM_GPS1_NUMSATS', 10], ['SIM_GPS1_ACC', 0.3],
   // ArduPilot's own fault parameters (TASK-168), at their defaults. SIM_BAR3_FREEZE is left out for the test of an incomplete list.
   ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_LCKTIME', 0], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
+  // The barometer offsets the TASK-116 stream writes, at their defaults, and the two simulated barometers of V4.7.2.
+  ['SIM_BARO_COUNT', 2],
+  // The receiver's position offsets the TASK-117 GNSS stream writes, at their defaults.
+  ['SIM_GPS1_GLTCH_X', 0], ['SIM_GPS1_GLTCH_Y', 0], ['SIM_GPS1_GLTCH_Z', 0],
   ['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
 /** The autopilot's complete PARAM_VALUE list: every generated parameter (as float32 on the wire) plus others. */
 function parameterList(expected: readonly { readonly name: string; readonly value: number }[],
@@ -199,11 +207,11 @@ const listRequests = (frames: readonly SentFrame[]) => frames.filter(frame => fr
 const experimentId = (n: number) => `20261101120000000-${n.toString(16).padStart(8, '0')}`;
 /** The build identity in the launcher's experiment view. */
 const FIRMWARE: LauncherFirmware = {
-  id: 'arducopter-8ab6afd', firmwareVersion: 'ArduCopter V4.8.0-dev (8ab6afde)', commit: SITL_COMMIT,
+  id: 'arducopter-fb77356', firmwareVersion: 'ArduCopter V4.7.2 (fb773567)', commit: SITL_COMMIT,
   binarySha256: sha('installed arducopter'), defaultParametersSha256: sha('installed copter.parm'),
 };
 /** The catalog listing of the same build; its version text differs, so a record that copied the catalog would show. */
-const BUILD: CatalogEntry = { id: FIRMWARE.id, firmwareVersion: 'ArduCopter V4.8.0-dev', usable: true, reason: null };
+const BUILD: CatalogEntry = { id: FIRMWARE.id, firmwareVersion: 'ArduCopter V4.7.2', usable: true, reason: null };
 const NO_SESSION = 'No open SITL session for MAVLink';
 const BET_SHA = sha('scalar BET module');
 
@@ -503,7 +511,8 @@ const DEFAULTS = DEFAULT_SENSOR_CONFIGURATION;
 const ARDUPILOT_OWNED: SensorConfiguration = {
   ...DEFAULTS,
   barometer: { ...DEFAULTS.barometer, noiseRmsPa: 3, biasPa: 20 },
-  gnss: { ...DEFAULTS.gnss, updateRateHz: 10, horizontalSigmaM: 1.5 },
+  // The horizontal GNSS error is MirageSITL's since mapping 4; its stream has its own test.
+  gnss: { ...DEFAULTS.gnss, updateRateHz: 10 },
   magnetometer: { ...DEFAULTS.magnetometer, biasGauss: [0.01, 0, -0.02] },
 };
 /** Two MirageSITL-owned error terms, which the external-SITL path cannot apply yet (user decision: refused at start, naming them). */
@@ -1492,6 +1501,127 @@ describe('effect controls in a run (TASK-168)', () => {
     expect(h.controller.view.effects[1]).toMatchObject({ status: 'rejected', message: 'BAD_STATE: no link' });
   });
 
+  test('a barometer effect goes to the session, and its sampled error streams to ArduPilot\'s barometer offsets (TASK-116)', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    const cushion: EffectControl = { schemaVersion: 1, id: 'cushion', effect: 'baro.ground-cushion', enabled: true, intensity: 1, parameters: { gain: 1, decayRadii: 1 } };
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(cushion)).toBeNull();
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: cushion });
+    expect(paramSets(h)).toEqual([]);
+    // dh/dp at the 584 m home: a 12 Pa higher pressure is an altitude lower by 12·|dh/dp|, on both simulated barometers.
+    // The stream adds to what each offset held: here the Sensors tab's barometer bias of the generated parameters.
+    const held = (name: string) => Math.fround(h.run.parameters.find(p => p.name === name)?.value ?? 0);
+    expect(held('SIM_BARO_GLITCH')).not.toBe(0);
+    const dhdp = barometerAltitudePerPascal(DEFAULT_HOME[2]), offset = (pa: number) => barometerGlitchM(held('SIM_BARO_GLITCH'), pa, dhdp);
+    h.controller.worker({ type: 'barometer.sample', tick: 8000, simTimeS: 10, errorPa: 12, active: true });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_GLITCH', value: offset(12) }, { name: 'SIM_BAR2_GLITCH', value: offset(12) }]);
+    expect(h.controller.barometerOffset?.writes).toBe(2);
+    // An unchanged error writes nothing; a new one replaces the pending writes.
+    h.physics.sent.length = 0;
+    h.controller.worker({ type: 'barometer.sample', tick: 8080, simTimeS: 10.1, errorPa: 12, active: true });
+    expect(paramSets(h)).toEqual([]);
+    h.controller.worker({ type: 'barometer.sample', tick: 8160, simTimeS: 10.2, errorPa: 3.5, active: true });
+    expect(paramSets(h).map(write => write.value)).toEqual([offset(3.5), offset(3.5)]);
+    // The stream is counted, not listed: the run's change list holds no write of it.
+    expect(h.controller.view.parameters?.changes).toEqual([]);
+    // The last sample, off: back to what they held before.
+    h.physics.sent.length = 0;
+    h.controller.worker({ type: 'barometer.sample', tick: 8240, simTimeS: 10.3, errorPa: 0, active: false });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_GLITCH', value: held('SIM_BARO_GLITCH') }, { name: 'SIM_BAR2_GLITCH', value: held('SIM_BAR2_GLITCH') }]);
+    expect(h.controller.barometerOffset).toBeNull();
+    // A sample that is not a number is ignored.
+    h.controller.worker({ type: 'barometer.sample', tick: 1, simTimeS: 1, errorPa: Number.NaN, active: true });
+    expect(h.controller.barometerOffset).toBeNull();
+  });
+
+  test('the GNSS effects stream their solution into ArduPilot\'s receiver every 0.2 s, and restore it when they go off (TASK-117)', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    const gnss = (effect: EffectControl['effect'], parameters: EffectControl['parameters'], enabled = true): EffectControl =>
+      ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity: 1, parameters });
+    // Off, or at intensity 0, never on: nothing is written.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.constellation', { maskDeg: 10, uereM: 1.5 }, false))).toBeNull();
+    expect(h.controller.setEffect({ ...gnss('gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }), intensity: 0 })).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.gnssReceiver).toBeNull();
+    expect(h.controller.setEffect(gnss('gnss.constellation', { maskDeg: 10, uereM: 1.5 }))).toBeNull();
+    // Applied by the controller: nothing goes to the session.
+    expect(h.physics.effectsSent).toEqual([]);
+    const simTimeS = h.controller.view.status?.simTimeS ?? 0, truth = h.physics.flightTruth(), deg = Math.PI / 180;
+    const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(DEFAULT_HOME[0] * deg) ** 2) ** 1.5;
+    const receiver = { latRad: DEFAULT_HOME[0] * deg + truth.northM / meridional, lonRad: DEFAULT_HOME[1] * deg + truth.eastM / (primeVerticalRadiusM(DEFAULT_HOME[0] * deg) * Math.cos(DEFAULT_HOME[0] * deg)),
+      heightM: DEFAULT_HOME[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
+    const expected = gnssSolution(walkerConstellation(2400), receiver, 2400, simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
+    // Without an error the offsets stay, so only the count and the accuracy are written.
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: expected.tracked }, { name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'gnss.constellation', status: 'applied' });
+    // GNSS jamming writes the same parameters: refused while the stream runs.
+    expect(h.controller.setEffect({ schemaVersion: 1, id: 'jam', effect: 'ew.gnss-jamming', enabled: true, intensity: 1, parameters: { severity: 1 } })).toContain('writes the same receiver parameters');
+    // The atmosphere moves the fix, written as offsets.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }))).toBeNull();
+    expect(paramSets(h).map(write => write.name).sort()).toEqual(['SIM_GPS1_GLTCH_X', 'SIM_GPS1_GLTCH_Y', 'SIM_GPS1_GLTCH_Z']);
+    expect(Math.abs(paramSets(h).find(write => write.name === 'SIM_GPS1_GLTCH_Z')?.value ?? 0)).toBeGreaterThan(0.1);
+    // A jammer above the link budget loses the fix: the receiver's lock is held off.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.jamming-budget', { jammingToSignalDb: 60, spectralSeparation: 1.5, thresholdDbHz: 28 }))).toBeNull();
+    expect(paramSets(h)).toContainEqual({ name: 'SIM_GPS1_LCKTIME', value: 32767 });
+    expect(h.controller.gnssReceiver?.fixLost).toBe(true);
+    // Every effect off: back to the values before the stream.
+    for (const [effect, parameters] of [['gnss.constellation', { maskDeg: 10, uereM: 1.5 }], ['gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }],
+      ['gnss.jamming-budget', { jammingToSignalDb: 60, spectralSeparation: 1.5, thresholdDbHz: 28 }]] as const) h.controller.setEffect(gnss(effect, parameters, false));
+    expect(h.controller.gnssReceiver).toBeNull();
+    const last = new Map(paramSets(h).map(write => [write.name, write.value]));
+    expect([last.get('SIM_GPS1_GLTCH_Z'), last.get('SIM_GPS1_LCKTIME'), last.get('SIM_GPS1_NUMSATS')]).toEqual([0, 0, 10]);
+  });
+
+  test('the Sensors tab\'s horizontal GNSS error wanders into ArduPilot\'s receiver offsets through the GNSS stream (mapping 4)', async () => {
+    const original = fixture;
+    try {
+      fixture = await storedProfile({ ...ARDUPILOT_OWNED, gnss: { ...ARDUPILOT_OWNED.gnss, horizontalSigmaM: 2.5 } });
+      const run = (await preparedRun(fixture.store, fixture.stored)).run;
+      const deg = Math.PI / 180, lat = DEFAULT_HOME[0] * deg, normal = primeVerticalRadiusM(lat);
+      const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(lat) ** 2) ** 1.5;
+      /** One run's offsets in metres, north and east, after each of the same status updates. */
+      const flight = async (): Promise<number[][]> => {
+        const h = harness(() => Promise.resolve(run), null, catalog);
+        await reach(h, 'flying');
+        const rows: number[][] = [];
+        let at = h.controller.view.status?.simTimeS ?? 0, last = new Map<string, number>();
+        for (const dt of [0.2, 0.05, 0.2, 1, 0.2]) {
+          h.physics.sent.length = 0;
+          at += dt;
+          status(h, { ready: true, reason: '', simTimeS: at });
+          const writes = new Map(paramSets(h).filter(write => write.name.startsWith('SIM_GPS1_GLTCH')).map(write => [write.name, write.value]));
+          // Within 0.2 s of the last solution nothing is written; after it both horizontal offsets are, and the height offset is not.
+          if (dt < 0.2) { expect(writes.size).toBe(0); continue; }
+          expect([...writes.keys()].sort()).toEqual(['SIM_GPS1_GLTCH_X', 'SIM_GPS1_GLTCH_Y']);
+          last = writes;
+          rows.push([(last.get('SIM_GPS1_GLTCH_X') ?? NaN) * deg * meridional, (last.get('SIM_GPS1_GLTCH_Y') ?? NaN) * deg * normal * Math.cos(lat)]);
+        }
+        // No satellite geometry effect: the count and accuracy stay ArduPilot's own.
+        expect(h.controller.gnssReceiver?.values.get('SIM_GPS1_NUMSATS')).toBe(10);
+        return rows;
+      };
+      const first = await flight(), second = await flight();
+      // A wander of metres: every offset within 4σ, and each update moves it.
+      for (const [north, east] of first) { expect(Math.abs(north!)).toBeLessThan(10); expect(Math.abs(east!)).toBeLessThan(10); }
+      expect(new Set(first.map(row => row[0])).size).toBe(first.length);
+      // Seeded by the profile version: the same run writes the same offsets.
+      expect(second).toEqual(first);
+    } finally {
+      fixture = original;
+    }
+  });
+
+  test('a barometer effect is refused while ArduPilot\'s parameters cannot be written', () => {
+    const h = harness(undefined, null, catalog);
+    expect(h.controller.setEffect({ schemaVersion: 1, id: 'wash', effect: 'baro.prop-wash', enabled: true, intensity: 1, parameters: { coefficient: 0.1 } })).toBe('No run is active');
+    expect(h.physics.effectsSent).toEqual([]);
+  });
+
   test('without a run, or with an invalid record, nothing is sent', () => {
     const h = harness(undefined, null, catalog);
     expect(h.controller.setEffect(control('sensor.imu.frozen'))).toBe('No run is active');
@@ -2317,7 +2447,7 @@ const fakeDefaults = join(scratch, 'copter.parm');
 writeFileSync(fakeDefaults, 'SYSID_THISMAV 1\n');
 const fileSha = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 function entry(id: string, binary: string): FirmwareEntry {
-  return { id, firmwareVersion: 'ArduCopter V4.8.0-dev', commit: SITL_COMMIT, binaryPath: binary, binarySha256: fileSha(binary),
+  return { id, firmwareVersion: 'ArduCopter V4.7.2', commit: SITL_COMMIT, binaryPath: binary, binarySha256: fileSha(binary),
     defaultParametersPath: fakeDefaults, defaultParametersSha256: fileSha(fakeDefaults) };
 }
 /** A copy of the fake wrapper under its own catalog ID, so a test may delete or chmod it. */
@@ -2542,7 +2672,7 @@ describe('the real launcher with the fake SITL', () => {
 
     test('lists the catalog, parses a started experiment view, its logs and its stop', async () => {
       const client = new LauncherClient(launcher.port, token);
-      expect(await client.catalog()).toContainEqual({ id: 'fake', firmwareVersion: 'ArduCopter V4.8.0-dev', usable: true, reason: null });
+      expect(await client.catalog()).toContainEqual({ id: 'fake', firmwareVersion: 'ArduCopter V4.7.2', usable: true, reason: null });
       fake.setMode('idle');
       const started = await client.start(spec());
       expect(started.id).toMatch(/^[0-9]{17}-[0-9a-f]{8}$/);
@@ -2955,7 +3085,7 @@ const PARAM_SET = 23, REQUEST_MESSAGE = 512, AUTOPILOT_VERSION_ID = 148, GPS_RAW
 const ENDPOINTS: ConnectionSpec = { jsonPhysicsPort: 9002, mavlink: { transport: 'tcp', port: 5760 } };
 /** FIRMWARE_VERSION_TYPE_DEV (common.xml). */
 const VERSION_DEV = 0, VERSION_OFFICIAL = 255;
-function autopilotVersion(gitHash: string, major = 4, minor = 8, patch = 0, type = VERSION_DEV): Uint8Array {
+function autopilotVersion(gitHash: string, major = 4, minor = 7, patch = 2, type = VERSION_OFFICIAL): Uint8Array {
   const custom = Array.from({ length: 8 }, (_, i) => gitHash.charCodeAt(i) || 0);
   return autopilotFrame(AUTOPILOT_VERSION_ID, { capabilities: 0, uid: 0, flight_sw_version: ((major << 24) | (minor << 16) | (patch << 8) | type) >>> 0,
     middleware_sw_version: 0, os_sw_version: 0, board_version: 0, vendor_id: 0, product_id: 0, flight_custom_version: custom,
@@ -3047,7 +3177,7 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
     expect(h.records.payloads).toHaveLength(1);
     const payload = h.records.payloads[0];
     expect(payload?.sitl).toEqual({ ownership: 'external', connectionId: id,
-      ardupilot: { commit: SITL_COMMIT, gitHash: SITL_COMMIT.slice(0, 8), firmwareVersion: '4.8.0-dev' }, endpoints: ENDPOINTS });
+      ardupilot: { commit: SITL_COMMIT, gitHash: SITL_COMMIT.slice(0, 8), firmwareVersion: '4.7.2' }, endpoints: ENDPOINTS });
     expect(payload?.session).toMatchObject({ physicsHz: 800, speedup: null, home: DEFAULT_HOME, betModuleSha256: BET_SHA });
     expect(payload?.frameScript).toBeNull();
     expect(payload?.parameters).toEqual(h.run.parameters);
@@ -3133,8 +3263,8 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
     });
 
     test.each([
-      ['another commit', autopilotVersion('0123abcd', 4, 6, 2, VERSION_OFFICIAL), 'the SITL reports ArduPilot 4.6.2 built from commit 0123abcd; MirageSITL has verified only commit 8ab6afde'],
-      ['no git hash', autopilotVersion('', 4, 7, 0), 'the SITL reports ArduPilot 4.7.0-dev built from a source without a git hash'],
+      ['another commit', autopilotVersion('0123abcd', 4, 6, 2, VERSION_OFFICIAL), 'the SITL reports ArduPilot 4.6.2 built from commit 0123abcd; MirageSITL has verified only commit fb773567'],
+      ['no git hash', autopilotVersion('', 4, 7, 0, VERSION_DEV), 'the SITL reports ArduPilot 4.7.0-dev built from a source without a git hash'],
     ])('a version from %s', async (_label, frame, message) => {
       const h = harness();
       await connectTo(h, 'version');

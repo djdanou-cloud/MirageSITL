@@ -166,8 +166,8 @@ deletion instruction.
 | TASK-115 | Partly required: placement (lever arm) and orientation, delivered by TASK-147. Temperature, Allan-variance and vibration-rectification terms are deferred. | S08 |
 | TASK-102, TASK-104, TASK-105, TASK-107, TASK-114, TASK-116, TASK-117, TASK-118, TASK-119, TASK-123 | Deferred: not required by S01–S19. Load-dependent sag and electrical limits come from TASK-092 and TASK-146; heating, cooling, aging and terrain-induced flow are excluded. | Scope section 2 |
 | TASK-109–TASK-113 | Deferred: fixed-wing, VTOL and other aircraft classes are later stages. | Scope section 2 |
-| TASK-194 | Deferred: decision D-07 keeps gear editing out of Phase 1; TASK-095 delivers the standard supports. Registered 2026-11-01. DONE on 2026-11-07 on the user's separate approval, outside the Phase 1 acceptance: a profile without a gear keeps the standard supports and its derived bytes. | S18, D-07 |
-| TASK-196 | Deferred: S03 lists no body size among the aircraft inputs; TASK-095 derives a standard hull from the arms and propellers. Registered 2026-11-01. DONE on 2026-11-07 on the user's separate approval, outside the Phase 1 acceptance: a profile without a body keeps the standard hull and its derived bytes. | S03, S18 |
+| TASK-194 | Deferred: decision D-07 keeps gear editing out of Phase 1; TASK-095 delivers the standard supports. Registered 2026-11-01. | S18, D-07 |
+| TASK-196 | Deferred: S03 lists no body size among the aircraft inputs; TASK-095 derives a standard hull from the arms and propellers. Registered 2026-11-01. | S03, S18 |
 | TASK-120, TASK-121, TASK-122 | Deferred: flexible structures and multi-aircraft wakes are excluded, and thermals and microbursts are not among the S07 weather settings. | Scope section 2, S07 |
 | TASK-073 | Not a Phase 1 blocker: its gate depends on Windows-measured integrated GPUs and on thermal and FPV views that Phase 1 excludes. Its evidence and harness are preserved, and TASK-132 sets the Phase 1 rendering criteria. | Scope sections 2 and 3 |
 | TASK-080 | The automated keyboard and axe checks remain regressions for new UI. The manual screen-reader sign-off is not an S19 item unless decision D-12 adds it. | S19 |
@@ -360,6 +360,7 @@ Exit: S19 executed on macOS with PASS, FAIL, BLOCKED and NOT_RUN recorded.
 | TASK-188 | Phase 1 acceptance matrix harness | S19 | 132, 134, 158 |
 | TASK-189 | Sixteen-motor one-hour simulated-time run with recording | S19 | 091, 162, 175, 188 |
 | TASK-190 | macOS delivery: installation, restart, offline operation and recovery | S01, S19 | 152, 179, 188 |
+| TASK-198 | ArduCopter V4.7.2 for Phase 1 (decision D-01) | S01, S19 | 128, 190 |
 | TASK-191 | Phase 1 acceptance report | S19 | 096, 098, 099, 100, 101, 106, 145, 163, 167, 170, 171, 174, 176, 177, 181, 184, 185, 187, 189, 190, 195 |
 
 ### 5.3 Parallel tracks and critical path
@@ -393,11 +394,11 @@ By task count, the longest chain of open tasks to the acceptance report is TASK-
 
 ## 6. Decisions and evidence still required
 
-**Acceptance on 2026-11-06.** The matrix stands at 51 PASS on evidence from a clean
-installation of the final code (TASK-191), and Phase 1 is not declared accepted. What
-stands in the way: measured data for TASK-099, TASK-100, TASK-101, TASK-145 and
-TASK-184, and decision D-01 for TASK-190, each the stakeholder's to supply or
-decide. A-06 passed five frame-time runs in a row that day, after one failing run.
+**Acceptance on 2026-11-07.** The matrix stands at 51 PASS on ArduCopter V4.7.2, on evidence
+from a clean installation of the final code (TASK-191, TASK-198), and Phase 1 is not declared
+accepted. What stands in the way: measured data for TASK-099, TASK-100, TASK-101, TASK-145 and
+TASK-184, which is the stakeholder's to supply, or the stakeholder's decision to accept with
+those comparisons open.
 `node scripts/phase1/acceptance.mjs` prints the current list.
 
 Scope section 3 lists D-01–D-09. D-10–D-12 arose from this inventory. A
@@ -443,6 +444,9 @@ Decisions taken by the stakeholder on 2026-10-28:
   stay BLOCKED_EXTERNAL, labeled as not validated.
 * D-12: the manual screen-reader sign-off of TASK-080 is not part of Phase 1
   acceptance; the automated keyboard and axe checks remain.
+* D-01 (decided by the stakeholder on 2026-11-06, in the words "Move to 4.7.2"): Phase 1 uses
+  stable ArduCopter V4.7.2, commit `fb773567896014da007bca58358704d4a0d8516f`. The complete
+  16-output path is its stock Lua scripting matrix, with no firmware patch (TASK-198).
 * D-02 (decided by the stakeholder on 2026-11-06): ArduPilot SITL is built natively on
   the user's Mac from the pinned source. There is no virtual machine or container, and
   no prebuilt SITL binary is distributed; shipping one would need its own decision.

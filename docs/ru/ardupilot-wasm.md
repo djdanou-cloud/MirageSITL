@@ -1,5 +1,5 @@
 # Решение об осуществимости ArduPilot в браузере
-<!-- source-sha256: 3c32928cb90a1ed006caf7e452b6982877896f982c929ca434fab6a9adbe7a7c -->
+<!-- source-sha256: f062e839abe3ad4a754a7927bc23af2d32e087d481b9145cc6e563975d11ac30 -->
 
 Английский источник: [Source of truth](../decisions/ardupilot-wasm.md).
 
@@ -11,8 +11,8 @@
 и распространение артефактов GPL-3.0-or-later (`BLOCKED_DECISION`) остаются
 открытыми; проверка компилятора и успешный запуск не включают READY.
 
-Базовый коммит `8ab6afde107a91df1b5f60ade8f333cb8a61b190` совпадает с JSON-эталоном
-TASK-041. Upstream-плата `libraries/AP_HAL_SITL/hwdef/wasm` использует
+Базовый коммит `8ab6afde107a91df1b5f60ade8f333cb8a61b190` был JSON-эталоном TASK-041, пока
+TASK-198 не перенесла нативный SITL на ArduCopter V4.7.2 (решение D-01); эта браузерная сборка его сохраняет. Upstream-плата `libraries/AP_HAL_SITL/hwdef/wasm` использует
 `HAL_SITL_WASM_ENABLED`, `PROXY_TO_PTHREAD` и экспортированный serial-мост.
 `native/ardupilot/source.lock.json` закрепляет байты исходников;
 `native/ardupilot/toolchain.lock.json` закрепляет SDK/компилятор/субмодули;

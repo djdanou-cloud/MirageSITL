@@ -1,6 +1,6 @@
 // TASK-164: DataFlash capture per experiment. Oracles: the generated
 // parameter metadata of the pinned commit (TASK-159) for the LOG_* checks; the
-// real ArduCopter 8ab6afde SITL log slice of TASK-178
+// real ArduCopter V4.8.0-dev (8ab6afde) SITL log slice of TASK-178, kept as a parser fixture after the move to V4.7.2
 // (tests/fixtures/dataflash/sitl-copter.bin, whose PARM and VER records
 // pymavlink reads in reference.json) for the classification and read-back;
 // the launcher with the shared fake SITL, whose 6-byte log is a record cut
@@ -25,13 +25,15 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const ORIGIN = "http://127.0.0.1:5173";
 const FIXTURE = join(ROOT, "tests/fixtures/dataflash/sitl-copter.bin");
 const COMMIT = sitlLock.commit;
+/** The firmware that wrote the fixture log: VER in its own bytes. */
+const FIXTURE_COMMIT = "8ab6afde107a91df1b5f60ade8f333cb8a61b190";
 const metadataFile: unknown = JSON.parse(readFileSync(join(ROOT, "data/ardupilot/param-metadata.json"), "utf8"));
 const metadata = parseParameterMetadata(metadataFile).forCommit(COMMIT);
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const scratch = mkdtempSync(join(tmpdir(), "mirage-dataflash-test-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 const fixture = new Uint8Array(readFileSync(FIXTURE));
-const expected = (logging: { name: string; value: number }[] = []) => ({ firmwareVersion: "ArduCopter V4.8.0-dev", commit: COMMIT, logging });
+const expected = (logging: { name: string; value: number }[] = []) => ({ firmwareVersion: "ArduCopter V4.8.0-dev", commit: FIXTURE_COMMIT, logging });
 
 describe("LOG_* parameters against the metadata of the firmware's commit", () => {
   test("accepts declared values, bits and ranges, and ignores other parameters", () => {
@@ -43,7 +45,7 @@ describe("LOG_* parameters against the metadata of the firmware's commit", () =>
   test("names every reason a logging configuration cannot be used", () => {
     expect(checkLoggingParameters([
       { name: "LOG_DISARMED", value: 7 },
-      // Bit 14 is not declared in ArduCopter's LOG_BITMASK at 8ab6afde.
+      // Bit 14 is not declared in ArduCopter's LOG_BITMASK at V4.7.2.
       { name: "LOG_BITMASK", value: 180222 + 2 ** 14 },
       { name: "LOG_MAX_FILES", value: 1 },
       { name: "LOG_BACKEND_TYPE", value: 2 },
@@ -56,7 +58,7 @@ describe("LOG_* parameters against the metadata of the firmware's commit", () =>
       "LOG_MAX_FILES 1 is outside its range 2 to 500",
       "LOG_BACKEND_TYPE must include the File backend (bit 0): the launcher collects the logs SITL writes to logs/",
       "LOG_BACKEND_TYPE requests the Block backend (bit 2), which SITL does not have",
-      "LOG_NOT_A_PARAMETER is not a parameter of ArduPilot 8ab6afde",
+      "LOG_NOT_A_PARAMETER is not a parameter of ArduPilot fb773567",
       "LOG_REPLAY must be a finite number",
     ]);
     expect(checkLoggingParameters([{ name: "LOG_DISARMED", value: 1 }], null)).toEqual([
@@ -69,7 +71,7 @@ describe("a DataFlash file judged from its own bytes", () => {
     const assessment = assessDataflash(fixture);
     expect(assessment).toMatchObject({ status: "complete", records: 2259, truncatedBytes: 0, damaged: [],
       firmware: { version: "ArduCopter V4.8.0-dev (8ab6afde)", gitHash: "8ab6afde" } });
-    expect(firmwareMatches(assessment, COMMIT)).toBe(true);
+    expect(firmwareMatches(assessment, FIXTURE_COMMIT)).toBe(true);
     expect(firmwareMatches(assessment, "0".repeat(40))).toBe(false);
     expect(assessment.parameters.size).toBe(1410);
     expect([assessment.parameters.get("LOG_BITMASK"), assessment.parameters.get("LOG_BACKEND_TYPE"), assessment.parameters.get("LOG_DISARMED")]).toEqual([180222, 1, 0]);
@@ -144,7 +146,7 @@ function field(value: unknown, ...path: (string | number)[]): unknown {
 }
 function entry(id: string, binary: string, defaults: string): FirmwareEntry {
   const hash = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
-  return { id, firmwareVersion: "ArduCopter V4.8.0-dev", commit: COMMIT, binaryPath: binary, binarySha256: hash(binary), defaultParametersPath: defaults, defaultParametersSha256: hash(defaults) };
+  return { id, firmwareVersion: "ArduCopter V4.7.2", commit: COMMIT, binaryPath: binary, binarySha256: hash(binary), defaultParametersPath: defaults, defaultParametersSha256: hash(defaults) };
 }
 const spec = (parameters: { name: string; value: number }[], firmwareId: string) => ({
   firmwareId, parameters, frameScript: null, speedup: 1, rateHz: 800, home: [-35.362938, 149.165085, 584, 0],
@@ -196,18 +198,18 @@ describe("the launcher attaches each run's logs", () => {
 
 const REAL_BINARY = join(ROOT, ".cache/task-127/build-stock/sitl/bin/arducopter");
 const REAL_DEFAULTS = join(ROOT, ".cache/task-127/ardupilot/Tools/autotest/default_params/copter.parm");
-describe.skipIf(!existsSync(REAL_BINARY) || !existsSync(REAL_DEFAULTS))("the real ArduCopter 8ab6afde through the launcher (TASK-127 build)", () => {
+describe.skipIf(!existsSync(REAL_BINARY) || !existsSync(REAL_DEFAULTS))("the real ArduCopter V4.7.2 through the launcher (TASK-127 build)", () => {
   test("attaches the run's log, hashed, with the firmware and the configured logging read back from the log itself", async () => {
     const home = join(scratch, "real-home");
     const token = ensureToken(home);
-    writeCatalogEntry(home, entry("arducopter-8ab6afde", REAL_BINARY, REAL_DEFAULTS));
+    writeCatalogEntry(home, entry("arducopter-fb773567", REAL_BINARY, REAL_DEFAULTS));
     const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(ROOT, ".cache/task-127/venv/bin/python") });
     // Logging while disarmed, so a run on the ground writes a log; a LOG_BITMASK other than the default, so the read-back is not the default's.
     const logging = [{ name: "LOG_BACKEND_TYPE", value: 1 }, { name: "LOG_DISARMED", value: 1 }, { name: "LOG_BITMASK", value: 176126 }, { name: "LOG_FILE_DSRMROT", value: 0 }];
     const parameters = [...readFileSync(join(ROOT, "tests/fixtures/sitl/parameters.parm"), "utf8").split("\n").filter(line => /^[A-Z]/.test(line))
       .map(line => { const [name, value] = line.trim().split(/\s+/); return { name: name ?? "", value: Number(value) }; }), ...logging];
     try {
-      const started = await call(launcher, token, "POST", "/v1/experiments", spec(parameters, "arducopter-8ab6afde"));
+      const started = await call(launcher, token, "POST", "/v1/experiments", spec(parameters, "arducopter-fb773567"));
       expect(started.status, JSON.stringify(started.json)).toBe(201);
       const id = String(field(started.json, "id")), work = String(field(started.json, "workDirectory"));
       const ws = new WebSocket(`ws://127.0.0.1:${Number(field(started.json, "ports", "bridge"))}`, ["mirage-v1", `session.${token}`], { origin: ORIGIN });
@@ -233,7 +235,7 @@ describe.skipIf(!existsSync(REAL_BINARY) || !existsSync(REAL_DEFAULTS))("the rea
       expect(field(attachments, 0, "bytes")).toBe(bytes.length);
       expect(["complete", "truncated"]).toContain(field(attachments, 0, "status"));
       expect(field(attachments, 0, "damaged")).toEqual([]);
-      expect(field(attachments, 0, "firmware")).toEqual({ version: "ArduCopter V4.8.0-dev (8ab6afde)", gitHash: "8ab6afde", matchesBuild: true });
+      expect(field(attachments, 0, "firmware")).toEqual({ version: "ArduCopter V4.7.2 (fb773567)", gitHash: "fb773567", matchesBuild: true });
       expect(field(attachments, 0, "logging")).toEqual({ confirmed: true, checked: logging.map(p => ({ name: p.name, configured: p.value, logged: p.value })) });
       // Evidence: the attachment as the launcher reported it, written only where MIRAGE_DATAFLASH_EVIDENCE names a file.
       const evidence = process.env.MIRAGE_DATAFLASH_EVIDENCE;

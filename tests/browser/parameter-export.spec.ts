@@ -9,7 +9,7 @@ import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
 // TASK-161 (S11): parameter file export from the Parameters tab against
-// native ArduCopter 8ab6afde, through the application alone. With a write
+// native ArduCopter fb773567, through the application alone. With a write
 // pending while the run is paused, the file of all parameters holds
 // ArduPilot's confirmed value and the preview names the pending one; the
 // file of changes against a stored set and the file of chosen parameters and
@@ -31,7 +31,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 
@@ -107,7 +107,7 @@ test("the Parameters tab exports parameter files and simulator settings against 
     const header = allText.split("\n").filter(line => line.startsWith("#"));
     expect(header).toEqual(expect.arrayContaining([
       expect.stringMatching(/^# Aircraft profile: Quad X export, version 1, [0-9a-f]{64}$/),
-      expect.stringMatching(/^# ArduPilot: .*, commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190$/),
+      expect.stringMatching(/^# ArduPilot: .*, commit fb773567896014da007bca58358704d4a0d8516f$/),
       expect.stringMatching(new RegExp(`^# Experiment: \\d{17}-[0-9a-f]{8}, record ${record}$`)),
       `# Parameters: ${total}`,
     ]));

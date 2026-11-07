@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "esc",
+  "example": false,
+  "manufacturer": "T-Motor",
+  "model": "Alpha 40A 6S",
+  "sources": [
+    {
+      "id": "owner-post",
+      "kind": "specification",
+      "description": "The aircraft owner's statement of the hardware in ArduPilot forum topic 144558 (posts 4 and 12), recorded in data/flight-logs/inventory.json; not a datasheet.",
+      "sha256": null,
+      "date": "2026-07-18"
+    }
+  ],
+  "values": {
+    "maxCurrentA": 40,
+    "updateRateHz": null,
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "provenance": {
+    "maxCurrentA": "owner-post",
+    "updateRateHz": null,
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "applicability": "Maximum current from the model name the owner gives."
+}

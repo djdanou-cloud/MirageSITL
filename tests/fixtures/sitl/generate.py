@@ -35,7 +35,7 @@ import struct
 import urllib.request
 from pathlib import Path
 
-COMMIT = "8ab6afde107a91df1b5f60ade8f333cb8a61b190"
+COMMIT = "fb773567896014da007bca58358704d4a0d8516f"
 FILES = ["libraries/SITL/SIM_JSON.h", "libraries/SITL/SIM_JSON.cpp", "libraries/SITL/examples/JSON/readme.md"]
 
 
@@ -119,7 +119,7 @@ print(f"wrote {out}")
 # --- TASK-089: pinned-source catalog -------------------------------------------------
 CATALOG_FILES = [
     "libraries/SITL/SITL.cpp", "libraries/SITL/SITL.h", "libraries/SITL/SITL_Baro.cpp",
-    "libraries/SITL/SITL_Airspeed.cpp", "libraries/SITL/SIM_GPS.cpp", "libraries/SITL/SIM_Compass.cpp",
+    "libraries/SITL/SITL_Airspeed.cpp", "libraries/SITL/SIM_GPS.cpp", "libraries/AP_Compass/AP_Compass_SITL.cpp",
     "libraries/SITL/SIM_Aircraft.cpp", "libraries/SITL/SIM_JSON.h", "libraries/SITL/SIM_JSON.cpp",
     "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "libraries/AP_Baro/AP_Baro_SITL.cpp",
     "libraries/AP_Param/AP_Param.cpp", "Tools/autotest/default_params/copter.parm",
@@ -265,19 +265,18 @@ FACTS = [
     ("ins-vibration-frequency", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "if (!vibe_freq.is_zero() && motors_on) {"),
     ("ins-vibration-motor", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "if (!is_zero(sitl->vibe_motor) && motors_on) {"),
     ("ins-lever-arm", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "Vector3f pos_offset = sitl->imu_pos_offset;"),
-    ("ins-board-trim", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "const Vector3f &board_trim = sitl->board_trim.get();"),
+    ("ins-accel-trim", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "const Vector3f &accel_trim = sitl->accel_trim.get();"),
     ("baro-noise", "libraries/AP_Baro/AP_Baro_SITL.cpp", "sim_alt += _sitl->baro[_instance].noise * rand_float();"),
     ("baro-drift", "libraries/AP_Baro/AP_Baro_SITL.cpp", "total_alt_drift += _sitl->baro[_instance].drift * drift_delta_t_ms * 0.001f;"),
     ("baro-glitch", "libraries/AP_Baro/AP_Baro_SITL.cpp", "sim_alt += _sitl->baro[_instance].glitch;"),
     ("baro-delay", "libraries/AP_Baro/AP_Baro_SITL.cpp", "const uint32_t delayed_time = now - _sitl->baro[_instance].delay;"),
     ("baro-wind", "libraries/AP_Baro/AP_Baro_SITL.cpp", "error += bp.wcof_xp * sqx;"),
-    ("baro-ground-effect", "libraries/AP_Baro/AP_Baro_SITL.cpp", "const float geff = _sitl->baro[_instance].ground_effect_alt_err;"),
-    ("compass-noise", "libraries/SITL/SIM_Compass.cpp", "const Vector3f noise = rand_vec3f() * _sitl->mag_noise;"),
-    ("compass-hard-iron", "libraries/SITL/SIM_Compass.cpp",
-     "Vector3f f = (eliptical_corr * new_mag_data) - _sitl->mag_ofs[instance].get();"),
-    ("compass-soft-iron-zero-is-identity", "libraries/SITL/SIM_Compass.cpp", "if (diag.is_zero()) {"),
-    ("compass-scaling", "libraries/SITL/SIM_Compass.cpp", "v *= mag_scaling[instance];"),
-    ("compass-delay", "libraries/SITL/SIM_Compass.cpp", "const uint32_t delayed_time = now - _sitl->mag_delay;"),
+    ("compass-noise", "libraries/AP_Compass/AP_Compass_SITL.cpp", "Vector3f noise = rand_vec3f() * _sitl->mag_noise;"),
+    ("compass-hard-iron", "libraries/AP_Compass/AP_Compass_SITL.cpp",
+     "Vector3f f = (_eliptical_corr * new_mag_data) - _sitl->mag_ofs[sitl_instance].get();"),
+    ("compass-soft-iron-zero-is-identity", "libraries/AP_Compass/AP_Compass_SITL.cpp", "if (diag.is_zero()) {"),
+    ("compass-scaling", "libraries/AP_Compass/AP_Compass_SITL.cpp", "f *= _sitl->mag_scaling[sitl_instance];"),
+    ("compass-delay", "libraries/AP_Compass/AP_Compass_SITL.cpp", "uint32_t delayed_time = now - _sitl->mag_delay;"),
     ("aircraft-mag-anomaly", "libraries/SITL/SIM_Aircraft.cpp", "mag_ef += sitl->mag_anomaly_ned.get() * anomaly_scaler;"),
     ("aircraft-mag-motor", "libraries/SITL/SIM_Aircraft.cpp", "mag_bf += sitl->mag_mot.get() * battery_current;"),
     ("aircraft-body-mag-field", "libraries/SITL/SIM_Aircraft.cpp", "fdm.bodyMagField = mag_bf;"),
@@ -286,21 +285,18 @@ FACTS = [
     # TASK-147 sources of ownership matrix schema 3.
     ("ins-imu-orient-accel", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "accel_accum.rotate(sitl->imu_orientation);"),
     ("ins-imu-orient-gyro", "libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp", "gyro_accum.rotate(sitl->imu_orientation);"),
-    ("compass-orient", "libraries/SITL/SIM_Compass.cpp", "v.rotate_inverse((enum Rotation)mag_orient[instance].get());"),
+    ("compass-orient", "libraries/AP_Compass/AP_Compass_SITL.cpp", "f.rotate_inverse((enum Rotation)_sitl->mag_orient[sitl_instance].get());"),
     # The constructor value, not the compiled default 0, is what runs; it pairs with copter.parm COMPASS_OFS.
     ("compass-stock-offsets", "libraries/SITL/SITL.h", "mag_ofs[i].set(Vector3f(5, 13, -18));"),
     ("sim-gps-enabled", "libraries/SITL/SIM_config.h", "#define AP_SIM_GPS_ENABLED AP_SIM_ENABLED"),
     ("gps-first-enabled", "libraries/SITL/SIM_GPS.cpp", "_sitl->gps[0].enabled.set(1);"),
-    ("gps-wander-period", "libraries/SITL/SIM_GPS.cpp", "const float gps_wander_angle_rad = now_ms * 0.0005f;"),
-    ("gps-horizontal-wander", "libraries/SITL/SIM_GPS.cpp", "const float lat_wander_m = params.noise_horizontal * sinf(gps_wander_angle_rad);"),
-    ("gps-vertical-wander", "libraries/SITL/SIM_GPS.cpp",
-     "d.altitude = altitude + params.noise_vertical * sinf(gps_wander_angle_rad) + params.alt_offset;"),
+    ("gps-vertical-wander", "libraries/SITL/SIM_GPS.cpp", "d.altitude = altitude + params.noise * sinf(now_ms * 0.0005f) + params.alt_offset;"),
     ("gps-velocity-error", "libraries/SITL/SIM_GPS.cpp", "d.speedN = speedN + (velErrorNED.x * rand_float());"),
     ("gps-lag", "libraries/SITL/SIM_GPS.cpp", "d = interpolate_data(d, params.delay_ms);"),
     ("json-battery-voltage", "libraries/SITL/SIM_JSON.cpp", "battery_voltage = state.bat_volt;"),
     ("json-battery-current", "libraries/SITL/SIM_JSON.cpp", "battery_current = state.bat_amp;"),
     ("analog-voltage-pin", "libraries/AP_HAL_SITL/SITL_State_common.cpp", "voltage_pin_voltage = (voltage / 10.1f);"),
-    ("analog-current-pin", "libraries/AP_HAL_SITL/SITL_State_common.cpp", "current_pin_voltage = current_amp / 17.0f;"),
+    ("analog-current-pin", "libraries/AP_HAL_SITL/SITL_State_common.cpp", "current_pin_voltage = current/17.0f;"),
     ("analog-average-is-latest", "libraries/AP_HAL_SITL/AnalogIn.cpp", "float ADCSource::voltage_average() {\n    return voltage_latest();"),
     ("battery-voltage-scale", "libraries/AP_HAL/board/sitl.h", "#define HAL_BATT_VOLT_SCALE                10.1f"),
     ("battery-current-scale", "libraries/AP_HAL/board/sitl.h", "#define HAL_BATT_CURR_SCALE                17.0f"),
@@ -316,6 +312,10 @@ for fact_id, path, text in FACTS:
     assert text in catalog_sources[path], (fact_id, path)
     facts.append({"id": fact_id, "path": path, "text": text})
 assert catalog_sources["libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp"].count("p += gyro_noise * rand_float();") == 2
+# What this commit does not have, so that a later pin adding one fails loudly: a barometer ground effect and a horizontal GNSS error.
+assert "ground_effect" not in catalog_sources["libraries/AP_Baro/AP_Baro_SITL.cpp"]
+assert "ground_effect" not in catalog_sources["libraries/SITL/SITL_Baro.cpp"]
+assert "noise_horizontal" not in catalog_sources["libraries/SITL/SIM_GPS.cpp"] and "HNSE" not in catalog_sources["libraries/SITL/SIM_GPS.cpp"]
 
 
 # --- TASK-089: MirageSITL firmware patches over the same pinned sources ------------

@@ -48,6 +48,8 @@ const environmentOptions: ProfileDynamicsOptions = environment;
 const groundStarts = new Map<string, GroundStart>();
 // TASK-186: the published lattice of a real-terrain run, and how many missing-terrain ticks have been posted.
 let terrainPosted = 0;
+/** TASK-116: the barometer samples of the current session posted so far. */
+let barometerPosted = 0;
 type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl.reject"; message: string }
   | { type: "bet.module.ready"; sha256: string } | { type: "bet.module.reject"; message: string }
   | { type: "contact.module.ready"; sha256: string } | { type: "contact.module.reject"; message: string }
@@ -64,6 +66,7 @@ type WorkerNotice = CommandResultV2 | WorkerFaultV2 | SitlNotice | { type: "sitl
   | { type: "validity.changes"; changes: { tick: number; simTimeS: number; flags: number }[]; dropped: number }
   | { type: "contact.events"; events: { tick: number; simTimeS: number; code: number; value: number }[]; dropped: number }
   | { type: "terrain.missing"; tick: number; simTimeS: number; northM: number; eastM: number; count: number }
+  | { type: "barometer.sample"; tick: number; simTimeS: number; errorPa: number; active: boolean }
   | { type: "recording-v2.armed" } | { type: "recording-v2.reject"; message: string }
   | { type: "scenario.submit"; command: ControlCommand }
   | { type: "scenario.reject"; message: string }
@@ -96,6 +99,12 @@ function flush(): void {
   const contacts: { tick: number; simTimeS: number; code: number; value: number }[] = [];
   if (session && session.drainContactEvents((tick, simTimeS, code, value) => contacts.push({ tick, simTimeS, code, value })) > 0) {
     post({ type: "contact.events", events: contacts, dropped: session.contactEventsDropped });
+  }
+  // TASK-116: the newest barometer error sample, for the run controller's offset stream; samples between two flushes are superseded.
+  const barometer = session?.barometerSample;
+  if (barometer && (barometer[0] ?? 0) > barometerPosted) {
+    barometerPosted = barometer[0] ?? 0;
+    post({ type: "barometer.sample", tick: barometer[1] ?? 0, simTimeS: barometer[2] ?? 0, errorPa: barometer[3] ?? 0, active: barometer[4] === 1 });
   }
   // TASK-186: a tick that found the terrain missing paused the session; say where, once per such tick.
   const missing = session?.terrainMissing;
@@ -320,6 +329,7 @@ addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!session) {
     if (!isWorkerInitV2(data)) { post({ type: 'fault-v2', protocolVersion: 2, message: 'Expected init-v2' }); return; }
     try {
+      barometerPosted = 0;
       session = new PhysicsSessionV2(data, clock, undefined, createSessionFaultPort(),
         profileModelPort(registry, () => betModule, environmentOptions, sha256 => ratings.get(sha256) ?? null, sha256 => {
           const start = groundStarts.get(sha256);

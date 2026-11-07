@@ -13,7 +13,7 @@ import {
 // TASK-153 (S01, S02, S03) DoD: in the browser application, a profile-defined
 // quad X arms, takes off, holds and lands with native ArduCopter. The launcher
 // runs on a temporary home holding copies of the TASK-152 installation's token
-// and catalog, so the installed ArduCopter 8ab6afde and its Python environment
+// and catalog, so the installed ArduCopter fb773567 and its Python environment
 // are used while the installation itself is only read; the project, the
 // example component cards and the S19 quad X profile are seeded through the
 // application's own store modules, and the flight is driven through the Run
@@ -23,7 +23,7 @@ import {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const sha256 = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

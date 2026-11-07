@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, Mesh, MeshStandardMaterial, Quaternion, Sprite, SpriteMaterial, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AircraftLayout, RotorLayout } from "@mirage/aircraft/layout";
-import type { ProfileBody } from "@mirage/aircraft/profile";
-import { armMounts, frdToRender, rotorRenderPose, schemeDimensions, type GearDrawing } from "./scheme-geometry";
+import type { HullShape } from "@mirage/physics/vehicle-manifest";
+import { armMounts, frdToRender, rotorRenderPose, schemeDimensions } from "./scheme-geometry";
 
 // The aircraft scheme (TASK-141, S03): every rotor drawn from the TASK-138
 // layout derivation, whose hub positions, hub orientations and spin signs are
@@ -12,7 +12,9 @@ import { armMounts, frdToRender, rotorRenderPose, schemeDimensions, type GearDra
 // disc colored by spin with an arrow in the turning direction, and its thrust
 // axis. A table repeats the scheme in text. The scheme draws only on change.
 // The Run tab's flight view (TASK-185) draws the same Rotor and Strut on the
-// flying aircraft, so the editor and the flight show one model.
+// flying aircraft, so the editor and the flight show one model. A profile
+// that describes its body (TASK-196) is drawn with that body's cylinder, arms
+// and parts at their size, in place of the schematic box and struts.
 
 export const SPIN_COLORS = { ccw: "#5fd3b0", cw: "#e8a65d" } as const;
 export const BODY_COLOR = "#8fa3b0";
@@ -93,6 +95,60 @@ export function Rotor({ rotor, discRadius }: { rotor: RotorLayout; discRadius: n
   );
 }
 
+/** A hull shape as drawn (TASK-196), read back from the scene: what it stands for and its render-space centre. */
+export interface RenderedHullShape {
+  readonly hullId: number;
+  readonly name: string;
+  readonly kind: "cylinder" | "capsule";
+  readonly position: readonly number[];
+}
+
+/**
+ * The hull shapes of a described body (TASK-196) at their size: each cylinder about its axis and each capsule
+ * between its ends. `names[id]` names shape `id`; each mesh carries it with its hull ID.
+ */
+export function HullShapes({ hull, names }: { hull: readonly HullShape[]; names: readonly string[] }) {
+  return (
+    <group name="hull">
+      {hull.map(shape => {
+        const userData = { hullId: shape.id, hullName: names[shape.id] ?? `Hull shape ${shape.id}`, hullKind: shape.kind };
+        if (shape.kind === "cylinder") {
+          const axis = new Vector3(...frdToRender(shape.axisBody)).normalize();
+          const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), axis);
+          return (
+            <mesh key={shape.id} userData={userData} position={[...frdToRender(shape.centerBodyM)]} quaternion={quaternion}>
+              <cylinderGeometry args={[shape.radiusM, shape.radiusM, 2 * shape.halfHeightM, 32]} />
+              <meshStandardMaterial color={BODY_COLOR} />
+            </mesh>
+          );
+        }
+        const start = new Vector3(...frdToRender(shape.startBodyM)), end = new Vector3(...frdToRender(shape.endBodyM));
+        const along = end.clone().sub(start), length = along.length();
+        const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), length > 0 ? along.clone().normalize() : new Vector3(0, 1, 0));
+        return (
+          <mesh key={shape.id} userData={userData} position={start.clone().add(end).multiplyScalar(0.5)} quaternion={quaternion}>
+            <capsuleGeometry args={[shape.radiusM, length, 6, 16]} />
+            <meshStandardMaterial color={BODY_COLOR} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+/** The drawn hull shapes of a scene, in hull ID order. */
+export function renderedHull(root: Object3D): RenderedHullShape[] {
+  const shapes: RenderedHullShape[] = [];
+  const position = new Vector3();
+  root.traverse(object => {
+    const hullId: unknown = object.userData.hullId, hullName: unknown = object.userData.hullName, hullKind: unknown = object.userData.hullKind;
+    if (typeof hullId !== "number" || typeof hullName !== "string" || (hullKind !== "cylinder" && hullKind !== "capsule")) return;
+    object.getWorldPosition(position);
+    shapes.push({ hullId, name: hullName, kind: hullKind, position: position.toArray() });
+  });
+  return shapes.sort((a, b) => a.hullId - b.hullId);
+}
+
 /** A thin box from the reference point to a body FRD point. */
 export function Strut({ to, thickness }: { to: readonly number[]; thickness: number }) {
   const end = new Vector3(...frdToRender(to));
@@ -104,90 +160,6 @@ export function Strut({ to, thickness }: { to: readonly number[]; thickness: num
       <boxGeometry args={[thickness, length, thickness]} />
       <meshStandardMaterial color={BODY_COLOR} />
     </mesh>
-  );
-}
-
-/** A thin box between two body FRD points. */
-export function Segment({ from, to, thickness, color = BODY_COLOR }: { from: readonly number[]; to: readonly number[]; thickness: number; color?: string }) {
-  const start = new Vector3(...frdToRender(from)), end = new Vector3(...frdToRender(to));
-  const along = end.clone().sub(start), length = along.length();
-  if (length === 0) return null;
-  const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), along.normalize());
-  return (
-    <mesh position={start.clone().add(end).multiplyScalar(0.5)} quaternion={quaternion}>
-      <boxGeometry args={[thickness, length, thickness]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  );
-}
-
-/**
- * TASK-196: a described body at its true size: the body cylinder about the body z axis, then each part, every shape a group at
- * its centre (a capsule's midpoint) tagged with its index for the probe: 0 the body, 1 and up the parts.
- */
-export function BodyMeshes({ body }: { body: ProfileBody }) {
-  return (
-    <group name="described-body">
-      <group name="body-shape-0" userData={{ bodyShape: 0 }} position={frdToRender([0, 0, body.centerDownM])}>
-        <mesh>
-          <cylinderGeometry args={[body.radiusM, body.radiusM, 2 * body.halfHeightM, 32]} />
-          <meshStandardMaterial color={BODY_COLOR} />
-        </mesh>
-      </group>
-      {body.parts.map((part, index) => {
-        if (part.shape === "cylinder") {
-          return (
-            <group key={index} name={`body-shape-${index + 1}`} userData={{ bodyShape: index + 1 }} position={frdToRender(part.centerBodyM)}>
-              <mesh>
-                <cylinderGeometry args={[part.radiusM, part.radiusM, 2 * part.halfHeightM, 24]} />
-                <meshStandardMaterial color="#6f8796" />
-              </mesh>
-            </group>
-          );
-        }
-        const start = new Vector3(...frdToRender(part.startBodyM)), end = new Vector3(...frdToRender(part.endBodyM));
-        const along = end.clone().sub(start), length = along.length();
-        const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), length > 0 ? along.clone().normalize() : new Vector3(0, 1, 0));
-        return (
-          <group key={index} name={`body-shape-${index + 1}`} userData={{ bodyShape: index + 1 }} position={start.clone().add(end).multiplyScalar(0.5)}>
-            <mesh quaternion={quaternion}>
-              <capsuleGeometry args={[part.radiusM, length, 4, 12]} />
-              <meshStandardMaterial color="#6f8796" />
-            </mesh>
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-const GEAR_COLOR = "#cfd8de";
-/**
- * TASK-194: a described landing gear, its feet at their bottom points with the struts fully extended. Each foot is a group at that
- * point (render space), named and tagged with its support index for the probe; wheels turn about body y.
- */
-export function GearMeshes({ drawing, size }: { drawing: GearDrawing; size: number }) {
-  return (
-    <group name="landing-gear">
-      {drawing.struts.map((strut, index) => <Segment key={`strut-${index}`} from={strut.from} to={strut.to} thickness={size * 0.4} color={GEAR_COLOR} />)}
-      {drawing.runners.map((runner, index) => <Segment key={`runner-${index}`} from={runner.from} to={runner.to} thickness={size * 0.8} color={GEAR_COLOR} />)}
-      {drawing.feet.map((foot, index) => (
-        <group key={`foot-${index}`} name={`gear-foot-${index + 1}`} userData={{ gearSupport: index }} position={frdToRender(foot)}>
-          {drawing.kind === "wheels" ? (
-            // Render x is body y: the wheel's axle.
-            <mesh position={[0, size * 1.5, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[size * 1.5, size * 1.5, size * 0.9, 24]} />
-              <meshStandardMaterial color="#2b3a44" />
-            </mesh>
-          ) : (
-            <mesh position={[0, size, 0]}>
-              <sphereGeometry args={[size, 16, 12]} />
-              <meshStandardMaterial color="#2b3a44" />
-            </mesh>
-          )}
-        </group>
-      ))}
-    </group>
   );
 }
 
@@ -208,45 +180,12 @@ function Controls({ span }: { span: number }) {
   return null;
 }
 
-/** The render-space positions of the scene's objects tagged with a numeric `key` in their user data, in tag order. */
-function tagged(scene: Object3D, key: string): number[][] {
-  const found: { index: number; position: number[] }[] = [], at = new Vector3();
-  scene.traverse((object: Object3D) => {
-    const index: unknown = object.userData[key];
-    if (typeof index === "number") found.push({ index, position: object.getWorldPosition(at).toArray() });
-  });
-  return found.sort((a, b) => a.index - b.index).map(item => item.position);
-}
-
-function Probe({ onRendered, onRenderedGear, onRenderedBody }: {
-  onRendered: (rotors: readonly RenderedRotor[]) => void; onRenderedGear?: ((feet: readonly (readonly number[])[]) => void) | undefined;
-  onRenderedBody?: ((shapes: readonly (readonly number[])[]) => void) | undefined;
+function Probe({ onRendered, onRenderedHull }: {
+  onRendered: (rotors: readonly RenderedRotor[]) => void; onRenderedHull?: (hull: readonly RenderedHullShape[]) => void;
 }) {
   const scene = useThree(state => state.scene);
-  const last = useRef(""), lastGear = useRef(""), lastBody = useRef("");
+  const last = useRef(""), lastHull = useRef("");
   useFrame(() => {
-    // TASK-196: each drawn body shape's centre, the body first.
-    if (onRenderedBody) {
-      const shapes = tagged(scene, "bodyShape"), json = JSON.stringify(shapes);
-      if (json !== lastBody.current) {
-        lastBody.current = json;
-        onRenderedBody(shapes);
-      }
-    }
-    // TASK-194: each drawn foot's render-space position, in support order.
-    if (onRenderedGear) {
-      const feet: { index: number; position: number[] }[] = [], at = new Vector3();
-      scene.traverse((object: Object3D) => {
-        const index: unknown = object.userData.gearSupport;
-        if (typeof index === "number") feet.push({ index, position: object.getWorldPosition(at).toArray() });
-      });
-      feet.sort((a, b) => a.index - b.index);
-      const json = JSON.stringify(feet);
-      if (json !== lastGear.current) {
-        lastGear.current = json;
-        onRenderedGear(feet.map(foot => foot.position));
-      }
-    }
     const rotors: RenderedRotor[] = [];
     const position = new Vector3(), rotation = new Quaternion();
     scene.traverse((object: Object3D) => {
@@ -270,22 +209,26 @@ function Probe({ onRendered, onRenderedGear, onRenderedBody }: {
       last.current = json;
       onRendered(rotors);
     }
+    if (!onRenderedHull) return;
+    const hull = renderedHull(scene), hullJson = JSON.stringify(hull);
+    if (hullJson !== lastHull.current) {
+      lastHull.current = hullJson;
+      onRenderedHull(hull);
+    }
   });
   return null;
 }
 
 const format = (value: number) => (Math.abs(value) < 5e-4 ? "0" : value.toFixed(3));
 
-export function AircraftScheme3D({ layout, name, gear = null, body = null, onRendered, onRenderedGear, onRenderedBody }: {
+export function AircraftScheme3D({ layout, name, hull = null, hullNames = [], onRendered, onRenderedHull }: {
   layout: AircraftLayout;
   name: string;
-  /** TASK-194: the described landing gear, or null for the standard supports, which are not drawn. */
-  gear?: GearDrawing | null;
-  /** TASK-196: the described body, drawn at its size, or null for the symbolic body. */
-  body?: ProfileBody | null;
+  /** TASK-196: the hull of a described body, drawn at its size; null draws the schematic body and struts. */
+  hull?: readonly HullShape[] | null;
+  hullNames?: readonly string[];
   onRendered?: (rotors: readonly RenderedRotor[]) => void;
-  onRenderedGear?: (feet: readonly (readonly number[])[]) => void;
-  onRenderedBody?: (shapes: readonly (readonly number[])[]) => void;
+  onRenderedHull?: (hull: readonly RenderedHullShape[]) => void;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -295,7 +238,7 @@ export function AircraftScheme3D({ layout, name, gear = null, body = null, onRen
         <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: 40, near: 0.01, far: 100 }}>
           <ambientLight intensity={0.8} />
           <directionalLight position={[2, 4, 3]} intensity={1.2} />
-          {body ? <BodyMeshes body={body} /> : (
+          {hull ? <HullShapes hull={hull} names={hullNames} /> : (
             <mesh>
               <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
               <meshStandardMaterial color={BODY_COLOR} />
@@ -306,16 +249,16 @@ export function AircraftScheme3D({ layout, name, gear = null, body = null, onRen
             <coneGeometry args={[span * 0.04, span * 0.1, 12]} />
             <meshStandardMaterial color="#9af0d1" />
           </mesh>
-          {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={body?.armRadiusM ? 2 * body.armRadiusM : span * 0.015} />)}
+          {!hull && mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
           {layout.rotors.map(rotor => <Rotor key={rotor.motorId} rotor={rotor} discRadius={discRadius} />)}
-          {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
           <Controls span={span} />
-          {onRendered && <Probe onRendered={onRendered} onRenderedGear={onRenderedGear} onRenderedBody={onRenderedBody} />}
+          {onRendered && <Probe onRendered={onRendered} onRenderedHull={onRenderedHull} />}
         </Canvas>
       </div>
       <p className="hint">
         Body axes: x forward, y right, z down, from the reference point. Turquoise rotors turn counter-clockwise and amber rotors clockwise,
         seen from the thrust side; the white arrow is the thrust axis.
+        {hull ? " The body, arms and parts are drawn at the size the profile describes." : " The body and arms are schematic."}
       </p>
       {/* Focusable, so a keyboard user can scroll the table on a narrow screen. */}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={`Motor table of ${name}`}>
@@ -338,17 +281,6 @@ export function AircraftScheme3D({ layout, name, gear = null, body = null, onRen
           </tbody>
         </table>
       </div>
-      {gear && (
-        <div className="table-scroll" tabIndex={0} role="region" aria-label={`Landing gear table of ${name}`}>
-          <table className="scheme-table">
-            <caption>Landing gear of {name}: {gear.kind}</caption>
-            <thead><tr><th scope="col">Support</th><th scope="col">Foot bottom x, y, z (m)</th></tr></thead>
-            <tbody>
-              {gear.feet.map((foot, index) => <tr key={index}><th scope="row">{index + 1}</th><td>{foot.map(format).join(", ")}</td></tr>)}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

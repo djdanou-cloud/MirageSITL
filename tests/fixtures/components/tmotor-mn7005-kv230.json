@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "motor",
+  "example": false,
+  "manufacturer": "T-Motor",
+  "model": "Antigravity MN7005-15 KV230",
+  "sources": [
+    {
+      "id": "tmotor-datasheet",
+      "kind": "specification",
+      "description": "T-Motor's datasheet table for MN7005 KV230 with the P24*7.2\" CF propeller at 24 V, as an image posted in post 17 of ArduPilot forum topic 144558 (data/flight-logs/inventory.json, bench table tmotor-datasheet-mn7005-kv230-p24x72).",
+      "sha256": "b996b7b93748dfdfc125b3e31eadd5053a8c93059bcdd2e7cb1b830f429a5994",
+      "date": "2026-07-28"
+    },
+    {
+      "id": "tmotor-store-motor",
+      "kind": "specification",
+      "description": "T-Motor's product page for the MN7005 Antigravity KV230 (store.tmotor.com/product/mn7005-kv230-motor-antigravity-type.html), read on 2026-11-07: internal resistance 71 mOhm and weight 188 g, both including the cable; idle current 0.9 A at 22 V; peak current 28 A and maximum power 700 W over 180 s.",
+      "sha256": null,
+      "date": "2026-11-07"
+    }
+  ],
+  "values": {
+    "kvRpmPerV": 230,
+    "resistanceOhm": 0.071,
+    "noLoadCurrentA": 0.9,
+    "noLoadVoltageV": 22,
+    "maxCurrentA": 28,
+    "maxPowerW": 700,
+    "massKg": 0.188
+  },
+  "provenance": {
+    "kvRpmPerV": "tmotor-datasheet",
+    "resistanceOhm": "tmotor-store-motor",
+    "noLoadCurrentA": "tmotor-store-motor",
+    "noLoadVoltageV": "tmotor-store-motor",
+    "maxCurrentA": "tmotor-store-motor",
+    "maxPowerW": "tmotor-store-motor",
+    "massKg": "tmotor-store-motor"
+  },
+  "applicability": "KV from the datasheet table's heading; the other values from T-Motor's product page (resistance and mass include the cable)."
+}

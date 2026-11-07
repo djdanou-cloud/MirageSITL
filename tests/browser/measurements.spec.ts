@@ -6,7 +6,9 @@ import { viteFileUrl } from "../support/vite-url";
 // TASK-140 (S04): the Components tab. A project with five cards and a quad X
 // profile is seeded through the application's own store modules; the test then
 // uploads a bench file and types values in, and the measured-input label
-// appears only on the motors whose exact combination was measured.
+// appears only on the motors whose exact combination was measured, or whose
+// motor, propeller and ESC were measured on a laboratory supply (stakeholder's
+// decision of 2026-11-07).
 type Store = typeof import("../../packages/project/src/store");
 type Profiles = typeof import("../../packages/aircraft/src/profile");
 type Navigation = typeof import("../../apps/web/src/shell/navigation");
@@ -64,7 +66,7 @@ async function expectLabels(profile: Locator, labels: readonly string[], aircraf
   await expect(profile.getByTestId("aircraft-label")).toHaveText(aircraft);
 }
 
-test("bench data binds only to its exact combination, and only there does the label change", async ({ page }) => {
+test("bench data binds only to its exact combination or its cards on a laboratory supply, and only there does the label change", async ({ page }) => {
   await seed(page);
   const panel = page.getByRole("tabpanel", { name: "Components", exact: true });
   await expect(panel.getByRole("list", { name: "Component cards" }).getByRole("listitem")).toHaveCount(5);
@@ -106,18 +108,21 @@ test("bench data binds only to its exact combination, and only there does the la
   await expect(status).toHaveText("Saved measurement set Bench B laboratory: 2 points. Not measured: torqueNm, voltageV, currentA, supplyVoltageV.");
   await expect(panel.getByRole("list", { name: "Measurement sets" }).getByRole("listitem")).toHaveCount(2);
 
-  // Saving data changes no label; the profile's mode does, and only for combination A.
+  // Saving data changes no label; the profile's mode does: set A for motors 1 and 2, and propeller B's laboratory set for motors 3 and 4,
+  // whose battery the laboratory set does not name.
   await expectLabels(quad, ["preliminary", "preliminary", "preliminary", "preliminary"], "preliminary");
   await quad.getByRole("radio", { name: "Calculation from measurements" }).check();
-  await expect(panel.getByTestId("calculation-status")).toHaveText("Saved version 2 of Quad X: Calculation from measurements, 1 measurement set bound.");
-  await expectLabels(quad, ["measured-input", "measured-input", "preliminary", "preliminary"], "preliminary");
+  await expect(panel.getByTestId("calculation-status")).toHaveText("Saved version 2 of Quad X: Calculation from measurements, 2 measurement sets bound.");
+  await expectLabels(quad, ["measured-input", "measured-input", "measured-input", "measured-input"], "measured-input");
   await expect(quad.getByRole("listitem").filter({ hasText: "Motor 1" })).toContainText("Bench data covers 2000 to 8000 rpm");
-  await expect(quad.getByRole("listitem").filter({ hasText: "Motor 3" })).toContainText("No measurement set of this combination is bound.");
+  await expect(quad.getByRole("listitem").filter({ hasText: "Motor 1" })).not.toContainText("laboratory supply");
+  await expect(quad.getByRole("listitem").filter({ hasText: "Motor 3" })).toContainText("Bench data of this motor, propeller and ESC on a laboratory supply.");
+  await expect(quad.getByRole("listitem").filter({ hasText: "Motor 3" })).toContainText("The bench ran on a laboratory supply, not this profile's battery");
 
   // The bound version survives a reload, and the populated tab fits a phone and passes axe.
   await page.reload();
   await expect(quad.getByRole("radio", { name: "Calculation from measurements" })).toBeChecked();
-  await expectLabels(quad, ["measured-input", "measured-input", "preliminary", "preliminary"], "preliminary");
+  await expectLabels(quad, ["measured-input", "measured-input", "measured-input", "measured-input"], "measured-input");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const result = await new AxeBuilder({ page }).analyze();

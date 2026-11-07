@@ -17,12 +17,12 @@ export type FirmwareStack = "ardupilot" | "px4";
 /** Source evidence at pinned commits (file SHA-256 of the files inspected). */
 export const FIRMWARE_SOURCE_EVIDENCE = Object.freeze({
   ardupilot: Object.freeze({
-    commit: "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    commit: "fb773567896014da007bca58358704d4a0d8516f",
     consumesHilSensor: false,
     consumesHilGps: false,
     emitsHilActuatorControls: false,
     files: Object.freeze([
-      "libraries/GCS_MAVLink/GCS_Common.cpp sha256 345233ce691a29f21e66d50b81ce75db9672eb29e9d39ac2d0e9e139e92836ec",
+      "libraries/GCS_MAVLink/GCS_Common.cpp sha256 b660c5f53a99c89b58fa400c96321aa9ceb6906ae89ccde70e6fb2cc0b91ad8c",
     ]),
     finding: "No HIL_SENSOR, HIL_GPS or HIL_ACTUATOR_CONTROLS handler in GCS_Common, Copter/Plane GCS handlers, GCS.h or AP_InertialSensor; external GNSS uses GPS_INPUT. Use the JSON SITL backend instead.",
   }),

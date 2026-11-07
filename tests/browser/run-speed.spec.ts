@@ -8,7 +8,7 @@ import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
 // TASK-175 (S10, decision A-05): real-time and as-fast-as-possible runs of
-// native ArduCopter 8ab6afde through the Run tab alone. Tolerances declared
+// native ArduCopter fb773567 through the Run tab alone. Tolerances declared
 // before the test: the speed the panel reports over an interval agrees with
 // the test's own measurement of simulated over wall time over the same 20 s
 // to within 5 %; the truth trajectory of the two runs over their first 20 s
@@ -30,7 +30,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 /** The compared stretch of simulated time, s, and the displayed speed's agreement with the test's own measurement. */
 const COMPARED_S = 20, SPEED_AGREEMENT = 0.05;
 /** The wall time of the test's own speed measurement, ms: the shown simulated time has 0.1 s steps and updates every 250 ms. */

@@ -1,6 +1,6 @@
 // TASK-159: the parameter service, its float32 formatting and the generated
 // metadata. Oracles: a scripted autopilot that answers each request the way
-// ArduPilot's handlers at 8ab6afde do (GCS_Param.cpp: the list stream, reads
+// ArduPilot's handlers at fb773567 do (GCS_Param.cpp: the list stream, reads
 // by index and by name, PARAM_SET answered with the new value, a parameter
 // the ground station may not write answered with its old value, an unknown
 // name answered only by PARAM_ERROR, which the TASK-150 set does not carry);
@@ -21,7 +21,7 @@ import {
 import { nodeCheck } from './support/node-evidence';
 
 const PYTHON = join(process.cwd(), '.cache/task-127/venv/bin/python');
-const COMMIT = '8ab6afde107a91df1b5f60ade8f333cb8a61b190';
+const COMMIT = 'fb773567896014da007bca58358704d4a0d8516f';
 const metadataFile: unknown = JSON.parse(readFileSync(join(process.cwd(), 'data/ardupilot/param-metadata.json'), 'utf8'));
 const catalog = parseParameterMetadata(metadataFile);
 function pinnedMetadata(): ParameterMetadataSet {
@@ -516,14 +516,14 @@ describe('generated parameter metadata', () => {
     expect(catalog.forCommit('0'.repeat(40))).toBeNull();
     const set = pinnedMetadata();
     expect(set.vehicle).toBe('ArduCopter');
-    expect(set.size).toBe(5799);
+    expect(set.size).toBe(5687);
     // libraries/AP_SerialManager/AP_SerialManager.cpp documents SERIAL1_PROTOCOL with @RebootRequired: True.
     expect(set.get('SERIAL1_PROTOCOL')).toMatchObject({ group: 'SERIAL', rebootRequired: true, readOnly: false, units: null });
     const frameClass = set.get('FRAME_CLASS');
     expect(frameClass?.rebootRequired).toBe(true);
     expect([1, 3, 15].map(value => frameClass?.values?.find(entry => entry[0] === value)?.[1])).toEqual(['Quad', 'Octa', 'Scripting Matrix']);
     expect(set.get('INS_GYRO_FILTER')).toMatchObject({ units: 'Hz', range: [0, 256], rebootRequired: false, user: 'Advanced' });
-    expect(set.get('ATC_RAT_RLL_I')).toMatchObject({ units: '1/rad', range: [0, 0.6], increment: 0.01 });
+    expect(set.get('ATC_RAT_RLL_I')).toMatchObject({ units: null, range: [0, 0.6], increment: 0.01 });
     expect(set.get('BARO1_DEVID')).toMatchObject({ readOnly: true });
     expect(set.get('LOG_BITMASK')?.bitmask?.slice(0, 2)).toEqual([[0, 'Fast Attitude'], [1, 'Medium Attitude']]);
     // A reversed upstream range is listed, not repaired.
@@ -578,6 +578,6 @@ assert.equal(text.split('\\n').filter(line=>line.startsWith('"SIM_')).length,2);
       const result = spawnSync(process.execPath, ['scripts/generate-param-metadata.mjs', '--source', '.cache/task-127/ardupilot', '--python', PYTHON, '--check'],
         { encoding: 'utf8' });
       expect(result.status, result.stderr + result.stdout).toBe(0);
-      expect(result.stdout).toMatch(/^identical .*5799 parameters, 1 anomalies/);
+      expect(result.stdout).toMatch(/^identical .*5687 parameters, 1 anomalies/);
     }, 60_000);
 });

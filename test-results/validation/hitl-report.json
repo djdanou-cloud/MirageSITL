@@ -10,12 +10,12 @@
     "droneConnected": false,
     "firmwareObserved": false,
     "version": "unobserved",
-    "gitShort": "8ab6afde",
-    "p99LatenessMs": 0.011799999999813736,
+    "gitShort": "fb773567",
+    "p99LatenessMs": 0.002375,
     "count": 24000,
     "simRateHz": 400
   },
-  "inputSha256": "41ba97e44c52b02eda33090069ab172a661c74283db2ed09ddb9ff581c0ce341",
-  "sourceRevision": "981ad258d9ffc86060f46452e9915d96a967ed76",
-  "validatorSha256": "0b69f1f902db290d8019bac86d345f2a03994c265a2da7f2dcf949de835bcb8f"
+  "inputSha256": "c68582357a28db32b283639565962ff8443904c9284188a638f14fb2c14e8079",
+  "sourceRevision": "060050797e8b44126e027e8f1b557676c90241ed",
+  "validatorSha256": "f2f5671e6efddf00f72cb5735405133ed05539b63e8c3fb89c50d631aa55cd09"
 }

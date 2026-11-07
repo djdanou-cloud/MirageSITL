@@ -26,7 +26,7 @@ const BUDGET_BYTES_PER_HOUR = 2e9;
 
 function identity(recordId = RECORD_ID) {
   return { recordId, experimentId: 'experiment-1', startedAt: '2026-11-01T12:00:00.000Z', modelSha256: 'a'.repeat(64),
-    firmware: { commit: '8ab6afde107a91df1b5f60ade8f333cb8a61b190', binarySha256: 'b'.repeat(64) } };
+    firmware: { commit: 'fb773567896014da007bca58358704d4a0d8516f', binarySha256: 'b'.repeat(64) } };
 }
 
 /** A physics tick source: the state advances, power telemetry for `motors` motors, actuators and an IMU frame every tick. */

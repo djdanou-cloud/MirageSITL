@@ -10,7 +10,7 @@ import { loadEgm96Geoid } from "../../packages/sensors/src/geoid";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-148 (S07) on the reference Mac: a run of native ArduCopter 8ab6afde at a location other than ArduPilot's
+// TASK-148 (S07) on the reference Mac: a run of native ArduCopter fb773567 at a location other than ArduPilot's
 // default test site, chosen through the Weather and location tab alone, with a measured QNH and a temperature
 // offset. Declared before the first run:
 //  - the Run tab's start check finds ArduPilot's first 3D fix within 10 m and 5 m of the location (READY waits for it);
@@ -38,7 +38,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const LOCATION = { site: null, latitudeDeg: 31.5, longitudeDeg: 34.9, groundElevationMslM: 250, headingDeg: 90, measuredQnhPa: 102000, temperatureOffsetK: 5 };
 const BARO_NOISE_PA = 2;
 const EVIDENCE = join(ROOT, "test-results/browser/task-148-location-flight.json");

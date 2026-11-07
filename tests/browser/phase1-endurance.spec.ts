@@ -9,7 +9,7 @@ import { seedProfiles } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
 // TASK-189 (S19) on the reference Mac: one continuous simulated hour of the 16-motor configuration in Chrome, with native ArduCopter
-// 8ab6afde, under decision A-07: a repeated flight circuit with wind and repeatable gusts on, recording every available signal at the
+// fb773567, under decision A-07: a repeated flight circuit with wind and repeatable gusts on, recording every available signal at the
 // default 50 Hz. It runs as fast as this computer goes, since an hour of simulated time need not be an hour of wall time (A-05), and it
 // reports the rate it reached. This only writes what it saw: scripts/phase1/endurance.mjs starts it, judges the run file by
 // scripts/phase1/endurance-rules.ts and writes the matrix. Not part of a normal browser run.
@@ -22,7 +22,7 @@ const HOST_URL = viteFileUrl(new URL("../../packages/aar/src/recorder-v2-host.ts
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const OUT = process.env.MIRAGE_PHASE1_OUT;
 const SIDE_M = 500, SPEED_MPS = 6, ALTITUDE_M = 20, LAPS = 12, CAPACITY_AH = 120;
 const WIND_MPS = 3, WIND_FROM_DEG = 270, GUST_RMS_MPS = 1, GUST_BANDWIDTH_HZ = 1, GUST_SEED = 187;

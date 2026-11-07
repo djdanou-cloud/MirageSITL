@@ -23,7 +23,7 @@ const QUAD = readFileSync(new URL("../fixtures/aircraft/quad-x.json", import.met
 const OWNERS: readonly [string, string][] = [
   ["imu.accelNoiseDensityMps2PerSqrtHz", "MirageSITL"], ["imu.gyroNoiseDensityRadSPerSqrtHz", "MirageSITL"], ["imu.accelBiasMps2", "MirageSITL"],
   ["imu.gyroBiasRadS", "MirageSITL"], ["imu.latencyUs", "MirageSITL"], ["imu.positionBodyM", "MirageSITL"], ["imu.orientationRad", "MirageSITL"],
-  ["gnss.updateRateHz", "ArduPilot SITL"], ["gnss.horizontalSigmaM", "ArduPilot SITL"], ["gnss.verticalSigmaM", "ArduPilot SITL"],
+  ["gnss.updateRateHz", "ArduPilot SITL"], ["gnss.horizontalSigmaM", "MirageSITL"], ["gnss.verticalSigmaM", "ArduPilot SITL"],
   ["gnss.velocitySigmaMps", "ArduPilot SITL"], ["gnss.latencyUs", "ArduPilot SITL"],
   ["barometer.noiseRmsPa", "ArduPilot SITL"], ["barometer.biasPa", "ArduPilot SITL"], ["barometer.latencyUs", "ArduPilot SITL"],
   ["magnetometer.noiseRmsGauss", "ArduPilot SITL"], ["magnetometer.biasGauss", "ArduPilot SITL"], ["magnetometer.positionBodyM", "Nobody on native-json"],
@@ -111,7 +111,6 @@ test("sensors are set through the UI, every field shows its owner, and the confi
   await label(tab, "GNSS preset").selectOption({ label: "u-blox NEO-M9N" });
   await tab.getByRole("button", { name: "Apply GNSS preset", exact: true }).click();
   await expect(status).toHaveText("Applied NEO-M9N: GNSS horizontal position error (1σ per axis) (m).");
-  await expect(label(tab, "GNSS horizontal position error (1σ per axis) (m)")).toHaveValue("1.69864360058");
   await label(tab, "GNSS update rate (Hz)").fill("10");
   await label(tab, "IMU latency (ms)").fill("2.5");
   await label(tab, "Voltage offset (V)").fill("-0.15");
@@ -135,7 +134,7 @@ test("sensors are set through the UI, every field shows its owner, and the confi
   let stored = await versions(page);
   expect(stored.map(v => v.payload.schemaVersion)).toEqual([1, 3]);
   expect(stored[1]?.payload.sensorConfiguration).toEqual(EXPECTED);
-  expect(JSON.parse(await editor.getAttribute("data-resolved") ?? "{}")).toMatchObject({ state: "specified", mappingVersion: 2 });
+  expect(JSON.parse(await editor.getAttribute("data-resolved") ?? "{}")).toMatchObject({ state: "specified", mappingVersion: 4 });
 
   // Ideal keeps the values but uses none of them.
   await tab.getByRole("radio", { name: "Ideal sensors" }).check();

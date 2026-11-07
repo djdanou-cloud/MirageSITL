@@ -51,7 +51,7 @@ const VALIDATORS = { 'component-card': validateComponentCard, 'aircraft-profile'
 const EXPERIMENT_ID = '20261101120000000-0a1b2c3d';
 /** The build the launcher reported; the hashes stand for an installed binary and its copter.parm. */
 const FIRMWARE = {
-  catalogId: 'arducopter-8ab6afd', firmwareVersion: 'ArduCopter V4.8.0-dev', commit: PINNED_ARDUPILOT_COMMIT,
+  catalogId: 'arducopter-fb77356', firmwareVersion: 'ArduCopter V4.7.2', commit: PINNED_ARDUPILOT_COMMIT,
   binarySha256: hash('arducopter binary'), defaultParametersSha256: hash('copter.parm'),
 };
 const HOME = [-35.363261, 149.16523, 584, 0] as const;
@@ -169,7 +169,7 @@ describe('experiment payload schema 9', () => {
     expect(payload.parameters.filter(p => p.source === 'output').map(p => p.name)).toEqual(Array.from({ length: 16 }, (_, i) => `SERVO${i + 1}_FUNCTION`));
     // The ArduPilot defaults write no sensor parameter.
     expect(payload.parameters.filter(p => p.source === 'sensor')).toEqual([]);
-    expect(payload.sensors).toMatchObject({ schemaVersion: 2, profileSha256: fixture.stored.sha256, configuration: null, resolution: { state: 'ardupilot-defaults' } });
+    expect(payload.sensors).toMatchObject({ schemaVersion: 3, profileSha256: fixture.stored.sha256, configuration: null, resolution: { state: 'ardupilot-defaults' } });
     // The same values, without source tags, pass the launcher's own request validator.
     const spec = parseExperimentSpec({ firmwareId: ownedSitl(payload).ardupilot.catalogId, parameters: payload.parameters.map(({ name, value }) => ({ name, value })),
       frameScript: payload.frameScript, speedup: payload.session.speedup, rateHz: payload.session.physicsHz, home: payload.session.home });
@@ -207,8 +207,8 @@ describe('experiment payload schema 9', () => {
       ['a frame script without SCR_ENABLE', edit(payload, p => { p.frameScript = 'MotorsMatrix:init(4)\n'; }), 'a frame script needs frame parameter SCR_ENABLE 1'],
       ['a non-ASCII frame script', edit(payload, p => { p.frameScript = 'gcs:send_text(6, "é")\n'; }), 'frameScript must be null or printable ASCII Lua'],
       ['a mismatched profileSha256', edit(payload, p => { p.sensors.profileSha256 = other; }), 'sensors.profileSha256 must equal profile.sha256'],
-      ['snapshot schema 1', edit(payload, p => { Object.assign(p.sensors, { schemaVersion: 1 }); }), 'sensors must be a sensor snapshot of schema 2, not schema 1'],
-      ['snapshot schema 3', edit(payload, p => { Object.assign(p.sensors, { schemaVersion: 3 }); }), 'sensors must be a sensor snapshot of schema 2, not schema 3'],
+      ['snapshot schema 2', edit(payload, p => { Object.assign(p.sensors, { schemaVersion: 2 }); }), 'sensors must be a sensor snapshot of schema 3, not schema 2'],
+      ['snapshot schema 4', edit(payload, p => { Object.assign(p.sensors, { schemaVersion: 4 }); }), 'sensors must be a sensor snapshot of schema 3, not schema 4'],
       ['an invalid configuration', edit(payload, p => { Object.assign(configured(p.sensors.configuration).imu, { accelNoiseDensityMps2PerSqrtHz: -1 }); }), 'sensors.configuration: Invalid sensor configuration'],
       ['a resolution of another state', edit(payload, p => { p.sensors.resolution.state = 'ideal'; }), 'sensors.resolution.state ideal does not match the configuration'],
       ['a matrix entry out of order', edit(payload, p => { p.sensors.ownershipMatrix.entries.reverse(); }), 'sensors.ownershipMatrix.entries[0].source must be imu.accel.noise-floor'],
@@ -217,7 +217,7 @@ describe('experiment payload schema 9', () => {
       ['a speedup below the launcher limit', edit(payload, p => { p.session.speedup = 0.05; }), 'session.speedup must be a number from 0.1 to 100'],
       ['a home heading beyond 360', edit(payload, p => { p.session.home[3] = 361; }), 'home heading must be a number from 0 to 360'],
       ['a launcher ID of another format', edit(payload, p => { ownedEdit(p).experimentId = 'run-1'; }), 'sitl.experimentId must be a launcher experiment ID'],
-      ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = '8ab6afd'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
+      ['a short commit', edit(payload, p => { ownedEdit(p).ardupilot.commit = 'fb77356'; }), 'ardupilot.commit must be a 40-digit lowercase commit'],
       ['another experiment schema', edit(payload, p => { Object.assign(p, { schemaVersion: 10 }); }), 'unsupported experiment schema 10; this reader knows schemas 1 to 9'],
       ['an empty firmware version', edit(payload, p => { ownedEdit(p).ardupilot.firmwareVersion = ''; }), 'ardupilot.firmwareVersion must be non-empty text'],
       ['another SITL ownership', edit(payload, p => { Object.assign(p.sitl, { ownership: 'user' }); }), 'sitl.ownership must be launcher or external'],
@@ -420,7 +420,7 @@ describe('the experiment record', () => {
     const payload = payloadOf(fixture);
     expect(payload.frameScript).toContain('MotorsMatrix:add_motor_raw(15,');
     expect(payload.parameters.filter(p => p.source === 'output')).toHaveLength(32);
-    expect(payload.parameters.filter(p => p.source === 'sensor')).toHaveLength(168);
+    expect(payload.parameters.filter(p => p.source === 'sensor')).toHaveLength(163);
     expect(payload.sensors.presets.map(p => p.sensor)).toEqual(['imu', 'gnss', 'barometer', 'magnetometer', 'battery']);
     expect(payload.sensors.presets.every(p => p.citations.length > 0)).toBe(true);
     const name = experimentRecordName('S19 octa coaxial 16', EXPERIMENT_ID);
@@ -446,7 +446,7 @@ describe('schema 1 records and external SITLs (TASK-155)', () => {
   }
   const EXTERNAL = {
     ownership: 'external', connectionId: EXPERIMENT_ID,
-    ardupilot: { commit: PINNED_ARDUPILOT_COMMIT, gitHash: PINNED_ARDUPILOT_COMMIT.slice(0, 8), firmwareVersion: '4.8.0-dev' },
+    ardupilot: { commit: PINNED_ARDUPILOT_COMMIT, gitHash: PINNED_ARDUPILOT_COMMIT.slice(0, 8), firmwareVersion: '4.7.2' },
     endpoints: { jsonPhysicsPort: 9002, mavlink: { transport: 'tcp', port: 5760 } },
   } as const;
   function externalOf(payload: ExperimentPayload): unknown {

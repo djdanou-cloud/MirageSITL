@@ -313,8 +313,8 @@ describe('prepareVehicle initial parameters', () => {
 
   it('adds exactly the SIM_* parameters sensorRuntime generates, disjoint from the frame and PWM names', async () => {
     const cases: [string, SensorConfiguration, number | null][] = [
-      // TASK-147 confirmed 168 generated Ideal parameters on native ArduCopter (docs/PROJECT_ROADMAP.md, TASK-147 evidence).
-      ['Ideal', configure(c => { c.mode = 'ideal'; }), 168],
+      // TASK-147 confirmed 168 generated Ideal parameters on native ArduCopter 8ab6afde (docs/PROJECT_ROADMAP.md, TASK-147 evidence); V4.7.2 lacks SIM_GPSn_HNSE (2) and SIM_BAROn_GEFF_M (3).
+      ['Ideal', configure(c => { c.mode = 'ideal'; }), 163],
       ['ArduPilot-owned values', configure(c => {
         c.barometer.noiseRmsPa = 3; c.barometer.biasPa = 20; c.gnss.updateRateHz = 10; c.gnss.horizontalSigmaM = 1.5; c.magnetometer.biasGauss = [0.01, 0, -0.02];
       }), null],

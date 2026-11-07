@@ -92,7 +92,7 @@ test("the Logging tab plans every signal at 50 Hz, refuses unsupported rates wit
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test("a Run-tab run records with the Logging tab's settings, shows its growth, and its record matches the estimate", async ({ page }) => {
   test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

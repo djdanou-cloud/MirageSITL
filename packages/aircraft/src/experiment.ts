@@ -17,7 +17,7 @@ import { resolveComponents } from './resolve-components.ts';
 import { SITE_PARAMETER_NAMES, siteParameters } from './site-parameters.ts';
 import { validateSensorConfiguration } from './sensor-config.ts';
 import {
-  SENSOR_FIELDS, SENSOR_KINDS, SENSOR_OWNERSHIP_MAPPING_VERSION, type FieldOwner, type FieldValue, type PresetReference,
+  READABLE_MAPPING_VERSIONS, SENSOR_FIELDS, SENSOR_KINDS, type FieldOwner, type FieldValue, type PresetReference,
   type SensorConfiguration, type SensorFieldPath, type SensorKind,
 } from './sensor-fields.ts';
 import {
@@ -532,7 +532,8 @@ function stateOf(configuration: SensorConfiguration | null): SensorState {
 
 function resolutionOf(value: unknown, configuration: SensorConfiguration | null): ResolvedSensorConfiguration {
   const r = exact(value, ['mappingVersion', 'path', 'state', 'fields', 'residuals'], 'sensors.resolution');
-  if (r.mappingVersion !== SENSOR_OWNERSHIP_MAPPING_VERSION) fail(`sensors.resolution.mappingVersion must be ${SENSOR_OWNERSHIP_MAPPING_VERSION}`);
+  const mappingVersion = READABLE_MAPPING_VERSIONS.find(version => version === r.mappingVersion);
+  if (mappingVersion === undefined) fail(`sensors.resolution.mappingVersion must be one of ${READABLE_MAPPING_VERSIONS.join(', ')}`);
   if (r.path !== 'native-json') fail('sensors.resolution.path must be native-json');
   const state = oneOf<SensorState>(r.state, ['ardupilot-defaults', 'specified', 'ideal'], 'sensors.resolution.state');
   if (state !== stateOf(configuration)) fail(`sensors.resolution.state ${state} does not match the configuration`);
@@ -555,7 +556,7 @@ function resolutionOf(value: unknown, configuration: SensorConfiguration | null)
     return item;
   });
   if (new Set(residuals).size !== residuals.length) fail('sensors.resolution.residuals lists a residual twice');
-  return { mappingVersion: SENSOR_OWNERSHIP_MAPPING_VERSION, path: 'native-json', state, fields, residuals };
+  return { mappingVersion, path: 'native-json', state, fields, residuals };
 }
 
 function matrixOf(value: unknown): OwnershipMatrix {
@@ -636,7 +637,8 @@ function snapshotOf(value: unknown, profileSha256: string): SensorSnapshot {
   }
   const s = exact(value, ['schemaVersion', 'profileSha256', 'mappingVersion', 'configuration', 'resolution', 'ownershipMatrix', 'residuals', 'presets'], 'sensors');
   if (sha256(s.profileSha256, 'sensors.profileSha256') !== profileSha256) fail('sensors.profileSha256 must equal profile.sha256');
-  if (s.mappingVersion !== SENSOR_OWNERSHIP_MAPPING_VERSION) fail(`sensors.mappingVersion must be ${SENSOR_OWNERSHIP_MAPPING_VERSION}`);
+  const mappingVersion = READABLE_MAPPING_VERSIONS.find(version => version === s.mappingVersion);
+  if (mappingVersion === undefined) fail(`sensors.mappingVersion must be one of ${READABLE_MAPPING_VERSIONS.join(', ')}`);
   let configuration: SensorConfiguration | null = null;
   if (s.configuration !== null) {
     try {
@@ -647,7 +649,7 @@ function snapshotOf(value: unknown, profileSha256: string): SensorSnapshot {
   }
   const resolution = resolutionOf(s.resolution, configuration);
   return {
-    schemaVersion: SENSOR_SNAPSHOT_VERSION, profileSha256, mappingVersion: SENSOR_OWNERSHIP_MAPPING_VERSION, configuration, resolution,
+    schemaVersion: SENSOR_SNAPSHOT_VERSION, profileSha256, mappingVersion, configuration, resolution,
     ownershipMatrix: matrixOf(s.ownershipMatrix), residuals: residualsOf(s.residuals, resolution.residuals),
     presets: presetsOf(s.presets, configuration),
   };

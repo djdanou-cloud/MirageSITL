@@ -3,7 +3,7 @@ import {
   CLEARANCE_RULES, clearanceFix, clearanceShapes, describeClash, propellerClearance,
   type ClearanceClash, type ClearanceFix, type ClearanceReport,
 } from "@mirage/aircraft/clearance";
-import type { AircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, type AircraftProfile } from "@mirage/aircraft/profile";
 import { describeLibraryError } from "../library/library-data";
 
 // Propeller clearance in the Aircraft tab (TASK-195): the clashes of the form's
@@ -38,7 +38,13 @@ function TopView({ profile, radii, clashes, label }: {
 }) {
   const { layout, hull, discs } = clearanceShapes(profile, radiusOf(radii));
   const body = hull[0], clashing = clashingMotors(clashes);
-  const bodyClash = clashes.some(clash => clash.kind === "propeller-body" || (clash.kind === "ground" && (clash.part.kind === "body" || clash.part.kind === "body-part")));
+  const bodyClash = clashes.some(clash => (clash.kind === "propeller-body" && clash.part === undefined) || (clash.kind === "ground" && clash.part.kind === "body"));
+  // A described body's parts follow the arms (TASK-196).
+  const parts = hull.slice(1 + profile.arms.length);
+  const partClash = (index: number): boolean => {
+    const name = bodyOf(profile)?.parts[index]?.name;
+    return clashes.some(clash => (clash.kind === "propeller-body" && clash.part === name) || (clash.kind === "ground" && clash.part.kind === "body-part" && clash.part.name === name));
+  };
   // Body FRD x (forward) is drawn up and y (right) to the right.
   const at = (point: readonly number[]): [number, number] => [point[1] ?? 0, -(point[0] ?? 0)];
   const extent = 1.08 * Math.max(body?.radiusM ?? 0, ...discs.map(disc =>
@@ -48,11 +54,15 @@ function TopView({ profile, radii, clashes, label }: {
     <figure className="clearance-view">
       <svg viewBox={`${-extent} ${-extent} ${2 * extent} ${2 * extent}`} role="img" aria-label={`${label}: the aircraft seen from above, to scale`}>
         <title>{label}</title>
-        {hull.slice(1, 1 + profile.arms.length).map(arm => arm.kind === "capsule" && (
+        {hull.slice(1).map(arm => arm.kind === "capsule" && (
           <line key={`arm-${arm.id}`} className="clearance-arm" x1={at(arm.startBodyM)[0]} y1={at(arm.startBodyM)[1]}
             x2={at(arm.endBodyM)[0]} y2={at(arm.endBodyM)[1]} strokeWidth={Math.max(2 * arm.radiusM, extent / 150)} />
         ))}
         {body && <circle className={bodyClash ? "clearance-body clash" : "clearance-body"} cx={0} cy={0} r={body.radiusM} strokeWidth={extent / 200} />}
+        {parts.map((part, index) => part.kind === "cylinder" && (
+          <circle key={`part-${part.id}`} className={partClash(index) ? "clearance-body clash" : "clearance-body"}
+            cx={at(part.centerBodyM)[0]} cy={at(part.centerBodyM)[1]} r={part.radiusM} strokeWidth={extent / 200} />
+        ))}
         {discs.map(disc => disc.kind === "cylinder" && (
           <circle key={`disc-${disc.id}`} className={clashing.has(disc.id) ? "clearance-disc clash" : "clearance-disc"}
             cx={at(disc.centerBodyM)[0]} cy={at(disc.centerBodyM)[1]} r={disc.radiusM} strokeWidth={extent / 200} />

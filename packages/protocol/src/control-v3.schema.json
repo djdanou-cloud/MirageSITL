@@ -2377,6 +2377,811 @@
               "pattern": "^[A-Za-z0-9_-]{1,64}$"
             },
             "effect": {
+              "const": "baro.position-error"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "positiveCoefficient",
+                "negativeCoefficient"
+              ],
+              "properties": {
+                "positiveCoefficient": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3
+                },
+                "negativeCoefficient": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -2,
+                      "maximum": 2
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "baro.ground-cushion"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "gain",
+                "decayRadii"
+              ],
+              "properties": {
+                "gain": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10
+                },
+                "decayRadii": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 10
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "baro.prop-wash"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "coefficient"
+              ],
+              "properties": {
+                "coefficient": {
+                  "type": "number",
+                  "minimum": -2,
+                  "maximum": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "baro.drift"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ratePaPerS",
+                "temperaturePaPerK"
+              ],
+              "properties": {
+                "ratePaPerS": {
+                  "type": "number",
+                  "minimum": -10,
+                  "maximum": 10
+                },
+                "temperaturePaPerK": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "baro.pressure-trend"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "trendPaPerHour"
+              ],
+              "properties": {
+                "trendPaPerHour": {
+                  "type": "number",
+                  "minimum": -1000,
+                  "maximum": 1000
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "gnss.constellation"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "maskDeg",
+                "uereM"
+              ],
+              "properties": {
+                "maskDeg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 30
+                },
+                "uereM": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 30
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "gnss.atmosphere"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ionosphereResidual",
+                "troposphereResidual"
+              ],
+              "properties": {
+                "ionosphereResidual": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                },
+                "troposphereResidual": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "gnss.terrain"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "nlosExcessM"
+              ],
+              "properties": {
+                "nlosExcessM": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 200
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
+              "const": "gnss.jamming-budget"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "intensity": {
+              "type": "number",
+              "minimum": 0
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "jammingToSignalDb",
+                "spectralSeparation",
+                "thresholdDbHz"
+              ],
+              "properties": {
+                "jammingToSignalDb": {
+                  "type": "number",
+                  "minimum": -30,
+                  "maximum": 80
+                },
+                "spectralSeparation": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 2
+                },
+                "thresholdDbHz": {
+                  "type": "number",
+                  "minimum": 15,
+                  "maximum": 40
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "expectedEpoch",
+        "atTick",
+        "type",
+        "control",
+        "recovery"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": 3
+        },
+        "requestId": {
+          "$ref": "#/$defs/uint32"
+        },
+        "expectedEpoch": {
+          "$ref": "#/$defs/uint32"
+        },
+        "atTick": {
+          "$ref": "#/$defs/tickId"
+        },
+        "type": {
+          "const": "effect.set"
+        },
+        "recovery": {
+          "enum": [
+            "hold-offset",
+            "step-to-truth"
+          ]
+        },
+        "control": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "id",
+            "effect",
+            "enabled",
+            "intensity",
+            "parameters"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$"
+            },
+            "effect": {
               "const": "sensor.battery.current"
             },
             "enabled": {

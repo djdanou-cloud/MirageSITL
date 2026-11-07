@@ -1,6 +1,6 @@
 import { PROPELLER_DISC_HALF_THICKNESS_OF_RADIUS, type HullShape } from '@mirage/physics/vehicle-manifest';
 import type { RotorLayout } from './layout.ts';
-import type { AircraftProfile } from './profile.ts';
+import { bodyOf, type AircraftProfile, type BodySpec } from './profile.ts';
 import { sinCos } from './trig.ts';
 
 // Standard hull (TASK-095 increment 4): the frame as contact shapes, worked
@@ -11,8 +11,10 @@ import { sinCos } from './trig.ts';
 // height. The sizes scale with the aircraft: the body with the shortest arm,
 // an arm's thickness with the largest propeller on it. They are synthetic,
 // not any aircraft's measured frame, and the vehicle manifest declares them
-// as their own synthetic dataset. Configuration-time code only. Positions are
-// body FRD metres from the reference point.
+// as their own synthetic dataset. A profile that describes its body (schema 7,
+// TASK-196) has that body's shapes instead, in the same order: the body, the
+// arms, then its parts, all from the profile. Configuration-time code only.
+// Positions are body FRD metres from the reference point.
 
 /** Version of the rules; a change of any rule is a new version. */
 export const STANDARD_HULL_VERSION = 1;
@@ -51,6 +53,42 @@ export function standardHull(profile: AircraftProfile, propellerRadiusM: (motorI
     };
   });
   return [body, ...arms];
+}
+
+/**
+ * TASK-196: the hull of a profile that describes its body: the body cylinder (ID 0) about the body z axis with its bottom
+ * at the stated depth, one capsule per arm in ascending arm ID order (IDs from 1) from the body axis to the motor mount at
+ * the arm's height with the stated thickness, then each part a vertical cylinder (IDs after the arms) in the order given.
+ */
+export function bodyHull(profile: AircraftProfile, body: BodySpec): HullShape[] {
+  const shapes: HullShape[] = [{
+    id: 0, kind: 'cylinder', centerBodyM: [0, 0, clean(body.bottomDepthM - body.heightM / 2)], axisBody: [0, 0, 1],
+    radiusM: body.diameterM / 2, halfHeightM: body.heightM / 2,
+  }];
+  profile.arms.forEach((arm, index) => {
+    const { sin, cos } = sinCos(arm.azimuthRad), z = clean(-arm.heightM);
+    shapes.push({ id: index + 1, kind: 'capsule', startBodyM: [0, 0, z], endBodyM: [clean(arm.lengthM * cos), clean(arm.lengthM * sin), z],
+      radiusM: body.armDiameterM / 2 });
+  });
+  body.parts.forEach((part, index) => shapes.push({
+    id: profile.arms.length + 1 + index, kind: 'cylinder', centerBodyM: [clean(part.xM), clean(part.yM), clean(part.bottomDepthM - part.heightM / 2)],
+    axisBody: [0, 0, 1], radiusM: part.diameterM / 2, halfHeightM: part.heightM / 2,
+  }));
+  return shapes;
+}
+
+/** The hull a profile flies: the body it describes (TASK-196), or the standard hull, which needs each motor's propeller radius. */
+export function profileHull(profile: AircraftProfile, propellerRadiusM: (motorId: number) => number): HullShape[] {
+  const body = bodyOf(profile);
+  return body ? bodyHull(profile, body) : standardHull(profile, propellerRadiusM);
+}
+
+/**
+ * What each hull shape of a profile stands for, by hull ID: "The body", "Arm k" by arm ID, and for a described body
+ * (TASK-196) each part as part of the body, "The body (camera)". Reports of contacts and clashes use these names.
+ */
+export function hullPartNames(profile: AircraftProfile): string[] {
+  return ['The body', ...profile.arms.map(arm => `Arm ${arm.id}`), ...(bodyOf(profile)?.parts ?? []).map(part => `The body (${part.name})`)];
 }
 
 /**

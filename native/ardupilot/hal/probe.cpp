@@ -36,7 +36,7 @@ int main(int argc,char **argv) {
     const unsigned hz=argc>1?unsigned(std::atoi(argv[1])):800;
     const unsigned steps=argc>2?unsigned(std::atoi(argv[2])):1000;
     shared=reinterpret_cast<uint32_t *>(mirage_hal_mailbox());
-    assert(mirage_hal_version()==1 && mirage_hal_configure(hz,7)==0);
+    assert(mirage_hal_version()==2 && mirage_hal_configure(hz,7)==0);
     assert(mirage_hal_configure(0,7)==-1);
     pthread_t thread; assert(pthread_create(&thread,nullptr,firmware,nullptr)==0);
     value(0,32); value(1,35); value(2,100); value(3,4); value(4,-2); value(5,1);
@@ -44,6 +44,8 @@ int main(int argc,char **argv) {
     value(9,0.1); value(10,-0.2); value(11,0.3);
     value(12,std::cos(0.25)); value(15,std::sin(0.25));
     value(16,0.21); value(17,-0.03); value(18,0.43); value(20,16); value(22,2);
+    // TASK-105: two motors' speeds on channels 0 and 3.
+    put(13,0x9); { double r[2]={12000,11500.5}; unsigned at[2]={0,3}; for(unsigned k=0;k<2;k++){uint64_t b;std::memcpy(&b,r+k,8);put(224+at[k]*2,uint32_t(b));put(225+at[k]*2,uint32_t(b>>32));} }
     // A real allocating control proves the counter is active.
     counting=true; void *volatile control=std::malloc(32); counting=false;
     assert(control!=nullptr && allocations.load()>0); std::free(control);

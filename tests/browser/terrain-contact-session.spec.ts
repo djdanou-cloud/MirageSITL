@@ -7,7 +7,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-187 (S18) on the reference Mac: native ArduCopter 8ab6afde stands, takes off, flies and lands on real-terrain ground that slopes,
+// TASK-187 (S18) on the reference Mac: native ArduCopter fb773567 stands, takes off, flies and lands on real-terrain ground that slopes,
 // chosen through the Weather and location tab, with the contact loads and events in its recording. The terrain is the TASK-186 sloped
 // fixture with every height scaled about its base by STEEPER, which only changes each tile's height range in its header: 0.95 degrees
 // becomes 7.55 degrees, falling to the north and rising to the east. Declared before the first run:
@@ -29,7 +29,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const FIXTURE = new URL("../fixtures/terrain-qm-slope/", import.meta.url);
 const EVIDENCE = join(ROOT, "test-results/browser/task-187-terrain-contact.json");
 const BASE_M = 120, STEEPER = 8;

@@ -9,7 +9,7 @@ import { viteFileUrl } from "../support/vite-url";
 import { edgesOf, maneuverResponse, eulerDegOf, type ResponseSeries } from "../../packages/scenarios/src/maneuvers";
 
 // TASK-173 (S10): tuning maneuvers through the application alone. A maneuver is defined on
-// the Flight tasks tab, flown from the Run tab by native ArduCopter 8ab6afde through the Worker
+// the Flight tasks tab, flown from the Run tab by native ArduCopter fb773567 through the Worker
 // and the bridge, and read on the Experiments tab. The chart's lines are read back from the page
 // and compared with the rows the recording holds, so a line drawn at the wrong time fails here.
 // The quad flies with the 40 Hz gyro filter of decision A-13, written through the Parameters tab.
@@ -25,7 +25,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 async function openTasks(page: Page): Promise<Locator> {
   await page.getByRole("tab", { name: "Flight tasks", exact: true }).click();

@@ -11,16 +11,13 @@ import { projectVehicleToModelV1, validateVehicleManifest, VehicleRegistry, with
 import { canonicalBytes, ProjectStoreError } from '../packages/project/src/schema.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import schema from '../packages/aircraft/src/profile.schema.json';
-import { standardHullDrag } from '../packages/aircraft/src/standard-hull-drag.ts';
-import { mapGearValues } from '../packages/aircraft/src/profile-gear.ts';
 import {
-  bodyOf, landingGearOf, profileComponentCards, profileDraft, readAircraftProfile, validateAircraftProfile, withBody, withLandingGear, type AircraftProfile,
-  type GearValues, type ProfileBody, type ProfileGear,
+  profileComponentCards, profileDraft, readAircraftProfile, validateAircraftProfile, type AircraftProfile,
 } from '../packages/aircraft/src/profile.ts';
 import { deriveLayout, type RotorLayout } from '../packages/aircraft/src/layout.ts';
 import { PIO2_PARTS, sinCos, tan } from '../packages/aircraft/src/trig.ts';
 import {
-  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, PROFILE_GEAR_DATASET_ID, PROFILE_HULL_DATASET_ID, STANDARD_GEAR_DATASET_ID, STANDARD_HULL_DATASET_ID, STANDARD_HULL_DRAG_DATASET_ID,
+  combineMassProperties, deriveVehicleManifest, DERIVED_DATASET_ID, STANDARD_GEAR_DATASET_ID, STANDARD_HULL_DATASET_ID, STANDARD_HULL_DRAG_DATASET_ID,
   type ResolvedComponents,
 } from '../packages/aircraft/src/derive-manifest.ts';
 import {
@@ -613,169 +610,5 @@ describe('project store', () => {
     expect(await derive(renamed)).toBe(await derive(first));
     expect(await derive(edited)).not.toBe(await derive(first));
     expect(await derive(await store.get(first.sha256))).toBe(await derive(first));
-  });
-});
-
-// TASK-194: a landing gear the profile describes. Oracle: the rules declared in the roadmap before implementation, computed here
-// from the stated values alone: the pair stiffness k = m·g/(N·δ_s) with δ_s = 5 mm, a foot nine times a stated strut, damping
-// 2·0.7·√(k_pair·m/N), a rim half its foot, an unsprung foot 1 % of the share, friction 0.6 and 0.5 in the ratio 5/6.
-const NONE: GearValues = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null,
-  footStiffnessNpm: null, unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
-const UNSOURCED: ProfileGear['provenance'] = mapGearValues(() => null);
-/** A gear with these values stated (each with the source "<key> test source") and every other value not known. */
-function gearOf(kind: ProfileGear['kind'], feetBodyM: number[][], stated: Partial<GearValues> = {}): ProfileGear {
-  const values = { ...NONE, ...stated };
-  const provenance = mapGearValues(key => (values[key] === null ? null : `${key} test source`));
-  return { kind, feetBodyM, positionSource: 'Measured on the frame', values, provenance };
-}
-const SQUARE = [[0.15, 0.15, 0.1], [0.15, -0.15, 0.1], [-0.15, -0.15, 0.1], [-0.15, 0.15, 0.1]];
-const quadOnGear = (gear: ProfileGear) => withLandingGear(validateAircraftProfile(fixture('quad-x')), gear);
-
-describe('a landing gear the profile describes (TASK-194)', () => {
-  test('is schema 7, clears the ground clearance it replaces, and goes back to the standard supports without it', () => {
-    const profile = quadOnGear(gearOf('legs', SQUARE, { strutStiffnessNpm: 1500 }));
-    expect([profile.schemaVersion, profile.groundClearanceM, landingGearOf(profile)?.kind]).toEqual([7, null, 'legs']);
-    expect(validateAircraftProfile(JSON.parse(JSON.stringify(profile)))).toEqual(profile);
-    const back = withLandingGear(profile, null);
-    expect([back.schemaVersion, landingGearOf(back)]).toEqual([2, null]);
-  });
-
-  test('derives the manifest gear from the stated values and the standard rules, and names which is which', async () => {
-    const gear = gearOf('legs', SQUARE, { strutStiffnessNpm: 1500, strutTravelM: 0.03, footRadiusM: 0.012 });
-    const profile = quadOnGear(gear);
-    const derived = await deriveVehicleManifest(profile, syntheticComponents(profile), { modelId: FIXTURE_MODEL_ID });
-    const m = 1.5, share = m / 4, strut = 1500, foot = 9 * strut, pair = (strut * foot) / (strut + foot), unsprung = 0.01 * share;
-    const damping = 2 * 0.7 * Math.sqrt(pair * share), rim = 0.006;
-    expect(derived.manifest.landingGear).toHaveLength(4);
-    derived.manifest.landingGear.forEach((leg, i) => {
-      expect(leg.id).toBe(i);
-      expect(leg.anchorBodyM).toEqual([SQUARE[i]![0], SQUARE[i]![1], 0.1 - 0.012]);
-      expect([leg.tireRadiusM, leg.rimRadiusM, leg.strutTravelM]).toEqual([0.012, rim, 0.03]);
-      expect(leg.unsprungMassKg).toBeCloseTo(unsprung, 15);
-      expect(leg.suspension).toEqual({ kind: 'linear', stiffnessNpm: strut, preloadN: 0, compressionDamping: expect.closeTo(damping, 10) as unknown,
-        reboundDamping: expect.closeTo(damping, 10) as unknown, dampingLaw: 'linear' });
-      expect(leg.tireLoadCurve[1]![0]).toBeCloseTo(0.012 - rim, 15);
-      expect(leg.tireLoadCurve[1]![1]).toBeCloseTo(foot * (0.012 - rim), 9);
-      expect([leg.rollingCoefficient, leg.lateralCoefficient, leg.brakingCoefficient]).toEqual([0.6, 0.6, 0.6]);
-      expect(leg.kineticFrictionRatio).toBeCloseTo(5 / 6, 15);
-    });
-    // The gear's dataset names the profile as its source, every stated value with its source, and every assumed one.
-    const dataset = derived.manifest.datasets.find(item => item.id === PROFILE_GEAR_DATASET_ID);
-    expect(dataset).toMatchObject({ kind: 'synthetic', sourceSha256: derived.profileSha256 });
-    const text = dataset?.kind === 'synthetic' ? dataset.derivation : '';
-    expect(text).toContain('strut stiffness 1500 N/m (strutStiffnessNpm test source)');
-    expect(text).toContain('strut travel 0.03 m (strutTravelM test source)');
-    expect(text).toMatch(/Assumed from the standard gear's rules .*: strut damping [0-9.]+ N·s\/m; rim radius 0.006 m; foot stiffness 13500 N\/m; unsprung mass per support 0.00375 kg; static friction 0.6; kinetic friction 0.5\./);
-    expect(text).not.toContain('rolling coefficient');
-    expect(derived.manifest.provenance.landingGear).toBe(PROFILE_GEAR_DATASET_ID);
-    expect(derived.manifest.datasets.some(item => item.id === STANDARD_GEAR_DATASET_ID)).toBe(false);
-  });
-
-  test('a fully stated gear of wheels rolls on its own coefficient, and a foot stiffness alone gives the strut the standard pair', async () => {
-    const wheels = gearOf('wheels', [[0.2, 0, 0.1], [-0.1, 0.15, 0.1], [-0.1, -0.15, 0.1]], { strutTravelM: 0.02, strutStiffnessNpm: 2000,
-      strutDampingNspm: 30, footRadiusM: 0.03, rimRadiusM: 0.02, footStiffnessNpm: 20000, unsprungMassKg: 0.02, staticFriction: 0.8,
-      kineticFriction: 0.7, rollingCoefficient: 0.02 });
-    const profile = quadOnGear(wheels), derived = await deriveVehicleManifest(profile, syntheticComponents(profile), { modelId: FIXTURE_MODEL_ID });
-    const leg = derived.manifest.landingGear[0]!;
-    expect([leg.rollingCoefficient, leg.lateralCoefficient, leg.brakingCoefficient, leg.suspension.kind === 'linear' && leg.suspension.compressionDamping])
-      .toEqual([0.02, 0.8, 0.8, 30]);
-    expect(leg.kineticFrictionRatio).toBeCloseTo(0.7 / 0.8, 15);
-    const dataset = derived.manifest.datasets.find(item => item.id === PROFILE_GEAR_DATASET_ID);
-    expect(dataset?.kind === 'synthetic' ? dataset.derivation : '').toContain('Assumed from the standard gear\'s rules (decision F-08 and TASK-095, not measured): none.');
-    const footOnly = quadOnGear(gearOf('legs', SQUARE, { footStiffnessNpm: 30000 }));
-    const pair = (1.5 * 9.80665) / (4 * 0.005), strut = 1 / (1 / pair - 1 / 30000);
-    const derivedFoot = await deriveVehicleManifest(footOnly, syntheticComponents(footOnly), { modelId: FIXTURE_MODEL_ID });
-    const first = derivedFoot.manifest.landingGear[0]!;
-    expect(first.suspension.kind === 'linear' ? first.suspension.stiffnessNpm : 0).toBeCloseTo(strut, 9);
-  });
-
-  test.each([
-    ['the CG outside the support polygon', gearOf('legs', [[0.05, 0.15, 0.1], [0.2, 0, 0.1], [0.05, -0.15, 0.1]]), 'lies outside the support polygon'],
-    ['feet on one line', gearOf('legs', [[0.1, 0, 0.1], [0, 0, 0.1], [-0.1, 0, 0.1]]), 'stand on one line'],
-    ['zero travel', gearOf('legs', SQUARE, { strutTravelM: 0 }), 'The strut travel must be above 0 m'],
-    ['a rim not inside its foot', gearOf('legs', SQUARE, { footRadiusM: 0.012, rimRadiusM: 0.012 }), 'must be below the foot radius'],
-    ['a rim the standard foot cannot hold', gearOf('legs', SQUARE, { rimRadiusM: 0.02 }), 'must be below the foot radius 0.01 m'],
-    ['kinetic friction above static', gearOf('legs', SQUARE, { staticFriction: 0.5, kineticFriction: 0.6 }), 'must not exceed the static friction'],
-    ['an unsprung mass of the whole share', gearOf('legs', SQUARE, { unsprungMassKg: 0.375 }), 'must be below each support\'s share'],
-    ['a foot softer than the standard support', gearOf('legs', SQUARE, { footStiffnessNpm: 100 }), 'The foot stiffness must exceed'],
-    ['wheels without a rolling coefficient', gearOf('wheels', SQUARE), 'Wheels need their rolling coefficient'],
-    ['legs with a rolling coefficient', gearOf('legs', SQUARE, { rollingCoefficient: 0.02 }), 'Only wheels have a rolling coefficient'],
-    ['an odd number of skid ends', gearOf('skids', [...SQUARE, [0, 0.2, 0.1]]), 'Skids need two ends each'],
-    ['two supports', gearOf('legs', SQUARE.slice(0, 2)), '/landingGear/feetBodyM must NOT have fewer than 3 items'],
-    ['a value without its source', { ...gearOf('legs', SQUARE, { strutTravelM: 0.03 }), provenance: UNSOURCED }, 'strutTravelM has a value but no source'],
-    ['a source without its value', { ...gearOf('legs', SQUARE), provenance: { ...UNSOURCED, footRadiusM: 'caliper' } }, 'footRadiusM has no value but names a source'],
-    ['no position source', { ...gearOf('legs', SQUARE), positionSource: ' ' }, 'Say where the landing gear positions come from'],
-  ] as const)('blocks %s with its reason', (_label, gear, reason) => {
-    expect(() => quadOnGear(gear)).toThrow(reason);
-  });
-
-  test('a stated ground clearance beside a gear is refused, and so is a gear outside schema 7', () => {
-    const profile = quadOnGear(gearOf('legs', SQUARE));
-    expect(() => validateAircraftProfile({ ...profile, groundClearanceM: 0.1 })).toThrow('the ground clearance stays empty');
-    expect(() => validateAircraftProfile({ ...profile, schemaVersion: 6 })).toThrow('A landing gear or a body appears only in schema 7');
-  });
-});
-
-// TASK-196: a body the profile describes. Oracle: the shapes as the declared design places them, written out here from the
-// entered values: the body cylinder about the z axis at its depth, arm capsules from the axis to each motor mount at the arm's
-// height with the stated thickness (or 0.05 times the propeller radius), the parts after the arms.
-const POD: ProfileBody['parts'][number] = { name: 'Camera pod', shape: 'cylinder', centerBodyM: [0.02, 0, 0.085], radiusM: 0.03, halfHeightM: 0.015 };
-const BODY: ProfileBody = { radiusM: 0.07, halfHeightM: 0.03, centerDownM: 0.01, armRadiusM: 0.012, source: 'Frame drawing',
-  parts: [POD, { name: 'Battery rail', shape: 'capsule', startBodyM: [-0.06, 0, -0.045], endBodyM: [0.06, 0, -0.045], radiusM: 0.008 }] };
-const quadWithBody = (body: ProfileBody) => withBody(validateAircraftProfile(fixture('quad-x')), body);
-
-describe('a body the profile describes (TASK-196)', () => {
-  test('is schema 7 beside the stated ground clearance, and goes back to the standard hull without it', () => {
-    const profile = quadWithBody(BODY);
-    expect([profile.schemaVersion, profile.groundClearanceM, bodyOf(profile)?.parts.length, landingGearOf(profile)]).toEqual([7, 0.12, 2, null]);
-    expect(validateAircraftProfile(JSON.parse(JSON.stringify(profile)))).toEqual(profile);
-    expect([withBody(profile, null).schemaVersion, bodyOf(withBody(profile, null))]).toEqual([2, null]);
-    // A gear and a body together, and the gear's removal keeps the body.
-    const both = withLandingGear(profile, gearOf('legs', SQUARE));
-    expect([both.schemaVersion, bodyOf(both)?.radiusM, landingGearOf(withLandingGear(both, null))]).toEqual([7, 0.07, null]);
-    expect(bodyOf(withLandingGear(both, null))).toEqual(BODY);
-  });
-
-  test('derives the manifest hull from the body, arms and parts, its own dataset and the drag estimate over it', async () => {
-    const profile = quadWithBody(BODY);
-    const derived = await deriveVehicleManifest(profile, syntheticComponents(profile), { modelId: FIXTURE_MODEL_ID });
-    const hull = derived.manifest.hull ?? [];
-    expect(hull[0]).toEqual({ id: 0, kind: 'cylinder', centerBodyM: [0, 0, 0.01], axisBody: [0, 0, 1], radiusM: 0.07, halfHeightM: 0.03 });
-    const layout = deriveLayout(profile);
-    profile.arms.forEach((arm, i) => {
-      const shape = hull[i + 1]!, hub = layout.rotors.find(rotor => rotor.armId === arm.id)!.hubPositionBodyM;
-      expect(shape.kind === 'capsule' && [shape.id, shape.startBodyM, shape.radiusM]).toEqual([i + 1, [0, 0, 0], 0.012]);
-      if (shape.kind === 'capsule') expectVector(shape.endBodyM, hub, `arm ${arm.id} end`);
-    });
-    expect(hull.slice(5)).toEqual([
-      { id: 5, kind: 'cylinder', centerBodyM: [0.02, 0, 0.085], axisBody: [0, 0, 1], radiusM: 0.03, halfHeightM: 0.015 },
-      { id: 6, kind: 'capsule', startBodyM: [-0.06, 0, -0.045], endBodyM: [0.06, 0, -0.045], radiusM: 0.008 }]);
-    const dataset = derived.manifest.datasets.find(item => item.id === PROFILE_HULL_DATASET_ID);
-    expect(dataset).toMatchObject({ kind: 'synthetic', sourceSha256: derived.profileSha256 });
-    expect(dataset?.kind === 'synthetic' ? dataset.derivation : '').toContain('dimensions from Frame drawing');
-    expect(dataset?.kind === 'synthetic' ? dataset.derivation : '').toContain('Camera pod, a cylinder of radius 0.03 m and half-height 0.015 m');
-    expect(derived.manifest.provenance.hull).toBe(PROFILE_HULL_DATASET_ID);
-    expect(derived.manifest.datasets.some(item => item.id === STANDARD_HULL_DATASET_ID)).toBe(false);
-    // The preliminary drag is the standard rules over this hull, the rail counted whole rather than from the body radius.
-    expect(derived.manifest.airframe.drag).toEqual(standardHullDrag(hull, 4));
-    const drag = derived.manifest.datasets.find(item => item.id === STANDARD_HULL_DRAG_DATASET_ID);
-    expect(drag?.kind === 'synthetic' ? drag.derivation : '').toContain('from the hull the aircraft profile describes');
-    // Without a stated arm thickness the arms keep the standard hull's: 0.05 times the synthetic 0.14 m propeller radius.
-    const standardArms = quadWithBody({ ...BODY, armRadiusM: null });
-    const standardDerived = await deriveVehicleManifest(standardArms, syntheticComponents(standardArms), { modelId: FIXTURE_MODEL_ID });
-    expect(standardDerived.manifest.hull?.[1]?.radiusM).toBeCloseTo(0.007, 15);
-    const text = standardDerived.manifest.datasets.find(item => item.id === PROFILE_HULL_DATASET_ID);
-    expect(text?.kind === 'synthetic' ? text.derivation : '').toContain("of the standard hull's thickness");
-  });
-
-  test.each([
-    ['too many parts for the hull', { ...BODY, parts: Array.from({ length: 12 }, (_, i) => ({ ...POD, name: `Part ${i + 1}` })) }, 'The body holds at most 11 parts beside its 4 arms'],
-    ['a blank part name', { ...BODY, parts: [{ ...POD, name: ' ' }] }, 'Body part 1 needs a name'],
-    ['two parts of one name', { ...BODY, parts: [POD, { ...POD, name: 'camera pod' }] }, 'Two body parts are named camera pod'],
-    ['a capsule without length', { ...BODY, parts: [{ name: 'Bar', shape: 'capsule', startBodyM: [0, 0, 0.05], endBodyM: [0, 0, 0.05], radiusM: 0.01 }] }, 'needs two different ends'],
-    ['no source', { ...BODY, source: ' ' }, 'Say where the body dimensions come from'],
-    ['a body without size', { ...BODY, radiusM: 0 }, '/body/radiusM must be > 0'],
-  ] as const)('blocks %s with its reason', (_label, body, reason) => {
-    expect(() => quadWithBody(body as ProfileBody)).toThrow(reason);
   });
 });

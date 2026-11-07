@@ -8,7 +8,11 @@ import {
 // (docs/decisions/phase1-fidelity.md, F-06). A profile version in measured
 // mode binds measurement sets; a motor uses bench data only when a bound set
 // has exactly its combination of motor, propeller, ESC and battery card
-// versions, and never another combination's. Configuration-time code only.
+// versions, or its motor, propeller and ESC card versions on a laboratory
+// supply (a manufacturer's or a bench power supply, by the stakeholder's
+// decision of 2026-11-07), and never another combination's. A set on the
+// profile's own battery is preferred to a laboratory one. Configuration-time
+// code only.
 
 /** TASK-133 labels, weakest first. TASK-184 earns `flight-checked`; this module never assigns it. */
 export const CONFIDENCE_LABELS = ['preliminary', 'measured-input', 'flight-checked'] as const;
@@ -57,13 +61,26 @@ export function motorCombination(profile: AircraftProfile, motor: ProfileMotor):
   return { motor: motorCard, propeller, esc, supply: { kind: 'battery', card: battery } };
 }
 
-async function motorKeys(profile: AircraftProfile): Promise<Map<number, string | null>> {
-  const keys = new Map<number, string | null>();
-  for (const motor of profile.motors) {
-    const combination = motorCombination(profile, motor);
-    keys.set(motor.id, combination ? await combinationKey(combination) : null);
-  }
+/** The keys a set of a motor may have: its exact combination, and its motor, propeller and ESC on a laboratory supply. */
+export interface MotorSetKeys { readonly exact: string; readonly laboratory: string }
+/** The motor's set keys; null while any of its cards or the battery card is not selected. */
+export async function motorSetKeys(profile: AircraftProfile, motor: ProfileMotor): Promise<MotorSetKeys | null> {
+  const combination = motorCombination(profile, motor);
+  if (!combination) return null;
+  return { exact: await combinationKey(combination), laboratory: await combinationKey({ ...combination, supply: { kind: 'laboratory' } }) };
+}
+async function motorKeys(profile: AircraftProfile): Promise<Map<number, MotorSetKeys | null>> {
+  const keys = new Map<number, MotorSetKeys | null>();
+  for (const motor of profile.motors) keys.set(motor.id, await motorSetKeys(profile, motor));
   return keys;
+}
+/** The bound set a motor uses: of its exact combination, else of its laboratory combination. */
+function setOfMotor(keys: MotorSetKeys | null, bound: ReadonlyMap<string, string>): { readonly sha256: string; readonly laboratory: boolean } | null {
+  if (!keys) return null;
+  const exact = bound.get(keys.exact);
+  if (exact !== undefined) return { sha256: exact, laboratory: false };
+  const laboratory = bound.get(keys.laboratory);
+  return laboratory === undefined ? null : { sha256: laboratory, laboratory: true };
 }
 
 /**
@@ -72,7 +89,8 @@ async function motorKeys(profile: AircraftProfile): Promise<Map<number, string |
  * Returns the bound set of each combination key.
  */
 export async function checkProfileMeasurements(profile: AircraftProfile, sets: ReadonlyMap<string, MeasurementSet>): Promise<Map<string, string>> {
-  const keys = new Set((await motorKeys(profile)).values());
+  const motorSets = await motorKeys(profile);
+  const keys = new Set([...motorSets.values()].flatMap(item => (item ? [item.exact, item.laboratory] : [])));
   const bound = new Map<string, string>();
   for (const sha256 of calculationSettings(profile).measurementSets) {
     const set = sets.get(sha256);
@@ -82,6 +100,13 @@ export async function checkProfileMeasurements(profile: AircraftProfile, sets: R
     const other = bound.get(key);
     if (other !== undefined) throw new Error(`Measurement sets ${other} and ${sha256} bind the same combination`);
     bound.set(key, sha256);
+  }
+  // One set per motor: a set on the profile's battery and one on a laboratory supply of the same cards may not both bind.
+  for (const [motorId, item] of motorSets) {
+    const exact = item ? bound.get(item.exact) : undefined, laboratory = item ? bound.get(item.laboratory) : undefined;
+    if (exact !== undefined && laboratory !== undefined) {
+      throw new Error(`Measurement sets ${exact} and ${laboratory} both apply to motor ${motorId}: bind one`);
+    }
   }
   return bound;
 }
@@ -93,19 +118,21 @@ export async function checkProfileMeasurements(profile: AircraftProfile, sets: R
  */
 export async function bindMeasurements(profile: AircraftProfile, mode: CalculationMode,
   candidates: readonly MeasurementCandidate[]): Promise<AircraftProfile> {
-  const chosen = new Map<string, MeasurementCandidate>();
+  const chosen = new Set<string>();
   if (mode === 'measured') {
-    const keys = new Set((await motorKeys(profile)).values());
+    const newest = new Map<string, MeasurementCandidate>();
     for (const candidate of candidates) {
-      const key = await combinationKey(candidate.set.combination);
-      if (!keys.has(key)) continue;
-      const current = chosen.get(key);
+      const key = await combinationKey(candidate.set.combination), current = newest.get(key);
       if (!current || candidate.createdAt > current.createdAt || (candidate.createdAt === current.createdAt && candidate.sha256 > current.sha256)) {
-        chosen.set(key, candidate);
+        newest.set(key, candidate);
       }
     }
+    for (const keys of (await motorKeys(profile)).values()) {
+      const candidate = keys ? newest.get(keys.exact) ?? newest.get(keys.laboratory) : undefined;
+      if (candidate) chosen.add(candidate.sha256);
+    }
   }
-  const measurementSets = [...chosen.values()].map(candidate => candidate.sha256).sort();
+  const measurementSets = [...chosen].sort();
   // The profile keeps its sensor configuration (TASK-143) and propeller polars (TASK-144); schema 1 becomes 2.
   return withProfileContent(profile, { calculation: { mode, measurementSets } });
 }
@@ -131,7 +158,7 @@ export async function evaluateCalculation(profile: AircraftProfile, cards: Reado
   const bound = await checkProfileMeasurements(profile, sets);
   const keys = await motorKeys(profile), paired = pairedMotors(profile);
   const motors = profile.motors.map((motor): MotorCalculation => {
-    const combination = motorCombination(profile, motor), key = keys.get(motor.id) ?? null;
+    const combination = motorCombination(profile, motor), setKeys = keys.get(motor.id) ?? null, key = setKeys?.exact ?? null;
     const missing = [
       ...cardMissing('motor', motor.components.motor, cards), ...cardMissing('propeller', motor.components.propeller, cards),
       ...cardMissing('esc', motor.components.esc, cards), ...cardMissing('battery', profile.battery.card, cards),
@@ -144,9 +171,9 @@ export async function evaluateCalculation(profile: AircraftProfile, cards: Reado
       return { ...base, label: 'preliminary', measurementSet: null, limits: [],
         reason: 'The motor, propeller or ESC card, or the battery card, is not selected, so no measurements can bind.' };
     }
-    const sha256 = bound.get(key);
+    const used = setOfMotor(setKeys, bound), sha256 = used?.sha256;
     const set = sha256 === undefined ? undefined : sets.get(sha256);
-    if (sha256 === undefined || !set) {
+    if (!used || sha256 === undefined || !set) {
       return { ...base, label: 'preliminary', measurementSet: null, limits: [], reason: 'No measurement set of this combination is bound.' };
     }
     const bench = measurementSetBench(set), rpms = bench.points.map(point => point.rpm);
@@ -157,15 +184,16 @@ export async function evaluateCalculation(profile: AircraftProfile, cards: Reado
       'Static measurements of one rotor do not validate forward flight or descent.',
     ];
     if (paired.has(motor.id)) limits.push('This rotor is in a coaxial pair; single-rotor measurements do not validate the pair\'s interaction.');
+    if (used.laboratory) limits.push('The bench ran on a laboratory supply, not this profile\'s battery: its voltage held where a battery sags.');
     if (set.applicability !== null) limits.push(set.applicability);
     return {
       ...base, missing: [...missing, ...bench.missing.map(item => `measurements: ${item}`)], label: 'measured-input', measurementSet: sha256,
-      limits, reason: 'Bench data of this exact combination.',
+      limits, reason: used.laboratory ? 'Bench data of this motor, propeller and ESC on a laboratory supply.' : 'Bench data of this exact combination.',
     };
   });
   const limits = ['No label certifies exported settings for real flight.'];
   if (mode === 'measured') {
-    limits.unshift('Calculation from measurements does not certify the aircraft: only motors with bench data of their exact combination are labeled measured-input.');
+    limits.unshift('Calculation from measurements does not certify the aircraft: only motors with bench data of their exact combination, or of their motor, propeller and ESC on a laboratory supply, are labeled measured-input.');
   }
   return { mode, label: weakestLabel(motors.map(motor => motor.label)), motors, limits };
 }

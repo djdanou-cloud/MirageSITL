@@ -7,7 +7,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-167 (S07) on the reference Mac: wind set by hand on a running native ArduCopter 8ab6afde session through the Weather and
+// TASK-167 (S07) on the reference Mac: wind set by hand on a running native ArduCopter fb773567 session through the Weather and
 // location tab alone, observed and removed, and a scheduled discrete gust that lands on its tick. Declared before the first run:
 //  - a steady wind of 6 m/s from the west, applied while the aircraft holds its hover, raises the recorded true airspeed to within
 //    1.5 m/s of 6 m/s while the ground speed stays below 1.5 m/s, averaged over 10 s that start 10 s after it was applied; turned off,
@@ -30,7 +30,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const EVIDENCE = join(ROOT, "test-results/browser/task-167-weather-sitl.json");
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

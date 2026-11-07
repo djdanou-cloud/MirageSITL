@@ -1,16 +1,16 @@
 {
   "schemaVersion": 2,
   "status": "FROZEN_FOR_VALIDATION",
-  "firmwareCommit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "firmwareCommit": "fb773567896014da007bca58358704d4a0d8516f",
   "host": {
     "platform": "darwin",
     "architecture": "arm64",
     "osRelease": "27.2.0",
     "cpu": "Apple M5"
   },
-  "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+  "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
   "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-  "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+  "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
   "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
   "sourceInputs": [
     {
@@ -31,7 +31,7 @@
     },
     {
       "file": "scripts/sitl.lock.json",
-      "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+      "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
     },
     {
       "file": "scripts/sitl/native-binary.ts",
@@ -43,7 +43,7 @@
     },
     {
       "file": "packages/autopilot/src/external-sitl.ts",
-      "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+      "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
     },
     {
       "file": "tests/fixtures/sitl/parameters.parm",
@@ -63,7 +63,7 @@
     },
     {
       "file": "native/bet/src/lib.rs",
-      "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+      "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
     },
     {
       "file": "native/Cargo.lock",
@@ -99,11 +99,11 @@
     },
     {
       "file": "packages/autopilot/src/error-ownership.ts",
-      "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+      "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
     },
     {
       "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-      "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+      "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
     },
     {
       "file": "scripts/sitl/ew-observations.ts",
@@ -135,7 +135,7 @@
     },
     {
       "file": "packages/sensors/src/geoid.ts",
-      "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+      "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
     },
     {
       "file": "packages/mavlink/src/samples.ts",
@@ -206,28 +206,28 @@
       "innovationMargin": 0.5
     }
   },
-  "frozenAt": "2026-11-05T05:53:20.034Z",
+  "frozenAt": "2026-11-06T22:00:32.604Z",
   "calibrationCaptureSha256": {
-    "control": "cbd9e7faf1776010255f3f87609feda612b3e87b611887f5c2dcd0acf3163c0c",
-    "jamming": "3e5a020be54cc416fffd5b6a24d5d0c560f60f451eeb48e398bb05ccc8f9f881",
-    "position-step": "b055f5e328170256d46cfb56e98702b9d5701bc350f90a552e7387d41f4a4355",
-    "velocity-drift": "652f003c229c8866ab6c4dec988132615581e65c7292c986e0454fdb4e5c3fab",
-    "magnetic": "5e2b878fac560c432f6cf2c353c593df752c1f081a86c1f267afc8a6be5288d2",
-    "motor-loss": "0d1f6bfc6aa34f3e3bff72168cf69e9eed367aafe5be6769417e3ea306fddab7"
+    "control": "3d58fbb0178ca35bd84289c800348ca089ce49cf33cc250552e44dd32fc4ecfe",
+    "jamming": "ec6e4a1a22f3441c9a4dbdf3ee64c31c26a3c5283304b54dbeca50500da7d717",
+    "position-step": "f43fc3f4a5a15910e96ce6bdc0b676e816df57d228c6a90de8f433e3594a4416",
+    "velocity-drift": "36ea0d6292bd29416d2345219c0eaf48d72c7187a32ee3d598a738388048fdbe",
+    "magnetic": "1b52edc279c15efd503e698dbf9277796f4f7e7ff7137cda42e072444519c406",
+    "motor-loss": "db34ffef6cbc9ea9f547deb110e66f611344744200409d9f13c9e83baa6882ff"
   },
   "envelopes": {
     "control": {
       "maxPositionErrorM": 2.14,
       "maxInnovationRatio": 0.52,
-      "maxTruthDisplacementM": 2.18,
+      "maxTruthDisplacementM": 2.19,
       "allowedModes": [
         4
       ]
     },
     "jamming": {
-      "maxPositionErrorM": 5.72,
-      "maxInnovationRatio": 0.6,
-      "maxTruthDisplacementM": 17.18,
+      "maxPositionErrorM": 5.6,
+      "maxInnovationRatio": 0.59,
+      "maxTruthDisplacementM": 16.87,
       "allowedModes": [
         4,
         9
@@ -236,32 +236,32 @@
     "position-step": {
       "maxPositionErrorM": 47,
       "maxInnovationRatio": 12.9,
-      "maxTruthDisplacementM": 2.18,
+      "maxTruthDisplacementM": 2.17,
       "allowedModes": [
         4
       ]
     },
     "velocity-drift": {
-      "maxPositionErrorM": 107.2,
-      "maxInnovationRatio": 15.66,
-      "maxTruthDisplacementM": 114,
+      "maxPositionErrorM": 107.39,
+      "maxInnovationRatio": 15.62,
+      "maxTruthDisplacementM": 113.89,
       "allowedModes": [
         4,
         9
       ]
     },
     "magnetic": {
-      "maxPositionErrorM": 2.14,
-      "maxInnovationRatio": 3.48,
+      "maxPositionErrorM": 2.13,
+      "maxInnovationRatio": 3.47,
       "maxTruthDisplacementM": 2.18,
       "allowedModes": [
         4
       ]
     },
     "motor-loss": {
-      "maxPositionErrorM": 5.16,
-      "maxInnovationRatio": 4.29,
-      "maxTruthDisplacementM": 22.32,
+      "maxPositionErrorM": 4.93,
+      "maxInnovationRatio": 4.25,
+      "maxTruthDisplacementM": 22.18,
       "allowedModes": [
         4
       ]
@@ -271,9 +271,9 @@
   "calibration": [
     {
       "id": "control",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -294,7 +294,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -306,7 +306,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -326,7 +326,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -362,11 +362,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -398,7 +398,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -408,46 +408,46 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "50090f0411c1313299f98f89526bf4625c6e9c92bc8b6b377b5ae8fb37c7c8e4"
+          "sha256": "7f37189a44de791086c9cec940e46abae22414e10f250b632e7c3ff2a26c4980"
         },
         {
           "file": "flight.json",
-          "sha256": "8c28142fe057ad25b5948cde9bda6b11bcff2d76e85e3a0aab54a2ac9a4c1eec"
+          "sha256": "b6128a371d3b4d5dc87166359333d7b3c304c4afce8004d3ca3f96b56e1dad9f"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "b863cbadf1fff8a6c90244d53f3b1c454991c540db08c73dd8ec868e3f2fab04"
+          "sha256": "e09e8218381750d6a407302edbccf4507cee3c24bdba26edb63eb8f7ded3a9e4"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "06c4060fa84a06534fd0fc21fa45abd3503034e2f627165ee4c583ac983b75cf"
+          "sha256": "b2cee584f1b82c746362bcf8885f0ccdbebcb4fecbea22d6561e2d990fc7f0d6"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "586bfd6d4d69918958a164bb6a7bd055321ffa8d01e795f83e0b59b8c2889858"
+          "sha256": "ba4827b410f3b8dcb055606e81cfddd6e21cfd853579dfd05c0e9660d7a4092a"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "e24b56ddac63c90e9bf3dcb90f2d8b1ba1732653d44e4aa23bba211a13cfba71"
+          "sha256": "a9d8ff7dc557b031ccc7da85241b7c9d0c18759d97f1f352c5eae981d82621be"
         },
         {
           "file": "tx.raw",
-          "sha256": "c410af95d59d093a623ddff883ce6b9b297bc2ca5e32ea1a98f934e5b4c37a6c"
+          "sha256": "80a593d8b28643f36cf4e770f3160fda1c3f112587e74ed87b6ac6f28a0a9b52"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "1d0e329216bb9e40495e0a53ac63a0807b8d003309c9117046a0ba0b7b440f51"
+          "sha256": "2c1c5cd0a96cd8fe69bb81885d22bfaa05d75e774e7c54fc427c000c3b74c2f4"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "cbd9e7faf1776010255f3f87609feda612b3e87b611887f5c2dcd0acf3163c0c",
+      "captureSha256": "3d58fbb0178ca35bd84289c800348ca089ce49cf33cc250552e44dd32fc4ecfe",
       "metrics": {
-        "maxPositionErrorM": 0.08750582948176468,
-        "maxInnovationRatio": 0.01197517104446888,
-        "maxTruthDisplacementM": 0.11771883123588006,
+        "maxPositionErrorM": 0.09062301845147788,
+        "maxInnovationRatio": 0.012055161409080029,
+        "maxTruthDisplacementM": 0.1243508931765356,
         "modes": [
           4
         ],
@@ -456,20 +456,20 @@
         ],
         "unhealthyRows": 0,
         "samples": 2001,
-        "physicsFrames": 61497,
-        "gpsInputFrames": 769,
-        "faultStartS": 56.86625,
-        "faultEndS": 68.86625000000001,
-        "experimentEndS": 76.86625000000001,
+        "physicsFrames": 61521,
+        "gpsInputFrames": 770,
+        "faultStartS": 56.9,
+        "faultEndS": 68.9,
+        "experimentEndS": 76.9,
         "changedInputs": false
       },
       "statusTexts": []
     },
     {
       "id": "jamming",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -490,7 +490,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -502,7 +502,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -522,7 +522,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -558,11 +558,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -594,7 +594,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -604,46 +604,46 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "fc7dd2264e1c9120b65cb71f50971ab704b890680a29a9848c2042bdfb82a973"
+          "sha256": "c213b7d819b6c3ff04c706cb75c4855876feef3a7d7bd5738f86572cace1434d"
         },
         {
           "file": "flight.json",
-          "sha256": "5d4f67d22c6b6d8fbb2acf3d1fb540bfd24e05cfe7aac3e2a7c773ada85bab38"
+          "sha256": "6d7614e6eea3e247e18b1714c1e3af48f9369ce78d56e37fd3ed8f5fbbf288ff"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "2735c6d984faf2ae31b88a1fbdb1fdcad981d63b3d0050a82bb5d8a0386e81b8"
+          "sha256": "3ba93b4f5e6b9cac0775726f45b039589237786b067aaeb1ecab2374b287f6f9"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "b185ecafb01a5fe4f5a07df860cbf8e7a8fa94642f154f85ede4a28bd42be62a"
+          "sha256": "99ef34497ba5afb82ebd2655e83d5b32bb1ff44cbdc00b9acd3166162f05e141"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "3624857366d4099418d7592e16977a92775b3490096802cf8351a213a4c161b9"
+          "sha256": "ebb8c5b3e61abe47620ec299d44fad321f87e838ef158b6175ba93985d180393"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "37f0c048bd8b0e43db43ed6ba936855d67a928e3ccf97067919c4c59bc249499"
+          "sha256": "102f806cdd5133572cf6598dd338015f6619e0dc5923f83b3ddb90590bb87eca"
         },
         {
           "file": "tx.raw",
-          "sha256": "b08911145f8a7f636505db19a0b234a022d2d1e84ec00009ce0399a783f8aac7"
+          "sha256": "52a180c84a0fc2298bdf436eaf18881e09a6b08e0662fed6e3f3918bd2188c43"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "5ed7d3a4eb72d0735b94e9714b2d2c44c0686fa3c45c7ca8b450809037645d24"
+          "sha256": "ee4e940441640922b2b1bceaf1d96e8f009420c49b0ce72149aa2053f214f6b2"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "3e5a020be54cc416fffd5b6a24d5d0c560f60f451eeb48e398bb05ccc8f9f881",
+      "captureSha256": "ec6e4a1a22f3441c9a4dbdf3ee64c31c26a3c5283304b54dbeca50500da7d717",
       "metrics": {
-        "maxPositionErrorM": 2.4739138813174217,
-        "maxInnovationRatio": 0.06575100123882294,
-        "maxTruthDisplacementM": 10.114152013804341,
+        "maxPositionErrorM": 2.3967038083662247,
+        "maxInnovationRatio": 0.05682366341352463,
+        "maxTruthDisplacementM": 9.910336741717858,
         "modes": [
           4,
           9
@@ -654,33 +654,41 @@
         ],
         "unhealthyRows": 460,
         "samples": 2001,
-        "physicsFrames": 61513,
+        "physicsFrames": 61505,
         "gpsInputFrames": 769,
-        "faultStartS": 56.88625,
-        "faultEndS": 68.88624999999999,
-        "experimentEndS": 76.88624999999999,
+        "faultStartS": 56.8775,
+        "faultEndS": 68.8775,
+        "experimentEndS": 76.8775,
         "changedInputs": true
       },
       "statusTexts": [
         {
-          "timeS": 65.55125,
-          "text": "EKF variance: position lost"
+          "timeS": 65.545,
+          "text": "EKF3 lane switch 1"
         },
         {
-          "timeS": 65.5525,
+          "timeS": 65.54625,
+          "text": "EKF primary changed:1"
+        },
+        {
+          "timeS": 65.64375,
+          "text": "EKF variance"
+        },
+        {
+          "timeS": 65.64375,
           "text": "EKF Failsafe: changed to Land Mode"
         },
         {
-          "timeS": 70.15125,
+          "timeS": 70.14375,
           "text": "EKF Failsafe Cleared"
         }
       ]
     },
     {
       "id": "position-step",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -701,7 +709,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -713,7 +721,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -733,7 +741,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -769,11 +777,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -805,7 +813,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -815,46 +823,46 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "b96efea44deaa8f8d6fe025c39cdfe0fd6f5ea4fe932e0decdb1e86df0b00005"
+          "sha256": "3e1e039f6bfafe9895547fcb0b2df99547b356a7638773e454034c3c819b9aab"
         },
         {
           "file": "flight.json",
-          "sha256": "31bc7037d04321d578b68842b10e5b578dad6576f0b3b062a181f0ea012e8337"
+          "sha256": "44fd92e97bc4c8c28a21a704da498962f2037e428a2009464dcc361fcdd9b054"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "5eea7d91b8138284d0d8f81baad5b8b0f96af1bf9d51ae881d42ec1aa0ceb40d"
+          "sha256": "d37a8e50007a6432f154ed51a8804bac175c882178b3394eea81f8ec6292b2c3"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "196cbfd7437ecfdffb4c5e0d691ec443e53112ca830c93a410fbc9c1d9a3282b"
+          "sha256": "b82a3adc9f3999a00f102a9427b65fbc26ce0cd08514597a39f0563082fafbcd"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "ddee007a546e3555e185b44f5baf42fb4aef2b77986e92bfadce482e46eae702"
+          "sha256": "33db1072af355814708cec092861a92d0a14804f62b21d08febd6739483f68d3"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "ed8ea90077fdb01d8302624b0e3db0479afcf504eeee0edfeea7cfc84e5311c0"
+          "sha256": "600d302d9d887a30c30b36f170f3226806a927ede32c5ddbc947ee82d4ce801d"
         },
         {
           "file": "tx.raw",
-          "sha256": "ed818f1214c64afcff932738b518ac0c29bce2921eaace8bdd8d59c061fab7eb"
+          "sha256": "5e509300f91e03d9283cf945e8960a80201b0e41ef16396d86f7aa092d389739"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "d439415868d4c78420a963261abb431d247e78e720a54b463d7b2d8892180494"
+          "sha256": "bb877234f50621df2481cbec4e84dd03e2aee2bee1437f0dbf4f0da2b516af0c"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "b055f5e328170256d46cfb56e98702b9d5701bc350f90a552e7387d41f4a4355",
+      "captureSha256": "f43fc3f4a5a15910e96ce6bdc0b676e816df57d228c6a90de8f433e3594a4416",
       "metrics": {
-        "maxPositionErrorM": 29.996154984510195,
-        "maxInnovationRatio": 8.263911247253418,
-        "maxTruthDisplacementM": 0.11799009172457203,
+        "maxPositionErrorM": 29.997254271591128,
+        "maxInnovationRatio": 8.263816833496094,
+        "maxTruthDisplacementM": 0.11325274768336052,
         "modes": [
           4
         ],
@@ -863,35 +871,35 @@
           32807,
           33599
         ],
-        "unhealthyRows": 1782,
+        "unhealthyRows": 1779,
         "samples": 2001,
-        "physicsFrames": 61513,
+        "physicsFrames": 61497,
         "gpsInputFrames": 769,
-        "faultStartS": 56.88625,
-        "faultEndS": 68.88624999999999,
-        "experimentEndS": 76.88624999999999,
+        "faultStartS": 56.8625,
+        "faultEndS": 68.8625,
+        "experimentEndS": 76.8625,
         "changedInputs": true
       },
       "statusTexts": [
         {
-          "timeS": 58.055,
+          "timeS": 58.03875,
           "text": "GPS Glitch or Compass error"
         },
         {
-          "timeS": 66.91375,
+          "timeS": 68.92375,
           "text": "EKF3 lane switch 1"
         },
         {
-          "timeS": 66.91375,
-          "text": "EKF3 primary changed:1"
+          "timeS": 68.92375,
+          "text": "EKF primary changed:1"
         }
       ]
     },
     {
       "id": "velocity-drift",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -912,7 +920,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -924,7 +932,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -944,7 +952,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -980,11 +988,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -1016,7 +1024,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -1026,46 +1034,46 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "2cc94cea7499040005650f873ca3f0b3c6c604c21557fbcc59c0568982e32250"
+          "sha256": "6fab2a57327dedef4de864c9517d7031e33678dfb53f05f0b491defb090cb4e0"
         },
         {
           "file": "flight.json",
-          "sha256": "9da55f43405aa8999f43225e3490c3a10adfc5a31651769e435f07fa1885539e"
+          "sha256": "2723e3459f63f2efb505ae49a7104295f4265f801b7163eb7c435d4dd50cc126"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "376ba267ad6163bc7188f6c12cbb94f27008ededaebe0b2ad257225ea4e576fc"
+          "sha256": "33dd40a4bb697131eb320ed977617bd1ecbb442e4ef4120872edb36333130b80"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "9c03783b38f4f966ce5ce97a757d8db2f8f5dc116925d67c3654b090b324032e"
+          "sha256": "d87f4b11db6cadb239ac0f619aed3c7ea3909495d4766f7fbc07eb839050bed4"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "4f881fbc61753e1d9515c5bd8f9059269a801165426cf335b6429eb3aa2b689a"
+          "sha256": "d1204a488a52fed7c0e9ea76141c9b89429c4ba426be4cc0434420d7d97fdac8"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "9b8f5fdd1c7bfafd4cd7cf208b4885e48fb8ff1bedc44e2d6e13f6f5b0d4af1b"
+          "sha256": "bff0a7b051e63665790d6ad1e2dd61b087cfb8d07ec32f8bfbf7068be0c315a4"
         },
         {
           "file": "tx.raw",
-          "sha256": "e2702b078710c35676278536d3f5ccf66db429a302414a3a6efa6a0b32d1f140"
+          "sha256": "a37d9a912111015fa28fc6d27fe04891157431fcb5506433c164cd19df477361"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "f82839e94a0eca8b6b652bd265bc12b19c2ae10930ddd1d4ec6ba5c85b532d99"
+          "sha256": "3d2131dcddeae051fc4f0608d1d37cf324eb63b08069bf837c28e4993d25f361"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "652f003c229c8866ab6c4dec988132615581e65c7292c986e0454fdb4e5c3fab",
+      "captureSha256": "36ea0d6292bd29416d2345219c0eaf48d72c7187a32ee3d598a738388048fdbe",
       "metrics": {
-        "maxPositionErrorM": 70.13051803199716,
-        "maxInnovationRatio": 10.10335922241211,
-        "maxTruthDisplacementM": 74.66387576071709,
+        "maxPositionErrorM": 70.2539139117616,
+        "maxInnovationRatio": 10.07778263092041,
+        "maxTruthDisplacementM": 74.59028916978187,
         "modes": [
           4,
           9
@@ -1077,57 +1085,57 @@
         ],
         "unhealthyRows": 700,
         "samples": 2001,
-        "physicsFrames": 61497,
+        "physicsFrames": 61513,
         "gpsInputFrames": 769,
-        "faultStartS": 56.86625,
-        "faultEndS": 68.86625000000001,
-        "experimentEndS": 76.86625000000001,
+        "faultStartS": 56.8875,
+        "faultEndS": 68.8875,
+        "experimentEndS": 76.8875,
         "changedInputs": true
       },
       "statusTexts": [
         {
-          "timeS": 68.91875,
+          "timeS": 68.925,
           "text": "EKF3 lane switch 1"
         },
         {
-          "timeS": 68.91875,
-          "text": "EKF3 primary changed:1"
+          "timeS": 68.925,
+          "text": "EKF primary changed:1"
         },
         {
-          "timeS": 69.85375,
-          "text": "EKF variance: over thresholds"
+          "timeS": 69.84375,
+          "text": "EKF variance"
         },
         {
-          "timeS": 69.85375,
+          "timeS": 69.84375,
           "text": "EKF Failsafe: changed to Land Mode"
         },
         {
-          "timeS": 70.0525,
+          "timeS": 70.0425,
           "text": "GPS Glitch or Compass error"
         },
         {
-          "timeS": 70.41625,
-          "text": "EKF3 lane switch 0"
-        },
-        {
-          "timeS": 70.4175,
-          "text": "EKF3 primary changed:0"
-        },
-        {
-          "timeS": 70.65125,
+          "timeS": 70.6425,
           "text": "Vibration compensation ON"
         },
         {
-          "timeS": 76.85875,
+          "timeS": 71.52875,
+          "text": "EKF3 lane switch 0"
+        },
+        {
+          "timeS": 71.52875,
+          "text": "EKF primary changed:0"
+        },
+        {
+          "timeS": 76.8425,
           "text": "EKF Failsafe Cleared"
         }
       ]
     },
     {
       "id": "magnetic",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -1148,7 +1156,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -1160,7 +1168,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -1180,7 +1188,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -1216,11 +1224,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -1252,7 +1260,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -1262,85 +1270,85 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "1d64d87c7fc3376c3f7f0e9f349ece0afb7b304a5808786e62eb02e9ef359e53"
+          "sha256": "4ef895e47b78a3612b251a4acc5eb12fb0446ccc3610cb316772c740a90a6a0e"
         },
         {
           "file": "flight.json",
-          "sha256": "e04a6afc0bc66ab2a078d12665709e1527e561c7d2da7d788fb2e9aee46b8d15"
+          "sha256": "8da7e22a520963088c6fcea189849b1e5ab2dbb169ed3d2994009d2b4d99c28a"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "0f6e2d4d642259eee87cd87c9925b7a23607b98fb64a9587be538db734692521"
+          "sha256": "3321b7510b42150b9496ffc70aa5579115037e44ff8c9c318cfe1d525bc092d7"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "c05c40172673e27fb6c318e73353dec5872a963c6f75ef1afd0ef5a601a93f87"
+          "sha256": "63f59068b5d879aac32c006b0344eae6687929aef8d52eb8b4b0e6592fa866ea"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "524e377bfa8684273f1f30cd3e364c08a08fa94f620e353b1580b05433fa13c9"
+          "sha256": "ae743976dc6b729461c1ef55309071fcb516d6296756b249a3a98af7a9394d88"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "2b74d705ac265bd88031e787996966dbfa52e1abe8107bb1cc57437cd763153f"
+          "sha256": "a7d408889f56969065b83b3f787e998041286b1ae20a429d640b58c5c1704876"
         },
         {
           "file": "tx.raw",
-          "sha256": "042b0b7fbd85e99b77e135e909c2ccdde7b68faccb5201be291618ee1f2cbbda"
+          "sha256": "3f5e44e999edbc1cdd297085a873a8e3eca798bc47a793142e09809e77fc07db"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "a5e0149a7dcd7a56327e1d0fee21f84e92ae6d8477936edb746013d7f868ec62"
+          "sha256": "ea6c9c2352a0e0b05a5e097045ae9a8589a59963d037b8ec7beac8db8d3cb151"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "5e2b878fac560c432f6cf2c353c593df752c1f081a86c1f267afc8a6be5288d2",
+      "captureSha256": "1b52edc279c15efd503e698dbf9277796f4f7e7ff7137cda42e072444519c406",
       "metrics": {
-        "maxPositionErrorM": 0.0874907868187956,
-        "maxInnovationRatio": 1.9832885265350342,
-        "maxTruthDisplacementM": 0.11773879106833007,
+        "maxPositionErrorM": 0.08504970361663737,
+        "maxInnovationRatio": 1.9760550260543823,
+        "maxTruthDisplacementM": 0.11364865496121251,
         "modes": [
           4
         ],
         "ekfFlags": [
           831
         ],
-        "unhealthyRows": 1200,
+        "unhealthyRows": 1180,
         "samples": 2001,
-        "physicsFrames": 61497,
-        "gpsInputFrames": 769,
-        "faultStartS": 56.86625,
-        "faultEndS": 68.86625000000001,
-        "experimentEndS": 76.86625000000001,
+        "physicsFrames": 61529,
+        "gpsInputFrames": 770,
+        "faultStartS": 56.9025,
+        "faultEndS": 68.9025,
+        "experimentEndS": 76.9025,
         "changedInputs": true
       },
       "statusTexts": [
         {
-          "timeS": 67.10125,
+          "timeS": 67.19375,
           "text": "EKF3 IMU1 switching to compass 1"
         },
         {
-          "timeS": 67.10125,
+          "timeS": 67.19375,
           "text": "EKF3 IMU1 switching to compass 0"
         },
         {
-          "timeS": 67.10625,
+          "timeS": 67.2,
           "text": "EKF3 IMU0 switching to compass 1"
         },
         {
-          "timeS": 67.1075,
+          "timeS": 67.2,
           "text": "EKF3 IMU0 switching to compass 0"
         }
       ]
     },
     {
       "id": "motor-loss",
-      "firmwareSha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
+      "firmwareSha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
       "parameterSha256": "d1804e4372803861f9a7c76bee33daa3d0530a1898c87eda2e1b6ce7ae7eb458",
-      "modelSha256": "17afa15db4604dfdb8a8e289e05873ab6f0fff25d027eee122773ddf4b9fef1d",
+      "modelSha256": "21a0ad0432ccd6518f3906ec528b9438e4dcd0874ac20a563680d3670a254618",
       "planSha256": "bae96b13da68845966a0973d3428704f7578de00186967dba4fa728cb777f576",
       "sourceInputs": [
         {
@@ -1361,7 +1369,7 @@
         },
         {
           "file": "scripts/sitl.lock.json",
-          "sha256": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd"
+          "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
         },
         {
           "file": "scripts/sitl/native-binary.ts",
@@ -1373,7 +1381,7 @@
         },
         {
           "file": "packages/autopilot/src/external-sitl.ts",
-          "sha256": "f3f62e4f313be710053a0e08453637e5284e68c5500a4d393f992ab18171c477"
+          "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
         },
         {
           "file": "tests/fixtures/sitl/parameters.parm",
@@ -1393,7 +1401,7 @@
         },
         {
           "file": "native/bet/src/lib.rs",
-          "sha256": "f035f27fd9dddbcbc6bc9a0bcb8262b77bfa6efa8f18b13357d8c08fa3427146"
+          "sha256": "38b586c8e1a90b655577a9bd33332604975db8b15fa2fea2f78b6554ccc33d26"
         },
         {
           "file": "native/Cargo.lock",
@@ -1429,11 +1437,11 @@
         },
         {
           "file": "packages/autopilot/src/error-ownership.ts",
-          "sha256": "2e423d779d994b5bceb90f05d597539ac66887d4f2d83798b820ec255a7e1b95"
+          "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
         },
         {
           "file": "tests/fixtures/sitl/ardupilot-catalog.json",
-          "sha256": "4fb9cb268556f56a9dff923ec3718b897b41b35b42788025e4e648456746a17c"
+          "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
         },
         {
           "file": "scripts/sitl/ew-observations.ts",
@@ -1465,7 +1473,7 @@
         },
         {
           "file": "packages/sensors/src/geoid.ts",
-          "sha256": "34e977e48901cf214c726c6484c80fed1a14ed9a6cfb88226e073278b90f6e7b"
+          "sha256": "97228430a054a2d5422fa7e562e8d6633b77ebc971a8b525f99702abd003c893"
         },
         {
           "file": "packages/mavlink/src/samples.ts",
@@ -1475,69 +1483,69 @@
       "artifacts": [
         {
           "file": "run.json",
-          "sha256": "077fff6a2978be62410e59ff463210370dedf39f26090eb18b65d8ac77630901"
+          "sha256": "817d2e4a302842ef379c8a17effc2c6e62f6bbd48ba947d564162c2931b5cd4e"
         },
         {
           "file": "flight.json",
-          "sha256": "484bc6e453d86d166beb54bac17000779b421b441f9098b66850c2b535c57477"
+          "sha256": "699cd02504667a4deef5c5d5689ba6cedfb4f872f453acbf46d2606ecbd5d80a"
         },
         {
           "file": "physics.ndjson",
-          "sha256": "2b18220335517ed4f284218036e264bb16cc6451d871fafb979d2ddf8cf61687"
+          "sha256": "f41e19a211ce7f5f66c79c4572260210a62047375390b7e30c3bd05481dbc4fb"
         },
         {
           "file": "observations.ndjson",
-          "sha256": "7764b134796bf27c2ccca8d8679243f8e596a5c3e56ca60fd2267f4e44e5ca9a"
+          "sha256": "669f8a4f91a35ae3b45424ce1f7e7198313dcf94c463cb8da6294f4986dd4dec"
         },
         {
           "file": "telemetry.ndjson",
-          "sha256": "c00479091badfa80272b86c7a469cd0cb576fd13b1170b1676c1ef12fe123065"
+          "sha256": "23b9323be8e6f0360891ffebf96c012bff5971c91cfc8c278c126eba46bf439b"
         },
         {
           "file": "mavlink.raw",
-          "sha256": "77221110b69b1f700b48b223e25315a7a44039cb7d13d07c9188ead1b2786464"
+          "sha256": "affb1fa3c115fdf957ea288209bf4f92d5d903044a3bb0fc7eef8231732e3bf7"
         },
         {
           "file": "tx.raw",
-          "sha256": "1a71f5503dee9bfc62b4ce32ed26f1bba5be83d30c6660ee64bb2f3c7a127dda"
+          "sha256": "241b94dd2ba1ddca19141b9601aa2a4a2635e3b20a8edc97037e43e0b6b2eff5"
         },
         {
           "file": "ew-wire-audit.json",
-          "sha256": "943a32ba6761ee092d94377bd678775bcc9e503e880b5f4cb0ddcce352ac6865"
+          "sha256": "7a07c6bad0edd05ff776994aa95263570d49aea5e686f1deadf13c40765d58ef"
         },
         {
           "file": "quad.parm",
           "sha256": "f56ca60b9ff6f5c3c263da00fab6ae536820793d10d6330aa9b6a90b3a7db1d2"
         }
       ],
-      "captureSha256": "0d1f6bfc6aa34f3e3bff72168cf69e9eed367aafe5be6769417e3ea306fddab7",
+      "captureSha256": "db34ffef6cbc9ea9f547deb110e66f611344744200409d9f13c9e83baa6882ff",
       "metrics": {
-        "maxPositionErrorM": 2.102743865943456,
-        "maxInnovationRatio": 2.5233206748962402,
-        "maxTruthDisplacementM": 13.540731800936271,
+        "maxPositionErrorM": 1.9530537121957507,
+        "maxInnovationRatio": 2.4962313175201416,
+        "maxTruthDisplacementM": 13.446976024270764,
         "modes": [
           4
         ],
         "ekfFlags": [
           831
         ],
-        "unhealthyRows": 20,
+        "unhealthyRows": 21,
         "samples": 301,
-        "physicsFrames": 47897,
-        "gpsInputFrames": 599,
-        "faultStartS": 56.86625,
-        "faultEndS": 59.86625,
-        "experimentEndS": 59.86625,
+        "physicsFrames": 47921,
+        "gpsInputFrames": 600,
+        "faultStartS": 56.8975,
+        "faultEndS": 59.8975,
+        "experimentEndS": 59.8975,
         "changedInputs": true
       },
       "statusTexts": [
         {
-          "timeS": 58.81375,
+          "timeS": 58.8325,
           "text": "EKF3 lane switch 1"
         },
         {
-          "timeS": 58.81375,
-          "text": "EKF3 primary changed:1"
+          "timeS": 58.8325,
+          "text": "EKF primary changed:1"
         }
       ]
     }

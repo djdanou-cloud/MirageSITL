@@ -73,6 +73,37 @@ fn production_bound_step_allocates_zero_over_one_million_steps(){
     assert_eq!(status,0);assert_eq!(CALLS.load(Ordering::Relaxed),0);assert_eq!(BYTES.load(Ordering::Relaxed),0);
 }
 #[test]
+fn table_rotor_step_allocates_zero_over_one_million_steps(){
+    let _lock=TEST_LOCK.lock().unwrap();
+    // A table of 4 x 3 x 3 x 2 x 2 points (TASK-103), each query off the nodes.
+    let (na,nb,nc,nr,nd)=(4usize,3usize,3usize,2usize,2usize);
+    let count=na*nb*nc*nr*nd;
+    let len=128+8*(na+nb+nc+nr+nd+count*7);
+    let mut config=vec![0u64;len/8];
+    // SAFETY: u64 storage as bytes, within its length; 8-byte alignment is what the table's f64 slices need.
+    let bytes=unsafe{core::slice::from_raw_parts_mut(config.as_mut_ptr().cast::<u8>(),len)};
+    let mut word=|at:usize,v:u32|bytes[at..at+4].copy_from_slice(&v.to_le_bytes());
+    word(0,mirage_bet::rotor_map::CONFIG_VERSION);word(4,len as u32);word(8,na as u32);word(12,nb as u32);word(16,nc as u32);word(20,nr as u32);word(24,nd as u32);word(28,1);
+    let mut real=|at:usize,v:f64|bytes[at..at+8].copy_from_slice(&v.to_le_bytes());
+    real(32,1.225*340.0/1.789e-5);real(40,0.15);real(56,1e-3);real(72,1.0/400.0);real(80,300.0);
+    let mut at=128;
+    for axis in [&[0.0,0.1,0.3,0.8][..],&[-1.5,0.0,1.5][..],&[0.1,0.3,0.6][..],&[0.5,1.5][..],&[0.0,0.2][..]] {for v in axis {real(at,*v);at+=8;}}
+    for _ in 0..count {for v in [0.01,0.001,-0.002,0.0003,0.0004,0.002,1.0] {real(at,v);at+=8;}}
+    let mut arena_store=vec![0u64;(len+mirage_bet::bound::ARENA_HEADER)/8];
+    // SAFETY: as above.
+    let arena=unsafe{core::slice::from_raw_parts_mut(arena_store.as_mut_ptr().cast::<u8>(),len+mirage_bet::bound::ARENA_HEADER)};
+    assert_eq!(mirage_bet::bound::init(&bytes[..],arena,0),0);
+    let mut input=[0u8;128];input[0..4].copy_from_slice(&mirage_bet::bound::VERSION.to_le_bytes());
+    for (at,v) in [(8,1.225),(16,1.789e-5),(24,340.0),(32,9.0),(48,-4.0),(80,0.07),(104,0.05)] {input[at..at+8].copy_from_slice(&f64::to_le_bytes(v));}
+    let mut output=[0u8;128];
+    CALLS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);
+    TRACK.with(|t|t.set(true));
+    let mut status=0;
+    for _ in 0..1_000_000 {status|=black_box(mirage_bet::bound::step(arena,&input,&mut output,1.0/400.0));}
+    TRACK.with(|t|t.set(false));
+    assert_eq!(status,0);assert_eq!(CALLS.load(Ordering::Relaxed),0);assert_eq!(BYTES.load(Ordering::Relaxed),0);
+}
+#[test]
 fn bus_solve_allocates_zero_over_one_million_steps(){
     let _lock=TEST_LOCK.lock().unwrap();
     let battery=Battery::new(16.8,13.2,0.018,18000.0,125.0).unwrap();

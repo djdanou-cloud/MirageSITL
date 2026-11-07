@@ -1,13 +1,13 @@
 import {expect,it} from 'vitest';
 import {newActuatorFrameV2,newState,type ActuatorFrameV2} from '@mirage/protocol';
-import {HAL_BYTES,HAL_MAGIC,WasmHalPort,WasmSitlCoupling} from '@mirage/autopilot/wasm-sitl';
+import {HAL_BYTES,HAL_MAGIC,HAL_VERSION,WasmHalPort,WasmSitlCoupling} from '@mirage/autopilot/wasm-sitl';
 
 // Structural unit peer only. Real firmware/native execution is checked separately.
 function peer(hz:400|800|1200=800) {
   const buffer=new SharedArrayBuffer(4096),w=new Int32Array(buffer,64,256);
-  w[0]=HAL_MAGIC;w[1]=1;w[2]=HAL_BYTES;w[3]=1;w[4]=hz;w[5]=7;w[11]=32;w[12]=1;
+  w[0]=HAL_MAGIC;w[1]=HAL_VERSION;w[2]=HAL_BYTES;w[3]=1;w[4]=hz;w[5]=7;w[11]=32;w[12]=1;
   w[128]=1000;w[129]=1250;w[130]=1750;w[159]=2000;
-  const module={HEAPU8:new Uint8Array(buffer),_mirage_hal_version:()=>1,_mirage_hal_mailbox:()=>64,
+  const module={HEAPU8:new Uint8Array(buffer),_mirage_hal_version:()=>HAL_VERSION,_mirage_hal_mailbox:()=>64,
     _mirage_hal_configure:(rate:number,epoch:number)=>rate===hz&&epoch===7?0:-1,
     _mirage_hal_notify:()=>{w[3]=1;w[6]=(w[6]??0)+1;w[9]=w[6]??0;},_mirage_hal_stop:()=>{w[3]=4;}};
   const port=new WasmHalPort(module,{hz,epoch:7,motorMapId:42,motorChannels:[0,1,2,31]});
@@ -37,7 +37,7 @@ it('rejects invalid sensor units/quaternions/reserved fields before writing any 
   }
 });
 it('fails closed on corrupt identity/count/sequence/epoch and preserves actuator output',()=>{
-  for(const [index,value] of [[0,0],[1,2],[2,64],[5,8],[6,1],[7,1],[9,1],[10,1],[11,33],[12,2],[128,3000]]) {
+  for(const [index,value] of [[0,0],[1,1],[2,64],[5,8],[6,1],[7,1],[9,1],[10,1],[11,33],[12,2],[128,3000]]) {
     const {port,w}=peer(),out=newActuatorFrameV2();out.epoch=99;w[index!]=value!;
     expect(port.readActuatorsInto(out)).toBe(false);expect(out.epoch).toBe(99);expect(port.fault).not.toBe('');
   }
@@ -65,4 +65,31 @@ it('couples real motor channel semantics to one physics step and ideal SI observ
   expect(port.input[21]).toBe(7.5);
   physics.electrical[2]=-3;
   expect(coupling.stepInto()).toBe(true);expect(port.input[21]).toBe(0);expect(coupling.fault).toBe('');
+});
+it('TASK-105: publishes each motor\'s speed in its output channel\'s slot with the channel mask, and refuses a bad speed whole',()=>{
+  expect(HAL_VERSION).toBe(2);
+  const {port,w}=peer();port.motorRpm.set([12000,0,9876.5,5000]);
+  expect(port.submit()).toBe(true);
+  const bytes=new DataView(w.buffer,64);
+  // Motors on channels 0, 1 and 2 have slots; the one on channel 31 has none.
+  expect(w[13]).toBe(0b111);
+  expect([0,1,2,3].map(c=>bytes.getFloat64(896+c*8,true))).toEqual([12000,0,9876.5,0]);
+  for(const bad of [-1,Infinity,2e6]) {
+    const second=peer();second.port.motorRpm[0]=bad;const before=Array.from(second.w);
+    expect(second.port.submit()).toBe(false);expect(Array.from(second.w)).toEqual(before);
+  }
+});
+it('TASK-105: the coupling reports each motor\'s speed from power telemetry, its magnitude for a reversed rotor',()=>{
+  const {port}=peer();
+  const motors=new Float64Array(4*5);motors[0]=11000;motors[5]=-10500;motors[10]=9000;motors[15]=8000;
+  const physics={state:newState(),hz:800 as const,nowMs:0,fault:'',windNedMps:new Float64Array(3),power:{motors},
+    useActuators:()=>undefined,stepNow:()=>{physics.state.tick++;}};
+  const coupling=new WasmSitlCoupling(port,physics,{latitudeRad:0,longitudeRad:0,altitudeMslM:0,geoidOffsetM:0,magneticNedGauss:[0.2,0.03,0.4]});
+  expect(coupling.stepInto()).toBe(true);
+  expect(Array.from(port.motorRpm.slice(0,4))).toEqual([11000,10500,9000,8000]);
+});
+it('TASK-105: firmware of the version 1 HAL is refused',()=>{
+  const buffer=new SharedArrayBuffer(4096),w=new Int32Array(buffer,64,256);w[0]=HAL_MAGIC;w[1]=1;w[2]=HAL_BYTES;
+  const module={HEAPU8:new Uint8Array(buffer),_mirage_hal_version:()=>1,_mirage_hal_mailbox:()=>64,_mirage_hal_configure:()=>0,_mirage_hal_notify:()=>undefined,_mirage_hal_stop:()=>undefined};
+  expect(()=>new WasmHalPort(module,{hz:800,epoch:7,motorMapId:42,motorChannels:[0]})).toThrow('ABI v2 required');
 });

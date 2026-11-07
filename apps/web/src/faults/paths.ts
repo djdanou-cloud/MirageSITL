@@ -7,6 +7,8 @@ export const FAMILY_LABELS: Readonly<Partial<Record<EffectFamily, string>>> = {
   fault: "Interference and motor faults",
   delivery: "Frozen readings and lost links",
   ardupilot: "ArduPilot's own sensor faults",
+  barometer: "Barometer pressure errors",
+  gnss: "GNSS satellites and signals",
 };
 export const EFFECT_PATHS: Readonly<Partial<Record<EffectId, string>>> = {
   "motor.loss": "Changes the physical thrust of one motor in the physics, on its tick.",
@@ -24,4 +26,13 @@ export const EFFECT_PATHS: Readonly<Partial<Record<EffectId, string>>> = {
   "sensor.baro.missing": "Written to SIM_BAROn_DISABLE.",
   "sensor.baro.frozen": "Written to SIM_BAROn_FREEZE.",
   "sensor.mag.missing": "Written to SIM_MAGn_FAIL.",
+  "gnss.constellation": "Worked out about 5 times a second from the vehicle's position: the tracked satellites go to SIM_GPS1_NUMSATS and σ·HDOP to SIM_GPS1_ACC. Each write is logged.",
+  "gnss.atmosphere": "The position error the delays leave goes to SIM_GPS1_GLTCH, on top of what it held, about 5 times a second.",
+  "gnss.terrain": "Satellites the run's terrain hides are left out of the solution; on the synthetic pad nothing is hidden. Written with the other GNSS effects about 5 times a second.",
+  "gnss.jamming-budget": "Satellites below the tracking threshold are left out; without four the receiver's lock is held off through SIM_GPS1_LCKTIME, and it comes back when they return.",
+  "baro.position-error": "Worked out on each tick from the vehicle's speed through the air, and written with the other barometer errors to SIM_BAROn_GLITCH about 10 times a second, on top of the Sensors tab's bias. Each write is logged.",
+  "baro.ground-cushion": "Worked out on each tick from the rotors' thrust and the barometer's height above the ground, and written to SIM_BAROn_GLITCH about 10 times a second.",
+  "baro.prop-wash": "Worked out on each tick from the rotors' thrust, and written to SIM_BAROn_GLITCH about 10 times a second.",
+  "baro.drift": "Grows from the moment it goes on, and is written to SIM_BAROn_GLITCH about 10 times a second.",
+  "baro.pressure-trend": "Grows from the moment it goes on, and is written to SIM_BAROn_GLITCH about 10 times a second; only the barometer sees it.",
 };

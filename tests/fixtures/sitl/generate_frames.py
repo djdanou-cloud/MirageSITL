@@ -19,10 +19,10 @@ def main():
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     source = args.source.resolve()
-    commit = '8ab6afde107a91df1b5f60ade8f333cb8a61b190'
+    commit = 'fb773567896014da007bca58358704d4a0d8516f'
     assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip() == commit
     assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=source, text=True).strip()
-    paths = ['ArduCopter/version.h', 'libraries/AP_Motors/AP_Motors_Class.h', 'libraries/AP_Motors/AP_MotorsMatrix.h',
+    paths = ['ArduCopter/version.h', 'libraries/AP_Motors/AP_Motors_Class.h', 'libraries/AP_Motors/AP_Motors_config.h', 'libraries/AP_Motors/AP_MotorsMatrix.h',
              'libraries/AP_Motors/AP_MotorsMatrix.cpp', 'libraries/AP_Scripting/AP_Scripting_config.h',
              'libraries/AP_Scripting/examples/MotorMatrix_dotriaconta_octaquad_x.lua',
              'libraries/AP_Scripting/generator/description/bindings.desc',
@@ -33,7 +33,7 @@ def main():
     upstream = [{'path': path, 'sha256': hashlib.sha256((source / path).read_bytes()).hexdigest(),
                  'bytes': (source / path).stat().st_size} for path in paths]
     matrix = texts['libraries/AP_Motors/AP_MotorsMatrix.cpp']
-    classes = texts['libraries/AP_Motors/AP_Motors_Class.h']
+    classes = texts['libraries/AP_Motors/AP_Motors_config.h'] + texts['libraries/AP_Motors/AP_Motors_Class.h']
     srv = texts['libraries/SRV_Channel/SRV_Channel.h']
     yaw = {key: int(value) for key, value in re.findall(r'#define AP_MOTORS_MATRIX_YAW_FACTOR_(CW|CCW)\s+(-?\d+)', texts['libraries/AP_Motors/AP_MotorsMatrix.h'])}
     assert yaw == {'CW': -1, 'CCW': 1}
@@ -48,7 +48,7 @@ def main():
     assert 'normalise_rpy_factors();' in matrix
     bindings = texts['libraries/AP_Scripting/generator/description/bindings.desc']
     assert 'add_motor_raw' in bindings and 'MotorsMatrix' in bindings
-    assert 'ARMING_CHECK -> ARMING_SKIPCHK' in texts['libraries/AP_Arming/AP_Arming.cpp']
+    assert '4.7 CHECK -> SKIPCHK' in texts['libraries/AP_Arming/AP_Arming.cpp']
     assert 'return (checks_to_skip & check_mask) == 0;' in texts['libraries/AP_Arming/AP_Arming.cpp']
     functions = {int(number): int(value) for number, value in re.findall(r'k_motor(\d+)\s*=\s*(\d+)', srv)}
     assert [functions[i] for i in [1, 8, 9, 12, 13, 16, 32]] == [33, 40, 82, 85, 160, 163, 179]
@@ -105,7 +105,7 @@ def main():
         packets.append({'channels': channels, 'magic': magic, 'pwmUs': values,
                         'hex': struct.pack('<HHI' + str(channels) + 'H', magic, 800, 0x12345678, *values).hex()})
     version = re.search(r'#define THISFIRMWARE "([^"]+)"', texts['ArduCopter/version.h'])[1]
-    assert version == 'ArduCopter V4.8.0-dev'
+    assert version == 'ArduCopter V4.7.2'
     result = {'schemaVersion': 1, 'ardupilotCommit': commit, 'firmwareVersion': version, 'upstream': upstream,
               'description': 'TASK-128 Phase 1 frame subset; source-derived static X tables and declared synthetic stock-Lua paired-16 geometry',
               'limits': {'sitlProgramSizeLimitKb': 4096, 'scriptingMotorCapacity': 32,

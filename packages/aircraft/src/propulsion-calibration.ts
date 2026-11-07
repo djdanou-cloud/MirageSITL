@@ -2,7 +2,7 @@ import { fitPropulsion, type PropulsionFit } from '@mirage/physics/propulsion-ca
 import { buildProfileDynamics, profileRotorDefinition } from '@mirage/physics/profile-dynamics';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
 import { deriveVehicleManifest, type ResolvedComponents } from './derive-manifest.ts';
-import { motorCombination } from './calculation-mode.ts';
+import { motorCombination, motorSetKeys } from './calculation-mode.ts';
 import { combinationKey, measurementSetBench, type MeasurementSet } from './measurements.ts';
 import { withPropulsionCalibrations, type AircraftProfile, type BoundCalibration } from './profile.ts';
 import type { StoredVersion } from '@mirage/project/schema';
@@ -110,10 +110,11 @@ export async function calibrateMotor(input: {
   readonly motorId: number; readonly set: { readonly sha256: string; readonly set: MeasurementSet };
 }): Promise<PropulsionCalibration> {
   const { profile, set } = input, motor = profile.motors.find(item => item.id === input.motorId);
-  const combination = motor ? motorCombination(profile, motor) : null;
-  if (!motor || !combination) throw new Error(`Motor ${input.motorId} has no complete combination of cards`);
-  const key = await combinationKey(combination);
-  if (key !== await combinationKey(set.set.combination)) throw new Error('The measurement set is of another combination: a calibration belongs to its own');
+  const combination = motor ? motorCombination(profile, motor) : null, keys = motor ? await motorSetKeys(profile, motor) : null;
+  if (!motor || !combination || !keys) throw new Error(`Motor ${input.motorId} has no complete combination of cards`);
+  // The calibration belongs to the motor's own combination; its set is of that combination or of its cards on a laboratory supply.
+  const key = keys.exact, setKey = await combinationKey(set.set.combination);
+  if (setKey !== key && setKey !== keys.laboratory) throw new Error('The measurement set is of another combination: a calibration belongs to its own');
   const uncalibrated = withPropulsionCalibrations(profile, []);
   const derived = await deriveVehicleManifest(uncalibrated, input.components, { modelId: 1 });
   const build = buildProfileDynamics(derived.manifest, { syntheticPad: true });

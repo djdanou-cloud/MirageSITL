@@ -261,7 +261,7 @@ never invented.
   * Two builds of the four-patch series (the installer's and one in a separate work
     folder) gave 1,141 files, 52,631,031 bytes, digest
     `6f95bb35eb8be1f1fb295c07d1c9cb0b03acb1e4c702476d6fc5596ae813d7d1`.
-  * `tests/browser/log-viewer-experiments.spec.ts` flies native ArduCopter `8ab6afde`
+  * `tests/browser/log-viewer-experiments.spec.ts` flies native ArduCopter `V4.7.2`
     on a launcher, writes `RTL_ALT_FINAL_M` 0 → 1 (confirmed) and `FS_GCS_ENABLE`
     0 → 1.5 (refused by its list type before sending), stops, and opens the
     experiment: ArduPilot's own log with 87 message types, the context, both changes

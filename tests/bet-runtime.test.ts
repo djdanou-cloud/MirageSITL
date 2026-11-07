@@ -48,7 +48,9 @@ it('rejects version/pointer/overlap/dt/growth errors and preserves raw output',(
   memory.grow(Math.max(0,Math.ceil((op+128-memory.buffer.byteLength)/65536)));
   const view=new DataView(memory.buffer);new Uint8Array(memory.buffer,cp,bytes.length).set(bytes);
   // Configuration versions 2 to 5 carry the kernel options; 6 is unknown.
-  view.setUint32(cp,6,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);view.setUint32(cp,1,true);
+  // Version 6 is a table rotor (TASK-103), whose parser refuses these bytes; 7 is unknown.
+  view.setUint32(cp,7,true);expect(init(cp,bytes.length,ap,al)).toBe(-7);
+  view.setUint32(cp,6,true);expect(init(cp,bytes.length,ap,al)).toBe(-3);view.setUint32(cp,1,true);
   expect(init(cp+1,bytes.length,ap,al)).toBe(-2);expect(init(cp,bytes.length,cp,al)).toBe(-2);
   expect(init(cp,bytes.length,ap,al)).toBe(0);view.setUint32(ip,1,true);
   view.setFloat64(ip+8,1.225,true);view.setFloat64(ip+16,1.789e-5,true);view.setFloat64(ip+24,340,true);

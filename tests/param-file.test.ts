@@ -1,5 +1,5 @@
 // TASK-161: ArduPilot parameter files. The format is checked against
-// ArduPilot's own reading rules (AP_Param.cpp parse_param_line at 8ab6afde)
+// ArduPilot's own reading rules (AP_Param.cpp parse_param_line at fb773567)
 // and, where the TASK-152 installation provides it, against pymavlink
 // 2.4.50's MAVParmDict.load as an independent reader. Selections are checked
 // against oracles written out by hand. The subset archive of the project
@@ -16,7 +16,7 @@ import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 const CONTEXT: ParamFileContext = {
   exportedAt: '2026-11-03T08:00:00.000Z', source: "the running SITL's read-back", selection: 'all 4 parameters',
   aircraft: { name: 'Quad X\nsecond line', version: 3, sha256: 'b'.repeat(64) },
-  firmware: { version: 'ArduCopter V4.8.0-dev', commit: '8ab6afde107a91df1b5f60ade8f333cb8a61b190' },
+  firmware: { version: 'ArduCopter V4.7.2', commit: 'fb773567896014da007bca58358704d4a0d8516f' },
   experiment: { id: '20261103080000000-0000002a', sha256: 'c'.repeat(64) },
 };
 const f32 = Math.fround;
@@ -45,7 +45,7 @@ describe('parameter file format', () => {
       "# Values: the running SITL's read-back",
       '# Selection: all 4 parameters',
       `# Aircraft profile: Quad X second line, version 3, ${'b'.repeat(64)}`,
-      '# ArduPilot: ArduCopter V4.8.0-dev, commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190',
+      '# ArduPilot: ArduCopter V4.7.2, commit fb773567896014da007bca58358704d4a0d8516f',
       `# Experiment: 20261103080000000-0000002a, record ${'c'.repeat(64)}`,
       '# Parameters: 4',
       'ATC_RAT_RLL_I,0.00017', 'GPS1_DELAY_MS,-0', 'LOG_BITMASK,16777216', 'RTL_ALT_M,20', '',

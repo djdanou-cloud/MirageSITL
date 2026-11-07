@@ -1,4 +1,4 @@
-// TASK-143 (S08): sensor configuration schema 1, ownership mapping 2 (TASK-147),
+// TASK-143 (S08): sensor configuration schema 1, ownership mapping 3 (TASK-147, D-01),
 // presets and the experiment snapshot. Oracles: a hand-typed table of every field's
 // unit, range and owner; TASK-089's own matrix functions and the pinned
 // catalog; hand-computed preset conversions; the SHA-256 of the corrected
@@ -48,7 +48,7 @@ const ORACLE: readonly [SensorFieldPath, string, number | 'euler', number | 'eul
   ['imu.positionBodyM', 'm', -2, 2, 'mirage'],
   ['imu.orientationRad', 'rad', 'euler', 'euler', 'mirage'],
   ['gnss.updateRateHz', 'Hz', 1, 20, 'ardupilot'],
-  ['gnss.horizontalSigmaM', 'm', 0, 100, 'ardupilot'],
+  ['gnss.horizontalSigmaM', 'm', 0, 100, 'mirage'],
   ['gnss.verticalSigmaM', 'm', 0, 100, 'ardupilot'],
   ['gnss.velocitySigmaMps', 'm/s', 0, 10, 'ardupilot'],
   ['gnss.latencyUs', 'µs', 0, 1000000, 'ardupilot'],
@@ -74,7 +74,7 @@ const SOURCES: { readonly [path: string]: readonly [string | null, readonly stri
   'imu.gyroBiasRadS': ['imu.gyro.bias', ['SIM_GYR1_BIAS', 'SIM_GYR2_BIAS', 'SIM_GYR3_BIAS', 'SIM_GYR4_BIAS', 'SIM_GYR5_BIAS']],
   'imu.latencyUs': ['imu.latency', []], 'imu.positionBodyM': ['imu.lever-arm', ['SIM_IMU_POS']],
   'imu.orientationRad': ['imu.misalignment', ['SIM_IMU_ORIENT']],
-  'gnss.updateRateHz': ['gnss.receiver', ['SIM_GPS1_HZ', 'SIM_GPS2_HZ']], 'gnss.horizontalSigmaM': ['gnss.position-noise', ['SIM_GPS1_HNSE', 'SIM_GPS2_HNSE']],
+  'gnss.updateRateHz': ['gnss.receiver', ['SIM_GPS1_HZ', 'SIM_GPS2_HZ']], 'gnss.horizontalSigmaM': [null, []],
   'gnss.verticalSigmaM': ['gnss.position-noise', ['SIM_GPS1_NOISE', 'SIM_GPS2_NOISE']],
   'gnss.velocitySigmaMps': ['gnss.velocity-noise', ['SIM_GPS1_VERR', 'SIM_GPS2_VERR']],
   'gnss.latencyUs': ['gnss.delay', ['SIM_GPS1_LAG_MS', 'SIM_GPS2_LAG_MS']],
@@ -195,7 +195,7 @@ describe('profile schema 3', () => {
   });
 });
 
-describe('ownership mapping 2 on native-json', () => {
+describe('ownership mapping 4 on native-json', () => {
   test('the ArduPilot defaults are TASK-089\'s own default matrix with the stock owner of every schema 3 source, and set no parameter', () => {
     const matrix = sensorOwnershipMatrix(null);
     expect(matrix.schemaVersion).toBe(3);
@@ -222,20 +222,20 @@ describe('ownership mapping 2 on native-json', () => {
     expect(matrix.entries.filter(e => e.owner === 'mirage')).toEqual([]);
     const lines = settings(ownershipParameterProfile(matrix, catalog));
     expect(lines).toEqual(expect.arrayContaining(['SIM_DRIFT_SPEED 0', 'SIM_BAR2_RND 0', 'SIM_BAR3_RND 0', 'SIM_IMU_POS_X 0', 'SIM_ACC1_RND 0',
-      'SIM_GYR5_BIAS_Z 0', 'SIM_MAG_RND 0', 'SIM_BARO_DELAY 0', 'SIM_BRD_TRIM_Z 0', 'SIM_IMU_ORIENT 0', 'SIM_MAG3_ORIENT 0']));
+      'SIM_GYR5_BIAS_Z 0', 'SIM_MAG_RND 0', 'SIM_BARO_DELAY 0', 'SIM_ACC_TRIM_Z 0', 'SIM_IMU_ORIENT 0', 'SIM_MAG3_ORIENT 0']));
     expect(lines.filter(line => /^(SIM_MAG\d_OFS|GPS\d_TYPE|SIM_ACC_FLOOR|SIM_GYR_FLOOR)/.test(line))).toEqual([]);
     // The receiver keeps running without its wander, velocity error and lag.
-    expect(lines.filter(line => line.startsWith('SIM_GPS'))).toEqual(['SIM_GPS1_HNSE 0', 'SIM_GPS1_LAG_MS 0', 'SIM_GPS1_NOISE 0', 'SIM_GPS1_VERR_X 0',
-      'SIM_GPS1_VERR_Y 0', 'SIM_GPS1_VERR_Z 0', 'SIM_GPS2_HNSE 0', 'SIM_GPS2_LAG_MS 0', 'SIM_GPS2_NOISE 0', 'SIM_GPS2_VERR_X 0', 'SIM_GPS2_VERR_Y 0', 'SIM_GPS2_VERR_Z 0']);
-    // Mapping 1's 143 settings, the IMU and three magnetometer orientations, and the twelve receiver settings.
-    expect(lines).toHaveLength(143 + 4 + 12);
+    expect(lines.filter(line => line.startsWith('SIM_GPS'))).toEqual(['SIM_GPS1_LAG_MS 0', 'SIM_GPS1_NOISE 0', 'SIM_GPS1_VERR_X 0',
+      'SIM_GPS1_VERR_Y 0', 'SIM_GPS1_VERR_Z 0', 'SIM_GPS2_LAG_MS 0', 'SIM_GPS2_NOISE 0', 'SIM_GPS2_VERR_X 0', 'SIM_GPS2_VERR_Y 0', 'SIM_GPS2_VERR_Z 0']);
+    // Mapping 1's 143 settings without the three barometer ground effects V4.7.2 lacks, the IMU and three magnetometer orientations, and ten receiver settings.
+    expect(lines).toHaveLength(143 - 3 + 4 + 10);
     // Every MirageSITL-owned field is at its neutral value: zero, a zero vector, or no lever arm.
     const neutral = Object.fromEntries(resolveSensorConfiguration(full).fields.filter(f => f.owner === 'mirage').map(f => [f.path, f.effective]));
     expect(neutral).toEqual({
       'imu.accelNoiseDensityMps2PerSqrtHz': { kind: 'neutral', value: 0 }, 'imu.gyroNoiseDensityRadSPerSqrtHz': { kind: 'neutral', value: 0 },
       'imu.accelBiasMps2': { kind: 'neutral', value: [0, 0, 0] }, 'imu.gyroBiasRadS': { kind: 'neutral', value: [0, 0, 0] },
       'imu.latencyUs': { kind: 'neutral', value: 0 }, 'imu.positionBodyM': { kind: 'neutral', value: 'at-cg' },
-      'imu.orientationRad': { kind: 'neutral', value: [0, 0, 0] },
+      'imu.orientationRad': { kind: 'neutral', value: [0, 0, 0] }, 'gnss.horizontalSigmaM': { kind: 'neutral', value: 0 },
       'battery.voltageGainError': { kind: 'neutral', value: 0 }, 'battery.voltageOffsetV': { kind: 'neutral', value: 0 },
       'battery.voltageNoiseRmsV': { kind: 'neutral', value: 0 }, 'battery.currentGainError': { kind: 'neutral', value: 0 },
       'battery.currentOffsetA': { kind: 'neutral', value: 0 }, 'battery.currentNoiseRmsA': { kind: 'neutral', value: 0 },
@@ -295,7 +295,7 @@ describe('ownership mapping 2 on native-json', () => {
     // ArduPilot-owned values keep every source with ArduPilot: TASK-147 writes their SIM values.
     const baro = sensorOwnershipMatrix(validateSensorConfiguration(configure(c => { c.barometer.noiseRmsPa = 2.7; c.magnetometer.biasGauss = [0.01, 0, 0]; })));
     expect(baro.entries.filter(e => e.owner !== 'ardupilot').map(e => e.source)).toEqual(stockNone);
-    expect([ERROR_SOURCE_IDS.length, stockNone]).toEqual([33, ['imu.latency', 'battery.voltage', 'battery.current']]);
+    expect([ERROR_SOURCE_IDS.length, stockNone]).toEqual([33, ['baro.ground-effect', 'imu.latency', 'battery.voltage', 'battery.current']]);
     const resolved = resolveSensorConfiguration(validateSensorConfiguration(withValue('barometer.noiseRmsPa', 2.7)));
     expect(resolved.fields.find(f => f.path === 'barometer.noiseRmsPa')?.effective).toEqual({ kind: 'specified', value: 2.7 });
     expect(resolved.fields.find(f => f.path === 'imu.accelBiasMps2')?.effective).toEqual({ kind: 'not-applied' });
@@ -326,6 +326,14 @@ describe('SITL parameters and MirageSITL plans (TASK-147)', () => {
     expect(() => barometerAltitudePerPascal(12000)).toThrow('within');
   });
 
+  test('a horizontal GNSS error is MirageSITL\'s (mapping 4): specified, it writes no boot parameter, since the run streams it', () => {
+    const stored = validateSensorConfiguration(withValue('gnss.horizontalSigmaM', 1.5));
+    expect(stored.gnss.horizontalSigmaM).toBe(1.5);
+    expect(resolveSensorConfiguration(stored).fields.find(field => field.path === 'gnss.horizontalSigmaM')).toMatchObject({
+      owner: 'mirage', applicable: true, stored: 1.5, effective: { kind: 'specified', value: 1.5 } });
+    expect(Object.keys(parameters(stored)).filter(name => name.includes('HNSE') || name.includes('GLTCH'))).toEqual([]);
+  });
+
   test('specified ArduPilot-owned values become the SITL parameters of their error models', () => {
     const config = configure(c => {
       c.barometer.noiseRmsPa = 2.7; c.barometer.biasPa = 30; c.barometer.latencyUs = 20000;
@@ -340,7 +348,7 @@ describe('SITL parameters and MirageSITL plans (TASK-147)', () => {
     }
     for (const n of [1, 2, 3]) Object.assign(expected, { [`SIM_MAG${n}_OFS_X`]: 5 - 10, [`SIM_MAG${n}_OFS_Y`]: 13 + 20, [`SIM_MAG${n}_OFS_Z`]: -18 });
     for (const gps of ['SIM_GPS1', 'SIM_GPS2']) {
-      Object.assign(expected, { [`${gps}_HZ`]: 10, [`${gps}_HNSE`]: Math.SQRT2 * 1.7, [`${gps}_NOISE`]: Math.SQRT2 * 3, [`${gps}_LAG_MS`]: 120,
+      Object.assign(expected, { [`${gps}_HZ`]: 10, [`${gps}_NOISE`]: Math.SQRT2 * 3, [`${gps}_LAG_MS`]: 120,
         [`${gps}_VERR_X`]: Math.sqrt(3) * 0.1, [`${gps}_VERR_Y`]: Math.sqrt(3) * 0.1, [`${gps}_VERR_Z`]: Math.sqrt(3) * 0.1 });
     }
     expect(Object.keys(values).sort()).toEqual(Object.keys(expected).sort());
@@ -352,7 +360,7 @@ describe('SITL parameters and MirageSITL plans (TASK-147)', () => {
 
   test('Ideal writes every neutralization and the zero-net hard-iron pairing; the ArduPilot defaults write nothing', () => {
     const ideal = sensorRuntime(validateSensorConfiguration(configure(c => { c.mode = 'ideal'; c.magnetometer.biasGauss = [0.1, 0, 0]; })), catalog, context);
-    expect(ideal.parameters).toHaveLength(159 + 9);
+    expect(ideal.parameters).toHaveLength(154 + 9);
     const values = Object.fromEntries(ideal.parameters.map(p => [p.name, p.value]));
     expect([values.SIM_MAG1_OFS_X, values.SIM_MAG2_OFS_Y, values.SIM_MAG3_OFS_Z, values.SIM_GPS1_LAG_MS, values.SIM_BARO_RND]).toEqual([5, 13, -18, 0, 0]);
     expect(ideal.parameterProfile.split('\n').slice(0, 2)).toEqual(['# MirageSITL sensor parameters v1',
@@ -425,10 +433,11 @@ describe('presets', () => {
     const imu = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' });
     expect(imu.applied).toEqual(['imu.accelNoiseDensityMps2PerSqrtHz', 'imu.gyroNoiseDensityRadSPerSqrtHz']);
     expect(validateSensorConfiguration(imu.configuration).imu).toMatchObject({ preset: { catalogVersion: 1, id: 'imu-icm-42688-p' }, accelBiasMps2: null });
-    // Mapping 2 applies the GNSS and battery presets that mapping 1 kept as references.
+    // Mapping 4: MirageSITL applies the horizontal GNSS error, so this preset fills it again.
     const gnss = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'gnss-neo-m9n' });
-    expect([gnss.applied, gnss.skipped]).toEqual([['gnss.horizontalSigmaM'], []]);
-    expect(validateSensorConfiguration(gnss.configuration).gnss.horizontalSigmaM).toBe(1.6986436005760381);
+    expect(gnss.applied).toEqual(['gnss.horizontalSigmaM']);
+    expect(gnss.skipped).toEqual([]);
+    expect(validateSensorConfiguration(gnss.configuration).gnss).toMatchObject({ preset: { catalogVersion: 1, id: 'gnss-neo-m9n' }, horizontalSigmaM: 1.6986436005760381 });
     const battery = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'battery-ina226' });
     expect(validateSensorConfiguration(battery.configuration).battery.voltageNoiseRmsV).toBe(0.0003608439182435161);
     // Other values of the block stay.
@@ -471,7 +480,7 @@ describe('experiment copy', () => {
     expect(kept.record.dependencies.map(d => d.sha256)).toEqual([v2.sha256]);
     expect(Buffer.from(canonicalBytes(Reflect.get(kept.record.payload, 'sensors'))).equals(Buffer.from(canonicalBytes(sensorSnapshot(await store.get(v2.sha256)))))).toBe(true);
     expect(sensorSnapshot(v3).resolution.state).toBe('ideal');
-    expect(snapshot).toMatchObject({ schemaVersion: 2, profileSha256: v2.sha256, mappingVersion: 2, configuration: specified });
+    expect(snapshot).toMatchObject({ schemaVersion: 3, profileSha256: v2.sha256, mappingVersion: 4, configuration: specified });
     expect(snapshot.resolution.state).toBe('specified');
     expect(snapshot.resolution.fields.filter(f => f.effective.kind === 'specified').map(f => [f.path, f.effective])).toEqual([
       ['imu.accelNoiseDensityMps2PerSqrtHz', { kind: 'specified', value: 6.864654999999999e-4 }],

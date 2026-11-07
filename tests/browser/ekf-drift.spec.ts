@@ -8,7 +8,7 @@ import { ekfDriftEndS, ekfDriftEntries, ekfDriftPeakM } from "../../packages/sce
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-170 (S09): an EKF drift set up through the UI flies on native ArduCopter 8ab6afde, and the experiment shows the truth against ArduPilot's estimate. The
+// TASK-170 (S09): an EKF drift set up through the UI flies on native ArduCopter fb773567, and the experiment shows the truth against ArduPilot's estimate. The
 // chart's numbers are held to an independent computation from the recording's own rows, in this file. What ArduPilot did about the drift is shown and not asserted.
 
 const ROOT = process.cwd();

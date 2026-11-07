@@ -18,7 +18,7 @@ classification before it enables pause.
 | `--model JSON`, MirageSITL is the physics peer, reply omits `no_lockstep` | Frozen. `JSON::recv_fdm` blocks. `time_now_us` advances only after a reply whose timestamp increases by a positive amount below 0.1 s. `Scheduler::stop_clock` is not called during the wait, so `AP_HAL::millis()` stays at the retained simulation time. |
 | JSON reply with `no_lockstep` true | Not frozen. `recv_fdm` returns immediately and advances time at the SITL loop rate. |
 | Built-in SITL frame model, `--model` other than JSON | Not frozen. That model advances time itself. |
-| HITL at commit `8ab6afde107a91df1b5f60ade8f333cb8a61b190` | No `HIL_SENSOR` handler (TASK-050). Not a pause path. |
+| HITL at commit `fb773567896014da007bca58358704d4a0d8516f` | No `HIL_SENSOR` handler (TASK-050). Not a pause path. |
 
 `--speedup` only paces `Aircraft::sync_frame_time` after simulated time has
 already advanced. It does not own the clock. The achieved simulated/wall ratio
@@ -103,3 +103,15 @@ The host is the limit.
 
 This does not pause from the Run tab (TASK-155), connect to a SITL the user
 started (TASK-153), or cover a 16-motor frame.
+
+## Repeated on ArduCopter V4.7.2 — 2026-11-06
+
+The same three runs on V4.7.2, after decision D-01: all nine runs and audits exit 0, and the
+scalar WASM replay error is 0. The holds capture has 69,673 physics frames and 4,361 scored
+samples. D-03 stands on this firmware.
+
+| Run | Requested `--speedup` | Simulated s | Wall s | Paused wall s | Achieved sim/active wall |
+| --- | --- | --- | --- | --- | --- |
+| holds 2 | 2 | 87.09125 | 163.996 | 120.104 | 1.9842 |
+| continuous 20 | 20 | 84.05125 | 4.737 | 0 | 17.7453 |
+| continuous 2 | 2 | 84.09125 | 42.598 | 0 | 1.9741 |

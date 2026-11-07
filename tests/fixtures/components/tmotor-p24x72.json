@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "propeller",
+  "example": false,
+  "manufacturer": "T-Motor",
+  "model": "P24*7.2\" CF",
+  "sources": [
+    {
+      "id": "tmotor-datasheet",
+      "kind": "specification",
+      "description": "T-Motor's datasheet table for MN7005 KV230 with the P24*7.2\" CF propeller at 24 V, as an image posted in post 17 of ArduPilot forum topic 144558 (data/flight-logs/inventory.json, bench table tmotor-datasheet-mn7005-kv230-p24x72).",
+      "sha256": "b996b7b93748dfdfc125b3e31eadd5053a8c93059bcdd2e7cb1b830f429a5994",
+      "date": "2026-07-28"
+    },
+    {
+      "id": "tmotor-store-prop",
+      "kind": "specification",
+      "description": "T-Motor's product page for the P24*7.2 10 mm hole prop, 2 pcs per pair (store.tmotor.com/product/polish-carbon-fiber-24x7_2-10mm-hole-prop.html), read on 2026-11-07: two blades integrated, 'Weight(Single Blade)' 56 ± 2 g, taken as the mass of one propeller.",
+      "sha256": null,
+      "date": "2026-11-07"
+    }
+  ],
+  "values": {
+    "diameterM": 0.6096,
+    "pitchM": 0.18288,
+    "bladeCount": 2,
+    "hubDiameterM": null,
+    "massKg": 0.056,
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "provenance": {
+    "diameterM": "tmotor-datasheet",
+    "pitchM": "tmotor-datasheet",
+    "bladeCount": "tmotor-store-prop",
+    "hubDiameterM": null,
+    "massKg": "tmotor-store-prop",
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "applicability": "Diameter and pitch from the designation 24 x 7.2 inches in the datasheet; no blade geometry: a derived BET geometry rests on its listed assumptions."
+}

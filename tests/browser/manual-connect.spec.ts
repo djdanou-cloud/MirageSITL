@@ -126,7 +126,7 @@ test("connect and disconnect cycles reach READY, record schema 2 and leave the S
     await expect(checks).toHaveCount(6);
     await expect(checks.nth(0)).toHaveText(new RegExp(`^JSON physics on UDP port ${sitl.jsonPort} with 16 servo channels; MirageSITL steps it at 800 Hz, which SITL adopts`));
     await expect(checks.nth(1)).toContainText("so Pause stops it with the physics (TASK-156)");
-    await expect(checks.nth(3)).toHaveText("ArduPilot 4.8.0-dev, commit 8ab6afde (verified)");
+    await expect(checks.nth(3)).toHaveText("ArduPilot 4.7.2, commit fb773567 (verified)");
     await expect(checks.nth(4)).toHaveText(`All ${parameters.length} frame, output, PWM and sensor parameters match the profile`);
     await expect(panel.getByRole("button", { name: "Start SITL run" })).toBeDisabled();
     await panel.getByRole("button", { name: "Disconnect", exact: true }).click();
@@ -143,7 +143,7 @@ test("connect and disconnect cycles reach READY, record schema 2 and leave the S
   for (const record of readback.experiments) {
     expect(record.ownership).toBe("external");
     expect(record.ardupilot).toBeNull();
-    expect(record.external).toMatchObject({ ardupilot: { commit: "8ab6afde107a91df1b5f60ade8f333cb8a61b190", gitHash: "8ab6afde", firmwareVersion: "4.8.0-dev" },
+    expect(record.external).toMatchObject({ ardupilot: { commit: "fb773567896014da007bca58358704d4a0d8516f", gitHash: "fb773567", firmwareVersion: "4.7.2" },
       endpoints: { jsonPhysicsPort: sitl.jsonPort, mavlink: { transport: "tcp", port: sitl.tcpPort } } });
     expect(record.session).toMatchObject({ physicsHz: 800, speedup: null, home: [-35.363261, 149.16523, 584, 0] });
     expect(record.parameters).toEqual(parameters);

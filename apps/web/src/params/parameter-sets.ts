@@ -16,7 +16,7 @@ export const PARAMETER_SET_SCHEMA_VERSION = 1;
 export const PARAMETER_LOG_SCHEMA_VERSION = 1;
 /** An ArduPilot parameter name: 1 to 16 printable ASCII characters without a space (AP_MAX_NAME_SIZE). */
 const PARAMETER_NAME = /^[\x21-\x7e]{1,16}$/;
-/** Entries of one set: ArduCopter 8ab6afde lists about 1,400, its metadata 5,799. */
+/** Entries of one set: ArduCopter V4.7.2 lists about 1,400, its metadata 5,687. */
 export const MAX_SET_PARAMETERS = 8192;
 /** Changes in one log version; each is a few hundred canonical JSON bytes, well inside a 1 MiB record. */
 export const MAX_LOG_CHANGES = 2000;

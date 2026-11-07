@@ -15,7 +15,7 @@ export const COMPATIBLE_COMMITS: readonly string[] = [sitlLock.commit];
 export interface FirmwareEntry {
   /** Stable ID, chosen at installation. */
   readonly id: string;
-  /** For example "ArduCopter V4.8.0-dev". */
+  /** For example "ArduCopter V4.7.2". */
   readonly firmwareVersion: string;
   readonly commit: string;
   readonly binaryPath: string;

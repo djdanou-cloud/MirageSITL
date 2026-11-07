@@ -10,7 +10,7 @@
  #include "CANSocketIface.h"
  #include "SITL_Multicast.h"
 
-@@ -259,10 +262,40 @@
+@@ -259,10 +262,43 @@
 
      // update the model
      sitl_model->update_home();
@@ -40,6 +40,9 @@
 +    fdm.rcin_chan_count = 12;
 +    for (unsigned i=0; i<12; i++) fdm.rcin[i] = v[23+i];
 +    fdm.wind_ef = Vector3f(v[35], v[36], v[37]);
++    // TASK-105: each output channel's motor speed for AP_ESC_Telem_SITL, and which carry one.
++    for (unsigned i=0; i<16; i++) fdm.rpm[i] = sensor.rpm[i];
++    fdm.motor_mask = sensor.rpm_mask;
 +    fdm.is_lock_step_scheduled = true;
 +    set_voltage_current_pins(v[20], v[21]);
 +#else

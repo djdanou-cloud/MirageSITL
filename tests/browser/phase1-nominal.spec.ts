@@ -17,7 +17,7 @@ import {
 
 // TASK-158 (S01–S03): the Phase 1 nominal flight of each S19 configuration
 // through the application's UI alone, from an empty project to a stopped run,
-// on the reference Mac in Chrome with the installed ArduCopter 8ab6afde
+// on the reference Mac in Chrome with the installed ArduCopter fb773567
 // (TASK-152). Each test types the four example component cards into the
 // Components tab and the configuration's TASK-141 recipe into the Aircraft
 // tab, with the cards on every motor, the battery card and the NACA 6409
@@ -35,7 +35,7 @@ import {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const OUT = process.env.MIRAGE_PHASE1_OUT ?? join(ROOT, "test-results/phase1/nominal/manual");
 const CHOSEN = (process.env.MIRAGE_PHASE1_CONFIGURATIONS ?? "").split(",").filter(id => id !== "");
 const SETTINGS = process.env.MIRAGE_PHASE1_STOCK === "1" ? "stock" : "acceptance";

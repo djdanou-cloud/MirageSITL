@@ -21,7 +21,7 @@ export const JSON_MAGIC_16 = 18458;
 export const JSON_MAGIC_32 = 29569;
 export const JSON_UDP_PORT = 9002;
 /** Pinned JSON protocol commit exercised by the no-drone virtual stage. */
-export const VIRTUAL_PROTOCOL_COMMIT_SHORT = "8ab6afde";
+export const VIRTUAL_PROTOCOL_COMMIT_SHORT = "fb773567";
 /** Native SITL ELF and browser WASM are not Simulation-on-Hardware board images. */
 export const UNSUPPORTED_SOH_FIRMWARE = new Set([
   "fa37bf619bce116d410931f1b7d24ea72ed444ba529379df0db9738742ecb186",

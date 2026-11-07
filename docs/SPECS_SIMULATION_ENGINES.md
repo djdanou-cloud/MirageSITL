@@ -2912,7 +2912,7 @@ within 5 %, a lift-off then a touchdown under 3 m/s, and no accident.
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
-8ab6afde107a91df1b5f60ade8f333cb8a61b190 (`libraries/SITL/SIM_JSON.{h,cpp}` and
+fb773567896014da007bca58358704d4a0d8516f (`libraries/SITL/SIM_JSON.{h,cpp}` and
 the JSON example readme; SHA-256 in `tests/fixtures/sitl/json-protocol.json`,
 sources not copied). SITL sends a little-endian servo packet
 `{u16 magic, u16 frame_rate, u32 frame_count, u16 pwm[N]}`: 40 bytes with
@@ -3012,7 +3012,7 @@ controls to motors remains a hardware-profile decision (TASK-050).
 returns READY only when pinned firmware source evidence, a verified board
 profile and live observation agree; the matrix and evidence live in
 [hardware/hitl-matrix.md](hardware/hitl-matrix.md). At ArduPilot
-8ab6afde107a91df1b5f60ade8f333cb8a61b190 no HIL_SENSOR/HIL_GPS/
+fb773567896014da007bca58358704d4a0d8516f no HIL_SENSOR/HIL_GPS/
 HIL_ACTUATOR_CONTROLS handler exists, so ArduPilot is UNSUPPORTED for this
 path. At PX4 4d7e4de77742c3ae8187ffc998ed6d04629c611b HIL_SENSOR is decoded only
 in HIL mode, so the live check requires `MAV_MODE_FLAG_HIL_ENABLED` (32) in
@@ -3393,13 +3393,13 @@ This section specifies the acceptance tooling, collision lattice, scenario runne
 
 Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, reject malformed/nonfinite fields and write version 1 reports under test-results/validation. PASS exits 0, FAIL exits 1 and BLOCKED_EXTERNAL exits 2. Missing input never becomes a green test. Hardware/source strings in an imported JSON are declarations requiring operator review, not cryptographic proof of physical execution. Structural tests are explicitly synthetic and cannot admit hardware or firmware modes. CLI reports retain sourceRevision, validatorSha256 and, when supplied, inputSha256; keep original captures for audit.
 
-SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
+SITL locks firmware commit fb773567896014da007bca58358704d4a0d8516f, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
 
 TASK-051 is a version 2 proposal and is not a version 1 acceptance gate. Its analyzer, kept for that later firmware, covers 60–3600 s. Virtual Hybrid SITL uses provenance source `virtual-sitl`, copter `SIM_RATE_HZ` of at least 400, and p99 compute lateness <=2.5 ms, with no drone and no serial port. Recorded Simulation-on-Hardware requires ArduPilot >=4.6.3, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, heartbeat gaps <=2.5 s, and an unplug that drops the link and disables actuators. Plane, rover and blimp Hybrid SITL use `SIM_RATE_HZ` of at least 50 and p99 lateness <=5 ms. See the version 2 procedure; the CLI does not open a serial port or arm a vehicle.
 
 EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. TASK-059 native acquisition uses scripts/run-ew-sitl.mjs, the existing TASK-042 driver and the TASK-058 EwEngine. GPS1_TYPE=14 accepts actual GPS_INPUT packets at 10 Hz; GPS2_TYPE=0 prevents a clean backup masking the injected receiver. Physics JSON position/velocity remain true. A 30 m north step, 0.5 m/s² north drift capped at 4 m/s, and severity-1 jamming affect GPS only. Magnetic bias adds [0.3,0.2,0] Gauss in FRD through all three SIM_MAGn_OFS parameters (negative milliGauss because SIM_Compass subtracts offsets); no attitude or IMU-force corruption is used. Motor 0 loses its complete force and yaw wrench after motor lag through the explicit synthetic instant-thrust-loss contract, not an electrical motor model.
 
-The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response capture, live READY admission, 5 s stable hold before injection, 12 s exposure and 8 s recovery; complete motor loss has a bounded 3 s exposure and no recovery claim. Disabling drift uses step-to-truth. Fault runs retain unhealthy EKF flags, innovation ratios, modes and trajectory rather than requiring TASK-042's healthy landing gate. Native source 8ab6afde migrated ARMING_CHECK to ARMING_SKIPCHK: the actual full parameter readback must show ARMING_SKIPCHK=0, EK3_ENABLE=1 and AHRS_EKF_TYPE=3. The legacy parameters.parm remains historical; no check is bypassed.
+The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response capture, live READY admission, 5 s stable hold before injection, 12 s exposure and 8 s recovery; complete motor loss has a bounded 3 s exposure and no recovery claim. Disabling drift uses step-to-truth. Fault runs retain unhealthy EKF flags, innovation ratios, modes and trajectory rather than requiring TASK-042's healthy landing gate. Native source V4.7.2 migrated ARMING_CHECK to ARMING_SKIPCHK: the actual full parameter readback must show ARMING_SKIPCHK=0, EK3_ENABLE=1 and AHRS_EKF_TYPE=3. The legacy parameters.parm remains historical; no check is bypassed.
 
 Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.py independently re-decodes both raw directions with pymavlink 2.4.50 and CRC validation, checks every transmitted GPS_INPUT against its source observation and quantization, checks firmware GPS readbacks and the complete pre-fault parameter snapshot. scripts/sitl/audit-ew.mjs reruns that decoder, replays every actual PWM through the original rigid-body WASM and canonical fault schedule, compares truth and quaternion, reconstructs every baseline/distorted observation, verifies compass fault/recovery acknowledgments, and joins response rows to original heartbeat/EKF/global-position messages with <=1 s freshness. Truth hashes compare before/after observation processing in the same tick. Separate closed-loop flights may have different trajectories; motor failure intentionally changes physical truth. The former schema-1 self-declared changed-observation flags do not establish native acceptance.
 
@@ -4357,10 +4357,10 @@ to switch off an error that the pinned upstream applies unconditionally (see
 
 `python3 tests/fixtures/sitl/generate.py` writes
 `tests/fixtures/sitl/ardupilot-catalog.json` from 13 files at the pinned commit
-`8ab6afde107a91df1b5f60ade8f333cb8a61b190`, recording each file's SHA-256. The
+`fb773567896014da007bca58358704d4a0d8516f`, recording each file's SHA-256. The
 GPL sources are not copied. The catalog lists:
 
-* the 323 SIM_* parameters of the SITL tables and the barometer, airspeed and
+* the 303 SIM_* parameters of the SITL tables and the barometer, airspeed and
   GPS sub-tables, with compiled defaults, `AP_Vector3f` flags scoped to each
   parameter class, and enclosing preprocessor conditions;
 * the copter and JSON-backend defaults;
@@ -4402,8 +4402,9 @@ catalog and covered by the TASK-041 oracle:
 | `imu.gyro.drift` | `SIM_DRIFT_SPEED 0` | both | gyro fields |
 | `imu.vibration` | `SIM_VIB_FREQ 0`, `SIM_VIB_MOT_MAX 0` | both | accel and gyro fields |
 | `imu.lever-arm` | `SIM_IMU_POS 0` | both | accel fields |
-| `imu.board-trim` | `SIM_BRD_TRIM 0` | both | none (it also rotates the compass) |
-| `baro.noise`, `.drift`, `.glitch`, `.delay`, `.wind`, `.ground-effect` | `SIM_BARO/BAR2/BAR3_RND`, `_DRIFT`, `_GLITCH`, `_DELAY`, `_WCF_*`, `_GEFF_M` = 0 | both | none (altitude shares navigation truth) |
+| `imu.board-trim` | `SIM_ACC_TRIM 0` | both | none (at V4.7.2 it turns the accelerometer only, and MirageSITL offers no such error) |
+| `baro.noise`, `.drift`, `.glitch`, `.delay`, `.wind` | `SIM_BARO/BAR2/BAR3_RND`, `_DRIFT`, `_GLITCH`, `_DELAY`, `_WCF_*` = 0 | both | none (altitude shares navigation truth) |
+| `baro.ground-effect` | none: V4.7.2 has no barometer ground effect, so nobody applies one | neither | none |
 | `mag.noise`, `mag.delay` | `SIM_MAG_RND 0`, `SIM_MAG_DELAY 0` | both | `hal:magnetic-field` |
 | `mag.hard-iron` | `SIM_MAGn_OFS 0`, n = 1–3 | both | `mavlink:sim-mag-offsets`; `hal:magnetic-field` |
 | `mag.soft-iron` | `SIM_MAGn_DIA 0` (identity), `SIM_MAGn_ODI 0`, `SIM_MAGn_SCALING 1` | both | `hal:magnetic-field` |
@@ -4434,7 +4435,7 @@ exactly the parameter lines of the driver's experiment block:
 
 ```text
 # MirageSITL error-ownership profile v1
-# matrix task-059-ew-native; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+# matrix task-059-ew-native; path native-json; ArduPilot fb773567896014da007bca58358704d4a0d8516f
 GPS1_RATE_MS 100
 GPS1_TYPE 14
 GPS2_TYPE 0
@@ -4468,7 +4469,7 @@ The user decided that MirageSITL runs with ArduPilot's default behaviour by
 default and that a setting switches off ArduPilot's fixed IMU noise floors on
 request. No upstream parameter can do that, so
 `native/ardupilot/patches/imu-noise-floor.patch` (SHA-256
-`7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96`) changes
+`0cb35155f676914f7afe70abbcede25f69b1da0ee009b009138a781d8a819177`) changes
 three pinned files: `libraries/SITL/SITL.h`, `libraries/SITL/SITL.cpp` and
 `libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp`. It replaces the two
 constants with parameters in the `var_ins` table:
@@ -4531,7 +4532,7 @@ node scripts/ownership-profile.mjs --imu-noise-floor off
 
 ```text
 # MirageSITL error-ownership profile v1
-# matrix imu-noise-floor-off-native-json; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190; patches imu-noise-floor 7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96
+# matrix imu-noise-floor-off-native-json; path native-json; ArduPilot fb773567896014da007bca58358704d4a0d8516f; patches imu-noise-floor 0cb35155f676914f7afe70abbcede25f69b1da0ee009b009138a781d8a819177
 SIM_ACC_FLOOR 0
 SIM_GYR_FLOOR 0
 ```
@@ -4617,7 +4618,7 @@ two firmware builds:
 These changes alter the driver, sidecar and raw-audit sources, so the frozen
 TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) no longer applied, as the
 user accepted on 2026-10-27. TASK-171 froze it again with the current driver, on
-macOS. EW calibration and validation also bind the
+macOS, and TASK-198 froze it again on ArduCopter V4.7.2. EW calibration and validation also bind the
 firmware and parameter hashes, so both must use the same firmware and setting.
 Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
 refresh them.
@@ -5351,10 +5352,10 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source; a profile that describes its body (schema 7, TASK-196) has no `standard-hull` dataset |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
 | `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear") |
-| `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs") |
+| `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs"); for a profile that describes its body (schema 7, TASK-196) that body, from the profile's dataset (section "Described body (TASK-196)") |
 | `airframe.drag` | The standard hull's preliminary drag (derivation 6, TASK-096; section "Airframe drag") |
 | `ardupilot`, `controlSurfaces` | Null or empty; TASK-142 owns `ardupilot` |
 
@@ -5615,7 +5616,9 @@ Scope S04 and S15. An aircraft profile version is either a **Preliminary
 calculation**, built from specifications and geometry, or a **Calculation from
 measurements**, which also uses static bench data. Bench data belongs to one
 exact combination of motor, propeller, ESC and power supply and is never used
-for another. The confidence labels follow TASK-133
+for another, except that data measured on a laboratory supply also serve its
+motor, propeller and ESC on a battery (stakeholder's decision of 2026-11-07).
+The confidence labels follow TASK-133
 ([phase1-fidelity.md](decisions/phase1-fidelity.md)). Configuration-time code
 only; never call it from a physics step.
 
@@ -5735,8 +5738,11 @@ The combination key is the SHA-256 of the canonical JSON of `combination`, so
 two sets share a key exactly when they name the same card versions and the
 same supply. The supply is part of the combination (S04): a battery card
 version, or a laboratory power supply, which no card describes. A profile's
-supply is its battery card, so data measured on a laboratory supply never
-binds to it.
+supply is its battery card. By the stakeholder's decision of 2026-11-07, which
+first let T-Motor's own datasheet (TASK-145) serve the battery-powered forum
+quad, a set of a motor's motor, propeller and ESC cards on a laboratory supply
+also binds to that motor whatever the battery, labeled as such; until then it
+never bound.
 
 ### Profile schema 2
 
@@ -5762,14 +5768,18 @@ changing a binding creates a new version.
 
 * `motorCombination(profile, motor)` is the motor's motor, propeller and ESC
   cards with the profile's battery card, or null while any is not selected.
+* `motorSetKeys(profile, motor)` is the motor's two set keys: `exact`, its
+  combination, and `laboratory`, its motor, propeller and ESC cards on a
+  laboratory supply; null while any card or the battery is not selected.
 * `bindMeasurements(profile, mode, candidates)` returns a schema 2 version in
-  the given mode. In measured mode it binds, for each motor combination, the
-  newest candidate set of exactly that combination; candidates of other
-  combinations are never bound.
+  the given mode. In measured mode it binds, for each motor, the newest
+  candidate set of exactly its combination, else the newest of its laboratory
+  combination; candidates of other combinations are never bound.
 * `checkProfileMeasurements` refuses a bound set that is not available, that
-  matches no motor's combination, or that binds the same combination as
-  another. A profile edited onto other cards therefore cannot keep a stale
-  binding.
+  matches no motor's combination, that binds the same combination as another,
+  or that applies to a motor another bound set already serves (a set on the
+  battery and one on a laboratory supply of the same cards). A profile edited
+  onto other cards therefore cannot keep a stale binding.
 * `evaluateCalculation(profile, cards, sets)` labels each motor and the
   aircraft:
 
@@ -5779,6 +5789,7 @@ changing a binding creates a new version.
 | Measured | a card or the battery not selected | `preliminary` | No measurements can bind |
 | Measured | no bound set of its combination | `preliminary` | No set of this combination is bound |
 | Measured | a bound set of its combination | `measured-input` | Bench data of this exact combination |
+| Measured | a bound set of its cards on a laboratory supply | `measured-input` | Bench data of this motor, propeller and ESC on a laboratory supply |
 
 The aircraft takes the weakest label of its motors (F-06). `flight-checked`
 belongs to TASK-184 and is never assigned here. Each motor lists what its
@@ -5787,8 +5798,9 @@ calculation lacks, never filling it in: unselected cards, unknown card values
 motor with bench data also lists its limits of use: the measured rpm range
 with the F-03 warning margin of 10% on either side, that static single-rotor
 data does not validate forward flight or descent, that it does not validate a
-coaxial pair's interaction when the motor is in one, and the set's own
-applicability. In measured mode the aircraft notes that the mode does not
+coaxial pair's interaction when the motor is in one, that a laboratory
+supply held its voltage where a battery sags when the set was measured on
+one, and the set's own applicability. In measured mode the aircraft notes that the mode does not
 certify the aircraft. TASK-145 fits the propulsion model to the bound data.
 
 ### Components tab
@@ -5810,10 +5822,12 @@ measurement-set and profile validators, so archive imports are checked too.
 generated from known values with 50-digit decimal arithmetic, checks the
 combination key against SHA-256 computed with `node:crypto`, and checks that a
 profile differing from a set in any one card version, or in its supply,
-binds nothing. It also covers the rejection cases, the store and archive
-round trip, and the labels. `tests/browser/measurements.spec.ts` uploads and
-types bench data in Chromium and checks that only the bound combination's
-motors change their label. The roadmap entry records the results.
+binds nothing; since 2026-11-07 a set on a laboratory supply is the exception
+and binds whatever the battery. It also covers the rejection cases, the store
+and archive round trip, and the labels. `tests/browser/measurements.spec.ts`
+uploads and types bench data in Chromium and checks that only the motors of
+the bound combination, or of its cards on a laboratory supply, change their
+label. The roadmap entry records the results.
 
 ## Sensor configuration v1 (TASK-143)
 
@@ -6012,14 +6026,14 @@ schema. `imuNoiseFloorMatrix` stays at schema 2.
 | `imu.latency` | nothing: SITL has no IMU delay | none | `json:imu.accel_body`, `json:imu.gyro` | nobody |
 | `imu.misalignment` | `SIM_IMU_ORIENT`, discrete rotations | `SIM_IMU_ORIENT 0` | `json:imu.accel_body`, `json:imu.gyro` | ArduPilot |
 | `mag.misalignment` | `SIM_MAGn_ORIENT`, discrete rotations | `SIM_MAGn_ORIENT 0` | `hal:magnetic-field` only | ArduPilot |
-| `gnss.position-noise` | `SIM_GPSn_HNSE` circle, `SIM_GPSn_NOISE` sine, period 12.6 s | `HNSE 0`, `NOISE 0` | none | ArduPilot |
+| `gnss.position-noise` | `SIM_GPSn_NOISE`, a vertical sine with a period of 12.6 s; V4.7.2 has no horizontal error | `NOISE 0` | none | ArduPilot |
 | `gnss.velocity-noise` | `SIM_GPSn_VERR`, uniform per axis | `VERR 0` | none | ArduPilot |
 | `gnss.delay` | `SIM_GPSn_LAG_MS`, 100 ms stock | `LAG_MS 0` | none | ArduPilot |
 | `battery.voltage` | nothing: the analog chain divides and multiplies by 10.1 | none | `json:battery.voltage` | nobody |
 | `battery.current` | nothing: the analog chain divides and multiplies by 17 | none | `json:battery.current` | nobody |
 
 The catalog records the source facts behind each row, read from the pinned
-files `SIM_GPS.cpp`, `SIM_Compass.cpp`, `AP_InertialSensor_SITL.cpp`,
+files `SIM_GPS.cpp`, `AP_Compass_SITL.cpp`, `AP_InertialSensor_SITL.cpp`,
 `SIM_JSON.cpp`, `SITL_State_common.cpp`, `AnalogIn.cpp`,
 `AP_HAL/board/sitl.h`, `AP_BattMonitor_Analog.cpp` and `AP_Math.cpp`.
 `SIM_GPSn_*` parameters are built under `#if AP_SIM_GPS_ENABLED`, which the
@@ -6038,15 +6052,26 @@ in the line. The bridge validator requires finite numbers in it.
 
 ### Ownership mapping 2
 
-`SENSOR_OWNERSHIP_MAPPING_VERSION` is 2. Mapping 1 (TASK-143) is the record of
-what TASK-143 shipped; mapping 2 replaces it for every resolution.
+`SENSOR_OWNERSHIP_MAPPING_VERSION` is 4. Mapping 1 (TASK-143) is the record of
+what TASK-143 shipped; mapping 2 replaced it for every resolution, mapping 3
+(TASK-198, decision D-01) replaced mapping 2, and mapping 4 (TASK-117, the
+stakeholder's decision of 2026-11-07) replaces mapping 3. Mapping 3 locked
+`gnss.horizontalSigmaM`, since ArduCopter V4.7.2 has no horizontal GNSS error.
+Mapping 4 makes it MirageSITL's, with no TASK-089 source: in specified mode the run
+controller streams an east and a north first-order Gauss–Markov wander of that
+standard deviation and a 60 s correlation time (`HorizontalWander`, seeded by the
+profile version's SHA-256) into `SIM_GPS1_GLTCH_X` and `_Y`, with the GNSS effects of
+TASK-117, and the Run tab admits it while it still refuses the other MirageSITL-owned
+errors. A preset fills it again. Experiment records keep the mapping they were made
+with, and both 3 and 4 read. What this section says of mapping 2 otherwise holds for mapping 4.
 
 | Owner | Fields | Source and delivery |
 |---|---|---|
 | MirageSITL | IMU noise densities, biases, position, latency and orientation | the five mapping 1 sources, `imu.latency`, `imu.misalignment`; JSON IMU vectors |
 | MirageSITL | Battery voltage and current gain, offset and noise | `battery.voltage`, `battery.current`; JSON battery section |
 | ArduPilot SITL | Barometer noise, bias and latency; magnetometer noise and bias | as in mapping 1 |
-| ArduPilot SITL | GNSS rate, horizontal and vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| ArduPilot SITL | GNSS rate, vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| MirageSITL | GNSS horizontal position error (mapping 4) | no source; the run controller's stream into `SIM_GPS1_GLTCH_X`, `_Y` |
 | Locked | Magnetometer position | no source: a uniform Earth field reads the same anywhere on the airframe |
 | ArduPilot SITL, locked | Magnetometer orientation | `mag.misalignment`: `SIM_MAGn_ORIENT` takes only discrete 45° rotations and MirageSITL delivers no magnetometer data on `native-json`; a small misalignment needs a firmware change (D-10) |
 
@@ -6078,7 +6103,7 @@ ArduPilot-owned values; a name that would receive two values fails the call.
 | Magnetometer noise σ (G) | `SIM_MAG_RND` | √3·1000·σ mG |
 | Magnetometer bias b (G) | `SIM_MAGn_OFS_{X,Y,Z}` | COMPASS_OFSn − 1000·b mG; Ideal writes b = 0 |
 | GNSS rate (Hz) | `SIM_GPSn_HZ` (GPS1, GPS2) | the rate |
-| GNSS horizontal σ (m) | `SIM_GPSn_HNSE` | √2·σ: a circle of radius r gives r/√2 per axis |
+| GNSS horizontal σ (m) | none: V4.7.2 has no horizontal error | a stored value is kept and not applied |
 | GNSS vertical σ (m) | `SIM_GPSn_NOISE` | √2·σ: a sine of amplitude A gives A/√2 |
 | GNSS velocity σ (m/s) | `SIM_GPSn_VERR_{X,Y,Z}` | √3·σ, the half-width of uniform noise |
 | GNSS latency (µs) | `SIM_GPSn_LAG_MS` | latency/1000 ms |
@@ -6183,7 +6208,9 @@ adds the stock terms without a value and, while a GNSS position error is set,
 the receiver's deterministic wander. The hard-iron pairing is no longer a
 residual: the capture shows it nets to zero. Sensor snapshot 2
 (`SENSOR_SNAPSHOT_VERSION`) adds the residual texts to the experiment record
-and carries mapping 2 and its schema 3 matrix.
+and carries mapping 2 and its schema 3 matrix. Snapshot 3 (TASK-198) carries mapping 3
+and the changed wander text, and an experiment recorded with snapshot 2 is refused
+with a reason that names both.
 
 ### Verification (TASK-147)
 
@@ -6197,6 +6224,232 @@ checks mapping 2, the parameters against their formulas, the barometer slope
 against a finite difference of ArduPilot's atmosphere and the IMU mount;
 `tests/integration/sitl-sensors.test.ts` breaks each audit check once. The
 roadmap entry records the native captures.
+
+## Barometer v2 (TASK-116)
+
+The pressure errors that dominate barometric altitude near the ground and in fast flight. The
+stock ArduCopter V4.7.2 SITL takes no barometer reading from outside: SIM_JSON has no barometer
+field, and in the simulator build `AP_Baro::init` returns after creating its SITL barometers,
+before it would probe an MSP barometer (checked in the pinned source and in a test run). By the
+stakeholder's decision of 2026-11-07 the errors therefore reach ArduPilot as its own barometer
+offset: the physics session works them out every step, samples their sum every tenth of a
+second of simulated time, and the run controller writes `SIM_BAROn_GLITCH` of each simulated
+barometer (`SIM_BARO_COUNT`) through the parameter service. A test run moved ArduPilot's pressure
+by −22 Pa for a 2 m offset.
+
+```text
+Δp = Σ_j C_j(sign u_j)·½ρ·u_j²            position error, u the vehicle's air velocity in body axes
+   + k·q_i·exp(−z/(λ·R̄))                  ground cushion, q_i = T/(4A)
+   + c·q_i                                 prop wash
+   + r·(t − t_on) + κ·(T − T_on)           drift
+   + (τ/3600)·(t − t_on)                   weather pressure trend
+SIM_BAROn_GLITCH = held + Δp·dh/dp(home)
+```
+
+q_i is ½ρv_i² with the hover induced velocity v_i = √(T/(2ρA)) of momentum theory, for the
+rotors' total thrust T and disc area A, so ρ cancels. The position error has the form of
+ArduPilot's own `SIM_BAROn_WCF_*`. The cushion's exponential shape and its two constants are a
+modelling choice; logged takeoff and landing dips would fit them. Drift and trend accumulate from
+the tick their effect goes on. The static port is taken at the CG. Noise and sensor delay stay
+ArduPilot's (`SIM_BAROn_RND`, `SIM_BAROn_DELAY`, set from the Sensors tab), and the stream adds to
+the Sensors tab's bias, which `SIM_BAROn_GLITCH` already holds. Each write replaces the one before
+it; the run counts them (`barometerOffset`) rather than listing each, and ArduPilot's own log has
+every one as a PARM record.
+
+The five effects (`EFFECT_CATALOG`, family `barometer`, `packages/physics/src/barometer.ts`):
+
+| Effect | Parameters | Intensity multiplies |
+| --- | --- | --- |
+| `baro.position-error` | `positiveCoefficient` (forward, right, down) and `negativeCoefficient` (back, left, up), each −2..2 | every C |
+| `baro.ground-cushion` | `gain` k 0..10, `decayRadii` λ 0.1..10 rotor radii | k |
+| `baro.prop-wash` | `coefficient` c −2..2 | c |
+| `baro.drift` | `ratePaPerS` −10..10 Pa/s, `temperaturePaPerK` −100..100 Pa/K | both |
+| `baro.pressure-trend` | `trendPaPerHour` −1000..1000 Pa/h | τ |
+
+They need a link to ArduPilot (`delivery.attached`) and a run whose parameters the controller
+may write; otherwise they are refused by name. `BarometerErrors.step` neither takes nor returns a
+double, since V8 boxes doubles across a call it does not inline: the first allocation probe found
+63 bytes a step that way.
+
+Checks, limits set before the first run: `tests/barometer.test.ts`, 6 passed, every effect against
+its closed form within 1e-12 relative, off computing nothing, and the offset as TASK-147 converts
+the bias. `tests/effect-controls.test.ts`, 8 barometer tests passed through the real session: off
+and intensity 0 bitwise identical to absent and sampling nothing, on sampled on the expected ticks
+(8 samples from tick 5 to 280 at 400 Hz) and once more, as 0, when it goes off; the inputs filled
+from the step; refused without a link. `tests/run-controller.test.ts`: the stream writes the held
+value plus Δp·dh/dp to both barometers, nothing for an unchanged error, and the held values when
+the last effect goes off. `node scripts/check-bet-runtime.mjs --allocation`, exit 0, with all five
+effects among the session graph's commands: 1,848 bytes over 1,000,000 steps, no collections.
+`tests/browser/barometer-ground-effect.spec.ts`, 1 passed: the quad X flies twice with native
+ArduCopter V4.7.2 through the application alone, `GND_EFFECT_COMP` written to 1 and to 0 on the
+Parameters tab and the cushion (k 1.5, λ 2) applied on the Faults tab before take-off; in its
+DataFlash logs, while within 1 m of the ground, the barometer read 1.83 m and 1.82 m low and the
+EKF's worst height error was 0.13 m with the compensation and 0.39 m without.
+
+### Logged dips (TASK-116, 2026-11-07)
+
+The comparison with logged dips uses the real ArduCopter logs of `data/flight-logs/inventory.json`
+(stakeholder's decision of 2026-11-07), kept outside the repository and checked by SHA-256.
+`measureBarometerDips` (`packages/analysis/src/barometer-dips.ts`) finds each motor start and stop
+in a log and measures the barometer's excess pressure around it against a height reference that
+does not use the barometer:
+
+```text
+Δp(t) = p_baro(t) − (p_ref − ρ·g·(h_gnss(t) − h_ref))      ρ = p_ref / (R_d · 288.15 K)
+```
+
+p_ref and h_ref are the means of the barometer and GNSS altitude over the motors-off window: the
+4 s before a start (from −4.5 s to −0.5 s) or after a stop (from +1 s to +5 s). An event counts only
+when the throttle (`CTUN.ThO`) stays at or below 0.05 over that whole window, the window holds at
+least 10 barometer samples, and the GNSS height at the start or stop is within 0.5 m of h_ref, so
+the vehicle is on the ground; otherwise the event is listed as skipped with its reason. The
+measured samples are those with the motors on (`ThO` above 0.05) in the 15 s after a start or
+before a stop. The GNSS altitude (`GPS.Alt` of the first receiver) is interpolated linearly to the
+barometer's times. The air temperature of the hydrostatic correction is not logged and is taken
+as 288.15 K, which moves a 1 m correction by about 0.4 % per 1 K. The sample noise is the standard
+deviation of the barometer in the motors-off window. The near-ground excess is the mean Δp of the
+samples within 0.3 m of h_ref.
+
+The cushion is fitted to the landings, where the thrust is close to the weight, so q_i = m·g/(4A)
+from the owner's stated mass and the rotor count and radius: the samples of the 15 s before each
+stop with heights from 0 to 2 m (heights below 0 clipped to 0) are fitted by least squares with
+
+```text
+Δp = q_i · (k_e · exp(−h / (λ·R)) + c)
+```
+
+for λ on a grid of 200 log-spaced values from 0.1 to 10 (the effect's range) and k_e, c linear at
+each λ. h is the height above the landed position, so k_e = k·exp(−z₀/(λR)) for a static port z₀
+above the ground when landed. The prediction for a held-out log runs the model itself,
+`BarometerErrors` with the ground-cushion and prop-wash effects at the fitted k_e, λ and c, on the
+held-out log's measured heights.
+
+Declared before the first comparison: a held-out landing's near-ground excess is reproduced when
+the prediction is within 5 Pa or 30 % of the measured one, whichever is larger. 5 Pa is about two
+standard deviations of one barometer sample in these logs (about 2 Pa) and 0.4 m of altitude, and
+30 % covers the stated masses and the GNSS height's lag. Hold-out pairs, of one configuration each:
+`tmotor-230kv-24in-6kg` fitted on 00000148 and held out on 00000280; `p80iii-kv100-30in-16kg`
+after its flight controller was remounted (00000014 onwards) fitted on 00000014 and 00000016 and
+held out on 00000017, 00000023 and 00000025. The other logs are measured and fitted only.
+`node scripts/check-baro-dips.mjs --dir DIRECTORY` checks every file's SHA-256 against the
+inventory, writes `test-results/validation/logged-baro-dips.json` and exits 0 when every hold-out
+is reproduced, 1 when one is not or a file differs, and 2 without the directory.
+
+One rule was added after the first run, because its event list showed it was missing: a start or
+stop counts only when the vehicle flew, that is a measured sample at least 1 m above h_ref
+(`minFlightHeightM`); motor spin-ups on the ground with the throttle above 0.05 had been counted
+as landings. It changed the fits of the 16 kg aircraft and no held-out verdict.
+
+Result (2026-11-07, `node scripts/check-baro-dips.mjs`, exit 1; `tests/barometer-dips.test.ts` 3
+passed): the dips are real and differ by aircraft. Near-ground excess and fit per configuration
+(k_e, λ, c; q_i from the stated mass):
+
+| Configuration | q_i, Pa | Events (skipped) | Near-ground excess, Pa | k_e | λ | c | Fit RMS, Pa |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `mn7005-kv230-24in-7.2kg` | 15.1 | 2 (0) | 8.1 takeoff, 6.6 landing | 0.79 | 0.75 | −0.27 | 3.4 |
+| `tmotor-230kv-24in-6kg` | 12.6 | 4 (4) | 7.3 to 12.9 | 7.69 | 1.25 | −1.05 | 9.1 |
+| `tmotor-7005-230kv-24in-7kg` | 14.7 | 2 (0) | 20.8 takeoff, 15.9 landing | 2.20 | 0.78 | −0.40 | 3.6 |
+| `mn7005-kv115-24in-12s` | not stated | 2 (0) | −1.4, −0.2 | | | | |
+| 16 kg, first mount (00000011) | 18.4 | 5 (7) | 11.6 to 27.6 | 2.53 | 0.67 | −0.34 | 4.6 |
+| 16 kg, remounted (00000014 on) | 21.5 | 12 (10) | −4.1 to 2.4 | 0.26 | 0.17 | −0.06 | 3.7 |
+
+Hold-outs: the remounted 16 kg aircraft is reproduced on all three held-out landings (measured
+1.65, −2.65, 0.23 Pa; predicted −0.91, 1.26, −0.56 Pa). The 6 kg aircraft is not: its held-out
+landing measured 10.43 Pa and the fit predicted 52.35 Pa. The fit's one landing had a single sample
+within 0.3 m of the ground, because the GNSS height still read about 0.4 m while the barometer
+showed the touchdown, so the exponential was extrapolated to the ground from above 0.3 m (k_e 7.7,
+RMS 9.1 Pa). The same aircraft before and after its flight controller was remounted shows a near-
+ground excess of 12 to 28 Pa and then of −4 to 2 Pa: where the barometer sits decides the dip, so no
+constant fits every aircraft and the cushion's gain belongs to the aircraft's configuration. The
+four determined fits give k_e from 0.26 to 2.5 and λ from 0.17 to 0.78; the effect's defaults (k 1,
+λ 1) lie within that spread of gains.
+
+## GNSS v2 (TASK-117)
+
+GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the
+atmosphere and jamming (`packages/sensors/src/gnss.ts`). By the stakeholder's decision of
+2026-11-07 they reach ArduPilot as its own simulated receiver's parameters, written by the run
+controller every 0.2 s of simulated time, off the physics Worker: `SIM_GPS1_GLTCH_X` and `_Y`, the
+latitude and longitude offsets in degrees, `_Z` in metres, `SIM_GPS1_NUMSATS`, `SIM_GPS1_ACC` and,
+without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own rate, lag and noise.
+
+* Orbits: the almanac propagation of IS-GPS-200 Table 20-VI (μ = 3.986005e14 m³/s², Ω̇e =
+  7.2921151467e-5 rad/s). The constellation is synthetic, the Walker 24/6/1 pattern at 55° on
+  circular orbits of half a sidereal day, not any day's orbits; `parseYumaAlmanac` reads a real
+  almanac once one is stored (its download from navcen.uscg.gov timed out on 2026-11-07).
+* Geometry: elevation and azimuth of each satellite above the mask, and Q = (GᵀG)⁻¹ of the rows
+  [−e_E, −e_N, −e_U, 1] for the dilutions.
+* Ionosphere: the Klobuchar model of IS-GPS-200 20.3.3.5.2.5 with RTKLIB's default broadcast set;
+  the receiver removes it with the same model, so a stated fraction remains. Troposphere: the
+  Saastamoinen delays of a standard atmosphere at 70 % humidity, mapped by 1/cos z; likewise.
+* Terrain: a line of sight marched over the run's terrain lattice; a blocked satellite is lost, or
+  tracked as non-line-of-sight with an excess path. On the synthetic pad nothing is hidden.
+* Jamming: (C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c) against an open sky of 45 dB-Hz at the zenith
+  and 35 at the horizon; below the tracking threshold a satellite is lost.
+* Position error: δx = (GᵀG)⁻¹Gᵀδρ of the remaining biases in local east, north, up; the reported
+  accuracy is σ·HDOP.
+
+| Effect | Parameters | Intensity multiplies |
+| --- | --- | --- |
+| `gnss.constellation` | `maskDeg` 0..30°, `uereM` σ 0.1..30 m | σ |
+| `gnss.atmosphere` | `ionosphereResidual` 0..2, `troposphereResidual` 0..2 | both |
+| `gnss.terrain` | `nlosExcessM` 0..200 m | the excess |
+| `gnss.jamming-budget` | `jammingToSignalDb` −30..80 dB, `spectralSeparation` Q 1..2, `thresholdDbHz` 15..40 | J/S (by 10·log10 i dB) |
+
+GNSS effects and `ew.gnss-jamming` write the same receiver parameters, so each is refused while
+the other is on. The stream also carries the Sensors tab's horizontal GNSS error (mapping 4):
+a seeded first-order Gauss–Markov wander per horizontal axis, x ← φ·x + σ·√(1 − φ²)·w with
+φ = e^(−Δt/60 s), added to the solution's east and north error; the 60 s correlation time is a
+modelling choice that logged open-sky data would fit. `tests/gnss-errors.test.ts` holds its
+variance within 5 % of σ² and its lag-one correlation within 0.005 over 1,000,000 steps, and
+`tests/run-controller.test.ts` its writes every 0.2 s, of metres, repeated by the same profile.
+
+Checks, limits set before the first run: `tests/gnss-errors.test.ts`, 12 passed: the dilutions of
+one satellite at the zenith and three on the horizon (HDOP = VDOP = √(4/3), TDOP = √(1/3), GDOP =
+√3) within 1e-9; a common bias goes into the clock and a zenith bias moves the fix down by itself;
+a circular orbit against an independent rotation within 1e-6 m and half a sidereal day; the
+Klobuchar floor and peak; the Saastamoinen dry zenith delay 2.3070 m; the jamming budget 20.08
+dB-Hz; a ridge hiding a satellite at 20° and not at 30°; on the synthetic sky four to twelve
+satellites through a day, an atmosphere error linear in its residual and mostly vertical, a wall
+losing or reflecting the eastern sky, and a jammer losing the fix. `tests/run-controller.test.ts`:
+off writes nothing; on, the count and σ·HDOP as an independent solution gives them, offsets for
+the atmosphere, the lock held off by a jammer, the held values back when every effect is off, and
+GNSS jamming refused meanwhile. Not yet: a real almanac or broadcast ephemeris, the multipath
+envelope and C/N0-dependent noise, the receiver's own latency and rate, jamming from EW zones
+(`packages/ew/src/engine.ts`), a native SITL flight with the stream, and the comparison with
+logged open-sky and urban statistics (BLOCKED_EXTERNAL).
+
+### Logged receiver statistics (TASK-117, 2026-11-07)
+
+The real ArduCopter logs of `data/flight-logs/inventory.json` (stakeholder's decision of
+2026-11-07) hold what each first receiver reported: its fix type (`GPS.Status`), satellites,
+HDOP and its own accuracy estimates (`GPA.HAcc`, `VAcc`, `SAcc`). They do not hold its position
+error: that needs a reference position, and the logs record GNSS only while armed, apart from 157 s
+before the first take-off of one log, too short for a correlation time of a minute. The position-
+error statistics of the DoD therefore stay BLOCKED_EXTERNAL, and no limit applies to what follows.
+`gnssLogStatistics` (`packages/analysis/src/gnss-statistics.ts`) gives nearest-rank 5th, 50th
+and 95th percentiles of the epochs with a 3-D fix or better, and the GNSS v2 model's geometry at the
+same positions and GPS times (`gnssSolution` on the synthetic Walker 24/6/1 constellation with the
+`gnss.constellation` defaults, mask 10° and σ 1.5 m, one solution per 10 s). TimeUS and GMS are read
+in their stored units whatever FMTU scales them to. `node scripts/check-gnss-stats.mjs --dir
+DIRECTORY` checks every file's SHA-256 and writes `test-results/validation/logged-gnss.json` without
+any position; exit 0 REPORTED, 1 for a missing or different file, 2 without the directory.
+
+Result (2026-11-07, exit 0; `tests/gnss-log-statistics.test.ts` 2 passed), medians:
+
+| Receiver (logs) | Satellites | HDOP | HAcc, m | VAcc, m | Model satellites | Model HDOP | Model σ·HDOP, m |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CubePilot Here4 (6 logs, SBAS) | 31 to 32 | 0.46 to 0.50 | 0.22 to 0.27 | 0.38 to 0.47 | 6 to 8 | 0.88 to 1.35 | 1.33 to 2.02 |
+| CUAV Neo 3 Pro (2 logs) | 24, 29 | 0.56, 0.48 | 1.47, 0.80 | 1.99, 1.16 | 6, 7 | 1.13, 1.11 | 1.70, 1.66 |
+| not stated (00000218) | 30 | 0.47 | 0.70 | 1.18 | 8 | 0.98 | 1.47 |
+| not stated (KV115 aircraft) | 15 | 0.66 | 0.66 | 1.15 | 7 | 0.99 | 1.49 |
+| NMEA receiver (00000205) | 28 | 0.60 | 1.52 | 2.04 | 8 | 0.88 | 1.31 |
+
+The real multi-constellation receivers track four to five times the satellites of the synthetic
+GPS-only sky and report about half its HDOP; the Here4 reports a horizontal accuracy six to seven
+times smaller than the model's default σ·HDOP. The NMEA receiver of 00000205 reported 28 satellites
+and HDOP 0.60 at every one of its 26,487 epochs: values it held, not measurements. A real
+multi-constellation almanac and a receiver-class σ are what the comparison asks for.
 
 ## Electromechanical drive (TASK-092)
 
@@ -6464,6 +6717,47 @@ the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
 
+## Motor and ESC v2 (TASK-105)
+
+The first increment, in the native kernel (`native/bet/src/motor.rs`, `native/bet/src/esc.rs`),
+not yet in the flight path:
+
+```text
+L·di/dt = v − R(T_w)·i − k(T_m)·Ω          i(t) = i∞ + (i₀ − i∞)·e^(−t/τ),  τ = L/R,  i∞ = (v − k·Ω)/R
+R(T) = R₂₀·(1 + 0.00393·(T − 20 °C))       k(T) = k₂₀·(1 + β·(T − 20 °C)),  β = −0.0012 /K (NdFeB)
+C_w·dT_w/dt = P_cu − (T_w − T_h)/R_wh
+C_h·dT_h/dt = P_fe + (T_w − T_h)/R_wh − (T_h − T_air)·(1 + c·V)/R_ha
+```
+
+`InductiveMotor` integrates the current exactly with v and Ω held over a step, i∞ bounded by the
+ESC's current and brake limits, and gives the mean current, torque k·⟨i⟩ less the no-load torque
+k·I₀, the copper loss R·⟨i²⟩ and the iron loss k·I₀·Ω. `MotorThermal` integrates the two-node
+network exactly through the closed-form exponential of its 2×2 matrix. `EscShaper` takes the
+autopilot's command through the ESC: DShot's 2000 throttle steps (values 48 to 2047) or PWM at the
+timer step, frames at the ESC's rate arriving a fixed number of frames late, a ramp limit, and a
+start duty below which a stopped motor stays stopped. Desynchronization is not modelled.
+
+Motor speed reaches ArduPilot's ESC telemetry (for `INS_HNTCH_MODE 3`) only through the browser
+build, by the stakeholder's decision of 2026-11-07: the native SITL's JSON link has no field for it.
+HAL mailbox version 2 (`native/ardupilot/hal/browser_hal.h`) carries 16 f64 rev/min at byte 896 by
+firmware output channel, their channel mask in header word 13, and `sitl-state.patch` copies them to
+`fdm.rpm` and `fdm.motor_mask`, which `AP_ESC_Telem_SITL` reads. `WasmSitlCoupling` fills them from
+the dynamics' power telemetry, the magnitude for a reversed rotor; a motor on output channel 16 or
+higher has no slot.
+
+Checks, limits set before the first run: `cargo test -p mirage-bet --test motor --test esc`, 11
+passed: the current against the analytic RL step within 1e-12 and its mean against Simpson's rule
+within 1e-9; the power identity v·⟨i⟩ = R·⟨i²⟩ + k·Ω·⟨i⟩ + L·(i₁² − i₀²)/(2·dt) within 1e-9; the
+steady state, the temperature laws and the current and brake limits; the thermal network against
+an independent RK4 integration within 1e-6 K, one 600 s step equal to 600 steps of 1 s, and its
+steady state; DShot's values, PWM's timer step, the latency in frames, the ramp's 200 steps and the
+start duty. `tests/wasm-hal.test.ts`, 9 passed, with the speeds in their channels' slots, a bad
+speed refused whole and version 1 firmware refused. Native HAL exchange of version 2 frames for
+1,000,000 steps at 400, 800 and 1200 Hz without a fault, compiled on the Mac without its allocation
+counter (the probe's `--wrap=malloc` needs GNU ld). Not yet: the models in the bound-rotor drive and
+the flight, a rebuilt WASM firmware and the notch-tracking check with it, and thrust-stand
+temperature runs (BLOCKED_EXTERNAL).
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of
@@ -6483,8 +6777,9 @@ moves the level of its static loads to the bench and keeps their dependence on
 inflow, advance ratio, density and Reynolds number; (2) the two scales are what
 the two measured curves, thrust and torque versus RPM, can set: a static bench
 cannot identify more free parameters, and RPM-dependent factors would fit the
-noise; (3) the table mode of TASK-103 does not exist yet. Scales are confined to
-0.25 to 4: beyond them the polar, not its level, is wrong.
+noise; (3) the table mode of TASK-103 did not exist when this was decided, and a table from a
+stand still flags every flight in moving air. Scales are confined to 0.25 to 4: beyond them the
+polar, not its level, is wrong.
 
 **The static solve** (`staticLoads`, `packages/physics/src/propulsion-calibration.ts`)
 gives the BET rotor's thrust and torque at each bench speed in still air at the
@@ -6617,6 +6912,49 @@ density band flags every other window; over 1,000,000 steps it allocates
 nothing (0 GCs, the measurement's own 4,640 B) with the flag on in 500,000. A
 real bench file (G4) is still to be fitted and its residuals shown before
 measured mode is called working.
+
+### Manufacturer data (2026-11-07)
+
+By the stakeholder's decision of 2026-11-07 the first real bench data are T-Motor's own datasheet
+table for MN7005 KV230 with the P24*7.2" CF propeller, from an image posted on the ArduPilot forum
+(`data/flight-logs/inventory.json`, bench table `tmotor-datasheet-mn7005-kv230-p24x72`): manufacturer
+data, not a measurement of ours, with the stand and the air unstated. Its eleven rows (40 to 60 %
+throttle) are transcribed into `tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv`: thrust
+from grams by 9.80665 m/s², torque and current as printed, the assumed air density 1.225 kg/m³,
+the table's nominal 24 V as the supply, and each row's voltage as the table's power over its
+current, so V·I reproduces the printed power (the table has no voltage column). The table's
+neighbour for MN6007 II KV320 is not transcribed: its first row belongs to another propeller.
+The cards (`tmotor-mn7005-kv230.json`, `tmotor-p24x72.json`, `tmotor-alpha-40a.json`,
+`battery-6s-42ah-forum-144558.json`) name a source for every value: the datasheet table, T-Motor's
+product pages read on 2026-11-07 (71 mΩ and 188 g with the cable, idle 0.9 A at 22 V, 28 A and
+700 W over 180 s; propeller two blades and 56 ± 2 g), the owner's posts and the log's own battery
+thresholds (MOT_BAT_VOLT_MAX 24.6 V, MOT_BAT_VOLT_MIN 16.8 V); unknown values are null.
+`tests/fixtures/aircraft/tmotor-mn7005-quad.json` is the forum aircraft's quad X at its stated
+7.2 kg with assumptions: arm length 0.5 m, inertia 0.25, 0.25 and 0.48 kg·m² (four 0.4 kg motor
+and propeller masses at 0.5 m and a 5.6 kg central box of 0.3 × 0.3 × 0.15 m), CG at the centre and
+0.3 m ground clearance.
+
+`tests/tmotor-bench-fit.test.ts` (1 passed) fits the data on the rotor this profile builds from the
+propeller card (derived BET geometry, NACA6409 polar) with the motor at the card's KV 230: lift
+×0.474, drag ×1.249 in 7 iterations; RMS thrust residual 0.69 N and torque 0.020 N·m; motor
+R 0.132 Ω and I₀ 0.889 A with an RMS electrical residual of 1.45 W; envelope 2023 to 2835 rpm at
+1.225 kg/m³. The residuals run from −7.4 % of thrust at 2023 rpm to +3.8 % at 2835 rpm: the table's
+thrust coefficient falls from 0.0717 to 0.0647 over that range, which a scaled polar on a fixed
+geometry does not follow. The fitted R is above the 71 mΩ of the product page because the fit's
+lossless ESC leaves the ESC's losses to the motor.
+
+A calibration belongs to its motor's combination, whose supply is the profile's battery card
+(TASK-140), and T-Motor's stand did not run on the owner's battery. By the stakeholder's decision
+of 2026-11-07 ("Yes, allow it") a set on a laboratory supply binds to the motors with its motor,
+propeller and ESC cards whatever the battery (section "Calculation modes and measurement sets v1"),
+so the T-Motor set is stored on a laboratory supply; `calibrateMotor` accepts a set of the motor's
+exact or laboratory combination and records the motor's own combination key. The second test of
+`tests/tmotor-bench-fit.test.ts` (2 passed) calibrates, stores and binds it through the store
+(schema 6, all four rotors calibrated, the bench data a `measured` dataset dated 2026-07-28), and
+the second test of `tests/browser/propulsion-calibration.spec.ts` (2 passed in Chromium) does it in
+the Components tab: lift ×0.47.., drag ×1.24.., eleven residual rows, the envelope 2023 to 2835 rpm,
+version 2 saved and every motor calibrated after a reload. Measured mode works on real data; the
+data are the manufacturer's, and the user judges how far to trust them.
 
 ## Profile-driven dynamics (TASK-144)
 
@@ -6860,101 +7198,13 @@ dot product turns the published quaternion's rounding into 10⁻⁴ rad.
 lockstep steps at 400 Hz with 0.00404 B/step and no GC event, the quad on its
 feet throughout, and the contact faults the session on any native allocation.
 
-### Described landing gear (TASK-194)
-
-By the user's request of 2026-11-07, the separate approval that the Phase 1
-disposition of TASK-194 asked for, a profile may describe its landing gear in
-place of the standard supports. Aircraft profile schema 7 is schema 6 with an
-optional `landingGear` section (and an empty list of propulsion calibrations
-allowed); a profile is schema 7 exactly when it has a section of its own
-airframe, so a profile without one keeps its schema and derives the bytes it
-did, and the derivation version stays 6.
-
-The section holds the gear's kind, `legs`, `skids` or `wheels`; the bottom of
-each foot or wheel with the struts fully extended (`feetBodyM`, body FRD metres
-from the reference point; three to eight, and for skids an even four to eight,
-skid i running from support 2i to support 2i + 1) and the source of those
-positions; and one set of values for every support, each known with its source
-(1 to 96 characters) or not known with neither. A value that is not known is
-never written into the profile: the derivation applies the standard gear's
-rule for it (`packages/aircraft/src/profile-gear.ts`) and names it as assumed.
-With N supports and the vehicle mass m (the payload included), each support's
-share is m/N and the rules are:
-
-| Value | Rule when not known | Source |
-| --- | --- | --- |
-| Strut and foot stiffness | Pair k = m·g/(N·δ_s), δ_s = 5 mm; the foot 10·k and the strut 10/9·k; a stated strut alone gives the foot 9 times it; a stated foot alone gives the strut 1/(1/k − 1/k_foot) | F-08, TASK-095 |
-| Strut damping | 2·ζ·√(k_pair·m/N), ζ = 0.7 | F-08 |
-| Strut travel | Five static deflections of the pair under the support's share | TASK-095 |
-| Foot radius, rim radius | 0.01 m; the rim half the foot | TASK-095 |
-| Unsprung mass | 1 % of the support's share | TASK-095 |
-| Static and kinetic friction | 0.6 and 0.5; one stated coefficient gives the other in the ratio 5/6 | F-08 |
-| Rolling coefficient | None: wheels need it, legs and skids have none | — |
-
-Each support becomes one manifest `landingGear` entry in profile order: its
-anchor the foot's centre (the bottom less the foot radius), the strut linear
-with the same damping in compression and rebound, the foot's load curve
-linear to rim contact, the tyre damping 2·ζ·√(k_foot·unsprung). Legs and skids
-slide alike in every direction (rolling, lateral and braking coefficients the
-static friction); wheels roll along their heading on their rolling
-coefficient, since the contact's longitudinal friction is
-μ_rolling + (μ_braking − μ_rolling)·b and no multirotor gear brakes. The
-provenance of `landingGear` is the synthetic dataset
-`aircraft-profile-landing-gear`, whose source SHA-256 is the profile's
-canonical SHA-256 and whose text lists every stated value with its source and
-every assumed value; the standard gear's dataset is then absent.
-
-A gear is refused, with its reason, when the CG seen from above lies outside
-the support polygon of the feet (with a 1 µm margin; three feet on one line
-have none), which is how the DoD's "a foot outside every support polygon" is
-read; when a strut travel is zero; when a rim is not inside its foot (with the
-standard values where one is not known); when the kinetic friction exceeds the
-static; when the unsprung mass reaches a support's share; when a foot
-stiffness alone is not above the standard pair stiffness; when wheels lack
-their rolling coefficient or legs and skids state one; when a value lacks its
-source or a source its value; and when a ground clearance is stated beside it,
-since the resting height then follows from the gear. TASK-195's ground check
-rests the aircraft on the described gear, level and each support carrying an
-equal share: the mean foot depth less the strut's compression under the share
-minus its foot and the foot's under the whole share.
-
-The Aircraft tab's Landing gear section (`apps/web/src/aircraft/LandingGear.tsx`)
-describes it: the kind, a row per support, where the positions come from, and
-a value and a source for each value beside its standard rule and the value
-flown, marked when assumed. The ground clearance field is disabled while a gear
-is described. The 3D scheme draws the feet at their bottom points, a strut
-from the reference plane down to each, the skid runners and the wheels, and
-lists the supports. The editor form also keeps a profile's propulsion
-calibrations (TASK-145) through a save, which dropped them before.
-
-**Verification.** `tests/aircraft-profile.test.ts` holds the derivation to the
-rules computed in the test from the stated values (a 1500 N/m strut gives a
-13,500 N/m foot, damping 2·0.7·√(k_pair·0.375 kg), a 6 mm rim, a 3.75 g foot),
-the dataset text to every stated value with its source and every assumed one,
-a fully stated gear of wheels to its own coefficients and none assumed, and
-fifteen gears to their refusals; the five S19 fixtures still derive their
-recorded bytes. `tests/profile-dynamics.test.ts` flies a quad X with its CG
-centred on legs, skids and a tricycle of wheels whose centroid is the CG: each
-comes to rest within 0.1 mm of rigid-plate statics on the manifest's supports
-(`tests/support/standard-gear.ts`) at 400, 800 and 1200 Hz for the legs and
-400 Hz for the others, takes off on equal motor commands, lands and rests
-there again within 0.1 mm, tilting less than 2 degrees and with no hull or
-propeller contact. `tests/aircraft-clearance.test.ts` holds the resting height
-on a gear to its closed form and puts the body on the ground on a gear too
-short for it. `tests/browser/aircraft-editor.spec.ts` describes a gear through
-the UI alone, sees zero travel, a rim outside its foot and a CG outside the
-support polygon refused with their reasons, finds each drawn foot where the
-profile puts it, and flies the saved version in the physics Worker on the
-example cards: rest within 1 mm of the statics height, a climb of a metre, a
-landing back at that height and less than 2 degrees of tilt on equal pilot
-throttle.
-
 ### Standard hull and propeller discs
 
-Aircraft profiles give no body or arm size. By the user's decision of
-2026-11-01 (TASK-095 increment 4) derivation 4 works the frame out from the
-arms and propellers, marked not measured, and body size fields are a later
-task (TASK-196); the propeller clearance check that blocks a run, with a
+A profile that gives no body or arm size flies the standard hull. By the
+user's decision of 2026-11-01 (TASK-095 increment 4) derivation 4 works the
+frame out from the arms and propellers, marked not measured; a profile that
+describes its body (schema 7, TASK-196) flies that body instead (section
+"Described body (TASK-196)"); the propeller clearance check that blocks a run, with a
 previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 (`packages/aircraft/src/standard-hull.ts`, rules version 1, synthetic dataset
 `standard-hull`) is:
@@ -6967,8 +7217,7 @@ previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 A 10 in quadcopter on 0.225 m arms gets a body 0.11 m across and 0.045 m tall
 and arms 13 mm thick; an octocopter with 44 in propellers on 1.25 m arms a body
 0.63 m across and 0.25 m tall and arms 56 mm thick. A body that hangs low, or a
-pod below it, is a profile's described body (section "Described body
-(TASK-196)").
+pod below it, needs the described body of TASK-196.
 
 `buildProfileDynamics` adds one propeller disc per rotor: a cylinder at the hub
 about its thrust axis, its radius the rotor's and half its thickness 0.025 times
@@ -7003,62 +7252,69 @@ at all three rates.
 
 ### Described body (TASK-196)
 
-By the user's request of 2026-11-07, the separate approval that the Phase 1
-disposition of TASK-196 asked for, profile schema 7 (section "Described landing
-gear (TASK-194)") also takes an optional `body` section in place of the
-standard hull, with or without a described gear. It holds the central body as
-a cylinder about the body z axis (`radiusM`, `halfHeightM`, and `centerDownM`,
-how far its centre lies below the reference point), the arm thickness
-(`armRadiusM`, the arm capsules' radius, or null for the standard rule of 0.05
-times the largest propeller radius on the arm), up to 15 less the arm count
-named parts (`parts`: a vertical cylinder with its centre, radius and
-half-height, or a capsule with its two ends and radius; a box is entered as
-the cylinder or capsule that encloses it), and the source of the dimensions.
+Aircraft profile schema 7 (`packages/aircraft/src/profile.ts`) adds an
+optional `body`: the airframe's contact shapes as the user describes them, in
+place of the standard hull. A schema 7 profile holds any content of schema 6
+as well (polars, stated drag, propulsion calibrations, of which it may bind
+none). A profile without a body keeps its lowest schema and derives the same
+bytes as before, so `DERIVATION_VERSION` stays 6. Depths are body FRD z,
+metres below the reference point.
 
-The manifest's `hull` then comes from the profile
-(`packages/aircraft/src/profile-body.ts`): the body cylinder as ID 0, one arm
-capsule per arm from the body axis to its motor mount at the arm's height as
-IDs 1 to N, the parts after them in profile order; its provenance is the
-synthetic dataset `aircraft-profile-hull`, whose source SHA-256 is the
-profile's canonical SHA-256 and whose text gives every dimension, the parts by
-name and the source, and names the arm thickness as the standard hull's,
-assumed, when it is not stated. A profile without a body keeps the standard
-hull and its bytes. The preliminary drag estimate (TASK-096) runs the same
-rules over that hull, a part capsule counted over its whole length about its
-middle rather than from the body radius as an arm is, and its dataset text says
-it is over the hull the profile describes. TASK-195's checks use the described
-body's cylinder for the propellers and every part for the ground, a part on the
-ground named (`body-part`, "The body part Camera pod ..."); an accident of a
-part (a hull shape beyond the arms) is worded with its name by
-`describeAccident(event, armIds, partNames)`, which the Run tab passes from the
-chosen profile. A described body is refused, with its reason, without its
-source, with more parts than the hull holds, with a part name that is blank or
-repeated (case aside), or with a capsule whose two ends coincide.
+| Field | Meaning | Limits |
+| --- | --- | --- |
+| `diameterM`, `heightM` | The body cylinder about the body z axis | Above 0, at most 10 m |
+| `bottomDepthM` | How far the body's bottom lies below the reference point; negative when it lies above | −10 to 10 m |
+| `armDiameterM` | The thickness of every arm | Above 0, at most 1 m |
+| `parts[]` | Parts fixed to the body, such as a camera or a cargo box: `name`, axis `xM` and `yM`, `bottomDepthM`, `diameterM`, `heightM`, each a vertical cylinder | At most 7; names 1 to 64 characters, unique, without leading or trailing spaces |
 
-The Aircraft tab's Body size section (`apps/web/src/aircraft/BodySize.tsx`)
-enters it; the 3D scheme and the Run tab's flight view draw a described body
-and its parts at their size, and the flight view a described landing gear too.
+Code also checks that every arm is longer than the body radius, so each arm
+reaches out of the body, and that the body, the arms and the parts make at
+most 16 hull shapes. `bodyHull` gives, in the standard hull's order, the body
+(ID 0) centred `heightM`/2 above its bottom, one capsule per arm (IDs 1 to N)
+from the body axis to its motor mount at the arm's height with radius
+`armDiameterM`/2, then each part (IDs N + 1 onward) centred `heightM`/2 above
+its bottom. `profileHull` returns that hull or the standard hull. Everything
+that read the standard hull reads it:
 
-**Verification.** `tests/aircraft-profile.test.ts` holds the derived hull to the
-shapes the design places, written out in the test from the entered values (the
-body at its depth, each arm ending at its motor's hub with the stated radius,
-or 0.007 m, 0.05 times the 0.14 m synthetic propeller, without one, the pod and
-a rail after them), the dataset text to the source and the parts, the drag to
-`standardHullDrag(hull, 4)` with its text, and six bodies to their refusals;
-the five S19 fixtures still derive their recorded bytes.
-`tests/aircraft-clearance.test.ts` holds a 0.1 m body to an overlap of
-R + r minus the 0.225 m hub distance with each propeller, and a pod 5 mm below
-the stated 0.12 m clearance to a ground clash of the camera pod, by name. In
-`tests/profile-dynamics.test.ts` a quad X on legs with a camera pod about 5 mm
-above the ground at rest stands for 2 s with no hull shape touching, and
-dropped level from 0.3 m with its motors off scrapes the pod, which the
-accident monitor reports and `describeAccident` words as "The body part Camera
-pod struck the ground". `tests/browser/aircraft-editor.spec.ts` enters a body
-with a camera pod 8 mm off the ground through the UI alone, finds the body and
-the pod drawn at their centres, and flies the saved version in the physics
-Worker on the example cards: it rests at the statics height, climbs a metre,
-and with the throttle cut lands hard enough to scrape the pod, which the
-session reports by name and pauses on.
+* the manifest's `hull`, whose provenance is then the profile derivation's
+  dataset; the `standard-hull` dataset is left out;
+* the supports' rest without a stated clearance (the lowest part one static
+  deflection above the ground);
+* the preliminary drag estimate, whose dataset text then says it is from the
+  body the profile describes;
+* the propeller clearance check, which treats each part as part of the body
+  (a `propeller-body` clash names the part, a `ground` clash a `body-part`);
+* the accident line, whose `describeAccident(event, hullPartNames(profile))`
+  names a struck part "The body (camera pod)";
+* both 3D views, which draw the body, arms and parts at their size in place of
+  the schematic box and struts.
+
+Mass properties are stated separately and do not follow from the sizes. The
+Aircraft tab's "Body and arms" section starts a new description from the
+standard hull's sizes.
+
+Checks, limits set before the first run: `tests/aircraft-body.test.ts`, 9
+passed. Schema 7 holds exactly while a body is described, and removing it
+restores the former bytes; the five rejections; the hull against the entered
+sizes within 1e-12 m; the manifest's hull, provenance and drag text, with the
+supports at a stated clearance unchanged; without a clearance the pod rests
+one static deflection (5 mm) above the ground within 1e-9 m. A pod hanging
+0.13 m down at the quad's 0.12 m clearance is "The body (camera pod) reaches
+10.0 mm below the ground at rest", and the fix raises the clearance to
+0.135 m. A body 0.26 m across makes four `propeller-body` clashes of
+0.032 m each, and the fix grows the arms; a cargo box beside the body clashes
+by name. In the WASM flight dynamics at 400 Hz the quad dropped 0.2 m with
+its motors off, a touchdown at about 2 m/s, strikes the ground with the
+camera pod 3 mm above the ground at rest: one accident, hull shape 5, "The
+body (camera pod) struck the ground at 0.21 s" (989.6 N, the step's normal
+impulse of 2.47 N·s over 2.5 ms on a rigid shape). The same pod resting 3 mm
+above the ground for 2 s, and a pod 40 mm above the ground in the same drop,
+raise none. `tests/browser/aircraft-body.spec.ts`, 1 passed: through the UI
+alone, describing the body starts from the standard hull's sizes; a camera
+pod entered 0.13 m down is listed as the clash above and drawn in the 3D
+scheme below and forward of the body; raised to 0.117 m it clears; the profile
+saves as schema 7 with exactly the entered values, and switching the body off
+saves it back in schema 4; axe finds no violation; the tab fits 390 px.
 
 ### Propeller clearance
 
@@ -7068,13 +7324,13 @@ it changes the profile before it saves a new version; it never edits a
 profile silently. `packages/aircraft/src/clearance.ts` (TASK-195) checks the
 parts the flight physics uses, at the geometry the manifest derivation gives:
 each propeller is its propeller disc and the body the standard hull's
-cylinder, or the described body's with its parts (TASK-196,
-`clearanceShapes(profile, propellerRadiusM)`).
+cylinder, or a described body's cylinder and parts (TASK-196)
+(`clearanceShapes(profile, propellerRadiusM)`).
 
 | Clash | When | Size reported |
 | --- | --- | --- |
 | `propellers` | Two discs of motors on different arms overlap or touch | How far the tips overlap seen from above: R₁ + R₂ minus the hubs' horizontal distance |
-| `propeller-body` | A disc overlaps or touches the body cylinder | R + body radius minus the hub's horizontal distance from the body axis |
+| `propeller-body` | A disc overlaps or touches the body cylinder, or a described body's part, which it names (TASK-196) | R + body or part radius minus the hub's horizontal distance from its axis |
 | `ground` | With a stated ground clearance, the lowest point of a hull shape or a disc, level, at or below the ground at rest | Depth below the ground |
 
 The two rotors of a coaxial pair share their arm's axis by design and are not
@@ -7569,8 +7825,8 @@ the same canonical bytes.
 ### Frame selection
 
 The only source is the TASK-128 catalog of the pinned firmware
-(`tests/fixtures/sitl/frames.json`, ArduCopter V4.8.0-dev, commit
-`8ab6afde107a91df1b5f60ade8f333cb8a61b190`), validated from `unknown` once at
+(`tests/fixtures/sitl/frames.json`, ArduCopter V4.7.2, commit
+`fb773567896014da007bca58358704d4a0d8516f`), validated from `unknown` once at
 module load by `parseFrameCatalog`. `frameConfiguration(profile,
 profileSha256)` decides in this order:
 
@@ -7724,8 +7980,166 @@ gain of about half what the flights imply; it uses the steady thrust slope, and
 the difference is not resolved. This is a result about these gains on this
 aircraft, and no measured aircraft confirms it. Decision A-13 of 2026-11-04 limits
 the body rates in each hold of TASK-158's flight to a standard deviation of
-1 deg/s, so the quad flies that acceptance with `INS_GYRO_FILTER` at 40 Hz, typed
-into the Parameters tab after READY, and the other configurations fly stock.
+1 deg/s, so from then the quad flew that acceptance with `INS_GYRO_FILTER` at 40 Hz,
+typed into the Parameters tab after READY, and the other configurations flew stock.
+
+TASK-198 found on 2026-11-06 that this oscillation no longer occurs, on either
+firmware. `node scripts/phase1/nominal-flight.mjs --configuration quad --stock-settings`
+now reads 0.09 deg/s of roll on V4.7.2, and 0.10 and 0.08 deg/s in two flights on
+`8ab6afd` with the same code. A bisection with that control on `8ab6afd` puts the
+change at TASK-098 (commit `47f59de`): the commit before it reads 59.39 deg/s and that
+commit 0.08 deg/s. TASK-098 replaces the uniform inflow's fixed 0.1 s lag with a
+physical time scale of milliseconds. That this lag cost the loop its phase margin is
+the likely reading; it has not been shown separately. The negative control of A-13
+therefore no longer fails, and `tests/integration/phase1-nominal.test.ts` still holds the 1 deg/s
+limit to hand-built readings. On 2026-11-07 the stakeholder dropped the 40 Hz filter:
+the quad flies its acceptance at stock settings and held 0.10, 0.09 and 0.05 deg/s,
+and all five configurations, flown again under the changed rules, hold 51 PASS.
+
+### Rotor lookup-table mode (TASK-103)
+
+Tier A of the fidelity tiers: a rotor whose loads come from a table instead of the
+blade-element kernel, for faster-than-real-time regression and for measured or
+external-solver data. It is selected per rotor (`rotorModel: "bet" | "map"`) and shares the
+bound-rotor records, the shaft, the ESC drive and the bus with the BET rotor: only the loads
+differ. It has no inflow, flapping or fluctuation state, so body rates, cyclic pitch, ground
+effect and the vortex ring fluctuation are not in it; a query with cyclic pitch is flagged.
+
+Coefficients are non-dimensional, so the `ρ·Ω²` scaling is exact by construction:
+
+```text
+T = cT ρ Ω² R⁴      H = cH ρ Ω² R⁴
+Q = cQ ρ Ω² R⁵      Mr = cR ρ Ω² R⁵      Mp = cM ρ Ω² R⁵      P = cP ρ Ω³ R⁵
+J = |v| / (Ω R)     α = atan2(-v_z, hypot(v_x, v_y))     M_tip = Ω R / a
+s = (ρ a / μ) / (ρ a / μ)_reference
+```
+
+The axes are the advance ratio J, the airflow angle α from −90° (descending into the wake)
+through 0° (edgewise) to +90° (axial climb), the tip Mach number, the Reynolds scale s and the
+collective pitch, in that order, with up to 64 points each and at most 32768 points in all.
+Interpolation is multilinear in the five axes. A table holds a rotor spinning in the +1 sense
+with the air along hub +x; `H`, `Mr` and `Mp` turn with the airflow's direction ψ in the disk,
+and a rotor of the other sense mirrors `Q` and `Mr`. A query more than 1e-9 outside an axis,
+which is the rounding of its own arithmetic, is clamped to the edge and sets output flags 8
+(outside validity) and 512 (`ROTOR_FLAG_MAP_EDGE`); a point of validity below 1 sets flag 8. At
+J = 0 the angle does not matter and is not flagged.
+
+The Reynolds scale was not in the table the budget below was first declared for. `ρ·Ω²` scales
+a rotor at one Reynolds number only: a blade loses lift and gains drag at a lower one, so four
+axes missed the density limit below by up to 29.6 % of thrust at ρ = 0.9, and by 7.3 % even at
+the fastest tips. J, α, M_tip, s and the collective together fix the flow, whichever of density,
+speed of sound and viscosity moved. A table from a thrust stand holds one air: its s axis has
+one point and other air is flagged.
+
+Configuration version 6, on the same arena and records as the BET rotor:
+
+| Bytes | Field |
+| --- | --- |
+| 0, 4 | version 6, total bytes |
+| 8, 12, 16, 20, 24 | points on the J, α, M_tip, s and collective axes |
+| 28 | spin sign, +1 or −1 |
+| 32 | the reference air's ρ a / μ |
+| 40 | radius, m |
+| 48 | reserved zero |
+| 56, 64 | shaft inertia kg·m², bearing viscous damping N·m·s/rad |
+| 72, 80 | step s, initial speed rad/s |
+| 88..128 | reserved zero |
+| 128.. | the five axes, then 7 f64 per point: cT, cH, cQ, cR, cM, cP, validity |
+
+Declared before the first run. On `tests/fixtures/rotors/rotor-map-synthetic.json`, generated
+from the full BET (`baseline-two-blade`, with dynamic inflow), compared with that BET at the
+midpoints of the table's cells, where the interpolation is at its worst:
+
+| Quantity | Region | Limit |
+| --- | --- | --- |
+| Thrust, torque | α ≥ 0 | within 5 % of the BET, or 1 % of that speed's hover value |
+| Thrust, torque | α < 0, validity 1 | within 15 %, or 1 % of that speed's hover value |
+| H-force, rolling and pitching moments | validity 1 | within 20 %, or 1 % of that speed's hover thrust (times R for a moment) |
+| Any load at a table node | all | 1e-9 relative, the generator's settling aside: 1e-12 of the table |
+| Density, against the BET at ρ = 0.9 | α ≥ 0 | within 3 % of thrust and torque |
+
+The bench oracle is the archived UIUC static data (`tests/fixtures/rotors/uiuc-propellers.json`,
+measured): a zero-airflow table reproduces the points it holds within 1e-12, and one built
+from every other point reproduces the ones it left out within 3 % of C_T and C_P. The cost: a
+16-rotor tick in scalar WASM on the reference Mac at most 31.25 µs, half the budget of 800 Hz
+at 20 times real time, as G3 limits compute to half of `dt`. The step allocates nothing:
+zero allocator calls over one million native steps, and zero GC events in WASM.
+
+**Results, with the limits above unchanged.** The fixture has 23 × 20 × 8 × 5 × 1 = 18,400 points,
+11,579 of them of validity 0, in 1.7 MB, and regenerates in about 2 minutes, byte for byte on one machine. The
+axes grew through the first runs: 702 points missed the thrust limit at 49 midpoints, and the
+density limit needed the fifth axis and more points at low speed. A rotor's arena limit rose
+from 512 KiB to 2 MiB to hold this. Sixteen such rotors take 34 MB of the 64 MB
+rotor memory budget, because each holds its table twice, against 12 MB for the BET.
+
+One thing narrows what was declared. The budget says α ≥ 0, and it holds for the queries the
+table does not flag. A point has validity 0 where the BET flags it, which is all descent with
+J > 0, or does not settle, and also, added after the first run showed why, where thrust is
+below 10 % of that speed's hover: the inflow closure has a kink at zero thrust that no table
+can follow, and a percentage of a near-zero load means nothing. So no point below α = 0 has
+validity 1, and the second row of the budget compares nothing. A flagged query still flies on
+the table's numbers. The flag says they are not validated, not that they are refused.
+
+At the midpoints of the cells, for queries the table does not flag:
+
+| Air | Compared (flagged) | Thrust, worst | Torque, worst |
+| --- | --- | --- | --- |
+| ρ = 1.225, s = 1 | 831 (2095, of which 1017 at α ≥ 0) | 1.70 % | 1.25 % |
+| ρ = 0.9, s = 0.735 | 793 (1055 at α ≥ 0) | 2.71 % | 1.43 % |
+| 3000 m standard, s = 0.758 | 793 (1055 at α ≥ 0) | 2.72 % | 2.40 % |
+| 5000 m standard, s = 0.623 | 805 (1043 at α ≥ 0) | 2.39 % | 2.76 % |
+| 40 °C at sea level, s = 0.899 | 795 (1053 at α ≥ 0) | 2.08 % | 1.47 % |
+
+Those percentages have no floor; with the budget's floor of 1 % of hover, no thrust or torque
+exceeds its limit at s = 1, and H-force and both moments are all within theirs. As a share of
+hover at s = 1, the error reaches:
+
+| Quantity | Not flagged | Flagged, α ≥ 0 | All, with descent |
+| --- | --- | --- | --- |
+| Thrust | 1.39 % | 5.31 % | 21.58 % |
+| Torque | 1.32 % | 7.74 % | 22.03 % |
+| H-force | 0.12 % | 0.76 % | 2.60 % |
+| Rolling moment | 0.36 % | 3.01 % | 8.94 % |
+| Pitching moment | 0.77 % | 1.36 % | 15.08 % |
+
+The table flies the fixture's quad on the same polar and inflow as the BET, on torque drive, for 3 s
+from the same start. Declared before that test's first run: speed within 2 %, climb rate within
+10 % or 0.1 m/s.
+
+| Throttle | Rotor speed, BET and table, rad/s | Vertical speed, BET and table, m/s (positive down) |
+| --- | --- | --- |
+| 0.3, sinking | 302.5, 302.1 | 6.724, 6.818 |
+| 0.55, near hover | 354.7, 356.0 | 0.478, 0.444 |
+| 0.8, climbing | 427.5, 428.1 | −5.417, −5.377 |
+
+**Bench data.** On all 14 UIUC propellers, a zero-airflow table reproduces the points it holds
+within 1e-12. The leave-out limit is **not met**: 9 of 111 left-out points lie more than 3 % from
+the table, the worst by 6.61 % of C_P and 5.50 % of C_T. The miss is the measurements' own
+scatter, not the interpolation. At 4253 rpm the three-blade 5x3.75 reads C_T 0.1963 between
+0.2120 and 0.2031, and at 9943 rpm the two-blade 5x1.58 reads C_P 0.03506 between 0.03626 and
+0.03831. A least-squares cubic through each propeller's own points leaves raw points up to
+6.08 % away from it, and the table's value is within 2.59 % of that cubic at all 111. That
+second comparison was added after the miss to find its cause, and it does not replace the limit:
+`tests/rotor-map.test.ts` keeps the nine points by name. The stakeholder accepted the miss on
+2026-11-07 and TASK-103 is DONE with it; the limit stays 3 %.
+
+**Cost.** A 16-rotor tick in scalar WASM takes 6.82 µs on average and 8.71 µs at p99 against the
+limit of 31.25 µs, and the BET with dynamic inflow takes 231 µs, 34 times as long, on the
+reference Mac (Apple M5, Node 24.22.1, load average 2.0 to 2.6, one thread, not a browser):
+`node scripts/bench-rotor-map.mjs`, which writes `test-results/bench/rotor-map.json`. That is 183
+times real time at 800 Hz for these rotors alone. The rest of the physics tick is not in it.
+
+**Allocation.** Zero allocator calls and bytes over one million native steps
+(`table_rotor_step_allocates_zero_over_one_million_steps`). Through the flight model, on the ESC
+drive in a gusty wind, four table rotors over one million steps in each WASM variant:
+zero GC events and 2048 bytes in all, the measurement's own, in both (graph `rotor-map-esc-drive-weather-pad-four-rotor` of
+`node scripts/check-bet-runtime.mjs --allocation`).
+
+**What it does not do yet.** The selection exists per rotor in `BoundRotorDefinition` and in
+`BetFlightConfiguration.rotorMaps`; the aircraft profile and the application do not offer it. The
+fixture is synthetic: no external solver's table exists, and no table has been compared with a
+flight log, which V2_PLAN B4 asks for. The wake model reads a momentum-theory estimate of the table
+rotor's induced velocity, and TASK-090's certification of Tier A against Tiers B and C is open.
 
 ### Allocation
 
@@ -8048,7 +8462,7 @@ completes during warming, and READY waits for it. Its `sitl` is:
 |---|---|
 | ownership | `external` |
 | connectionId | the launcher connection ID |
-| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.8.0-dev`) |
+| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.7.2`) |
 | endpoints | the connection descriptor |
 
 `session.speedup` is null, because SITL's own command line set it, and
@@ -8142,7 +8556,7 @@ skipped frame.
 
 Before take-off, the Run tab's motor check asks ArduPilot to spin each frame
 motor alone and shows which physics rotor turned. ArduCopter's own motor test
-(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at 8ab6afde) spins the
+(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at V4.7.2) spins the
 motor whose test order is requested (`AP_MotorsMatrix::output_test_seq`):
 `GroundStation.motorTestInto` sends the test order, throttle type 1 (a PWM
 value, which ArduCopter accepts without the RC calibration check), 1150 us
@@ -8196,7 +8610,7 @@ all passing) and no check in flight.
 `ParameterService` (`packages/autopilot/src/param-service.ts`) is the cold-path
 parameter client of an integrated session: it downloads the autopilot's
 complete parameter list, writes parameters and classifies every write by
-read-back. It follows ArduPilot's handlers at 8ab6afde
+read-back. It follows ArduPilot's handlers at V4.7.2
 (`libraries/GCS_MAVLink/GCS_Param.cpp`) and sends through the session's
 `GroundStation`, so its frames share the ground station's MAVLink sequence.
 `GroundStation.paramSetInto(name, value, paramType)` packs PARAM_SET (23) with
@@ -8280,7 +8694,7 @@ files, the anomalies and one record per parameter. A record keeps `group`,
 pairs, ascending), and the flags `rebootRequired`, `readOnly` and `volatile`,
 plus the user level. The upstream fields `path` and `Calibration` are dropped. An
 upstream field the generator does not know fails the run. A reversed range is
-left out of its record and listed under `anomalies`; at 8ab6afde that is
+left out of its record and listed under `anomalies`; at V4.7.2 that is
 `TA_GSP_AIRBRAKE`. The file is written one parameter per line, and
 `--check` regenerates it and exits 1 on any difference.
 
@@ -8349,7 +8763,7 @@ reason, and without a change entry, in these cases:
 Otherwise the service writes it, and a refusal by the service is a change
 like any other.
 
-Writes are possible in flight and while paused. ArduPilot 8ab6afde's
+Writes are possible in flight and while paused. ArduPilot V4.7.2's
 PARAM_SET handler (`GCS_Param.cpp`, `handle_param_set`) refuses nothing
 because the vehicle is armed, so no change needs a disarm. A paused lockstep
 SITL answers after Resume and its simulated time stands (TASK-129), so a
@@ -8447,7 +8861,7 @@ is renumbered (then downloaded again), for a connection and after the run
 stops. `tests/parameter-sets.test.ts` covers both payloads, their records and
 dependencies in the store, and comparison and restore with the pinned
 metadata. `tests/browser/parameters-tab.spec.ts` runs the tab against native
-ArduCopter 8ab6afde (the TASK-152 installation): every write state except the
+ArduCopter V4.7.2 (the TASK-152 installation): every write state except the
 timeout, which a real ArduPilot does not produce for a listed parameter, a
 write in flight and while paused, a set compared and sent back, an old value
 sent back from the history, and the history after a reload.
@@ -8464,7 +8878,7 @@ to a flight controller.
 comment lines with the context, then one `NAME,VALUE` line per parameter,
 sorted by name. Each value is the shortest decimal that reads back to
 exactly its float32 (`formatParameterValue`, TASK-159), so ArduPilot's own
-loader gets the same float32: at 8ab6afde, `AP_Param::parse_param_line`
+loader gets the same float32: at V4.7.2, `AP_Param::parse_param_line`
 skips `#` lines and splits a line on `,`, space, `=` and tab. A name that
 loader cannot read, a duplicate, or a value that is not a finite float32
 refuses the export. The header names:
@@ -8598,7 +9012,7 @@ time and at 25 times that pace give byte-identical state lines: 1106 frames
 until the climb without an autopilot tips the quad and two propellers
 strike, on the same tick at both paces, with the same accident reports. That
 tolerance, identical bytes, was declared before the test.
-`tests/browser/run-speed.spec.ts` runs native ArduCopter 8ab6afde through the
+`tests/browser/run-speed.spec.ts` runs native ArduCopter V4.7.2 through the
 Run tab in real time and as fast as possible. The tolerances were declared
 before the test: the speed the panel reports over an interval agrees with
 the test's own measurement of simulated over wall time over the same 20 s
@@ -8668,7 +9082,7 @@ checks the watchdog on a real session: overrides every 40 ms keep the frames
 stepping, 250 ms of silence is still fresh, and 1 ms more pauses the session
 before the frame, unanswered, while the running state reported after a pump
 never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
-ArduCopter 8ab6afde with a mocked controller through the Run tab.
+ArduCopter V4.7.2 with a mocked controller through the Run tab.
 
 ## Flight tasks (TASK-172)
 
@@ -8861,7 +9275,7 @@ places. `tests/profile-dynamics.test.ts` checks the ground start in the dynamics
 400, 800 and 1200 Hz, and `tests/run-controller.test.ts` the controller's flow
 against scripted frames. `tests/integration/flight-tasks-sitl.test.ts` flies each
 of the ten types, an airborne start, a straight flight and a route from another
-place, and a climb and a descent at 5 m/s, with native ArduCopter 8ab6afde through
+place, and a climb and a descent at 5 m/s, with native ArduCopter V4.7.2 through
 the launcher's bridge at speed 4 and 800 Hz, observing as the Run tab does and
 reading the limits from the autopilot, and writes the traces to an ignored report.
 `tests/browser/flight-tasks.spec.ts` round-trips the route editor through a
@@ -8960,7 +9374,7 @@ does what it is commanded, the attitude's bytes and quaternion, and the refusal.
 `tests/response-series.test.ts` checks the series from rows written out by hand,
 and that one time scale draws a response 0.25 s late as 0.25 s late.
 `tests/integration/flight-tasks-sitl.test.ts` flies each of the eight types with
-native ArduCopter 8ab6afde at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
+native ArduCopter V4.7.2 at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
 `tests/browser/maneuvers.spec.ts` defines one on the Flight tasks tab, flies a roll
 doublet and an altitude step from the Run tab, and compares the table's numbers and
 the chart's drawn lines with what it computes from the recording's own rows.
@@ -9047,7 +9461,7 @@ input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external
 dependencies, and the trajectory difference against a hand-computed oracle.
-`tests/browser/experiments-tab.spec.ts` runs native ArduCopter 8ab6afde
+`tests/browser/experiments-tab.spec.ts` runs native ArduCopter V4.7.2
 through the application alone: an original run, its repeat and a variant at
 another speed, the comparison, and an export imported into another browser
 profile.
@@ -9159,7 +9573,7 @@ arithmetic next to it. `tests/thrust-capacity.test.ts` checks the thrust against
 oracle, the flight dynamics on a body 100 000 times heavier with gravity off, on a stiff
 pack whose voltage hardly moves, within 0.5 % set beforehand; and the sag and the limit by
 hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (TASK-197). `tests/browser/compare-experiments.spec.ts`
-flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
+flies one hover on two configurations with native ArduCopter V4.7.2, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
 
 
@@ -9248,8 +9662,50 @@ the five regimes, absent for a new profile version and for a SITL log. On the
 reference Mac, `tests/browser/fidelity-report.spec.ts` flies a hover of native
 ArduCopter, compares it through the report with the repository's SITL log (or a
 real one given as `MIRAGE_REAL_FLIGHT_LOG`), saves the comparison and checks the
-label. At least one real flight log (G4) is still to be compared before the
-task is done.
+label.
+
+**First real flight (G4, 2026-11-07).** By the stakeholder's decision of
+2026-11-07 the real log is `topic-144558-00000205.BIN` of
+`data/flight-logs/inventory.json` (ArduCopter V4.6.2, the 7.2 kg quad X on
+T-Motor MN7005 KV230 and P24*7.2 CF propellers). `tests/browser/fidelity-forum-quad.spec.ts`
+(1 passed on the reference Mac, Playwright Chromium, native ArduCopter fb773567
+at speed 4, `MIRAGE_FORUM_LOG_DIR` set) builds that aircraft from its cards and
+`tests/fixtures/aircraft/tmotor-mn7005-quad.json` (arm length and inertia
+assumed), calibrates it in the Components tab on T-Motor's datasheet (TASK-145),
+takes off to 100 m from the Run tab as the real flight's automatic take-off
+did, lands, and compares the run with the real log from 5 s before the motors
+started to 45 s after, the logs lined up at their motor starts (real 178.18 s,
+simulated 50.44 s). The real interval holds 42.1 s of climb and 7.9 s of
+hover; the version became flight-checked in those regimes. Its first run found
+that `logOrigin` called every real log simulated: it took any message whose
+name begins with `MS` for MirageSITL's own, and ArduPilot's `MSG` begins so;
+it now matches MirageSITL's message names exactly
+(`tests/fidelity-assessment.test.ts`, a log with `MSG` alone is real).
+
+Means over the climb, real against simulated (no limit, no verdict):
+
+| Quantity | Real | Simulated | RMS of the difference |
+| --- | --- | --- | --- |
+| Roll, deg | −2.33 | 0.15 | 2.52 |
+| Pitch, deg | −0.39 | 0.13 | 0.87 |
+| Height above the origin, m | 51.6 | 51.1 | 0.51 |
+| Climb rate, m/s | 2.48 | 2.37 | 0.18 |
+| Battery voltage, V | 23.05 | 24.56 | 1.51 |
+| Battery current, A | 19.8 | 35.4 | 15.7 |
+| Motor output 1, µs | 1642 | 1562 | 81 |
+| Roll, pitch and yaw rate RMS, deg/s | | | 1.63, 1.96, 0.56 |
+
+What explains the larger differences, as far as the logs show: the real
+aircraft flies with a steady roll of about −2.3°, of which its own
+`AHRS_TRIM_X` of 0.023 rad (1.3°) accounts for part, and the owner was told
+in the topic that its propellers were not level; the heading differs by 120°
+because the run took off facing another way; the simulated battery does not
+sag, because the card's internal resistance is not known; and the simulated
+current is 1.8 times the real one. T-Motor's datasheet puts 1.8 kg of thrust
+per motor (the stated 7.2 kg) at 6.4 A, about 26 A for the aircraft in hover,
+which the simulation follows; the real log reads less, so either its current
+sensor's scale (`BATT_AMP_PERVLT` 39.88) or the datasheet does not hold for
+this aircraft, and the logs cannot tell which.
 
 ## Experiment from a log (TASK-182)
 
@@ -9489,7 +9945,7 @@ them; the project store gains no record kind for them in this task.
 ### Verification (TASK-164)
 
 `tests/dataflash-capture.test.ts` checks the `LOG_*` rules against the
-metadata of 8ab6afde. It reads the VER and PARM records of the real SITL log
+metadata of V4.7.2. It reads the VER and PARM records of the real SITL log
 slice of TASK-178, and classifies that slice whole, with its tail cut, with a
 damaged range inside, and with no bytes. It attributes files to runs (new,
 grown, or rewritten at the same size) and writes the manifest atomically.

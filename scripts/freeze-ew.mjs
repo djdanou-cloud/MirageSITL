@@ -27,7 +27,7 @@ for(const c of cases) {
 }
 // TASK-171: the machine these limits belong to. Firmware from another platform has another hash, so another machine cannot pass them by accident.
 const host=JSON.parse(readFileSync(join(args[1],EW_CASES[0],'run.json'))).host;
-const frozen={schemaVersion:2,status:'FROZEN_FOR_VALIDATION',firmwareCommit:'8ab6afde107a91df1b5f60ade8f333cb8a61b190',host,
+const frozen={schemaVersion:2,status:'FROZEN_FOR_VALIDATION',firmwareCommit:'fb773567896014da007bca58358704d4a0d8516f',host,
   firmwareSha256:first.firmwareSha256,parameterSha256:first.parameterSha256,modelSha256:first.modelSha256,
   planSha256:first.planSha256,sourceInputs:first.sourceInputs,requiredCases:EW_CASES,plan:PLAN,
   frozenAt:new Date().toISOString(),calibrationCaptureSha256,envelopes,

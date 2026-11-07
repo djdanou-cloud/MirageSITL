@@ -94,7 +94,7 @@
         },
         {
           "source": "baro.ground-effect",
-          "owner": "ardupilot",
+          "owner": "none",
           "delivery": []
         },
         {
@@ -226,7 +226,7 @@
         },
         {
           "source": "baro.ground-effect",
-          "owner": "ardupilot",
+          "owner": "none",
           "delivery": []
         },
         {
@@ -358,7 +358,7 @@
         },
         {
           "source": "baro.ground-effect",
-          "owner": "ardupilot",
+          "owner": "none",
           "delivery": []
         },
         {

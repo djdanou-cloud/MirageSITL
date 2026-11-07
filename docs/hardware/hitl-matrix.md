@@ -26,10 +26,10 @@ whose source lacks a message path yields UNSUPPORTED.
 
 | Stack | Pinned commit | HIL_SENSOR in | HIL_GPS in | HIL_ACTUATOR_CONTROLS out | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| ArduPilot | 8ab6afde107a91df1b5f60ade8f333cb8a61b190 | no | no | no | UNSUPPORTED |
+| ArduPilot | fb773567896014da007bca58358704d4a0d8516f | no | no | no | UNSUPPORTED |
 | PX4 | 4d7e4de77742c3ae8187ffc998ed6d04629c611b | only in HIL mode | in HIL mode or with use_hil_gps | yes (stream) | needs a verified board |
 
-ArduPilot: GCS_Common.cpp (sha256 345233ce691a29f21e66d50b81ce75db9672eb29e9d39ac2d0e9e139e92836ec),
+ArduPilot: GCS_Common.cpp (sha256 b660c5f53a99c89b58fa400c96321aa9ceb6906ae89ccde70e6fb2cc0b91ad8c),
 the Copter/Plane MAVLink handlers, GCS.h and AP_InertialSensor contain no
 handler for these messages; external GNSS uses GPS_INPUT. ArduPilot simulation
 uses the JSON SITL backend (TASK-041/042) instead.

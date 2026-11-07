@@ -10,6 +10,7 @@
     "./vehicle-manifest": "./src/vehicle-manifest.ts",
     "./ardupilot-profile": "./src/ardupilot-profile.ts",
     "./atmosphere": "./src/atmosphere.ts",
+    "./barometer": "./src/barometer.ts",
     "./wind": "./src/wind.ts",
     "./turbulence": "./src/turbulence.ts",
     "./discrete-gust": "./src/discrete-gust.ts",

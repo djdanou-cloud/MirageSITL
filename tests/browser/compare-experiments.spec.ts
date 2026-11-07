@@ -8,7 +8,7 @@ import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
 // TASK-177 (S12): two configurations of one aircraft flown from the Run tab by native ArduCopter
-// 8ab6afde, the same hover on each, and compared on the Experiments tab. The second motor is 20 g heavier
+// fb773567, the same hover on each, and compared on the Experiments tab. The second motor is 20 g heavier
 // and is rated at 10 W, so a real limit event has to reach its recording. Numbers on the page are read
 // back against values this test computes from the recording's rows and from the cards by its own arithmetic.
 // The quad flies with the 40 Hz gyro filter of decision A-13, written through the Parameters tab.
@@ -26,7 +26,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const GRAMS_HEAVIER = 0.02, EXAMPLE_MOTOR_KG = 0.105;
 
 /** A second profile on a heavier motor rated at 10 W, its stated mass up by what the four motors add. */

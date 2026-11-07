@@ -1,19 +1,16 @@
 {
   "schemaVersion": 1,
   "kind": "delivery-manifest",
-  "status": "BLOCKED_DECISION",
-  "reasons": [
-    "ardupilot-source: restricted, and waiting for a decision: D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision.",
-    "The checkout has uncommitted changes, so this manifest describes no commit"
-  ],
+  "status": "PASS",
+  "reasons": [],
   "metrics": {},
   "sources": {
-    "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
-    "dirty": true,
+    "commit": "b207e5e42b02251fb358019af65a447e0c62fbb2",
+    "dirty": false,
     "node": "v24.22.1",
     "locks": {
       "package-lock.json": "d76aad7264cdb823d490bcd360ee91df7ff6a5193ca2e18cfc68d3b47893331a",
-      "scripts/sitl.lock.json": "cc11bac9e2ca0aa55fbb015775d53067ab1f1de09c3f6a5ba3d4ea6b69c31bbd",
+      "scripts/sitl.lock.json": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba",
       "third_party/uavlogviewer/source.lock.json": "ce05b0d2165dc698a08406e78821ff78e07d613b94c4cf9cd45c467427940474",
       "native/rapier/source.lock.json": "4de27890011351af904fd552af164b913fb9ef613c00ed7d17bb7ab962e33981",
       "native/Cargo.lock": "3495cbba177ebcf8cd325c90b2fd60c1336af4a2b9067caddb1da31e46769634",
@@ -28,20 +25,20 @@
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/capacity.worker-DLpx-fkJ.js",
-      "sha256": "c95a4ecf231df44da93c2bdb82c2c17b7ffce1992e01a3d50d0d799d0c63d39a",
-      "bytes": 1074547,
+      "path": "apps/web/dist/assets/capacity.worker-CqZYfsc9.js",
+      "sha256": "160f8e729301f1892d011926a956d199bc9560614f2494b980c397f2513725e5",
+      "bytes": 1075680,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/g3-passes-Cvp-gvQ4.js",
-      "sha256": "3080ed4c5e517ea83f4633f902d00ff2ecf8a641d2f9be93c12c8409bf0b8f3b",
+      "path": "apps/web/dist/assets/g3-passes-CYHE1qA0.js",
+      "sha256": "3239f9ccba6e97ac56df3b38a8c6c626e217cd8951e54c2bff539d26b7e3048d",
       "bytes": 48040,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/g3-passes-webgpu-hLgyGSQz.js",
-      "sha256": "e33fd4276ef15db6f6be158ab2037d3b130398a03d77a6484619dffe0d8a4d63",
+      "path": "apps/web/dist/assets/g3-passes-webgpu-BaOlSYXD.js",
+      "sha256": "d1f2d07bb1a90ddcb3cb24b04019a50dddec8e26f55b9f5466a67a3770341ea8",
       "bytes": 17437,
       "license": "Project-owned; the repository declares no license"
     },
@@ -52,33 +49,33 @@
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/index-X0W94VDc.js",
-      "sha256": "ec6c57c181fef0a19f6f1fcdbc76b74cc49ab12fe313edce3a87c3241ab1336c",
-      "bytes": 3453550,
+      "path": "apps/web/dist/assets/index-Dc0Cd_yA.js",
+      "sha256": "991f881c79d3f510df716f330695897de1347ba9d15f0fece96fe218bad8bf3b",
+      "bytes": 3451982,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/material-drape-DYAuawUK.js",
-      "sha256": "6aa8331917dd746de72eae979d3ebf6c925a91a1c59b6e2d65403027f91ad654",
+      "path": "apps/web/dist/assets/material-drape-DEv9G_5h.js",
+      "sha256": "568c72a0cbde4bb9c1d30007f5b7eef2f21e4c359b40b35d7ffdeba13789732c",
       "bytes": 7339,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/material-drape-node-DJP3dVMM.js",
-      "sha256": "f4eda8110acd0918058fe565cf9d7a0e0e05445b170fabe42136576cb75ec5f0",
+      "path": "apps/web/dist/assets/material-drape-node-M4fLLPEX.js",
+      "sha256": "7cb07d4b76d41ea568ee01013389011ee3b6c41439e1c3875f1359d71dfcc254",
       "bytes": 542,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/param-metadata-3BGslxVe.json",
-      "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd",
-      "bytes": 1734597,
+      "path": "apps/web/dist/assets/param-metadata-Bw7BQ3rS.json",
+      "sha256": "ce46ec5ac58e59e4e7f581a981f3d7399676394842666fb6674d0937da1c1931",
+      "bytes": 1669076,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/physics.worker-BID6skS5.js",
-      "sha256": "b26352fc6c6431fba31806701a3ecb76a42816aac6f8c32126b44c84802c5fd4",
-      "bytes": 1291316,
+      "path": "apps/web/dist/assets/physics.worker-DsIle0__.js",
+      "sha256": "f28a9543c0aa9c565ab9da555ba8e14b5980bcf050590dd8f25bbde097ab188d",
+      "bytes": 1292991,
       "license": "Project-owned; the repository declares no license"
     },
     {
@@ -100,51 +97,51 @@
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/three.tsl-_Qe1lCgm.js",
-      "sha256": "75c8472c61559551254b8c2c7b38ea38d6b8af09d19cfded4cb210831e86c94d",
+      "path": "apps/web/dist/assets/three.tsl-Op4oXdTZ.js",
+      "sha256": "983dc81f404978ed7e50ad80803096bd21dbe5dd9302f75569bba4bf3b97c81c",
       "bytes": 9540,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/three.webgpu-9nPIB9iO.js",
-      "sha256": "b45d633d530fa80525c6e3643cd882e4037d42debeec016fd18f8f71440eb825",
+      "path": "apps/web/dist/assets/three.webgpu-C-RgKofb.js",
+      "sha256": "766c99a43f9cb428c9b3157a470b3f534d3696e43ee87fdfbf23448a95bf6d91",
       "bytes": 556981,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/tiles-scene-DNqk3-Gq.js",
-      "sha256": "56f178fb0cb845f0db1db1f599306638e8497406edbe52bcc9489dcf2dee862f",
+      "path": "apps/web/dist/assets/tiles-scene-DnrJa80f.js",
+      "sha256": "5cf9c28b0ff5212bb6860bd3dffce104c5be796eeb8eb6823968d8940ed89074",
       "bytes": 153279,
       "license": "Project-owned; the repository declares no license"
     },
     {
-      "path": "apps/web/dist/assets/webgpu-FvvcBpai.js",
-      "sha256": "97cbe3a2f2242cac9338d4952dfab2144308655cfa2e3c554c48dc21315c81c7",
+      "path": "apps/web/dist/assets/webgpu-q9gIgn3I.js",
+      "sha256": "7c944f87bfa9b571b9d77261bac9f1b0505714c7f3203a762053b3d80b780f07",
       "bytes": 2674,
       "license": "Project-owned; the repository declares no license"
     },
     {
       "path": "apps/web/dist/index.html",
-      "sha256": "3f99336079497089705e608653334e70a6dcf9390fbdfc85a4991a59171b4dee",
+      "sha256": "23f460ec2fb14d1a01e218671b25d99bc907c55e51d180878f7d5ee503f702b8",
       "bytes": 458,
       "license": "Project-owned; the repository declares no license"
     },
     {
       "path": "packages/wasm-bet/dist/manifest.json",
-      "sha256": "ec3560cf51dc19e86b519a497770c26a668fb867042ab15fa8e06523bdcf80a4",
+      "sha256": "68739114ae2d777eece99f67edbd811273fa2ab4e4f81840f8989e109dfd6a09",
       "bytes": 599,
       "license": "Project-owned; the crate has no external dependencies"
     },
     {
       "path": "packages/wasm-bet/dist/mirage_bet.scalar.wasm",
-      "sha256": "28e4204601a6ca2d3055a048cac2be7d2a9192ff26c6920a1cd7244e0185de3a",
-      "bytes": 153990,
+      "sha256": "6a6478fa666dda2db2e7bf1c65d3f1ecaad19a204be65c92e91f1cc75cfc76f6",
+      "bytes": 161099,
       "license": "Project-owned; the crate has no external dependencies"
     },
     {
       "path": "packages/wasm-bet/dist/mirage_bet.simd128.wasm",
-      "sha256": "402b7c1cc73b30ca0380aaac386e72297f59a714d9e4b148a96e169814ad8db6",
-      "bytes": 155935,
+      "sha256": "9bd1da0fe1b9d595767211029e3ffa2b99e965b5919e096bf5efa526966ec5c1",
+      "bytes": 162918,
       "license": "Project-owned; the crate has no external dependencies"
     },
     {
@@ -161,17 +158,17 @@
     },
     {
       "path": "packages/physics/dist/contact/manifest.json",
-      "sha256": "c78eb30b1a9d8f3c36218e4ddf831d5da0b22a5ecd0c309ed7dbef0b3f7f3a17",
+      "sha256": "a001f3ab9f07e37ff48ed82ea52d4c7a26dfb5fb8800d3fbd8deb0a24378eb96",
       "bytes": 2356,
       "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
     }
   ],
-  "totalBytes": 12908555,
+  "totalBytes": 12858366,
   "restricted": [
     {
       "id": "ardupilot-source",
       "used": true,
-      "decision": "D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision."
+      "decision": "D-01, decided on 2026-11-06, selects stable ArduCopter V4.7.2. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision."
     },
     {
       "id": "ardupilot-parameter-metadata",
@@ -254,10 +251,10 @@
     {
       "id": "ardupilot-source",
       "category": "native-artifact",
-      "version": "Commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190 (scripts/sitl.lock.json); the Phase 1 version or versions are decision D-01",
+      "version": "ArduCopter V4.7.2, commit fb773567896014da007bca58358704d4a0d8516f (scripts/sitl.lock.json), decision D-01",
       "license": "GPL-3.0-or-later",
       "licenseStatus": "restricted",
-      "status": "pending"
+      "status": "ready"
     },
     {
       "id": "ardupilot-build-toolchain",
@@ -286,22 +283,22 @@
     {
       "id": "ardupilot-parameter-metadata",
       "category": "metadata",
-      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, ArduCopter, 5799 parameters (scripts/generate-param-metadata.mjs)",
+      "version": "ArduPilot fb773567896014da007bca58358704d4a0d8516f, ArduCopter, 5687 parameters (scripts/generate-param-metadata.mjs)",
       "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
       "licenseStatus": "restricted",
       "status": "ready",
       "files": [
         {
           "path": "data/ardupilot/param-metadata.json",
-          "bytes": 1734597,
-          "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd"
+          "bytes": 1669076,
+          "sha256": "ce46ec5ac58e59e4e7f581a981f3d7399676394842666fb6674d0937da1c1931"
         }
       ]
     },
     {
       "id": "ardupilot-declination-table",
       "category": "reference-data",
-      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
+      "version": "ArduPilot fb773567896014da007bca58358704d4a0d8516f, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
       "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
       "licenseStatus": "restricted",
       "status": "ready",
@@ -309,7 +306,7 @@
         {
           "path": "data/ardupilot/declination.json",
           "bytes": 6891,
-          "sha256": "1464d76226df8baeea4d14a1fc28fbcd3e12b9a694f119e20652f414ed9afde5"
+          "sha256": "338563f59085e70c38aa6eb939b9f39d238904b37ae72d8753bb329113f6a6f5"
         }
       ]
     },
@@ -401,11 +398,11 @@
     }
   ],
   "installed": {
-    "createdAt": "2026-11-06T13:57:36.042Z",
+    "createdAt": "2026-11-06T19:32:47.566Z",
     "items": [
       {
         "id": "mirage-sitl",
-        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+        "version": "060050797e8b44126e027e8f1b557676c90241ed",
         "sha256": "d76aad7264cdb823d490bcd360ee91df7ff6a5193ca2e18cfc68d3b47893331a",
         "bytes": 170264,
         "license": "Project-owned; the repository declares no license"
@@ -426,19 +423,19 @@
       },
       {
         "id": "ardupilot-source",
-        "version": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+        "version": "fb773567896014da007bca58358704d4a0d8516f",
         "license": "GPL-3.0-or-later"
       },
       {
-        "id": "arducopter-8ab6afde",
-        "version": "ArduCopter V4.8.0-dev",
-        "sha256": "02066ec927d055ba302922407d8994facdcd89807dc58f5e02acf93b7afc17f7",
-        "bytes": 5364104,
+        "id": "arducopter-fb773567",
+        "version": "ArduCopter V4.7.2",
+        "sha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841",
+        "bytes": 4821160,
         "license": "GPL-3.0-or-later"
       },
       {
         "id": "copter-default-parameters",
-        "version": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+        "version": "fb773567896014da007bca58358704d4a0d8516f",
         "sha256": "5e01345b45d1c6190b28bece5638bbdd4cf1cce35e05bbbf480ab24d2b51aa0e",
         "bytes": 1957,
         "license": "GPL-3.0-or-later"
@@ -464,15 +461,15 @@
       },
       {
         "id": "wasm-bet-artifacts",
-        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+        "version": "060050797e8b44126e027e8f1b557676c90241ed",
         "sha256": "ec3560cf51dc19e86b519a497770c26a668fb867042ab15fa8e06523bdcf80a4",
         "bytes": 599,
         "license": "Project-owned; the crate has no external dependencies"
       },
       {
         "id": "contact-wasm",
-        "version": "fb51e0fedb59395a2efba2efc10ccd695578483f",
-        "sha256": "23b4286b4c7fe6ecdc6066693f902df3db898119dce3019d95a3986dd7ca64b3",
+        "version": "060050797e8b44126e027e8f1b557676c90241ed",
+        "sha256": "c78eb30b1a9d8f3c36218e4ddf831d5da0b22a5ecd0c309ed7dbef0b3f7f3a17",
         "bytes": 2356,
         "license": "Apache-2.0 (Rapier, license SHA-256 pinned in the source lock; parry3d-f64)"
       }

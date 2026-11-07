@@ -5,9 +5,7 @@ import { prepareContact } from './contact-support.ts';
 import { standardGearHeights } from './support/standard-gear.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
-import { validateAircraftProfile, withBody, withLandingGear, withPropellerPolars, type AircraftProfile, type GearValues, type ProfileGear } from '@mirage/aircraft/profile';
-import { describeAccident, type AccidentEvent } from '@mirage/physics/accident';
-import { mapGearValues } from '@mirage/aircraft/profile-gear';
+import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
@@ -170,117 +168,6 @@ describe('the standard landing gear on the ground contact (TASK-095)', () => {
     const pad = buildProfileDynamics(derived.manifest, { syntheticPad: true });
     expect([pad.gear, pad.configuration.syntheticGroundDownM, pad.configuration.initialBody.positionNedM[2]]).toEqual([null, 0, 0]);
   });
-});
-
-// TASK-194: a landing gear the profile describes, flown on the ground contact. Oracle: rigid-plate statics on the manifest's supports
-// (tests/support/standard-gear.ts), whose values the derivation tests in tests/aircraft-profile.test.ts hold to the declared rules.
-// The CG is centred so that equal motor commands lift the quad X without turning it.
-describe('a landing gear the profile describes (TASK-194)', () => {
-  const none: GearValues = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null,
-    footStiffnessNpm: null, unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
-  const gear = (kind: ProfileGear['kind'], feetBodyM: number[][], values: Partial<GearValues>): ProfileGear => ({
-    kind, feetBodyM, positionSource: 'Test frame', values: { ...none, ...values },
-    provenance: mapGearValues(key => (values[key] === undefined || values[key] === null ? null : 'Test value')),
-  });
-  const centred = (p: AircraftProfile) => validateAircraftProfile({ ...p, massProperties: { ...p.massProperties, cgOffsetBodyM: [0, 0, 0.02] } });
-  const GEARS = [
-    ['legs', gear('legs', [[0.16, 0.16, 0.11], [0.16, -0.16, 0.11], [-0.16, -0.16, 0.11], [-0.16, 0.16, 0.11]], { strutStiffnessNpm: 1800, strutTravelM: 0.03 })],
-    ['skids', gear('skids', [[0.17, 0.14, 0.1], [-0.17, 0.14, 0.1], [0.17, -0.14, 0.1], [-0.17, -0.14, 0.1]], { footRadiusM: 0.008 })],
-    // The tricycle's centroid lies on the CG, so its three wheels carry equal loads and leave the ground together on equal commands;
-    // a centroid off the CG pitches an aircraft without attitude control as its wheels unload one after the other.
-    ['wheels', gear('wheels', [[0.2, 0, 0.1], [-0.1, 0.16, 0.1], [-0.1, -0.16, 0.1]], { footRadiusM: 0.025, rollingCoefficient: 0.02 })],
-  ] as const;
-  for (const [kind, described] of GEARS) {
-    it(`a quad X on ${kind} rests at the statics height, takes off on equal commands, lands and rests there again`, async () => {
-      const built = await build(withLandingGear(profileOf('quad-x', centred), described)), { configuration, derived } = built;
-      const { touchM, restM } = standardGearHeights(derived.manifest);
-      expect(derived.manifest.landingGear).toHaveLength(described.feetBodyM.length);
-      for (const hz of kind === 'legs' ? [400, 800, 1200] as const : [400] as const) {
-        const d = profileFlightDynamics(module, built, hz), frame = newActuatorFrameV2(), pilot = newInput(), report = new Float64Array(8);
-        frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = derived.manifest.rotorCount;
-        const channels = derived.manifest.rotors.map(rotor => rotor.motorChannel);
-        let tick = 0, maxTiltRad = 0, touched = 0;
-        const step = (command: number) => {
-          for (const ch of channels) frame.normalizedActuators[ch] = command;
-          d.useActuators(frame); d.nowMs = ++tick * 1000 / hz; d.stepNow(pilot);
-          const s = d.state;
-          maxTiltRad = Math.max(maxTiltRad, Math.acos(Math.min(1, 1 - 2 * (s.qx * s.qx + s.qy * s.qy))));
-          for (let i = 0; i < d.contactShapeCount; i++) { d.contactShapeStateInto(i, report); touched += report[6]!; }
-          if (d.fault) throw new Error(d.fault);
-        };
-        // A vertical-speed loop with every motor on one command: up at 1 m/s to 1 m above the touch height, down at 0.5 m/s.
-        let integral = 0.4;
-        const fly = (vdRef: number) => {
-          const error = d.state.vd - vdRef;
-          integral = Math.min(1, Math.max(0, integral + (0.6 * error) / hz));
-          step(Math.min(1, Math.max(0, integral + 0.2 * error)));
-        };
-        try {
-          for (let k = 0; k < 2 * hz; k++) step(0);
-          expect(Math.abs(d.state.down + restM), `${kind} ${hz} Hz rest height`).toBeLessThan(1e-4);
-          if (hz === 400) {
-            let k = 0;
-            for (; -d.state.down < touchM + 1 && k < 8 * hz; k++) fly(-1);
-            expect(-d.state.down, `${kind} took off`).toBeGreaterThan(touchM + 1);
-            for (k = 0; -d.state.down > touchM && k < 10 * hz; k++) fly(0.5);
-            expect(-d.state.down, `${kind} touched down`).toBeLessThanOrEqual(touchM);
-            for (k = 0; k < 3 * hz; k++) step(0);
-            expect(Math.abs(d.state.down + restM), `${kind} rest height after landing`).toBeLessThan(1e-4);
-            expect(maxTiltRad, `${kind} tilt`).toBeLessThan((2 * Math.PI) / 180);
-          }
-          // Only the described supports carried the aircraft: no hull or propeller shape touched the ground.
-          expect(touched, `${kind} ${hz} Hz shapes touching`).toBe(0);
-        } finally { d.dispose(); }
-      }
-    }, 600000);
-  }
-});
-
-// TASK-196: a body the profile describes, in the contact. The camera pod hangs 10 mm below the reference point's plane of the feet
-// less a support's static compression, about 5 mm above the ground at rest; a drop that bottoms out the struts brings it down.
-describe('a body the profile describes (TASK-196)', () => {
-  const none: GearValues = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null,
-    footStiffnessNpm: null, unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
-  const legs: ProfileGear = { kind: 'legs', feetBodyM: [[0.16, 0.16, 0.11], [0.16, -0.16, 0.11], [-0.16, -0.16, 0.11], [-0.16, 0.16, 0.11]],
-    positionSource: 'Test frame', values: none, provenance: mapGearValues(() => null) };
-  const body = { radiusM: 0.06, halfHeightM: 0.025, centerDownM: 0, armRadiusM: null, source: 'Test frame',
-    parts: [{ name: 'Camera pod', shape: 'cylinder' as const, centerBodyM: [0, 0, 0.085], radiusM: 0.03, halfHeightM: 0.015 }] };
-  it('stands with the pod off the ground, and a drop that scrapes it reports an accident of the camera pod by name', async () => {
-    const profile = withBody(withLandingGear(profileOf('quad-x'), legs), body);
-    const built = await build(profile), { configuration, derived, gear } = built;
-    if (!gear) throw new Error('No gear');
-    const podId = 1 + profile.arms.length;
-    expect(gear.parts).toContainEqual({ part: 'hull', hullId: podId });
-    const frame = newActuatorFrameV2(), pilot = newInput(), report = new Float64Array(8), hz = 400;
-    frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = derived.manifest.rotorCount;
-    const fly = (d: ReturnType<typeof profileFlightDynamics>, ticks: number) => {
-      const events: AccidentEvent[] = [];
-      let touched = 0;
-      for (let k = 1; k <= ticks; k++) {
-        d.useActuators(frame); d.nowMs = k * 1000 / hz; d.stepNow(pilot);
-        if (d.fault) throw new Error(d.fault);
-        d.accidents!.at[0] = k; d.accidents!.at[1] = k / hz; d.accidents!.check(); d.accidents!.drain(event => events.push(event));
-        for (let i = 0; i < d.contactShapeCount; i++) { d.contactShapeStateInto(i, report); touched += report[6]!; }
-      }
-      return { events, touched };
-    };
-    // At rest on its legs: no hull shape touches, the pod included.
-    const standing = profileFlightDynamics(module, built, hz);
-    try {
-      const rest = fly(standing, 2 * hz);
-      expect([rest.events, rest.touched]).toEqual([[], 0]);
-    } finally { standing.dispose(); }
-    // Dropped level with the extended feet 0.3 m above the ground and the motors off.
-    const touch = -configuration.initialBody.positionNedM[2]!;
-    const dropped = { ...built, configuration: { ...configuration, initialBody: { ...configuration.initialBody, positionNedM: Float64Array.from([0, 0, -(touch + 0.3)]) } } };
-    const falling = profileFlightDynamics(module, dropped, hz);
-    try {
-      const { events } = fly(falling, 2 * hz);
-      const pod = events.filter(event => event.part.part === 'hull' && event.part.hullId === podId);
-      expect(pod.length, 'pod accidents').toBeGreaterThanOrEqual(1);
-      expect(describeAccident(pod[0]!, profile.arms.map(arm => arm.id), ['Camera pod'])).toMatch(/^The body part Camera pod struck the ground at /);
-    } finally { falling.dispose(); }
-  }, 600000);
 });
 
 describe('geometry and component changes change the forces', () => {

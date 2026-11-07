@@ -82,7 +82,11 @@ import { faultParameters } from "@mirage/autopilot/fault-effects";
 import { JAMMING_PARAMETERS, MAGNETIC_PARAMETERS, SITL_GPS_ACC, SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S, SITL_GPS_NUMSATS, jammingWrites, magneticBiasWrites, type ParameterWrite } from "@mirage/ew/sitl-writes";
 import { faultTimeline, sitlDeliveryRefusal, type FaultSchedule, type FaultTransition, type ScheduledEffect } from "@mirage/scenarios/fault-schedule";
 import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
-import { parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
+import { EFFECT_CATALOG, parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
+import { barometerGlitchM } from "@mirage/physics/barometer";
+import { WGS84_E2, primeVerticalRadiusM } from "@mirage/sensors/geodesy";
+import { HorizontalWander, gnssSolution, walkerConstellation, type GnssEffects, type TerrainHeight } from "@mirage/sensors/gnss";
+import { barometerAltitudePerPascal } from "@mirage/aircraft/sensor-parameters";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
 import { MavParser, type MavFrame } from "@mirage/mavlink/codec";
@@ -436,6 +440,19 @@ export const PROBE_DEADLINE_S = 15;
 export const VERSION_DEADLINE_S = 10;
 /** A connected SITL that sends no heartbeat for this wall time has gone (TASK-156 suspends it while paused). */
 export const HEARTBEAT_LOSS_S = 10;
+/**
+ * TASK-117, mapping 4: the Sensors tab's horizontal GNSS error of a run in specified mode, or null. Seeded by the profile version's
+ * SHA-256, so a run of the same version wanders the same way.
+ */
+function horizontalWanderOf(prepared: PreparedRun): HorizontalWander | null {
+  const configuration = prepared.sensors.configuration;
+  const sigma = configuration?.mode === "specified" ? configuration.gnss.horizontalSigmaM : null;
+  return sigma !== null && sigma > 0 ? new HorizontalWander(sigma, Number.parseInt(prepared.profile.sha256.slice(0, 8), 16)) : null;
+}
+/** TASK-117: the receiver parameters the GNSS stream writes, the period of its solutions in simulated time, and its synthetic sky. */
+const GNSS_PARAMETERS: readonly string[] = ["SIM_GPS1_GLTCH_X", "SIM_GPS1_GLTCH_Y", "SIM_GPS1_GLTCH_Z", SITL_GPS_NUMSATS, SITL_GPS_ACC, SITL_GPS_LOCK];
+const GNSS_PERIOD_S = 0.2, GNSS_WEEK = 2400, GNSS_START_S = 0;
+const GNSS_CONSTELLATION = walkerConstellation(GNSS_WEEK);
 /** Its GPS fix within these distances of the session's home (declared before the first connection): metres. */
 export const HOME_HORIZONTAL_M = 10, HOME_VERTICAL_M = 5;
 /** EKF_STATUS_REPORT, GPS_RAW_INT and GLOBAL_POSITION_INT at 10 Hz: LiveEkfWarmup needs GPS within 0.3 s of the IMU. */
@@ -445,7 +462,7 @@ const STREAMS: readonly (readonly [number, number])[] = [[193, 100000], [24, 100
  * time. An acknowledgement does not prove the stream runs: a link's first
  * send pass sets every interval from its SRn_ stream rates
  * (GCS_MAVLINK::update_send, initialise_message_intervals_from_streamrates at
- * 8ab6afde), overwriting an interval acknowledged before it, which a SITL
+ * V4.7.2), overwriting an interval acknowledged before it, which a SITL
  * whose scheduler starts only when MirageSITL connects (TASK-155) receives.
  */
 const STREAM_SILENCE_MS = 2000;
@@ -640,6 +657,22 @@ export class SessionController {
   private weatherPlan: { readonly schedule: WeatherSchedule; readonly timeline: readonly FaultTransition[]; sent: number; armedAtS: number | null } | null = null;
   /** The value each fault parameter held before an effect changed it. */
   private readonly faultRestore = new Map<string, number>();
+  /**
+   * TASK-116: the barometer offset stream while a barometer effect is on: ArduPilot's SIM_BAROn_GLITCH of each simulated
+   * barometer, from the value it held before the stream (the Sensors tab's bias) plus the session's error, and dh/dp at home.
+   */
+  /**
+   * TASK-117: the GNSS effects that are on, intensity applied, and the stream that writes their solution to ArduPilot's receiver:
+   * SIM_GPS1_GLTCH_{X,Y,Z} (latitude and longitude offsets in degrees, height in metres), NUMSATS, ACC and LCKTIME, from the values
+   * they held before it.
+   */
+  private gnssEffects: { -readonly [key in keyof GnssEffects]: GnssEffects[key] } = { constellation: null, atmosphere: null, terrain: null, jamming: null };
+  private gnssStream: { readonly base: ReadonlyMap<string, number>; readonly last: Map<string, number>; nextS: number; writes: number; fixLost: boolean } | null = null;
+  private runTerrain: readonly TerrainChunk[] | null = null;
+  /** The Sensors tab's horizontal GNSS error of this run (mapping 4), streamed with the GNSS effects; null when not specified. */
+  private gnssWander: HorizontalWander | null = null;
+  private gnssWanderAtS: number | null = null;
+  private barometerStream: { readonly base: ReadonlyMap<string, number>; readonly altitudePerPascalM: number; readonly last: Map<string, number>; writes: number } | null = null;
   /** The ground-station link effect is on: the autopilot's silence is that effect, not a lost SITL. */
   private gcsLinkLost = false;
   private firmwareCommit: string | null = null;
@@ -721,6 +754,8 @@ export class SessionController {
     }
     if (cancelled()) return;
     this.prepared = prepared;
+    this.gnssWander = horizontalWanderOf(prepared);
+    this.gnssWanderAtS = null;
     this.set({ name: "starting", step: "firmware", experimentId: null });
     let firmware: CatalogEntry | undefined;
     try { firmware = (await this.launcher.catalog()).find(entry => entry.id === request.firmwareId); } catch (error) {
@@ -732,6 +767,7 @@ export class SessionController {
     if (!firmware.usable) { this.fail({ kind: "firmware", message: `ArduPilot build ${firmware.id} cannot be started: ${firmware.reason ?? "unusable"}` }, "starting", null); return; }
     this.set({ name: "starting", step: "physics", experimentId: null });
     let betModuleSha256: string;
+    this.runTerrain = request.terrain?.chunks ?? null;
     try { ({ betModuleSha256 } = await this.physics.load(request.physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) this.fail({ kind: "physics", message: messageOf(error) }, "starting", null);
       return;
@@ -871,6 +907,7 @@ export class SessionController {
 
     this.set({ name: "starting", step: "physics", experimentId: connection.id });
     let betModuleSha256: string;
+    this.runTerrain = request.terrain?.chunks ?? null;
     try { ({ betModuleSha256 } = await this.physics.load(physicsHz, request.environment, request.terrain?.chunks ?? null)); } catch (error) {
       if (!cancelled()) await this.stopAfter({ kind: "physics", message: messageOf(error) }, "starting");
       return;
@@ -1178,6 +1215,15 @@ export class SessionController {
     if (on) {
       const refusal = sitlDeliveryRefusal(parsed);
       if (refusal !== null) return refused(refusal);
+      // TASK-116, TASK-117: a barometer or GNSS effect reaches ArduPilot only as parameter writes.
+      const family = EFFECT_CATALOG[parsed.effect].family;
+      if (family === "barometer" || family === "gnss") {
+        const why = this.writeRefusal();
+        if (why !== null) return refused(why);
+      }
+      // Both write SIM_GPS1_NUMSATS, ACC and LCKTIME: one at a time.
+      if (family === "gnss" && this.faultRestore.has(SITL_GPS_NUMSATS)) return refused("GNSS jamming is on and writes the same receiver parameters; turn it off first");
+      if (parsed.effect === "ew.gnss-jamming" && this.gnssStream) return refused("A GNSS effect is on and writes the same receiver parameters; turn it off first");
     }
     const writes = this.effectWrites(parsed, on);
     if (typeof writes === "string") return refused(writes);
@@ -1187,6 +1233,14 @@ export class SessionController {
       if (why !== null) return refused(why);
       const last = this.changes.at(-1);
       if (last) writeIds.push(last.writeId);
+    }
+    if (EFFECT_CATALOG[parsed.effect].family === "gnss") {
+      // TASK-117: applied here, by the next solution of the stream; nothing goes to the session.
+      this.setGnssEffect(parsed, on);
+      this.effects = [...this.effects, { entry: { ...entry, status: "applied", appliedSimS: this.status?.simTimeS ?? null, writes: GNSS_PARAMETERS }, writeIds: [], session: "none", writesAtS: null }];
+      if (this.status) this.stepGnss(this.status.simTimeS, true);
+      this.emit();
+      return null;
     }
     const toSession = faultParameters(parsed.effect) === null;
     const item: EffectItem = { entry: { ...entry, writes: writes.map(write => write.name) }, writeIds, session: toSession ? "pending" : "none", writesAtS: null };
@@ -1307,9 +1361,131 @@ export class SessionController {
     return null;
   }
 
+  /**
+   * TASK-116: one barometer sample of the session: writes ArduPilot's barometer offsets when they change, and on the last
+   * sample, once every barometer effect is off, the values they held before. Writes go through the parameter service, each
+   * replacing the one before it, and are counted rather than logged one by one; ArduPilot's own log has each of them.
+   */
+  private barometerSample(simTimeS: number, errorPa: number, active: boolean): void {
+    const params = this.params, home = this.home;
+    if (!this.active || !params || !home || this.writeRefusal() !== null) return;
+    let stream = this.barometerStream;
+    if (!stream) {
+      if (!active) return;
+      const count = Math.max(1, Math.min(3, params.get("SIM_BARO_COUNT")?.value ?? 1));
+      const base = new Map<string, number>();
+      for (const name of ["SIM_BARO_GLITCH", "SIM_BAR2_GLITCH", "SIM_BAR3_GLITCH"].slice(0, count)) {
+        const held = params.get(name)?.value;
+        if (held !== undefined) base.set(name, held);
+      }
+      stream = { base, altitudePerPascalM: barometerAltitudePerPascal(home[2]), last: new Map(base), writes: 0 };
+      this.barometerStream = stream;
+    }
+    for (const [name, held] of stream.base) {
+      const value = barometerGlitchM(held, active ? errorPa : 0, stream.altitudePerPascalM);
+      if (stream.last.get(name) === value) continue;
+      params.set(name, value, simTimeS);
+      stream.last.set(name, value);
+      stream.writes++;
+    }
+    if (!active) this.barometerStream = null;
+  }
+  /** TASK-117: one GNSS effect's values with intensity applied, or off. */
+  private setGnssEffect(control: EffectControl, on: boolean): void {
+    const n = (key: string): number => { const value = control.parameters[key]; return typeof value === "number" ? value : 0; };
+    const i = control.intensity, e = this.gnssEffects;
+    switch (control.effect) {
+      case "gnss.constellation": e.constellation = on ? { maskRad: (n("maskDeg") * Math.PI) / 180, uereM: n("uereM") * i } : null; break;
+      case "gnss.atmosphere": e.atmosphere = on ? { ionosphereResidual: n("ionosphereResidual") * i, troposphereResidual: n("troposphereResidual") * i } : null; break;
+      case "gnss.terrain": e.terrain = on ? { heightAt: this.terrainHeight(), nlosExcessM: n("nlosExcessM") * i } : null; break;
+      case "gnss.jamming-budget": e.jamming = on ? { jammingToSignalDb: n("jammingToSignalDb") + 10 * Math.log10(i), spectralSeparation: n("spectralSeparation"), thresholdDbHz: n("thresholdDbHz") } : null; break;
+      default: break;
+    }
+  }
+  /** The run's terrain height under a local east, north position, m above the home's reference, from the nearest post; the pad's height without real terrain. */
+  private terrainHeight(): TerrainHeight {
+    const home = this.home, chunks = this.runTerrain, homeHeight = home?.[2] ?? 0, n = 129, spacing = 4;
+    if (!chunks || chunks.length === 0) return () => homeHeight;
+    return (east, north) => {
+      const row = Math.round(north / spacing), col = Math.round(east / spacing);
+      const ni = Math.floor(row / (n - 1)), ei = Math.floor(col / (n - 1));
+      const chunk = chunks.find(item => item.northIndex === ni && item.eastIndex === ei);
+      const down = chunk?.downM[(row - ni * (n - 1)) * n + (col - ei * (n - 1))];
+      return down === undefined ? Number.NaN : homeHeight - down;
+    };
+  }
+  /**
+   * TASK-117: every 0.2 s of simulated time while a GNSS effect is on, the solution at the vehicle's true position, written where
+   * it changed; once every effect is off, the values the receiver held before. Each write replaces the one before it.
+   */
+  private stepGnss(simTimeS: number, now = false): void {
+    const params = this.params, home = this.home, e = this.gnssEffects;
+    if (!this.active || !params || !home || this.writeRefusal() !== null) return;
+    const wander = this.gnssWander;
+    const on = e.constellation !== null || e.atmosphere !== null || e.terrain !== null || e.jamming !== null || wander !== null;
+    let stream = this.gnssStream;
+    if (!stream) {
+      if (!on) return;
+      const base = new Map<string, number>();
+      for (const name of GNSS_PARAMETERS) { const held = params.get(name)?.value; if (held !== undefined) base.set(name, held); }
+      stream = { base, last: new Map(base), nextS: simTimeS, writes: 0, fixLost: false };
+      this.gnssStream = stream;
+    }
+    if (on && !now && simTimeS < stream.nextS) return;
+    stream.nextS = simTimeS + GNSS_PERIOD_S;
+    const targets = new Map(stream.base);
+    if (on) {
+      const truth = this.physics.flightTruth(), latRad = (home[0] * Math.PI) / 180, lonRad = (home[1] * Math.PI) / 180;
+      const s2 = Math.sin(latRad) ** 2, meridional = (6378137 * (1 - WGS84_E2)) / (1 - WGS84_E2 * s2) ** 1.5, normal = primeVerticalRadiusM(latRad);
+      const receiver = { latRad: latRad + truth.northM / meridional, lonRad: lonRad + truth.eastM / (normal * Math.cos(latRad)), heightM: home[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
+      // GPS time of the simulated moment: the synthetic constellation repeats each sidereal day, so the run's clock start is enough.
+      const solution = gnssSolution(GNSS_CONSTELLATION, receiver, GNSS_WEEK, (GNSS_START_S + simTimeS) % 604800, e);
+      const [solvedEast, solvedNorth, up] = solution.errorEnuM, deg = 180 / Math.PI;
+      // The Sensors tab's horizontal error wanders on, by the simulated time since its last step.
+      if (wander) {
+        if (this.gnssWanderAtS !== null) wander.step(simTimeS - this.gnssWanderAtS);
+        this.gnssWanderAtS = simTimeS;
+      }
+      const east = solvedEast + (wander?.errorEnM[0] ?? 0), north = solvedNorth + (wander?.errorEnM[1] ?? 0);
+      targets.set("SIM_GPS1_GLTCH_X", (stream.base.get("SIM_GPS1_GLTCH_X") ?? 0) + (north / meridional) * deg);
+      targets.set("SIM_GPS1_GLTCH_Y", (stream.base.get("SIM_GPS1_GLTCH_Y") ?? 0) + (east / (normal * Math.cos(latRad))) * deg);
+      targets.set("SIM_GPS1_GLTCH_Z", (stream.base.get("SIM_GPS1_GLTCH_Z") ?? 0) + up);
+      if (e.constellation) {
+        targets.set(SITL_GPS_NUMSATS, solution.tracked);
+        if (solution.accuracyM !== null) targets.set(SITL_GPS_ACC, solution.accuracyM);
+      }
+      if (!solution.fix) targets.set(SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S);
+      stream.fixLost = !solution.fix;
+    }
+    for (const [name, raw] of targets) {
+      if (!stream.base.has(name)) continue;
+      const value = Math.fround(raw);
+      if (stream.last.get(name) === value) continue;
+      params.set(name, value, simTimeS);
+      stream.last.set(name, value);
+      stream.writes++;
+    }
+    if (!on) this.gnssStream = null;
+  }
+  /** TASK-117: whether the GNSS stream runs, its last values and the writes so far. */
+  get gnssReceiver(): { readonly values: ReadonlyMap<string, number>; readonly writes: number; readonly fixLost: boolean } | null {
+    const stream = this.gnssStream;
+    return stream ? { values: stream.last, writes: stream.writes, fixLost: stream.fixLost } : null;
+  }
+  /** TASK-116: whether the barometer offset stream runs, its last offsets, m, and the writes so far. */
+  get barometerOffset(): { readonly offsetsM: ReadonlyMap<string, number>; readonly writes: number } | null {
+    const stream = this.barometerStream;
+    return stream ? { offsetsM: stream.last, writes: stream.writes } : null;
+  }
+
   /** Every message from the physics Worker. */
   worker(data: unknown): void {
     const type = field(data, "type");
+    if (type === "barometer.sample") {
+      const simTimeS = field(data, "simTimeS"), errorPa = field(data, "errorPa"), active = field(data, "active");
+      if (typeof simTimeS === "number" && typeof errorPa === "number" && Number.isFinite(errorPa) && typeof active === "boolean") this.barometerSample(simTimeS, errorPa, active);
+      return;
+    }
     if (type === "accident.events") {
       const events = parseAccidents(field(data, "events"));
       if (events.length > 0 && this.active) this.accident(events);
@@ -1437,6 +1613,7 @@ export class SessionController {
     if (!status) return;
     this.stepTask();
     this.stepFaults(status.simTimeS);
+    this.stepGnss(status.simTimeS);
     const s = this.stateValue;
     if (this.motorCheck && !this.motorCheck.done) this.stepMotorCheck(status.simTimeS);
     // The Worker accepts MAVLink only while its bridge socket is open.
@@ -1899,7 +2076,7 @@ export class SessionController {
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.terrainMiss = null; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
-    this.effects = []; this.faultRestore.clear(); this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
+    this.effects = []; this.faultRestore.clear(); this.barometerStream = null; this.gnssStream = null; this.gnssWander = null; this.gnssWanderAtS = null; this.gnssEffects = { constellation: null, atmosphere: null, terrain: null, jamming: null }; this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
     this.taskState = "waiting"; this.taskReason = null; this.home = null; this.launcherHomeChecked = false;
     this.parser.reset();

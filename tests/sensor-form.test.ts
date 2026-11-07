@@ -102,6 +102,7 @@ describe('sensor form', () => {
       gyroNoiseDensityRadSPerSqrtHz: (2.8 * Math.PI) / 180000 });
     expect(config?.imu.accelBiasMps2).toEqual([(1 * 9.80665) / 1000, (2 * 9.80665) / 1000, (3 * 9.80665) / 1000]);
     const gnss = applyPresetToForm(formFromSensors(null), { catalogVersion: 1, id: 'gnss-neo-m9n' });
+    // Mapping 4: the horizontal GNSS error is MirageSITL's, so the preset fills it.
     expect(gnss.applied).toEqual(['gnss.horizontalSigmaM']);
     expect(built(gnss.form)?.gnss).toMatchObject({ preset: { catalogVersion: 1, id: 'gnss-neo-m9n' }, horizontalSigmaM: 1.6986436005760381 });
   });

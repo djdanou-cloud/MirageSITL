@@ -7,7 +7,7 @@ import type { CompatibilityCheck, ConnectionSpec } from "./session-controller";
 // server of SERIAL0, 5760. A UDP MAVLink port is one SITL or MAVProxy sends
 // to. MirageSITL owns only the connection: Disconnect never stops the SITL.
 
-/** ArduPilot SITL instance 0 (libraries/AP_HAL_SITL/SITL_cmdline.cpp at 8ab6afde). */
+/** ArduPilot SITL instance 0 (libraries/AP_HAL_SITL/SITL_cmdline.cpp at V4.7.2). */
 export const DEFAULT_JSON_PHYSICS_PORT = 9002, DEFAULT_MAVLINK_TCP_PORT = 5760, DEFAULT_MAVLINK_UDP_PORT = 14550;
 
 function portOf(text: string, label: string): number {

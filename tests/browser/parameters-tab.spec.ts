@@ -7,7 +7,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-160 (S11): the Parameters tab against native ArduCopter 8ab6afde,
+// TASK-160 (S11): the Parameters tab against native ArduCopter fb773567,
 // through the application alone. A write before flight is confirmed and
 // applied; one whose metadata needs a restart is stored but never called
 // applied; a value its integer type cannot carry is refused before sending;
@@ -29,7 +29,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 
@@ -76,7 +76,7 @@ test("the Parameters tab writes, refuses, waits while paused, keeps a history an
     await paramsTab.click();
     const status = panel.getByTestId("parameters-status");
     await expect(status).toHaveAttribute("data-download", "complete");
-    await expect(status).toContainText(/^\d+ parameters of ArduPilot 8ab6afde in run /);
+    await expect(status).toContainText(/^\d+ parameters of ArduPilot fb773567 in run /);
     console.log(`EVID list ${(await status.textContent()) ?? ""}`);
     const history = panel.getByTestId("parameter-history");
     const rows = (name: string): Locator => history.locator(`tr[data-name="${name}"]`);

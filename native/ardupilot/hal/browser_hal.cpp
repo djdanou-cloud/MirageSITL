@@ -11,7 +11,7 @@
 #endif
 
 namespace {
-alignas(64) uint32_t words[256] = {MirageHal::MAGIC, 1, 1024, 0, 800, 1};
+alignas(64) uint32_t words[256] = {MirageHal::MAGIC, MirageHal::VERSION, 1024, 0, 800, 1};
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 uint64_t tick = 0;
@@ -29,7 +29,7 @@ void write_double(unsigned i, double value) {
 bool decode(MirageHal::Sensor &s) {
     const uint32_t hz = load(4);
     if ((hz != 400 && hz != 800 && hz != 1200) || load(0) != MirageHal::MAGIC ||
-        load(1) != 1 || load(2) != 1024 || hz != configured_hz || load(5) != configured_epoch || load(13) != 0 ||
+        load(1) != MirageHal::VERSION || load(2) != 1024 || hz != configured_hz || load(5) != configured_epoch || load(13) > 0xffff ||
         load(6) != uint32_t(tick) || load(7) != uint32_t(tick >> 32) || load(9) != uint32_t(tick) ||
         load(10) != 0 || load(11) != 32 || load(12) > 1 ||
         load(8) != uint32_t(tick+1)) return false;
@@ -47,7 +47,14 @@ bool decode(MirageHal::Sensor &s) {
     for (unsigned i=23; i<35; i++) if (v[i] < 0 || v[i] > 1) return false;
     for (unsigned i=92; i<128; i++) if (load(i) != 0) return false;
     for (unsigned i=160; i<192; i++) if (load(i) != 0) return false;
-    for (unsigned i=224; i<256; i++) if (load(i) != 0) return false;
+    // TASK-105: motor speeds by channel, zero outside the mask, finite and within 0..1e6 rev/min.
+    s.rpm_mask = load(13);
+    for (unsigned i=0; i<16; i++) {
+        const double rpm = read_double(224+i*2);
+        const bool masked = ((s.rpm_mask >> i) & 1) != 0;
+        if (!std::isfinite(rpm) || rpm < 0 || rpm > 1e6 || (!masked && rpm != 0)) return false;
+        s.rpm[i] = rpm;
+    }
     return true;
 }
 }

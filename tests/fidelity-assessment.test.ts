@@ -122,7 +122,10 @@ describe('fidelity assessment (TASK-184)', () => {
     expect(logOrigin(real)).toEqual({ kind: 'real', reason: 'It holds no SITL parameter and no MirageSITL message' });
     expect(logOrigin(simulated)).toEqual({ kind: 'simulated', reason: 'It sets the SITL parameter SIM_RATE_HZ' });
     const mirage = readDataFlash(writeDataFlash([{ kind: 'event', timeUs: 0, event: 'note', text: 'x' }]));
-    expect(logOrigin(mirage).kind).toBe('simulated');
+    expect(logOrigin(mirage)).toEqual({ kind: 'simulated', reason: 'It holds MirageSITL\'s MSEV messages' });
+    // ArduPilot's own MSG text messages, which every real log holds, are not MirageSITL's (found on the first real log, 2026-11-07).
+    const withMsg = readDataFlash(syntheticLog([{ type: 90, name: 'MSG', format: 'QN', columns: ['TimeUS', 'Message'] }], [{ message: 'MSG', values: [1, 'ArduCopter V4.6.2'] }]));
+    expect(logOrigin(withMsg)).toEqual({ kind: 'real', reason: 'It holds no SITL parameter and no MirageSITL message' });
     expect(() => assessFidelity(real, simulated, { fromS: 5, toS: 5, simulatedOffsetS: 0 })).toThrow('end after its start');
     const paired = pairedSeries(real, simulated, interval, 'roll');
     if (typeof paired === 'string') throw new Error(paired);

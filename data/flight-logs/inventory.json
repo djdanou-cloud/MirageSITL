@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "ardupilot-forum-flight-logs-2026-11-07",
+  "description": "Real ArduCopter DataFlash logs and one manufacturer bench table that their owners posted publicly on the ArduPilot forum while asking for help. The files are not in the repository: they are too large for git, and nobody granted a license. They are kept outside every checkout and passed to the analysis scripts with --input PATH --sha256 HEX; this file holds each file's SHA-256, size and source. Adopted for TASK-116, TASK-117, TASK-145 and TASK-184 by the stakeholder's decision of 2026-11-07 ('Use the parts that hold up'), after a review that found the logs genuine and several claims of the list that pointed to them wrong (no rangefinder, radar altimeter or ESC telemetry in any log).",
+  "license": "none stated; posted publicly to discuss.ardupilot.org for analysis by others",
+  "licenseStatus": "no-explicit-license",
+  "localCopy": "Kept outside the repository (on the reference Mac in ~/Projects/MirageSITL-data/forum-logs/, with a SHA256SUMS file); never committed.",
+  "aircraft": [
+    {
+      "id": "mn7005-kv230-24in-7.2kg",
+      "topic": "https://discuss.ardupilot.org/t/potential-thrust-loss-after-40-45-minutes-of-flight-low-battery/144558",
+      "owner": "Prashant_UAV",
+      "stated": {
+        "frame": { "value": "Quad X", "locator": "FRAME_CLASS 1, FRAME_TYPE 1 in the log" },
+        "massKg": { "value": 7.2, "locator": "posts 4, 12 and 14 ('mistakenly written 8.5 kg before', post 4; 'approximately', post 12)" },
+        "motor": { "value": "T-Motor Antigravity MN7005-15 KV230", "locator": "post 4" },
+        "propeller": { "value": "T-Motor carbon fiber 24 x 7.2R", "locator": "post 4" },
+        "esc": { "value": "T-Motor Alpha 40A 6S", "locator": "post 4" },
+        "battery": { "value": "2 x 6S 21 Ah solid-state, in parallel (MOT_BAT_VOLT_MAX 24.6 in the log)", "locator": "post 12" },
+        "flightController": { "value": "Cube Orange Mini by post 1; the log's banner reads CubeOrangePlus", "locator": "post 1 and the log's MSG records" }
+      },
+      "unknown": ["arm length", "inertia", "center of gravity", "barometer location", "GNSS receiver model (an NMEA receiver)"],
+      "notes": "The owner reported Potential Thrust Loss warnings late in the flight. In post 17 another user reads the log as two motors near 60 % and two near 80 %, a yaw thrust imbalance he attributes to propellers not mounted level: the real aircraft has that defect."
+    },
+    {
+      "id": "tmotor-230kv-24in-6kg",
+      "topic": "https://discuss.ardupilot.org/t/height-and-position-variance-also-the-variation-in-altitude-due-to-height-variance/131210",
+      "owner": "Prashanth011",
+      "stated": {
+        "frame": { "value": "Quad X", "locator": "FRAME_CLASS 1, FRAME_TYPE 1 in the log" },
+        "massKg": { "value": 6.0, "locator": "post 1 ('TOW is 6kg')" },
+        "motor": { "value": "T-Motor 230KV", "locator": "post 1" },
+        "propeller": { "value": "24 inch folding", "locator": "post 1" },
+        "gnss": { "value": "CUAV Neo 3 Pro", "locator": "post 1" },
+        "flightController": { "value": "CUAV X7, board 0039003D 3432510F 33303438", "locator": "the log's MSG records" }
+      },
+      "unknown": ["motor type beyond its KV", "propeller make and pitch", "ESC", "battery", "arm length", "inertia", "barometer location"],
+      "notes": "Both logs carry the same board serial: one aircraft."
+    },
+    {
+      "id": "tmotor-7005-230kv-24in-7kg",
+      "topic": "https://discuss.ardupilot.org/t/tuning-the-copter-by-applying-fft-notch-filter-and-second-as-throttle/140620",
+      "owner": "Prashanth011",
+      "stated": {
+        "frame": { "value": "Quad X", "locator": "FRAME_CLASS 1, FRAME_TYPE 1 in the log" },
+        "massKg": { "value": 7.0, "locator": "post 1 ('MTOW: ~7 kg')" },
+        "motor": { "value": "T-Motor 7005 230KV", "locator": "post 1" },
+        "propeller": { "value": "24 inch", "locator": "post 1" },
+        "flightController": { "value": "CUAV X7+, board 002F0017 34325113 33303438", "locator": "post 1 and the log's MSG records" }
+      },
+      "unknown": ["propeller make and pitch", "ESC", "battery", "arm length", "inertia", "barometer location"],
+      "notes": "Same owner as tmotor-230kv-24in-6kg but another board serial; whether it is the same airframe is not known."
+    },
+    {
+      "id": "mn7005-kv115-24in-12s",
+      "topic": "https://discuss.ardupilot.org/t/quad-becomes-aggressive-inconsistent-in-loiter-and-one-motor-rpm-changes-significantly-after-changing-heading/145394",
+      "owner": "Bendyrole",
+      "stated": {
+        "frame": { "value": "Quad X", "locator": "post 1" },
+        "motor": { "value": "T-Motor MN7005 KV115", "locator": "post 1" },
+        "propeller": { "value": "24 inch", "locator": "post 1" },
+        "esc": { "value": "T-Motor Flame 60A V2.0", "locator": "post 1" },
+        "battery": { "value": "2 x GenX Pro solid-state 6S 21 Ah in series (12S, 50.4 V full)", "locator": "post 1" },
+        "payloadKg": { "value": 0.7, "locator": "post 3 ('approximately 700 g of payload mounted below the frame')" }
+      },
+      "unknown": ["mass", "arm length", "inertia", "barometer location"],
+      "notes": ""
+    },
+    {
+      "id": "p80iii-kv100-30in-16kg",
+      "topic": "https://discuss.ardupilot.org/t/persistent-vibe-z-issues-on-16kg-quadcopter-need-help/134119",
+      "owner": "lizard_the_wizard",
+      "stated": {
+        "frame": { "value": "Quad X", "locator": "post 1" },
+        "massKg": { "value": 16.0, "locator": "post 1 ('~16 kg AUW')" },
+        "motor": { "value": "T-Motor P80III KV100", "locator": "post 1" },
+        "propeller": { "value": "30 inch rigid carbon; 32.4 inch foldable in 00000011 only", "locator": "post 1" },
+        "esc": { "value": "T-Motor Alpha 80A", "locator": "post 1" },
+        "battery": { "value": "2 x Tattu 6S 22 Ah in series (12S)", "locator": "post 1" },
+        "gnss": { "value": "CubePilot Here4", "locator": "post 1" },
+        "flightController": { "value": "Cube Orange Plus, board 00260046 32335102 37343433", "locator": "post 1 and the log's MSG records" }
+      },
+      "unknown": ["arm length", "inertia", "barometer location"],
+      "notes": "No battery records (BAT) in any of its logs. The archive the owner shared also holds 00000019.BIN and 00000020.BIN (684 MB and 127 MB), not kept."
+    }
+  ],
+  "logs": [
+    { "file": "topic-144558-00000205.BIN", "aircraft": "mn7005-kv230-24in-7.2kg", "sha256": "54c8530d6ebcbe27dcefedfd27655dd7ff5a994adbffd6660dc28ce7e6083153", "bytes": 109277184, "post": 1, "posted": "2026-07-15", "link": "https://drive.google.com/file/d/1IHVtCa8-WGH9xp2Z-gHVAQuWq8X5kDlZ/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "topic-131210-00000148.BIN", "aircraft": "tmotor-230kv-24in-6kg", "sha256": "57204a6457db8d8ca4f3b459b0d7248841a4a43ff01203c2847ab56e7fe93597", "bytes": 34976840, "post": 1, "posted": "2025-03-04", "link": "https://drive.google.com/file/d/1CK5cWrcOywTRsqGlE50gv9ehJMhULUCP/view", "binding": "the post's only link", "firmware": "ArduCopter V4.5.7 (2a3dc4b7)" },
+    { "file": "topic-131210-00000280.BIN", "aircraft": "tmotor-230kv-24in-6kg", "sha256": "80c814121c79154198100e50e2c66e899bf499d2a7b512bd6a916577adda6340", "bytes": 60930503, "post": 6, "posted": "2025-03-28", "link": "https://drive.google.com/file/d/1xR6qw8S8bKgiQu_U_OHRbPXI9L6ZrhJX/view", "binding": "the post's only link", "firmware": "ArduCopter V4.5.7 (2a3dc4b7)" },
+    { "file": "topic-140620-00000218.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "2bf69f86df0389cff4c3a2271b526f8e3dc74fbb01f9232cd56ded5cb0962f37", "bytes": 92223549, "post": 5, "posted": "2025-11-06", "link": "https://drive.google.com/file/d/1BF8hN7cwwj8oX74v4N7PU4BS1JFuNDl8/view", "binding": "inferred: the topic links three files and the other two downloads have other sizes", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "topic-145394-11-41-15.BIN", "aircraft": "mn7005-kv115-24in-12s", "sha256": "116e128cb152d0c9ba822bd00851fef141bfeea3d16a0f63957ee2531165e096", "bytes": 142569472, "post": 1, "posted": "2026-09-04", "link": "https://drive.google.com/file/d/13tODIoGbm20KzJqZKStNTaEHtBTxDDR8/view", "binding": "inferred: the topic links two files and the other download has another size", "firmware": "ArduCopter V4.6.3 (92b0cd78)" },
+    { "file": "topic-134119-00000011.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "0de8701a1366dff7731ff6848f5aee286e4694235060384babe95702dc14e1ea", "bytes": 13992960, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.7 (2a3dc4b7)" },
+    { "file": "topic-134119-00000014.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "9ef47249d002a74dfb07976efbe2cc43da618e0d72642dc6322a31ebe10e9c27", "bytes": 5795840, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
+    { "file": "topic-134119-00000016.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "6b4297977f5cb6f94ba860b4f7fb56e005b973e6cf00788112a1874f8c0df00e", "bytes": 10124424, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
+    { "file": "topic-134119-00000017.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "e628782add08eeed7ef40cfbf577f1040e30a2cf0eb2c6e84e4f1bfb4123af35", "bytes": 17545443, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
+    { "file": "topic-134119-00000023.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "d030da29e722f5b843fbf9fe72acd0c145a88cd4915dfff407122549d0a296c9", "bytes": 35294700, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
+    { "file": "topic-134119-00000025.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "33c18d55ece8828f3337bc775e9d9bf16e9516f2db5ca548713a090019893591", "bytes": 50842901, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" }
+  ],
+  "benchTables": [
+    {
+      "id": "tmotor-datasheet-mn7005-kv230-p24x72",
+      "description": "T-Motor's own datasheet table for MN7005 KV230 with the P24*7.2\" CF propeller at 24 V: throttle, thrust (g), torque (N*m), current (A), RPM, power (W), efficiency (g/W). Manufacturer data, not a measurement of ours; the air conditions and the stand are not stated.",
+      "image": "t144558-datasheet-1.png",
+      "sha256": "b996b7b93748dfdfc125b3e31eadd5053a8c93059bcdd2e7cb1b830f429a5994",
+      "source": "image posted by mike_tk in post 17 of topic 144558 (2026-07-28)",
+      "transcription": "tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv"
+    },
+    {
+      "id": "tmotor-datasheet-mn6007ii-kv320-p22x66",
+      "description": "T-Motor's own datasheet table for MN6007 II KV320 with the P22*6.6\" propeller. Its first row (100 % throttle) belongs to the table's previous propeller and is not part of the P22*6.6 rows.",
+      "image": "t144558-datasheet-2.png",
+      "sha256": "06ac2e35cc3bcb60245658420566922925e3e74ae890deecddf22f26214c8238",
+      "source": "image posted by mike_tk in post 17 of topic 144558 (2026-07-28)",
+      "transcription": null
+    }
+  ]
+}

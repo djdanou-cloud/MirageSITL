@@ -17,7 +17,7 @@ import {
 import { ScenarioBinder } from '../packages/scenarios/src/bind.ts';
 import { parseScenario } from '../packages/scenarios/src/schema.ts';
 import { PhysicsSessionV2, isaPressurePa } from '../packages/physics/src/session-v2.ts';
-import { flightConfiguration } from './bet-runtime-fixture.ts';
+import { flightConfiguration, rotorDefinition } from './bet-runtime-fixture.ts';
 
 // TASK-166 through the real PhysicsSessionV2 on the synthetic BET quad with the production fault port. Oracles: the trace of a run with
 // no control sent (compared bit by bit), the arithmetic of each intensity's definition and the ICAO troposphere written out here, the
@@ -508,6 +508,72 @@ describe('intensity against each model', () => {
         expect(seen.mag, effect).toEqual(clean.mag);
         expect(seen.flags, effect).toBe(clean.flags);
       }
+    }
+  });
+});
+
+/** TASK-116: each barometer effect with values that change its error on the synthetic quad, which falls from 20 m with its rotors spinning. */
+const BAROMETER: readonly (readonly [EffectId, Parameters])[] = [
+  ['baro.position-error', { positiveCoefficient: [0.5, 0.5, 0.5], negativeCoefficient: [-0.5, -0.5, -0.5] }],
+  ['baro.ground-cushion', { gain: 2, decayRadii: 10 }],
+  ['baro.prop-wash', { coefficient: 0.3 }],
+  ['baro.drift', { ratePaPerS: 1, temperaturePaPerK: 0 }],
+  ['baro.pressure-trend', { trendPaPerHour: -1000 }],
+];
+
+describe('barometer effects (TASK-116)', () => {
+  const runOf = (send: (h: ReturnType<typeof harness>) => void) => {
+    const h = harness();
+    h.session.attachDelivery(true);
+    h.lifecycle('sim.start');
+    send(h);
+    return { h, values: h.trace(TICKS), sample: [...h.session.barometerSample] };
+  };
+  it('names every barometer effect of the catalog', () => {
+    expect(BAROMETER.map(([id]) => id).sort()).toEqual(EFFECT_IDS.filter(id => EFFECT_CATALOG[id].family === 'barometer').sort());
+  });
+  it.each(BAROMETER)('%s: off or at zero is absent, bit for bit, and samples nothing; on, it is sampled every tenth of a second', (effect, parameters) => {
+    const absent = runOf(() => undefined);
+    expect(absent.sample).toEqual([0, 0, 0, 0, 0]);
+    for (const off of [record(effect, parameters, 1, false), record(effect, parameters, 0)]) {
+      let id = -1;
+      const run = runOf(h => { id = requestIdOf(h.control(5, off)); });
+      expect(bytes(run.values).equals(bytes(absent.values)), JSON.stringify(off)).toBe(true);
+      expect(run.sample).toEqual([0, 0, 0, 0, 0]);
+      expect(appliedTick(run.h.results, id)).toBe(5);
+    }
+    const on = runOf(h => { h.control(5, record(effect, parameters)); });
+    // The barometer changes what ArduPilot reads, never the flight.
+    expect(bytes(on.values).equals(bytes(absent.values))).toBe(true);
+    // On from tick 5; at 400 Hz the samples fall on every 40th tick: 40, 80, ..., 280 and the first on tick 5.
+    const [count, tick, simTimeS, errorPa, active] = on.sample;
+    expect([count, tick, simTimeS, active]).toEqual([8, 280, 0.7, 1]);
+    expect(errorPa).not.toBe(0);
+    // Off again: one last sample, the error 0 and off.
+    const ended = runOf(h => { h.control(5, record(effect, parameters)); h.control(100, record(effect, parameters, 1, false)); });
+    expect(ended.sample).toEqual([4, 100, 0.25, 0, 0]);
+  });
+  it('fills the model from the step: the air, the height above the ground, the thrust and the rotors\' disc area', () => {
+    const run = runOf(h => { h.control(5, record('baro.prop-wash', { coefficient: 1 })); });
+    const d = run.h.dynamics(), x = d.barometer.input, s = run.h.state;
+    expect(x[0]).toBe(d.atmosphere[0]);
+    expect(x[1]).toBeCloseTo(340 * 340 / (1.4 * 287.05287), 9);
+    // Level ground at down 0: the height is minus the CG's down position.
+    expect(x[5]).toBeCloseTo(-s.downM, 9);
+    const radius = rotorDefinition().geometry.radiusM;
+    expect(x[7]).toBeCloseTo(4 * Math.PI * radius * radius, 12);
+    expect(x[8]).toBeCloseTo(radius, 12);
+    expect(x[6]).toBeGreaterThan(0);
+    // c = 1: the wash is the induced dynamic pressure T/(4A) itself.
+    expect(d.barometer.errorPa).toBe(x[6]! / (4 * x[7]!));
+  });
+  it('is refused without a link to ArduPilot, on or off, by name', () => {
+    const h = harness();
+    h.lifecycle('sim.start');
+    for (const [effect, parameters] of BAROMETER) {
+      const result = h.control(10, record(effect, parameters));
+      expect(result, effect).toMatchObject({ type: 'reject-v2', code: 'BAD_STATE' });
+      expect(result?.type === 'reject-v2' ? result.message : '').toContain(`${effect} reaches ArduPilot's barometer`);
     }
   });
 });

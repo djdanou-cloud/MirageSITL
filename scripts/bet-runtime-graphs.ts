@@ -25,6 +25,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["rotor-wake-esc-drive-pad-four-rotor", "scalar"],
   // TASK-145 calibrated rotors on the ESC drive, checked against their bench envelope every step, its flag switching with the air's density.
   ["calibrated-esc-weather-pad-four-rotor", "scalar"],
+  // TASK-103 a table rotor on every arm on the ESC drive, its loads read off the nodes at every step.
+  ["rotor-map-esc-drive-weather-pad-four-rotor", "scalar"], ["rotor-map-esc-drive-weather-pad-four-rotor", "simd128"],
 ];
 
 function field(value: unknown, key: string): unknown {

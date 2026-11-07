@@ -8,7 +8,7 @@ import { MemoryBackend, ProjectStore } from '@mirage/project/store';
 // scripted here, its views written out; the real runs are in tests/browser/batch.spec.ts.
 
 const SHA = (digit: string) => digit.repeat(64);
-const SCENARIO = { profileSha256: SHA('a'), flightTaskSha256: SHA('b'), firmwareId: 'arducopter-8ab6afde', speedup: 4, physicsHz: 800 as const, home: [-35.363261, 149.16523, 584, 0] as const };
+const SCENARIO = { profileSha256: SHA('a'), flightTaskSha256: SHA('b'), firmwareId: 'arducopter-fb773567', speedup: 4, physicsHz: 800 as const, home: [-35.363261, 149.16523, 584, 0] as const };
 const set = (name: string, value = 1): BatchSet => ({ name, parameters: [{ name: 'ATC_ANG_RLL_P', value }] });
 const batchOf = (sets: readonly BatchSet[]): ExperimentBatch => ({ schemaVersion: 1, scenario: SCENARIO, sets, runs: [], stopped: null });
 const observe = (state: RunObservation['state'], edit: Partial<RunObservation> = {}): RunObservation => ({ state, failure: null, task: null, accident: false, recordSha256: null, ...edit });

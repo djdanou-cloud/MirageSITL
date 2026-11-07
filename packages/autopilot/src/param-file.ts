@@ -3,7 +3,7 @@
 // then one `NAME,VALUE` line per parameter, sorted by name. Each value is the
 // shortest decimal that reads back to exactly its float32
 // (formatParameterValue), so ArduPilot's own loader (AP_Param.cpp
-// parse_param_line, at 8ab6afde: `#` comments, separators ", =\t") gets the
+// parse_param_line, at V4.7.2: `#` comments, separators ", =\t") gets the
 // same float32. MirageSITL writes these files for download only; it never
 // writes one to a flight controller. Cold path.
 import { formatParameterValue, parseParameterValue } from "./param-service.ts";

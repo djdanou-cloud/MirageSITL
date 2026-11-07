@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "battery",
+  "example": false,
+  "manufacturer": null,
+  "model": "2 x 6S 21 Ah solid-state, in parallel",
+  "sources": [
+    {
+      "id": "owner-post",
+      "kind": "specification",
+      "description": "The aircraft owner's statement of the hardware in ArduPilot forum topic 144558 (posts 4 and 12), recorded in data/flight-logs/inventory.json; not a datasheet.",
+      "sha256": null,
+      "date": "2026-07-18"
+    },
+    {
+      "id": "log-parameters",
+      "kind": "specification",
+      "description": "The aircraft's own battery voltage thresholds in its log topic-144558-00000205.BIN (data/flight-logs/inventory.json): MOT_BAT_VOLT_MAX 24.6 V and MOT_BAT_VOLT_MIN 16.8 V over six cells; the owner's settings, not a cell datasheet.",
+      "sha256": "54c8530d6ebcbe27dcefedfd27655dd7ff5a994adbffd6660dc28ce7e6083153",
+      "date": "2026-07-15"
+    }
+  ],
+  "values": {
+    "cellsSeries": 6,
+    "capacityAh": 42,
+    "internalResistanceOhm": null,
+    "cellFullV": 4.1,
+    "cellEmptyV": 2.8,
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "provenance": {
+    "cellsSeries": "owner-post",
+    "capacityAh": "owner-post",
+    "internalResistanceOhm": null,
+    "cellFullV": "log-parameters",
+    "cellEmptyV": "log-parameters",
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "applicability": "Two 6S 21 Ah packs in parallel (the log's MOT_BAT_VOLT_MAX is 24.6 V); maker not stated."
+}
