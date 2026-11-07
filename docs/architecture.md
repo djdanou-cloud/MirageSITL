@@ -866,7 +866,13 @@ byte-identical artifact across clean target directories.
 mandatory baseline, and `simd128` (`-C target-feature=+simd128`), each in
 its own target directory, and writes `manifest.json` with schema version,
 crate, ABI version read back from the built module, toolchain, and per
-artifact file name, SHA-256, size, and target features.
+artifact file name, SHA-256, size, and target features. Runs may overlap, as
+they do in the parallel unit suite: each holds an exclusive lock per target
+directory (`native/target/wasm-<variant>.build-lock`,
+`scripts/exclusive-lock.ts`) across its cargo build and its copy of the
+artifact, because every cargo run replaces that file even with nothing to
+build, and it publishes artifacts and manifest by atomic rename, so a reader
+never sees a partial file.
 `packages/wasm-bet/src/loader.ts` treats the manifest as unknown input and
 validates it exactly. It probes SIMD128 with `WebAssembly.validate` on a
 minimal v128 module and loads `simd128` only when the probe succeeds,
