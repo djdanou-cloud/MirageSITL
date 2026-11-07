@@ -207,7 +207,10 @@ if(!allocation){
     {effect:'atmosphere',parameters:{temperatureK:293.15,pressurePa:98000}},{effect:'sensor.imu.frozen',parameters:{}},
     // TASK-169: what goes on the state line, whose offsets and rotation the session copies out after each step.
     {effect:'ew.position-step',parameters:{offsetNedM:[30,-12.5,0]}},{effect:'ew.velocity-drift',parameters:{accelerationNedMps2:[0.2,-0.1,0],maxSpeedMps:2}},
-    {effect:'ew.magnetic',parameters:{rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]}},{effect:'ew.gnss-jamming',parameters:{severity:0.5}}];
+    {effect:'ew.magnetic',parameters:{rotationRad:[0.1,-0.2,0.5],biasBodyGauss:[0.1,0,0]}},{effect:'ew.gnss-jamming',parameters:{severity:0.5}},
+    // TASK-116: the barometer errors the session works out after each step and samples every tenth of a second.
+    {effect:'baro.position-error',parameters:{positiveCoefficient:[0.2,0.1,0.3],negativeCoefficient:[-0.2,-0.1,-0.3]}},{effect:'baro.ground-cushion',parameters:{gain:1.5,decayRadii:2}},
+    {effect:'baro.prop-wash',parameters:{coefficient:0.2}},{effect:'baro.drift',parameters:{ratePaPerS:0.05,temperaturePaPerK:-2}},{effect:'baro.pressure-trend',parameters:{trendPaPerHour:-200}}];
   const stateBuffer=createSharedMemoryV2(),fake={mono:0};let sessionDynamics=null;
   const session=new PhysicsSessionV2({type:'init-v2',protocolVersion:2,stateBuffer,sensorBuffer:createSpscQueue('sensor'),actuatorBuffer:createSpscQueue('actuator')},
     // TASK-145: rotor 0 is calibrated, so every step checks its envelope and the session its validity changes.

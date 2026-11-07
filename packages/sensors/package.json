@@ -15,7 +15,8 @@
     "./environment": "./src/environment.ts",
     "./pipeline": "./src/pipeline.ts",
     "./configured": "./src/configured.ts",
-    "./lever-arm": "./src/lever-arm.ts"
+    "./lever-arm": "./src/lever-arm.ts",
+    "./gnss": "./src/gnss.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

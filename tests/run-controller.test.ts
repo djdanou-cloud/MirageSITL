@@ -44,6 +44,10 @@ import type { AccidentEvent } from '../packages/physics/src/accident.ts';
 import type { SitlStatus } from '../apps/web/src/sitl/bridge-client.ts';
 import { parseFlightTask, type FlightTaskDefinition, type FlightTaskStep } from '../packages/scenarios/src/flight-tasks.ts';
 import { siteParameters } from '@mirage/aircraft/site-parameters';
+import { barometerAltitudePerPascal } from '@mirage/aircraft/sensor-parameters';
+import { barometerGlitchM } from '@mirage/physics/barometer';
+import { WGS84_E2, primeVerticalRadiusM } from '@mirage/sensors/geodesy';
+import { gnssSolution, walkerConstellation } from '@mirage/sensors/gnss';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
@@ -142,6 +146,10 @@ const OTHER_PARAMETERS: readonly (readonly [string, number])[] = [
   ['SIM_GPS1_NUMSATS', 10], ['SIM_GPS1_ACC', 0.3],
   // ArduPilot's own fault parameters (TASK-168), at their defaults. SIM_BAR3_FREEZE is left out for the test of an incomplete list.
   ['SIM_BARO_DISABLE', 0], ['SIM_BAR2_DISABLE', 0], ['SIM_BAR3_DISABLE', 0], ['SIM_GPS1_LCKTIME', 0], ['SIM_BARO_FREEZE', 0], ['SIM_BAR2_FREEZE', 0],
+  // The barometer offsets the TASK-116 stream writes, at their defaults, and the two simulated barometers of V4.7.2.
+  ['SIM_BARO_COUNT', 2],
+  // The receiver's position offsets the TASK-117 GNSS stream writes, at their defaults.
+  ['SIM_GPS1_GLTCH_X', 0], ['SIM_GPS1_GLTCH_Y', 0], ['SIM_GPS1_GLTCH_Z', 0],
   ['SYSID_THISMAV', 1], ['FS_GCS_ENABLE', 0], ['ARMING_CHECK', 1]];
 /** The autopilot's complete PARAM_VALUE list: every generated parameter (as float32 on the wire) plus others. */
 function parameterList(expected: readonly { readonly name: string; readonly value: number }[],
@@ -1490,6 +1498,88 @@ describe('effect controls in a run (TASK-168)', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(h.controller.view.effects[1]).toMatchObject({ status: 'rejected', message: 'BAD_STATE: no link' });
+  });
+
+  test('a barometer effect goes to the session, and its sampled error streams to ArduPilot\'s barometer offsets (TASK-116)', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    const cushion: EffectControl = { schemaVersion: 1, id: 'cushion', effect: 'baro.ground-cushion', enabled: true, intensity: 1, parameters: { gain: 1, decayRadii: 1 } };
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(cushion)).toBeNull();
+    expect(h.physics.effectsSent.at(-1)).toMatchObject({ control: cushion });
+    expect(paramSets(h)).toEqual([]);
+    // dh/dp at the 584 m home: a 12 Pa higher pressure is an altitude lower by 12·|dh/dp|, on both simulated barometers.
+    // The stream adds to what each offset held: here the Sensors tab's barometer bias of the generated parameters.
+    const held = (name: string) => Math.fround(h.run.parameters.find(p => p.name === name)?.value ?? 0);
+    expect(held('SIM_BARO_GLITCH')).not.toBe(0);
+    const dhdp = barometerAltitudePerPascal(DEFAULT_HOME[2]), offset = (pa: number) => barometerGlitchM(held('SIM_BARO_GLITCH'), pa, dhdp);
+    h.controller.worker({ type: 'barometer.sample', tick: 8000, simTimeS: 10, errorPa: 12, active: true });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_GLITCH', value: offset(12) }, { name: 'SIM_BAR2_GLITCH', value: offset(12) }]);
+    expect(h.controller.barometerOffset?.writes).toBe(2);
+    // An unchanged error writes nothing; a new one replaces the pending writes.
+    h.physics.sent.length = 0;
+    h.controller.worker({ type: 'barometer.sample', tick: 8080, simTimeS: 10.1, errorPa: 12, active: true });
+    expect(paramSets(h)).toEqual([]);
+    h.controller.worker({ type: 'barometer.sample', tick: 8160, simTimeS: 10.2, errorPa: 3.5, active: true });
+    expect(paramSets(h).map(write => write.value)).toEqual([offset(3.5), offset(3.5)]);
+    // The stream is counted, not listed: the run's change list holds no write of it.
+    expect(h.controller.view.parameters?.changes).toEqual([]);
+    // The last sample, off: back to what they held before.
+    h.physics.sent.length = 0;
+    h.controller.worker({ type: 'barometer.sample', tick: 8240, simTimeS: 10.3, errorPa: 0, active: false });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_BARO_GLITCH', value: held('SIM_BARO_GLITCH') }, { name: 'SIM_BAR2_GLITCH', value: held('SIM_BAR2_GLITCH') }]);
+    expect(h.controller.barometerOffset).toBeNull();
+    // A sample that is not a number is ignored.
+    h.controller.worker({ type: 'barometer.sample', tick: 1, simTimeS: 1, errorPa: Number.NaN, active: true });
+    expect(h.controller.barometerOffset).toBeNull();
+  });
+
+  test('the GNSS effects stream their solution into ArduPilot\'s receiver every 0.2 s, and restore it when they go off (TASK-117)', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    const gnss = (effect: EffectControl['effect'], parameters: EffectControl['parameters'], enabled = true): EffectControl =>
+      ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity: 1, parameters });
+    // Off, or at intensity 0, never on: nothing is written.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.constellation', { maskDeg: 10, uereM: 1.5 }, false))).toBeNull();
+    expect(h.controller.setEffect({ ...gnss('gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }), intensity: 0 })).toBeNull();
+    expect(paramSets(h)).toEqual([]);
+    expect(h.controller.gnssReceiver).toBeNull();
+    expect(h.controller.setEffect(gnss('gnss.constellation', { maskDeg: 10, uereM: 1.5 }))).toBeNull();
+    // Applied by the controller: nothing goes to the session.
+    expect(h.physics.effectsSent).toEqual([]);
+    const simTimeS = h.controller.view.status?.simTimeS ?? 0, truth = h.physics.flightTruth(), deg = Math.PI / 180;
+    const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(DEFAULT_HOME[0] * deg) ** 2) ** 1.5;
+    const receiver = { latRad: DEFAULT_HOME[0] * deg + truth.northM / meridional, lonRad: DEFAULT_HOME[1] * deg + truth.eastM / (primeVerticalRadiusM(DEFAULT_HOME[0] * deg) * Math.cos(DEFAULT_HOME[0] * deg)),
+      heightM: DEFAULT_HOME[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
+    const expected = gnssSolution(walkerConstellation(2400), receiver, 2400, simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
+    // Without an error the offsets stay, so only the count and the accuracy are written.
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: expected.tracked }, { name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
+    expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'gnss.constellation', status: 'applied' });
+    // GNSS jamming writes the same parameters: refused while the stream runs.
+    expect(h.controller.setEffect({ schemaVersion: 1, id: 'jam', effect: 'ew.gnss-jamming', enabled: true, intensity: 1, parameters: { severity: 1 } })).toContain('writes the same receiver parameters');
+    // The atmosphere moves the fix, written as offsets.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }))).toBeNull();
+    expect(paramSets(h).map(write => write.name).sort()).toEqual(['SIM_GPS1_GLTCH_X', 'SIM_GPS1_GLTCH_Y', 'SIM_GPS1_GLTCH_Z']);
+    expect(Math.abs(paramSets(h).find(write => write.name === 'SIM_GPS1_GLTCH_Z')?.value ?? 0)).toBeGreaterThan(0.1);
+    // A jammer above the link budget loses the fix: the receiver's lock is held off.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(gnss('gnss.jamming-budget', { jammingToSignalDb: 60, spectralSeparation: 1.5, thresholdDbHz: 28 }))).toBeNull();
+    expect(paramSets(h)).toContainEqual({ name: 'SIM_GPS1_LCKTIME', value: 32767 });
+    expect(h.controller.gnssReceiver?.fixLost).toBe(true);
+    // Every effect off: back to the values before the stream.
+    for (const [effect, parameters] of [['gnss.constellation', { maskDeg: 10, uereM: 1.5 }], ['gnss.atmosphere', { ionosphereResidual: 0.5, troposphereResidual: 0.1 }],
+      ['gnss.jamming-budget', { jammingToSignalDb: 60, spectralSeparation: 1.5, thresholdDbHz: 28 }]] as const) h.controller.setEffect(gnss(effect, parameters, false));
+    expect(h.controller.gnssReceiver).toBeNull();
+    const last = new Map(paramSets(h).map(write => [write.name, write.value]));
+    expect([last.get('SIM_GPS1_GLTCH_Z'), last.get('SIM_GPS1_LCKTIME'), last.get('SIM_GPS1_NUMSATS')]).toEqual([0, 0, 10]);
+  });
+
+  test('a barometer effect is refused while ArduPilot\'s parameters cannot be written', () => {
+    const h = harness(undefined, null, catalog);
+    expect(h.controller.setEffect({ schemaVersion: 1, id: 'wash', effect: 'baro.prop-wash', enabled: true, intensity: 1, parameters: { coefficient: 0.1 } })).toBe('No run is active');
+    expect(h.physics.effectsSent).toEqual([]);
   });
 
   test('without a run, or with an invalid record, nothing is sent', () => {

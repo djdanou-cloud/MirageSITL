@@ -10,7 +10,7 @@ export const MAX_SCHEDULED_EFFECTS = 64;
 /** A day of simulated time; a later onset is a typing mistake, not a plan. */
 export const MAX_SCHEDULE_S = 86400;
 /** The families this tab offers: environment belongs to the Weather tab, and `sensor` to the Sensors tab, before a run. */
-export const FAULT_TAB_FAMILIES: readonly EffectFamily[] = ["fault", "delivery", "ardupilot"];
+export const FAULT_TAB_FAMILIES: readonly EffectFamily[] = ["fault", "delivery", "ardupilot", "barometer", "gnss"];
 
 export interface ScheduledEffect {
   /** What to apply, enabled. */

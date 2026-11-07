@@ -1,5 +1,6 @@
 /** Configurable rigid-rotor BET flight dynamics; one WASM body integrator owns truth. */
 import { AccidentMonitor, type ContactShapePart } from './accident.ts';
+import { BarometerErrors, BarometerInput, type BarometerEffectIndex } from './barometer.ts';
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
@@ -292,6 +293,12 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly groundCos:Float64Array;
   private readonly groundQuery=new Float64Array(3);
   private readonly groundPlane=new Float64Array(4);
+  /** TASK-116: the pressure errors at the barometer's static port, worked out after each step while one of them is on. */
+  readonly barometer=new BarometerErrors();
+  private readonly barometerQuery=new Float64Array(3);
+  private readonly barometerPlane=new Float64Array(4);
+  private barometerDiscAreaM2=0;
+  private barometerMeanRadiusM=0;
   private readonly bus:BetBus|null;
   private readonly initialSoc:number;
   private readonly housePowerW:number;
@@ -414,6 +421,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.groundLateral=new Float64Array(n*n);this.groundRadius=new Float64Array(n);this.groundZ=new Float64Array(n);this.groundCos=new Float64Array(n);this.groundCorrection=new Float64Array(n);
     model.rotors.forEach((rotor,i)=>{
       this.groundRadius[i]=rotor.radiusM;
+      this.barometerDiscAreaM2+=Math.PI*rotor.radiusM*rotor.radiusM;this.barometerMeanRadiusM+=rotor.radiusM/n;
       model.rotors.forEach((other,j)=>{
         const dx=rotor.hubPositionBodyM[0]!-other.hubPositionBodyM[0]!,dy=rotor.hubPositionBodyM[1]!-other.hubPositionBodyM[1]!,d2=dx*dx+dy*dy;
         // A rotor nearer than half a radius, a coaxial partner among them, is not a neighbour here (TASK-101 owns that pair).
@@ -535,7 +543,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.truth.accelerationNedMps2.fill(0);this.angularAcceleration.fill(0);Object.assign(this.state,newState());this.state.batteryVoltage=e[1]!;
     this.state.flags=StateFlag.InputFailsafe;this.pendingActuator=false;this.externalArmed=false;this.fault='';this.validityFlags=this.configurationFlags;
     this.referenceRotorRpm=this.output[9]!*60/(2*Math.PI);
-    this.limits?.reset();this.accidents?.reset();this.contactLoads?.normalN.fill(0);
+    this.limits?.reset();this.accidents?.reset();this.contactLoads?.normalN.fill(0);this.barometer.reset();
     this.clearGroundEffect();
     if(this.wake){this.wake.reset();for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride;this.input[b+15]=0;this.input[b+16]=0;this.input[b+17]=0;}}
     // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
@@ -598,6 +606,28 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.discreteGust.configure(weather);
     this.weatherActive=true;
     return null;
+  }
+  /** TASK-116: one barometer effect on, with its values (intensity applied), or off, from this tick. Allocation-free. */
+  setBarometer(effect:BarometerEffectIndex,active:boolean,values:ArrayLike<number>):void {this.barometer.set(effect,active,values);}
+  /**
+   * The barometer's inputs after a step: the air at the CG, the vehicle's velocity through the air in body axes (the
+   * step's midpoint, as the drag uses, written by the caller), the CG's height above the ground below it, and the rotors' thrust. The static
+   * port is taken at the CG. Allocation-free.
+   */
+  private stepBarometer():void {
+    const x=this.barometer.input,a=this.atmosphere,position=this.truth.positionNedM,query=this.barometerQuery,plane=this.barometerPlane;
+    x[BarometerInput.DensityKgM3]=a[0]!;
+    // T = a²/(γR) with atmosphere.ts's γ = 1.4 and R = 287.05287 J/(kg·K).
+    x[BarometerInput.TemperatureK]=a[2]!*a[2]!/(1.4*287.05287);
+    query[0]=position[0]!;query[1]=position[1]!;query[2]=position[2]!;
+    this.groundPlanes.planeInto(query,plane);
+    const offset=plane[3]!;
+    x[BarometerInput.HeightM]=Number.isFinite(offset)?plane[0]!*query[0]+plane[1]!*query[1]+plane[2]!*query[2]-offset:Infinity;
+    let thrust=0;const output=this.output,stride=this.outputStride;
+    for(let i=0;i<this.rotorCount;i++){const f=output[i*stride+2]!;if(f>0)thrust+=f;}
+    x[BarometerInput.ThrustN]=thrust;x[BarometerInput.DiscAreaM2]=this.barometerDiscAreaM2;x[BarometerInput.MeanRadiusM]=this.barometerMeanRadiusM;
+    x[BarometerInput.TimeS]=this.state.tick/this.hz;
+    this.barometer.step();
   }
   /** TASK-166: back to no weather at a tick boundary: still air and the configured air, as an epoch that never had any. */
   clearWeather():void {
@@ -758,6 +788,12 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     s.flags=(external?this.externalArmed:valid)?0:StateFlag.InputFailsafe;
     if(this.bus)s.batteryVoltage=this.electrical[1]!;
     this.referenceRotorRpm=output[9]!*60/(2*Math.PI);this.pendingActuator=false;
+    // TASK-116: the barometer's errors from this step's truth; nothing at all while every barometer effect is off.
+    if(this.barometer.active){
+      // Through the model's input slots: as call arguments, V8 boxes doubles once this step is too large to inline the call.
+      const x=this.barometer.input;x[BarometerInput.AirForwardMps]=-fx;x[BarometerInput.AirRightMps]=-fy;x[BarometerInput.AirDownMps]=-fz;
+      this.stepBarometer();
+    }
     if(this.power&&this.bus)this.recordPower(this.power,this.bus.output,s.tick);
     this.copyTruth();
     if(this.airActive&&!this.updateAir())this.fault='BET atmosphere outside its envelope';

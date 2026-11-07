@@ -18,9 +18,16 @@ export const ISA_PRESSURE_PA = 101325;
 /**
  * Who applies an effect. `environment` and `fault` act in the session's models; `sensor` is set before the run; `delivery` (TASK-168)
  * acts on what the link to ArduPilot carries, truth untouched; `ardupilot` (TASK-168) is ArduPilot's own fault parameters, written
- * over MAVLink by the run controller, since only it has a parameter service.
+ * over MAVLink by the run controller, since only it has a parameter service; `barometer` (TASK-116) is a pressure error at the
+ * barometer's static port that the session works out from its truth and the run controller delivers as ArduPilot's barometer offset;
+ * `gnss` (TASK-117) is a GNSS error the run controller works out from satellite geometry and delivers to ArduPilot's simulated receiver.
  */
-export type EffectFamily = 'environment' | 'fault' | 'sensor' | 'delivery' | 'ardupilot';
+export type EffectFamily = 'environment' | 'fault' | 'sensor' | 'delivery' | 'ardupilot' | 'barometer' | 'gnss';
+/** TASK-116: the barometer effects in the order of `BarometerEffect` of @mirage/physics/barometer. */
+export const BAROMETER_EFFECT_IDS = Object.freeze(['baro.position-error', 'baro.ground-cushion', 'baro.prop-wash', 'baro.drift', 'baro.pressure-trend'] as const);
+export type BarometerEffectId = (typeof BAROMETER_EFFECT_IDS)[number];
+/** Each barometer effect's index in BAROMETER_EFFECT_IDS, which is its `BarometerEffect` slot. */
+export const BAROMETER_EFFECT_INDEX = Object.freeze({ 'baro.position-error': 0, 'baro.ground-cushion': 1, 'baro.prop-wash': 2, 'baro.drift': 3, 'baro.pressure-trend': 4 } as const);
 /** Bits of a session's delivery mask, one per `delivery` effect. */
 export const DELIVERY_IMU_FROZEN = 1, DELIVERY_GNSS_FROZEN = 2, DELIVERY_MAG_FROZEN = 4, DELIVERY_PILOT_LINK_LOST = 8, DELIVERY_GCS_LINK_LOST = 16;
 export type EffectRecovery = 'hold-offset' | 'step-to-truth';
@@ -53,6 +60,9 @@ const number = (key: string, label: string, unit: string, min: number, max: numb
 const vector = (key: string, label: string, unit: string, axes: readonly [string, string, string], limit: number, initial: Vec3, normMax?: number): VectorField =>
   ({ key, label, unit, kind: 'vector3', axes, min: -limit, max: limit, initial, ...(normMax === undefined ? {} : { normMax }) });
 const NED = ['north', 'east', 'down'] as const, FRD = ['forward', 'right', 'down'] as const, RPY = ['roll', 'pitch', 'yaw'] as const;
+const BACK_LEFT_UP = ['back', 'left', 'up'] as const;
+const GNSS_DELIVERY = 'Worked out by the run controller about 5 times a second from the vehicle\'s position and written to ArduPilot\'s simulated receiver (SIM_GPS1_GLTCH, SIM_GPS1_NUMSATS, SIM_GPS1_ACC); only on a run with ArduPilot that MirageSITL started, and not together with GNSS jamming.';
+const BAROMETER_DELIVERY = 'Delivered as ArduPilot\'s barometer offset (SIM_BAROn_GLITCH) about 10 times a second; only on a run with ArduPilot that MirageSITL started.';
 
 /** Every effect a control can carry. Effect tasks registered later add theirs here. */
 export const EFFECT_CATALOG = {
@@ -93,6 +103,35 @@ export const EFFECT_CATALOG = {
   'sensor.baro.missing': { family: 'ardupilot', label: 'Barometer missing', meaning: 'ArduPilot\'s barometers stop reporting (SIM_BAROn_DISABLE). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
   'sensor.baro.frozen': { family: 'ardupilot', label: 'Barometer frozen', meaning: 'ArduPilot\'s barometers keep reporting the last altitude (SIM_BAROn_FREEZE). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
   'sensor.mag.missing': { family: 'ardupilot', label: 'Magnetometer missing', meaning: 'ArduPilot\'s magnetometers stop reporting (SIM_MAGn_FAIL). Any intensity above 0 is on. Only on a run with ArduPilot that MirageSITL started.', fields: [] },
+  'baro.position-error': { family: 'barometer', label: 'Barometer airspeed error',
+    meaning: `The static port's pressure error in airflow: for each body axis C·½ρu², u the vehicle's speed through the air along it and C the coefficient of that direction, the form of ArduPilot's SIM_BAROn_WCF_*. Intensity multiplies every C. ${BAROMETER_DELIVERY}`,
+    fields: [vector('positiveCoefficient', 'Coefficient moving forward, right, down', '1', FRD, 2, [0, 0, 0]),
+      vector('negativeCoefficient', 'Coefficient moving back, left, up', '1', BACK_LEFT_UP, 2, [0, 0, 0])] },
+  'baro.ground-cushion': { family: 'barometer', label: 'Barometer ground cushion',
+    meaning: `The higher static pressure under the rotors near the ground: k·T/(4A)·exp(−z/(λR)), T/(4A) the rotors' induced dynamic pressure in hover, z the barometer's height and R the rotor radius; a modelling choice whose constants logged takeoff and landing dips would fit. Intensity multiplies k. ${BAROMETER_DELIVERY}`,
+    fields: [number('gain', 'Gain k', '1', 0, 10, 1), number('decayRadii', 'Decay height λ', 'rotor radii', 0.1, 10, 1)] },
+  'baro.prop-wash': { family: 'barometer', label: 'Barometer propeller wash',
+    meaning: `The static port in the rotors' wash at any height: c·T/(4A). Intensity multiplies c. ${BAROMETER_DELIVERY}`,
+    fields: [number('coefficient', 'Coefficient c', '1', -2, 2, 0.1)] },
+  'baro.drift': { family: 'barometer', label: 'Barometer drift',
+    meaning: `A reading that drifts from the moment it goes on: r·t, plus κ times the change of the air temperature since then. Intensity multiplies both. ${BAROMETER_DELIVERY}`,
+    fields: [number('ratePaPerS', 'Drift rate r', 'Pa/s', -10, 10, 0.01), number('temperaturePaPerK', 'Temperature coefficient κ', 'Pa/K', -100, 100, 0)] },
+  'baro.pressure-trend': { family: 'barometer', label: 'Weather pressure trend',
+    meaning: `The air pressure at the site changing with the weather from the moment it goes on, which the barometer reads as a change of height; 100 Pa/h is 1 hPa an hour. Only the barometer sees it: the rotors' air changes by a negligible 0.1 % an hour. Intensity multiplies the trend. ${BAROMETER_DELIVERY}`,
+    fields: [number('trendPaPerHour', 'Pressure trend', 'Pa/h', -1000, 1000, -100)] },
+  'gnss.constellation': { family: 'gnss', label: 'GNSS satellite geometry',
+    meaning: `The receiver tracks the satellites above the elevation mask of a synthetic GPS-like constellation (Walker 24/6/1, 55°, not a real almanac) and reports their count and an accuracy of σ·HDOP. Intensity multiplies σ. ${GNSS_DELIVERY}`,
+    fields: [number('maskDeg', 'Elevation mask', '°', 0, 30, 10), number('uereM', 'User range error σ', 'm', 0.1, 30, 1.5)] },
+  'gnss.atmosphere': { family: 'gnss', label: 'GNSS atmosphere residual',
+    meaning: `What the receiver's own corrections leave of the Klobuchar ionospheric and Saastamoinen tropospheric delays, as fractions, which moves the fix through the satellite geometry, mostly in height. Intensity multiplies both. Without the satellite geometry effect the mask is 5°. ${GNSS_DELIVERY}`,
+    fields: [number('ionosphereResidual', 'Ionosphere residual', '1', 0, 2, 0.5), number('troposphereResidual', 'Troposphere residual', '1', 0, 2, 0.1)] },
+  'gnss.terrain': { family: 'gnss', label: 'GNSS terrain masking',
+    meaning: `The run's terrain hides satellites whose line of sight it blocks: lost, or with a non-line-of-sight excess path tracked by reflection with that extra range. Intensity multiplies the excess. On the synthetic pad nothing is hidden. ${GNSS_DELIVERY}`,
+    fields: [number('nlosExcessM', 'Non-line-of-sight excess path', 'm', 0, 200, 0)] },
+  'gnss.jamming-budget': { family: 'gnss', label: 'GNSS jamming link budget',
+    meaning: `A jammer at the receiver: (C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c) against an open-sky C/N0 of 45 dB-Hz at the zenith and 35 at the horizon; a satellite below the tracking threshold is lost, and without four the fix is lost. Intensity multiplies J/S. ${GNSS_DELIVERY}`,
+    fields: [number('jammingToSignalDb', 'Jamming-to-signal ratio J/S', 'dB', -30, 80, 30), number('spectralSeparation', 'Spectral separation Q', '1', 1, 2, 1.5),
+      number('thresholdDbHz', 'Tracking threshold', 'dB-Hz', 15, 40, 28)] },
   'sensor.imu.accel-noise': { family: 'sensor', label: 'Accelerometer noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
     fields: [number('densityMps2PerSqrtHz', 'Noise density', 'm/s²/√Hz', 0, 0.01, 0)] },
   'sensor.imu.gyro-noise': { family: 'sensor', label: 'Gyroscope noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
@@ -149,7 +188,11 @@ export type EffectiveControl =
   | { readonly family: 'fault'; readonly fault: FaultSetV2 }
   | { readonly family: 'sensor' }
   | { readonly family: 'delivery'; readonly active: boolean; readonly bit: number }
-  | { readonly family: 'ardupilot'; readonly active: boolean };
+  | { readonly family: 'ardupilot'; readonly active: boolean }
+  /** TASK-116: the effect's values with intensity applied, in the order `BarometerErrors.set` takes them; its index in BAROMETER_EFFECT_IDS. */
+  /** TASK-117: applied by the run controller, not a session; `effectiveControl` only range-checks its scaled values. */
+  | { readonly family: 'gnss'; readonly active: boolean }
+  | { readonly family: 'barometer'; readonly effect: BarometerEffectId; readonly index: 0 | 1 | 2 | 3 | 4; readonly active: boolean; readonly values: readonly number[] };
 /** The command as it travels. */
 export interface EffectSetCommand {
   readonly protocolVersion: typeof CONTROL_PROTOCOL_VERSION_3;
@@ -246,6 +289,15 @@ function fieldOf(effect: EffectId, key: string): EffectField {
   if (!field) throw shape(`${effect} has no field ${key}`);
   return field;
 }
+/** TASK-117: the GNSS fields intensity multiplies. */
+const GNSS_SCALED: Readonly<Partial<Record<EffectId, readonly string[]>>> = {
+  'gnss.constellation': ['uereM'], 'gnss.atmosphere': ['ionosphereResidual', 'troposphereResidual'], 'gnss.terrain': ['nlosExcessM'],
+};
+function fieldOfNumber(effect: EffectId, key: string): NumberField {
+  const field = fieldOf(effect, key);
+  if (field.kind !== 'number') throw shape(`${key} is not a number field`);
+  return field;
+}
 /** A scaled value must still lie in the model's envelope. */
 function scaledNumber(control: EffectControl, key: string, intensity: number): number {
   const field = fieldOf(control.effect, key), value = numberOf(control, key) * intensity;
@@ -293,6 +345,26 @@ function faultEffect(control: EffectControl, intensity: number): EwEffect {
   }
 }
 
+function isBarometerEffect(effect: EffectId): effect is BarometerEffectId {
+  return (BAROMETER_EFFECT_IDS as readonly string[]).includes(effect);
+}
+/** TASK-116: a barometer effect's values, intensity applied where it scales them and each still in its envelope. */
+function barometerControl(control: EffectControl, active: boolean, i: number): EffectiveControl {
+  const effect = control.effect;
+  if (!isBarometerEffect(effect)) throw shape(`${effect} is not a barometer effect`);
+  const index = BAROMETER_EFFECT_INDEX[effect];
+  let values: number[];
+  switch (effect) {
+    case 'baro.position-error': values = [...scaledVector(control, 'positiveCoefficient', i), ...scaledVector(control, 'negativeCoefficient', i)]; break;
+    case 'baro.ground-cushion': values = [scaledNumber(control, 'gain', i), numberOf(control, 'decayRadii')]; break;
+    case 'baro.prop-wash': values = [scaledNumber(control, 'coefficient', i)]; break;
+    case 'baro.drift': values = [scaledNumber(control, 'ratePaPerS', i), scaledNumber(control, 'temperaturePaPerK', i)]; break;
+    case 'baro.pressure-trend': values = [scaledNumber(control, 'trendPaPerHour', i)]; break;
+    default: { const never: never = effect; throw shape(`Unhandled barometer effect ${String(never)}`); }
+  }
+  return { family: 'barometer', effect, index, active, values: Object.freeze(values) };
+}
+
 /** What a validated control does. Off and intensity 0 reduce to the same "not active", so neither can differ from an absent effect. */
 export function effectiveControl(control: EffectControl, envelope: { requestId: number; expectedEpoch: number; atTick: TickId; recovery: EffectRecovery }): EffectiveControl {
   const active = control.enabled && control.intensity > 0, i = active ? control.intensity : 1;
@@ -338,6 +410,12 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
     }
     case 'ardupilot':
       return { family: 'ardupilot', active };
+    case 'barometer': return barometerControl(control, active, i);
+    case 'gnss':
+      // Range-checks what intensity scales: σ, both residuals, the excess path, and J/S (by 10·log10 i dB).
+      for (const key of GNSS_SCALED[control.effect] ?? []) scaledNumber(control, key, i);
+      if (control.effect === 'gnss.jamming-budget') withinRange(numberOf(control, 'jammingToSignalDb') + 10 * Math.log10(i), fieldOfNumber(control.effect, 'jammingToSignalDb'), `jammingToSignalDb at intensity ${i}`);
+      return { family: 'gnss', active };
     default: { const never: never = definition.family; throw shape(`Unhandled family ${String(never)}`); }
   }
 }
