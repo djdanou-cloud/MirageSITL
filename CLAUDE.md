@@ -463,8 +463,8 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured data for TASK-099, TASK-100, TASK-101,
-  TASK-145 and TASK-184. A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured data for TASK-099, TASK-100 and TASK-101;
+  TASK-145 and TASK-184 are DONE on T-Motor's datasheet and a forum flight log (2026-11-07). A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
   failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
   stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
   `scripts/fidelity-capture.mjs` writes a capture from two logs; TASK-108 and TASK-115

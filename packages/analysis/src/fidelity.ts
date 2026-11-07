@@ -1,5 +1,6 @@
 import { columnText, type DataFlashColumn, type DataFlashGroup, type DataFlashLog } from "@mirage/dataflash/reader";
 import { fftInPlace, timeDomainMetrics } from "@mirage/physics/fidelity-metrics";
+import { MIRAGE_MESSAGES } from "@mirage/dataflash/writer";
 import { flightTrack, pathDifference, type PathDifference } from "./resimulate.ts";
 
 // Fidelity assessment (TASK-184, S15; SPECS_SIMULATION_ENGINES "Fidelity assessment: TASK-184"): a real flight log beside the log of a
@@ -19,6 +20,7 @@ const groupOf = (log: DataFlashLog, name: string): DataFlashGroup | null => log.
 const columnOf = (group: DataFlashGroup, name: string): DataFlashColumn | null => group.columns.find(item => item.name === name) ?? null;
 const valueAt = (column: DataFlashColumn, row: number): number => Number(column.values[row]) * column.valueScale;
 
+const MIRAGE_MESSAGE_NAMES: ReadonlySet<string> = new Set(MIRAGE_MESSAGES.map(message => message.name));
 /** Where a log comes from: a real aircraft, or a simulation (SITL settings or MirageSITL's own messages in it). */
 export function logOrigin(log: DataFlashLog): { readonly kind: "real" | "simulated"; readonly reason: string } {
   const parameters = groupOf(log, "PARM"), names = parameters ? columnOf(parameters, "Name") : null;
@@ -28,7 +30,8 @@ export function logOrigin(log: DataFlashLog): { readonly kind: "real" | "simulat
       if (name.startsWith("SIM_")) return { kind: "simulated", reason: `It sets the SITL parameter ${name}` };
     }
   }
-  const own = log.groups.find(group => group.count > 0 && /^MS/.test(group.name));
+  // MirageSITL's own messages by name: ArduPilot's MSG, which every real log holds, also begins with "MS".
+  const own = log.groups.find(group => group.count > 0 && MIRAGE_MESSAGE_NAMES.has(group.name));
   if (own) return { kind: "simulated", reason: `It holds MirageSITL's ${own.name} messages` };
   return { kind: "real", reason: "It holds no SITL parameter and no MirageSITL message" };
 }

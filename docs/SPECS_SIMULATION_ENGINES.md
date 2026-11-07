@@ -9662,8 +9662,50 @@ the five regimes, absent for a new profile version and for a SITL log. On the
 reference Mac, `tests/browser/fidelity-report.spec.ts` flies a hover of native
 ArduCopter, compares it through the report with the repository's SITL log (or a
 real one given as `MIRAGE_REAL_FLIGHT_LOG`), saves the comparison and checks the
-label. At least one real flight log (G4) is still to be compared before the
-task is done.
+label.
+
+**First real flight (G4, 2026-11-07).** By the stakeholder's decision of
+2026-11-07 the real log is `topic-144558-00000205.BIN` of
+`data/flight-logs/inventory.json` (ArduCopter V4.6.2, the 7.2 kg quad X on
+T-Motor MN7005 KV230 and P24*7.2 CF propellers). `tests/browser/fidelity-forum-quad.spec.ts`
+(1 passed on the reference Mac, Playwright Chromium, native ArduCopter fb773567
+at speed 4, `MIRAGE_FORUM_LOG_DIR` set) builds that aircraft from its cards and
+`tests/fixtures/aircraft/tmotor-mn7005-quad.json` (arm length and inertia
+assumed), calibrates it in the Components tab on T-Motor's datasheet (TASK-145),
+takes off to 100 m from the Run tab as the real flight's automatic take-off
+did, lands, and compares the run with the real log from 5 s before the motors
+started to 45 s after, the logs lined up at their motor starts (real 178.18 s,
+simulated 50.44 s). The real interval holds 42.1 s of climb and 7.9 s of
+hover; the version became flight-checked in those regimes. Its first run found
+that `logOrigin` called every real log simulated: it took any message whose
+name begins with `MS` for MirageSITL's own, and ArduPilot's `MSG` begins so;
+it now matches MirageSITL's message names exactly
+(`tests/fidelity-assessment.test.ts`, a log with `MSG` alone is real).
+
+Means over the climb, real against simulated (no limit, no verdict):
+
+| Quantity | Real | Simulated | RMS of the difference |
+| --- | --- | --- | --- |
+| Roll, deg | −2.33 | 0.15 | 2.52 |
+| Pitch, deg | −0.39 | 0.13 | 0.87 |
+| Height above the origin, m | 51.6 | 51.1 | 0.51 |
+| Climb rate, m/s | 2.48 | 2.37 | 0.18 |
+| Battery voltage, V | 23.05 | 24.56 | 1.51 |
+| Battery current, A | 19.8 | 35.4 | 15.7 |
+| Motor output 1, µs | 1642 | 1562 | 81 |
+| Roll, pitch and yaw rate RMS, deg/s | | | 1.63, 1.96, 0.56 |
+
+What explains the larger differences, as far as the logs show: the real
+aircraft flies with a steady roll of about −2.3°, of which its own
+`AHRS_TRIM_X` of 0.023 rad (1.3°) accounts for part, and the owner was told
+in the topic that its propellers were not level; the heading differs by 120°
+because the run took off facing another way; the simulated battery does not
+sag, because the card's internal resistance is not known; and the simulated
+current is 1.8 times the real one. T-Motor's datasheet puts 1.8 kg of thrust
+per motor (the stated 7.2 kg) at 6.4 A, about 26 A for the aircraft in hover,
+which the simulation follows; the real log reads less, so either its current
+sensor's scale (`BATT_AMP_PERVLT` 39.88) or the datasheet does not hold for
+this aircraft, and the logs cannot tell which.
 
 ## Experiment from a log (TASK-182)
 
