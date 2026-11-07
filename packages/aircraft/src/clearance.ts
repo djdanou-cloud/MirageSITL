@@ -1,6 +1,7 @@
 import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import { deriveLayout, type AircraftLayout } from './layout.ts';
-import { validateAircraftProfile, type AircraftProfile } from './profile.ts';
+import { landingGearOf, validateAircraftProfile, type AircraftProfile } from './profile.ts';
+import { gearRestingClearanceM } from './profile-gear.ts';
 import { restingClearanceM, STANDARD_GEAR } from './standard-gear.ts';
 import { hullLowestDepthM, propellerDisc, standardHull } from './standard-hull.ts';
 
@@ -53,7 +54,7 @@ export type ClearanceClash =
   /** A part reaches the ground at rest; `depthM` is how far its lowest point lies below it. */
   | { readonly kind: 'ground'; readonly part: ClearancePart; readonly depthM: number };
 export interface ClearanceReport {
-  /** Height of the reference point above the ground at rest: the profile's clearance, or the derived one. */
+  /** Height of the reference point above the ground at rest: the profile's clearance, the derived one, or on a described gear its resting height. */
   readonly groundClearanceM: number;
   readonly clearanceStated: boolean;
   /** Propeller pairs in ascending motor order, then propellers and the body, then parts on the ground. */
@@ -251,7 +252,9 @@ export function propellerClearance(input: unknown, propellerRadiusM: (motorId: n
     if (disc === undefined || !touches(disc, body)) return;
     clashes.push({ kind: 'propeller-body', motorId: rotor.motorId, overlapM: Math.max(0, disc.radiusM + body.radiusM - planDistanceM(disc, body)) });
   });
-  const groundClearanceM = restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
+  // TASK-194: on a described gear the aircraft rests where its supports put it, so a part below that height is on the ground.
+  const gear = landingGearOf(profile);
+  const groundClearanceM = gear ? gearRestingClearanceM(profile, gear) : restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
   const parts: [ClearancePart, HullShape][] = [
     ...hull.map((shape, i): [ClearancePart, HullShape] => {
       const arm = profile.arms[i - 1];
