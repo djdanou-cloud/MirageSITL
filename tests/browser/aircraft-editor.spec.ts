@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
@@ -144,6 +145,131 @@ test("invalid edits are blocked with a reason, and a copy leaves the original un
   expect(result.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
 });
 
+/**
+ * TASK-194, TASK-196: the newest saved profile of a project, on the example cards, flown in the physics Worker on equal pilot
+ * throttle: armed at rest, a vertical-speed loop up a metre above the rest height, then either down at 0.5 m/s to a landing
+ * ("land") or the throttle cut for a free fall ("drop"). Returns the derived manifest, the heights, the tilt and every accident
+ * the Worker posted, each worded by `describeAccident` with the profile's arm IDs and body part names.
+ */
+async function flySaved(page: Page, projectName: string, ending: "land" | "drop") {
+  execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
+  const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
+  const wasm = readFileSync("packages/wasm-bet/dist/mirage_bet.scalar.wasm");
+  const input = {
+    bytes: Array.from(wasm), wasmSha256: createHash("sha256").update(wasm).digest("hex"), projectName, ending,
+    contactBytes: Array.from(readFileSync("packages/physics/dist/contact/contact.wasm")),
+    contactManifest: JSON.parse(readFileSync("packages/physics/dist/contact/manifest.json", "utf8")) as unknown,
+    cards: Object.fromEntries(["motor", "propeller", "esc", "battery"].map(type => [type, read(`../fixtures/components/${type}-example.json`)])),
+    urls: {
+      ...urls, worker: viteFileUrl(new URL("../../apps/web/src/physics.worker.ts", import.meta.url)),
+      protocol: viteFileUrl(new URL("../../packages/protocol/src/index.ts", import.meta.url)),
+      profile: viteFileUrl(new URL("../../packages/aircraft/src/profile.ts", import.meta.url)),
+      components: viteFileUrl(new URL("../../packages/aircraft/src/components.ts", import.meta.url)),
+      resolve: viteFileUrl(new URL("../../packages/aircraft/src/resolve-components.ts", import.meta.url)),
+      accident: viteFileUrl(new URL("../../packages/physics/src/accident.ts", import.meta.url)),
+    },
+  };
+  return page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, cards, urls, projectName, ending }) => {
+    const p = await import(urls.protocol) as typeof import("@mirage/protocol");
+    const { ProjectStore } = await import(urls.store) as Store;
+    const profiles = await import(urls.profile) as typeof import("@mirage/aircraft/profile");
+    const components = await import(urls.components) as typeof import("@mirage/aircraft/components");
+    const resolver = await import(urls.resolve) as typeof import("@mirage/aircraft/resolve-components");
+    const derivation = await import(urls.derivation) as Derivation;
+    const accidents = await import(urls.accident) as typeof import("@mirage/physics/accident");
+    const store = await ProjectStore.openIndexedDb();
+    let stored: unknown;
+    try {
+      const project = (await store.listProjects()).find(item => item.record.name === projectName);
+      const [item] = project ? await store.listItems(project.record.id, "aircraft-profile") : [];
+      stored = item?.record.payload;
+    } finally { store.close(); }
+    const saved = profiles.validateAircraftProfile(stored);
+    const ids = { motor: "11".repeat(32), propeller: "22".repeat(32), esc: "33".repeat(32), battery: "44".repeat(32) };
+    const fitted = profiles.withPropellerPolars(profiles.validateAircraftProfile({ ...saved, battery: { card: ids.battery },
+      motors: saved.motors.map(motor => ({ ...motor, components: { motor: ids.motor, propeller: ids.propeller, esc: ids.esc } })) }),
+    [{ card: ids.propeller, polar: "naca6409-neuralfoil-v1" }]);
+    const cardMap = new Map(Object.entries(cards).map(([type, value]) => [ids[type as keyof typeof ids], components.validateComponentCard(value)]));
+    const resolved = resolver.resolveComponents(fitted, cardMap);
+    if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join("; ")}`);
+    const derived = await derivation.deriveVehicleManifest(fitted, resolved.components, { modelId: 194 });
+    const stateBuffer = p.createSharedMemoryV2(), worker = new Worker(urls.worker, { type: "module" });
+    const struck: string[] = [], armIds = saved.arms.map(arm => arm.id), partNames = profiles.bodyOf(saved)?.parts.map(part => part.name) ?? [];
+    worker.addEventListener("message", (event: MessageEvent<unknown>) => {
+      const data = event.data as { type?: unknown; events?: unknown };
+      if (data.type === "accident.events" && Array.isArray(data.events)) {
+        for (const item of data.events as import("@mirage/physics/accident").AccidentEvent[]) struck.push(accidents.describeAccident(item, armIds, partNames));
+      }
+    });
+    const next = (predicate: (data: Record<string, unknown>) => boolean): Promise<Record<string, unknown>> => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Worker timeout")), 60000);
+      const listener = (event: MessageEvent<unknown>): void => {
+        const data = event.data;
+        if (typeof data === "object" && data !== null && predicate(data as Record<string, unknown>)) {
+          clearTimeout(timer); worker.removeEventListener("message", listener); resolve(data as Record<string, unknown>);
+        }
+      };
+      worker.addEventListener("message", listener);
+    });
+    try {
+      const reader = new p.StateReaderV2(stateBuffer), header = p.newHeaderSnapshotV2(), state = p.newFlightStateV2(), pilot = new p.PilotWriterV2(stateBuffer);
+      const ready = next(d => d.type === "ready-v2");
+      worker.postMessage({ type: "init-v2", protocolVersion: 2, stateBuffer, sensorBuffer: p.createSpscQueue("sensor"), actuatorBuffer: p.createSpscQueue("actuator") });
+      await ready;
+      for (const [message, done] of [[{ type: "bet.module", bytes: new Uint8Array(bytes), sha256: wasmSha256 }, "bet.module.ready"],
+        [{ type: "contact.module", bytes: new Uint8Array(contactBytes), manifest: contactManifest }, "contact.module.ready"],
+        [{ type: "model.register", bytes: derived.bytes, sha256: derived.sha256 }, "model.registered"]] as const) {
+        const reply = next(d => d.type === done);
+        worker.postMessage(message);
+        await reply;
+      }
+      const final = (id: number) => (d: Record<string, unknown>) => d.requestId === id && (d.type === "reject-v2" || (d.type === "ack-v2" && d.status === "applied"));
+      for (const [id, command] of [[1, { type: "model.load", modelId: 194, manifestSha256: derived.sha256 }], [2, { type: "sim.start" }]] as const) {
+        reader.readHeader(header);
+        const result = next(final(id));
+        worker.postMessage({ protocolVersion: 2, requestId: id, expectedEpoch: header.sessionEpoch, ...command });
+        const reply = await result;
+        if (reply.type !== "ack-v2") throw new Error(`${command.type} refused: ${JSON.stringify(reply)}`);
+      }
+      reader.readHeader(header);
+      const sample = p.newPilotInputV2();
+      sample.expectedEpoch = header.sessionEpoch; sample.flags = 3;
+      let sampleId = 0, maxTiltRad = 0, highestM = -Infinity;
+      const publish = (throttle: number) => {
+        sample.throttle = throttle; sample.sampledWallTimeMs = performance.timeOrigin + performance.now(); sample.inputSampleId = ++sampleId;
+        pilot.publish(sample);
+      };
+      const wait = () => new Promise(resolve => setTimeout(resolve, 20));
+      const height = () => {
+        if (!reader.latest(state)) throw new Error("No state published");
+        maxTiltRad = Math.max(maxTiltRad, Math.acos(Math.min(1, 1 - 2 * (state.qx * state.qx + state.qy * state.qy))));
+        highestM = Math.max(highestM, -state.downM);
+        return -state.downM;
+      };
+      const hold = async (throttle: number, ms: number) => {
+        for (const end = performance.now() + ms; performance.now() < end; await wait()) { publish(throttle); height(); }
+      };
+      // Armed at zero throttle, standing on the gear.
+      await hold(0, 1500);
+      const restBefore = height();
+      // Equal throttle on a vertical-speed loop: up at 1 m/s to a metre above the rest height, then down at 0.5 m/s or a free fall.
+      let integral = 0.3;
+      const fly = (vdRef: number) => {
+        const error = state.vdMps - vdRef;
+        integral = Math.min(1, Math.max(0, integral + 0.6 * error * 0.02));
+        publish(Math.min(1, Math.max(0, integral + 0.2 * error)));
+      };
+      for (const end = performance.now() + 10000; height() < restBefore + 1 && performance.now() < end; await wait()) fly(-1);
+      if (ending === "land") for (const end = performance.now() + 15000; height() > restBefore + 0.003 && performance.now() < end; await wait()) fly(0.5);
+      await hold(0, 3000);
+      return { manifest: JSON.parse(JSON.stringify(derived.manifest)) as unknown, restBefore, restAfter: height(), highestM, maxTiltRad,
+        schemaVersion: saved.schemaVersion, gear: profiles.landingGearOf(saved), body: profiles.bodyOf(saved), struck,
+        paused: (state.vehicleFlags & p.VehicleFlagV2.Paused) !== 0 };
+    } finally { worker.terminate(); }
+  }, input);
+}
+
 // TASK-194: a landing gear described through the Aircraft tab alone. Its refusals come back with their reasons, the scheme draws
 // each foot where the profile puts it, and the saved profile, on the example cards, stands, takes off and lands on it in the
 // physics Worker: rest within 1 mm of rigid-plate statics on the manifest's supports (tests/support/standard-gear.ts) before and
@@ -200,110 +326,7 @@ test("a landing gear is described through the UI alone, drawn where it is, and a
   drawn.forEach((position, i) => position.forEach((value, a) => expect(Math.abs(value - toRender(feet[i]!)[a]!), `foot ${i + 1}`).toBeLessThan(1e-9)));
 
   // The saved version flies in the physics Worker on the example cards; the gear is the one the UI stored.
-  const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
-  const wasm = readFileSync("packages/wasm-bet/dist/mirage_bet.scalar.wasm");
-  const input = {
-    bytes: Array.from(wasm), wasmSha256: (await import("node:crypto")).createHash("sha256").update(wasm).digest("hex"),
-    contactBytes: Array.from(readFileSync("packages/physics/dist/contact/contact.wasm")),
-    contactManifest: JSON.parse(readFileSync("packages/physics/dist/contact/manifest.json", "utf8")) as unknown,
-    cards: Object.fromEntries(["motor", "propeller", "esc", "battery"].map(type => [type, read(`../fixtures/components/${type}-example.json`)])),
-    urls: {
-      ...urls, worker: viteFileUrl(new URL("../../apps/web/src/physics.worker.ts", import.meta.url)),
-      protocol: viteFileUrl(new URL("../../packages/protocol/src/index.ts", import.meta.url)),
-      profile: viteFileUrl(new URL("../../packages/aircraft/src/profile.ts", import.meta.url)),
-      components: viteFileUrl(new URL("../../packages/aircraft/src/components.ts", import.meta.url)),
-      resolve: viteFileUrl(new URL("../../packages/aircraft/src/resolve-components.ts", import.meta.url)),
-    },
-  };
-  const flight = await page.evaluate(async ({ bytes, wasmSha256, contactBytes, contactManifest, cards, urls }) => {
-    const p = await import(urls.protocol) as typeof import("@mirage/protocol");
-    const { ProjectStore } = await import(urls.store) as Store;
-    const profiles = await import(urls.profile) as typeof import("@mirage/aircraft/profile");
-    const components = await import(urls.components) as typeof import("@mirage/aircraft/components");
-    const resolver = await import(urls.resolve) as typeof import("@mirage/aircraft/resolve-components");
-    const derivation = await import(urls.derivation) as Derivation;
-    const store = await ProjectStore.openIndexedDb();
-    let stored: unknown;
-    try {
-      const project = (await store.listProjects()).find(item => item.record.name === "Gear checks");
-      const [item] = project ? await store.listItems(project.record.id, "aircraft-profile") : [];
-      stored = item?.record.payload;
-    } finally { store.close(); }
-    const saved = profiles.validateAircraftProfile(stored);
-    const ids = { motor: "11".repeat(32), propeller: "22".repeat(32), esc: "33".repeat(32), battery: "44".repeat(32) };
-    const fitted = profiles.withPropellerPolars(profiles.validateAircraftProfile({ ...saved, battery: { card: ids.battery },
-      motors: saved.motors.map(motor => ({ ...motor, components: { motor: ids.motor, propeller: ids.propeller, esc: ids.esc } })) }),
-    [{ card: ids.propeller, polar: "naca6409-neuralfoil-v1" }]);
-    const cardMap = new Map(Object.entries(cards).map(([type, value]) => [ids[type as keyof typeof ids], components.validateComponentCard(value)]));
-    const resolved = resolver.resolveComponents(fitted, cardMap);
-    if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join("; ")}`);
-    const derived = await derivation.deriveVehicleManifest(fitted, resolved.components, { modelId: 194 });
-    const stateBuffer = p.createSharedMemoryV2(), worker = new Worker(urls.worker, { type: "module" });
-    const next = (predicate: (data: Record<string, unknown>) => boolean): Promise<Record<string, unknown>> => new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Worker timeout")), 60000);
-      const listener = (event: MessageEvent<unknown>): void => {
-        const data = event.data;
-        if (typeof data === "object" && data !== null && predicate(data as Record<string, unknown>)) {
-          clearTimeout(timer); worker.removeEventListener("message", listener); resolve(data as Record<string, unknown>);
-        }
-      };
-      worker.addEventListener("message", listener);
-    });
-    try {
-      const reader = new p.StateReaderV2(stateBuffer), header = p.newHeaderSnapshotV2(), state = p.newFlightStateV2(), pilot = new p.PilotWriterV2(stateBuffer);
-      const ready = next(d => d.type === "ready-v2");
-      worker.postMessage({ type: "init-v2", protocolVersion: 2, stateBuffer, sensorBuffer: p.createSpscQueue("sensor"), actuatorBuffer: p.createSpscQueue("actuator") });
-      await ready;
-      for (const [message, done] of [[{ type: "bet.module", bytes: new Uint8Array(bytes), sha256: wasmSha256 }, "bet.module.ready"],
-        [{ type: "contact.module", bytes: new Uint8Array(contactBytes), manifest: contactManifest }, "contact.module.ready"],
-        [{ type: "model.register", bytes: derived.bytes, sha256: derived.sha256 }, "model.registered"]] as const) {
-        const reply = next(d => d.type === done);
-        worker.postMessage(message);
-        await reply;
-      }
-      const final = (id: number) => (d: Record<string, unknown>) => d.requestId === id && (d.type === "reject-v2" || (d.type === "ack-v2" && d.status === "applied"));
-      for (const [id, command] of [[1, { type: "model.load", modelId: 194, manifestSha256: derived.sha256 }], [2, { type: "sim.start" }]] as const) {
-        reader.readHeader(header);
-        const result = next(final(id));
-        worker.postMessage({ protocolVersion: 2, requestId: id, expectedEpoch: header.sessionEpoch, ...command });
-        const reply = await result;
-        if (reply.type !== "ack-v2") throw new Error(`${command.type} refused: ${JSON.stringify(reply)}`);
-      }
-      reader.readHeader(header);
-      const sample = p.newPilotInputV2();
-      sample.expectedEpoch = header.sessionEpoch; sample.flags = 3;
-      let sampleId = 0, maxTiltRad = 0, highestM = -Infinity;
-      const publish = (throttle: number) => {
-        sample.throttle = throttle; sample.sampledWallTimeMs = performance.timeOrigin + performance.now(); sample.inputSampleId = ++sampleId;
-        pilot.publish(sample);
-      };
-      const wait = () => new Promise(resolve => setTimeout(resolve, 20));
-      const height = () => {
-        if (!reader.latest(state)) throw new Error("No state published");
-        maxTiltRad = Math.max(maxTiltRad, Math.acos(Math.min(1, 1 - 2 * (state.qx * state.qx + state.qy * state.qy))));
-        highestM = Math.max(highestM, -state.downM);
-        return -state.downM;
-      };
-      const hold = async (throttle: number, ms: number) => {
-        for (const end = performance.now() + ms; performance.now() < end; await wait()) { publish(throttle); height(); }
-      };
-      // Armed at zero throttle, standing on the gear.
-      await hold(0, 1500);
-      const restBefore = height();
-      // Equal throttle on a vertical-speed loop: up at 1 m/s to a metre above the rest height, then down at 0.5 m/s.
-      let integral = 0.3;
-      const fly = (vdRef: number) => {
-        const error = state.vdMps - vdRef;
-        integral = Math.min(1, Math.max(0, integral + 0.6 * error * 0.02));
-        publish(Math.min(1, Math.max(0, integral + 0.2 * error)));
-      };
-      for (const end = performance.now() + 10000; height() < restBefore + 1 && performance.now() < end; await wait()) fly(-1);
-      for (const end = performance.now() + 15000; height() > restBefore + 0.003 && performance.now() < end; await wait()) fly(0.5);
-      await hold(0, 3000);
-      return { manifest: JSON.parse(JSON.stringify(derived.manifest)) as unknown, restBefore, restAfter: height(), highestM, maxTiltRad,
-        schemaVersion: saved.schemaVersion, gear: profiles.landingGearOf(saved) };
-    } finally { worker.terminate(); }
-  }, input);
+  const flight = await flySaved(page, "Gear checks", "land");
   expect(flight.schemaVersion).toBe(7);
   expect(flight.gear).toMatchObject({ kind: "legs", positionSource: "Frame drawing", feetBodyM: feet,
     values: { strutStiffnessNpm: 1800, strutTravelM: 0.03, strutDampingNspm: null }, provenance: { strutStiffnessNpm: "Bench compression test" } });
@@ -316,4 +339,46 @@ test("a landing gear is described through the UI alone, drawn where it is, and a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const result = await new AxeBuilder({ page }).analyze();
   expect(result.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
+});
+
+// TASK-196: a body with a low camera pod described through the Aircraft tab alone. The scheme draws the body and the pod where the
+// profile puts them, the aircraft stands on its stated clearance without a body contact, and a landing from a metre with the
+// throttle cut bottoms out the supports so that the pod scrapes: the session reports an accident of the camera pod, by name.
+test("a body with a low camera pod is entered through the UI alone, and a landing that scrapes the pod is reported as a body contact", async ({ page }) => {
+  test.setTimeout(300_000);
+  const quad = RECIPES[0]!;
+  await page.goto("/");
+  await createProject(page, "Body checks");
+  await build(page, quad);
+  const tab = panel(page), problems = tab.getByRole("list", { name: "Problems to fix before saving" });
+  await tab.getByLabel("Aircraft CG x (m)", { exact: true }).fill("0");
+  await tab.getByLabel("Describe the body", { exact: true }).check();
+  await tab.getByLabel("Body radius (m)", { exact: true }).fill("0.06");
+  await tab.getByLabel("Body half-height (m)", { exact: true }).fill("0.025");
+  await tab.getByLabel("Arm thickness radius (m, optional)", { exact: true }).fill("0.008");
+  await tab.getByRole("button", { name: "Add body part", exact: true }).click();
+  // The quad X rests at its stated 0.12 m: a pod reaching 0.112 m down is 8 mm off the ground.
+  await tab.getByLabel("Body part 1 name", { exact: true }).fill("Camera pod");
+  for (const [axis, value] of [["x", "0"], ["y", "0"], ["z", "0.097"]] as const) await tab.getByLabel(`Body part 1 centre ${axis} (m)`, { exact: true }).fill(value);
+  await tab.getByLabel("Body part 1 half-height (m)", { exact: true }).fill("0.015");
+  await tab.getByLabel("Body part 1 radius (m)", { exact: true }).fill("0.03");
+  await expect(problems).toContainText("Say where the body dimensions come from");
+  await tab.getByLabel("Where the body dimensions come from", { exact: true }).fill("Frame drawing");
+  await expect(problems).toHaveCount(0);
+  await tab.getByRole("button", { name: "Save profile", exact: true }).click();
+  await expect(tab.getByTestId("aircraft-status")).toHaveText(`Saved version 2 of ${quad.name}.`);
+  // The scheme draws the body at its centre and the pod at its own.
+  const scheme = tab.getByTestId("aircraft-scheme");
+  await expect.poll(async () => (JSON.parse(await scheme.getAttribute("data-rendered-body") ?? "[]") as unknown[]).length).toBe(2);
+  const shapes = JSON.parse(await scheme.getAttribute("data-rendered-body") ?? "[]") as number[][];
+  [[0, 0, 0], [0, 0, 0.097]].forEach((centre, i) => shapes[i]!.forEach((value, a) => expect(Math.abs(value - toRender(centre)[a]!), `shape ${i}`).toBeLessThan(1e-9)));
+
+  const flight = await flySaved(page, "Body checks", "drop");
+  expect(flight.schemaVersion).toBe(7);
+  expect(flight.body).toMatchObject({ radiusM: 0.06, armRadiusM: 0.008, source: "Frame drawing", parts: [{ name: "Camera pod", shape: "cylinder" }] });
+  // Standing on the supports nothing touched; the drop scraped the pod, which the session reports by name and pauses on.
+  expect(Math.abs(flight.restBefore - standardGearHeights(flight.manifest as VehicleManifest).restM), "rest height").toBeLessThan(1e-3);
+  expect(flight.highestM - flight.restBefore, "climb").toBeGreaterThan(0.95);
+  expect(flight.struck.some(line => line.startsWith("The body part Camera pod struck the ground at ")), flight.struck.join("; ")).toBe(true);
+  expect(flight.paused).toBe(true);
 });

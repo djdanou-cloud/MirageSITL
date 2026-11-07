@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentTerrain } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
-import { bodyOf, readAircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, landingGearOf, readAircraftProfile } from "@mirage/aircraft/profile";
+import { gearDrawing } from "../aircraft/scheme-geometry";
 import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { RunDriver } from "./session-link";
@@ -468,6 +469,13 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
   const partNames = useMemo(() => bodyPartNamesOf(chosen), [chosen]);
+  // TASK-194, TASK-196: the chosen profile's described gear and body, drawn in the flight view.
+  const airframe = useMemo(() => {
+    try {
+      const profile = chosen ? readAircraftProfile(chosen) : null, gear = profile ? landingGearOf(profile) : null;
+      return { body: profile ? bodyOf(profile) : null, gear: gear ? gearDrawing(gear) : null };
+    } catch { return { body: null, gear: null }; }
+  }, [chosen]);
   const accidents = view?.accidents ?? [];
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
@@ -566,7 +574,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         onRelease={() => setManualRefusal(controller.current?.releaseManual() ?? "")} refusal={manualRefusal} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
-          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
+          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} route={route} active={visible} body={airframe.body} gear={airframe.gear} ringTurning={view?.motorCheck?.running === true}
             onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
           <div className="flight-view-panels">
             <MotorCheckPanel check={view?.motorCheck ?? null} refusal={motorRefusal}

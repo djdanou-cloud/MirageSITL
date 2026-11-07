@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, Mesh, MeshStandardMaterial, Quaternion, Sprite, SpriteMaterial, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AircraftLayout, RotorLayout } from "@mirage/aircraft/layout";
+import type { ProfileBody } from "@mirage/aircraft/profile";
 import { armMounts, frdToRender, rotorRenderPose, schemeDimensions, type GearDrawing } from "./scheme-geometry";
 
 // The aircraft scheme (TASK-141, S03): every rotor drawn from the TASK-138
@@ -120,6 +121,46 @@ export function Segment({ from, to, thickness, color = BODY_COLOR }: { from: rea
   );
 }
 
+/**
+ * TASK-196: a described body at its true size: the body cylinder about the body z axis, then each part, every shape a group at
+ * its centre (a capsule's midpoint) tagged with its index for the probe: 0 the body, 1 and up the parts.
+ */
+export function BodyMeshes({ body }: { body: ProfileBody }) {
+  return (
+    <group name="described-body">
+      <group name="body-shape-0" userData={{ bodyShape: 0 }} position={frdToRender([0, 0, body.centerDownM])}>
+        <mesh>
+          <cylinderGeometry args={[body.radiusM, body.radiusM, 2 * body.halfHeightM, 32]} />
+          <meshStandardMaterial color={BODY_COLOR} />
+        </mesh>
+      </group>
+      {body.parts.map((part, index) => {
+        if (part.shape === "cylinder") {
+          return (
+            <group key={index} name={`body-shape-${index + 1}`} userData={{ bodyShape: index + 1 }} position={frdToRender(part.centerBodyM)}>
+              <mesh>
+                <cylinderGeometry args={[part.radiusM, part.radiusM, 2 * part.halfHeightM, 24]} />
+                <meshStandardMaterial color="#6f8796" />
+              </mesh>
+            </group>
+          );
+        }
+        const start = new Vector3(...frdToRender(part.startBodyM)), end = new Vector3(...frdToRender(part.endBodyM));
+        const along = end.clone().sub(start), length = along.length();
+        const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), length > 0 ? along.clone().normalize() : new Vector3(0, 1, 0));
+        return (
+          <group key={index} name={`body-shape-${index + 1}`} userData={{ bodyShape: index + 1 }} position={start.clone().add(end).multiplyScalar(0.5)}>
+            <mesh quaternion={quaternion}>
+              <capsuleGeometry args={[part.radiusM, length, 4, 12]} />
+              <meshStandardMaterial color="#6f8796" />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 const GEAR_COLOR = "#cfd8de";
 /**
  * TASK-194: a described landing gear, its feet at their bottom points with the struts fully extended. Each foot is a group at that
@@ -167,12 +208,31 @@ function Controls({ span }: { span: number }) {
   return null;
 }
 
-function Probe({ onRendered, onRenderedGear }: {
+/** The render-space positions of the scene's objects tagged with a numeric `key` in their user data, in tag order. */
+function tagged(scene: Object3D, key: string): number[][] {
+  const found: { index: number; position: number[] }[] = [], at = new Vector3();
+  scene.traverse((object: Object3D) => {
+    const index: unknown = object.userData[key];
+    if (typeof index === "number") found.push({ index, position: object.getWorldPosition(at).toArray() });
+  });
+  return found.sort((a, b) => a.index - b.index).map(item => item.position);
+}
+
+function Probe({ onRendered, onRenderedGear, onRenderedBody }: {
   onRendered: (rotors: readonly RenderedRotor[]) => void; onRenderedGear?: ((feet: readonly (readonly number[])[]) => void) | undefined;
+  onRenderedBody?: ((shapes: readonly (readonly number[])[]) => void) | undefined;
 }) {
   const scene = useThree(state => state.scene);
-  const last = useRef(""), lastGear = useRef("");
+  const last = useRef(""), lastGear = useRef(""), lastBody = useRef("");
   useFrame(() => {
+    // TASK-196: each drawn body shape's centre, the body first.
+    if (onRenderedBody) {
+      const shapes = tagged(scene, "bodyShape"), json = JSON.stringify(shapes);
+      if (json !== lastBody.current) {
+        lastBody.current = json;
+        onRenderedBody(shapes);
+      }
+    }
     // TASK-194: each drawn foot's render-space position, in support order.
     if (onRenderedGear) {
       const feet: { index: number; position: number[] }[] = [], at = new Vector3();
@@ -216,13 +276,16 @@ function Probe({ onRendered, onRenderedGear }: {
 
 const format = (value: number) => (Math.abs(value) < 5e-4 ? "0" : value.toFixed(3));
 
-export function AircraftScheme3D({ layout, name, gear = null, onRendered, onRenderedGear }: {
+export function AircraftScheme3D({ layout, name, gear = null, body = null, onRendered, onRenderedGear, onRenderedBody }: {
   layout: AircraftLayout;
   name: string;
   /** TASK-194: the described landing gear, or null for the standard supports, which are not drawn. */
   gear?: GearDrawing | null;
+  /** TASK-196: the described body, drawn at its size, or null for the symbolic body. */
+  body?: ProfileBody | null;
   onRendered?: (rotors: readonly RenderedRotor[]) => void;
   onRenderedGear?: (feet: readonly (readonly number[])[]) => void;
+  onRenderedBody?: (shapes: readonly (readonly number[])[]) => void;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -232,20 +295,22 @@ export function AircraftScheme3D({ layout, name, gear = null, onRendered, onRend
         <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: 40, near: 0.01, far: 100 }}>
           <ambientLight intensity={0.8} />
           <directionalLight position={[2, 4, 3]} intensity={1.2} />
-          <mesh>
-            <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
-            <meshStandardMaterial color={BODY_COLOR} />
-          </mesh>
+          {body ? <BodyMeshes body={body} /> : (
+            <mesh>
+              <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
+              <meshStandardMaterial color={BODY_COLOR} />
+            </mesh>
+          )}
           {/* Forward (body x) is render -z. */}
           <mesh position={[0, 0, -span * 0.22]} rotation={[-Math.PI / 2, 0, 0]}>
             <coneGeometry args={[span * 0.04, span * 0.1, 12]} />
             <meshStandardMaterial color="#9af0d1" />
           </mesh>
-          {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
+          {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={body?.armRadiusM ? 2 * body.armRadiusM : span * 0.015} />)}
           {layout.rotors.map(rotor => <Rotor key={rotor.motorId} rotor={rotor} discRadius={discRadius} />)}
           {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
           <Controls span={span} />
-          {onRendered && <Probe onRendered={onRendered} onRenderedGear={onRenderedGear} />}
+          {onRendered && <Probe onRendered={onRendered} onRenderedGear={onRenderedGear} onRenderedBody={onRenderedBody} />}
         </Canvas>
       </div>
       <p className="hint">

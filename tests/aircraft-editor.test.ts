@@ -6,9 +6,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { canonicalBytes } from '../packages/project/src/schema.ts';
 import { deriveLayout } from '../packages/aircraft/src/layout.ts';
-import { landingGearOf, propulsionCalibrationsOf, validateAircraftProfile, withPropulsionCalibrations, type AircraftProfile } from '../packages/aircraft/src/profile.ts';
+import { bodyOf, landingGearOf, propulsionCalibrationsOf, validateAircraftProfile, withPropulsionCalibrations, type AircraftProfile } from '../packages/aircraft/src/profile.ts';
 import {
-  MAX_ARMS, angleField, applyEvenLayout, choosePropellerPolar, editAngle, emptyForm, emptyGear, evenLayout, formFromProfile, profileFromForm,
+  MAX_ARMS, angleField, applyEvenLayout, choosePropellerPolar, editAngle, emptyBody, emptyBodyPart, emptyForm, emptyGear, evenLayout, formFromProfile, profileFromForm,
   propellerCardsOf,
   type ArmForm, type MassForm, type ProfileForm,
 } from '../apps/web/src/aircraft/profile-form.ts';
@@ -203,6 +203,32 @@ describe('a landing gear in the form (TASK-194)', () => {
     const saved = built(formFromProfile(calibrated));
     expect(propulsionCalibrationsOf(saved)).toEqual([calibration]);
     expect(same(saved, calibrated)).toBe(true);
+  });
+});
+
+describe('a body in the form (TASK-196)', () => {
+  const pod = { ...emptyBodyPart(), center: ['0', '0', '0.097'] as const, halfHeightM: '0.015', radiusM: '0.03' };
+  test('a described body makes schema 7 beside the ground clearance, reopens unchanged, and sits beside a gear', () => {
+    const base = formFromProfile(fixture('quad-x'));
+    const form = { ...base, bodyDescribed: true, body: { ...emptyBody(), radiusM: '0.06', source: 'Frame drawing',
+      parts: [pod, { ...emptyBodyPart(), name: 'Rail', shape: 'capsule' as const, start: ['-0.05', '0', '-0.03'] as const, end: ['0.05', '0', '-0.03'] as const, radiusM: '0.008' }] } };
+    const profile = built(form);
+    expect([profile.schemaVersion, profile.groundClearanceM]).toEqual([7, 0.12]);
+    expect(bodyOf(profile)).toEqual({ radiusM: 0.06, halfHeightM: 0.025, centerDownM: 0, armRadiusM: null, source: 'Frame drawing', parts: [
+      { name: 'Camera pod', shape: 'cylinder', centerBodyM: [0, 0, 0.097], radiusM: 0.03, halfHeightM: 0.015 },
+      { name: 'Rail', shape: 'capsule', startBodyM: [-0.05, 0, -0.03], endBodyM: [0.05, 0, -0.03], radiusM: 0.008 }] });
+    expect(same(built(formFromProfile(profile)), profile)).toBe(true);
+    const both = built({ ...formFromProfile(profile), groundClearanceM: '', gearDescribed: true, gear: { ...emptyGear(), positionSource: 'Drawing' } });
+    expect([both.schemaVersion, bodyOf(both)?.parts.length, landingGearOf(both)?.kind]).toEqual([7, 2, 'legs']);
+    expect(built({ ...formFromProfile(profile), bodyDescribed: false }).schemaVersion).toBe(2);
+  });
+  test('every unreadable size and a missing source are named, and the profile names its own rules', () => {
+    const base = { ...formFromProfile(fixture('quad-x')), bodyDescribed: true };
+    const bad = profileFromForm({ ...base, body: { ...emptyBody(), radiusM: '0', armRadiusM: 'thin', parts: [{ ...pod, halfHeightM: '' }] } });
+    expect(bad.ok ? [] : bad.errors).toEqual(['Body radius must be above 0 m', 'Arm thickness radius is not a decimal number', 'Say where the body dimensions come from',
+      'Body part 1 half-height is not a decimal number']);
+    const twice = profileFromForm({ ...base, body: { ...emptyBody(), source: 'Drawing', parts: [pod, { ...pod, name: 'camera pod' }] } });
+    expect(twice.ok ? [] : twice.errors).toEqual(['Two body parts are named camera pod']);
   });
 });
 

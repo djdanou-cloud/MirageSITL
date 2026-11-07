@@ -5,8 +5,9 @@ import { BufferAttribute, BufferGeometry, Group, Line, LineBasicMaterial, Mesh, 
 import type { AircraftLayout } from "@mirage/aircraft/layout";
 import { FpvCamera } from "@mirage/cameras/fpv-camera";
 import { interpolatePoseInto, interpolationAlpha, newPowerSnapshotV1, newRenderPoseV2, wallNow } from "@mirage/protocol";
-import { BODY_COLOR, Rotor, SPIN_COLORS, Strut } from "../aircraft/AircraftScheme3D";
-import { armMounts, frdToRender, schemeDimensions } from "../aircraft/scheme-geometry";
+import { BODY_COLOR, BodyMeshes, GearMeshes, Rotor, SPIN_COLORS, Strut } from "../aircraft/AircraftScheme3D";
+import type { ProfileBody } from "@mirage/aircraft/profile";
+import { armMounts, frdToRender, schemeDimensions, type GearDrawing } from "../aircraft/scheme-geometry";
 import { nedToRenderBasis, nedToRenderPositionInto } from "../coordinates";
 import type { SimulationRuntime } from "../runtime";
 import { chaseOffset, drawnSpinRadS, onboardCamera, TRAIL_CAPACITY, TrailBuffer } from "./flight-view-geometry";
@@ -47,9 +48,9 @@ export interface FlightViewProbe {
 
 const PROBE_EVERY_FRAMES = 20;
 
-function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning }: {
+function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning, body, gear }: {
   layout: AircraftLayout; runtime: RefObject<SimulationRuntime | null>; aircraft: RefObject<Group | null>; spinners: RefObject<(Group | null)[]>;
-  rings: RefObject<(Mesh | null)[]>; ringTurning: boolean;
+  rings: RefObject<(Mesh | null)[]>; ringTurning: boolean; body: ProfileBody | null; gear: GearDrawing | null;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -89,16 +90,20 @@ function Aircraft({ layout, runtime, aircraft, spinners, rings, ringTurning }: {
   });
   return (
     <group ref={aircraft} name="aircraft">
-      <mesh castShadow>
-        <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
-        <meshStandardMaterial color={BODY_COLOR} />
-      </mesh>
+      {/* TASK-196 and TASK-194: a described body and landing gear at their size; otherwise the symbolic body of the scheme. */}
+      {body ? <BodyMeshes body={body} /> : (
+        <mesh castShadow>
+          <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
+          <meshStandardMaterial color={BODY_COLOR} />
+        </mesh>
+      )}
+      {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
       {/* Forward (body x) is render -z. */}
       <mesh position={[0, 0, -span * 0.12]} rotation={[-Math.PI / 2, 0, 0]}>
         <coneGeometry args={[span * 0.03, span * 0.07, 12]} />
         <meshStandardMaterial color="#9af0d1" />
       </mesh>
-      {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
+      {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={body?.armRadiusM ? 2 * body.armRadiusM : span * 0.015} />)}
       {layout.rotors.map((rotor, index) => {
         const [x, y, z] = frdToRender(rotor.hubPositionBodyM);
         return (
@@ -259,9 +264,13 @@ function Probe({ mode, aircraft, trail, routePoints, layout, rings, onProbe }: {
   return null;
 }
 
-export function FlightView({ runtime, layout, name, route = [], active, ringTurning = false, onProbe }: {
+export function FlightView({ runtime, layout, name, route = [], active, ringTurning = false, body = null, gear = null, onProbe }: {
   runtime: RefObject<SimulationRuntime | null>;
   layout: AircraftLayout;
+  /** TASK-196: the profile's described body, or null for the symbolic one. */
+  body?: ProfileBody | null;
+  /** TASK-194: the profile's described landing gear, or null: the standard supports are not drawn. */
+  gear?: GearDrawing | null;
   name: string;
   route?: readonly RoutePoint[];
   /** False while the Run tab is hidden: the view stops drawing and the session runs on. */
@@ -296,7 +305,7 @@ export function FlightView({ runtime, layout, name, route = [], active, ringTurn
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
             <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
           </mesh>
-          <Aircraft layout={layout} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} />
+          <Aircraft layout={layout} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} body={body} gear={gear} />
           <Trail runtime={runtime} aircraft={aircraft} trail={trail} />
           <Route route={route} size={Math.max(0.15, span * 0.08)} />
           <Cameras mode={mode} layout={layout} runtime={runtime} aircraft={aircraft} />

@@ -3,7 +3,7 @@ import { bindMeasurements, type MeasurementCandidate } from "@mirage/aircraft/ca
 import { readComponentCard, type ComponentType } from "@mirage/aircraft/components";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
-import { calculationSettings, landingGearOf, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, calculationSettings, landingGearOf, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import { nameLanguage } from "../shell/project-files";
@@ -14,6 +14,7 @@ import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
 import { AirframeDrag } from "./AirframeDrag";
 import { LandingGear } from "./LandingGear";
+import { BodySize } from "./BodySize";
 import { gearDrawing } from "./scheme-geometry";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
 import { OutputMapping } from "./OutputMapping";
@@ -63,6 +64,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   const [copyName, setCopyName] = useState("");
   const [rendered, setRendered] = useState<readonly RenderedRotor[]>([]);
   const [renderedGear, setRenderedGear] = useState<readonly (readonly number[])[]>([]);
+  const [renderedBody, setRenderedBody] = useState<readonly (readonly number[])[]>([]);
   const [shared, setShared] = useState<{ motor: string | null; propeller: string | null; esc: string | null }>({ motor: null, propeller: null, esc: null });
 
   useEffect(() => {
@@ -126,6 +128,8 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
     const gear = result?.ok ? landingGearOf(result.profile) : null;
     return gear ? gearDrawing(gear) : null;
   }, [result]);
+  // TASK-196: the described body of the valid profile.
+  const shownBody = useMemo(() => (result?.ok ? bodyOf(result.profile) : null), [result]);
   // Each motor's propeller radius from its card, or null while a motor has none.
   const radii = useMemo(() => {
     if (!result?.ok) return null;
@@ -273,9 +277,11 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             <h3 id="scheme-heading">Scheme</h3>
             {shownLayout ? (
               <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-rendered-gear={JSON.stringify(shownGear ? renderedGear : [])}
+                data-rendered-body={JSON.stringify(shownBody ? renderedBody : [])}
                 data-current={layout ? "true" : "false"}>
                 {!layout && <p className="hint">The form has problems, so the scheme shows the last valid layout.</p>}
-                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} gear={shownGear} onRendered={setRendered} onRenderedGear={setRenderedGear} />
+                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} gear={shownGear} body={shownBody}
+                  onRendered={setRendered} onRenderedGear={setRenderedGear} onRenderedBody={setRenderedBody} />
               </div>
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
@@ -323,6 +329,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
           </section>
           <MassProperties form={editing.form} onChange={setForm} />
           <LandingGear form={editing.form} profile={result?.ok ? result.profile : null} onChange={setForm} />
+          <BodySize form={editing.form} onChange={setForm} />
           <AirframeDrag form={editing.form} profile={result?.ok ? result.profile : null} radii={radii} onChange={setForm} />
         </>
       )}
