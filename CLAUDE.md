@@ -137,6 +137,12 @@ implementation.
   TASK-195 is DONE: no run starts from a profile whose propellers overlap each
   other, reach the body or the ground, and the Aircraft tab proposes the fix
   (longer arms or a larger clearance) and saves it only on confirmation.
+  TASK-194 and TASK-196 are DONE on the user's approval of 2026-11-07, outside
+  the Phase 1 acceptance: profile schema 7 describes a landing gear (legs, skids
+  or wheels, each value known with its source or taken from the standard gear's
+  rules and named as assumed) and a body with named parts in place of the
+  standard supports and hull, the Aircraft tab edits and draws both, and a
+  profile without them keeps its schema and derived bytes.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
