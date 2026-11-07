@@ -326,14 +326,26 @@ describe('calculation modes and labels', () => {
     for (const [label, input, message] of invalid) expect(() => validateAircraftProfile(input), label).toThrow(message);
   });
 
-  test('only the exact bound combination becomes measured-input', async () => {
+  test('only the exact bound combination, or its cards on a laboratory supply, becomes measured-input', async () => {
     const setA = await benchSet(), labB = thrustOnly(LABORATORY_B, 0.2286);
-    const candidates = [
-      { sha256: 'f1'.repeat(32), createdAt: '2026-10-29T12:00:00.000Z', set: setA },
-      { sha256: 'f2'.repeat(32), createdAt: '2026-10-29T12:05:00.000Z', set: labB },
-    ];
+    const laboratoryCandidate = { sha256: 'f2'.repeat(32), createdAt: '2026-10-29T12:05:00.000Z', set: labB };
+    const candidates = [{ sha256: 'f1'.repeat(32), createdAt: '2026-10-29T12:00:00.000Z', set: setA }];
+    // By the stakeholder's decision of 2026-11-07 a set of a motor's cards on a laboratory supply binds to a battery-powered profile:
+    // propeller B's laboratory set now gives motors 3 and 4 bench data, labeled as such.
+    const withLaboratory = await bindMeasurements(quad(), 'measured', [...candidates, laboratoryCandidate]);
+    expect(calculationSettings(withLaboratory).measurementSets).toEqual(['f1'.repeat(32), 'f2'.repeat(32)]);
+    const laboratory = await evaluateCalculation(withLaboratory, CARDS, new Map([...candidates, laboratoryCandidate].map(c => [c.sha256, c.set])));
+    expect(laboratory.motors.map(m => [m.motorId, m.label, m.measurementSet])).toEqual([
+      [1, 'measured-input', 'f1'.repeat(32)], [2, 'measured-input', 'f1'.repeat(32)], [3, 'measured-input', 'f2'.repeat(32)], [4, 'measured-input', 'f2'.repeat(32)],
+    ]);
+    expect(laboratory.motors[0]!.reason).toBe('Bench data of this exact combination.');
+    expect(laboratory.motors[2]!.reason).toBe('Bench data of this motor, propeller and ESC on a laboratory supply.');
+    expect(laboratory.motors[2]!.limits).toContain('The bench ran on a laboratory supply, not this profile\'s battery: its voltage held where a battery sags.');
+    expect(laboratory.motors[0]!.limits.some(limit => limit.includes('laboratory'))).toBe(false);
+    // A laboratory set does not depend on the battery: another battery version still binds it, and nothing else.
+    const otherBattery = await bindMeasurements(quad(p => { p.battery.card = ADDRESS.battery2; }), 'measured', [...candidates, laboratoryCandidate]);
+    expect(calculationSettings(otherBattery).measurementSets).toEqual(['f2'.repeat(32)]);
     const profile = await bindMeasurements(quad(), 'measured', candidates);
-    // The laboratory-supply set matches no motor of a battery-powered profile, so only set A binds.
     expect(calculationSettings(profile).measurementSets).toEqual(['f1'.repeat(32)]);
     const sets = new Map(candidates.map(c => [c.sha256, c.set]));
     const result = await evaluateCalculation(profile, CARDS, sets);
@@ -368,10 +380,17 @@ describe('calculation modes and labels', () => {
     const setB = await measurementSetFromBenchCsv(BENCH.replace('diameterM,0.254', 'diameterM,0.2286'), {
       combination: { ...COMBINATION_A, propeller: ADDRESS.propB }, fileName: 'b.csv', date: '2026-10-29', description: null, applicability: null,
     });
-    const all = [...candidates, { sha256: 'f3'.repeat(32), createdAt: '2026-10-29T12:10:00.000Z', set: setB }];
+    const all = [...candidates, laboratoryCandidate, { sha256: 'f3'.repeat(32), createdAt: '2026-10-29T12:10:00.000Z', set: setB }];
     const both = await bindMeasurements(quad(), 'measured', all);
-    const evaluated = await evaluateCalculation(both, CARDS, new Map(all.map(c => [c.sha256, c.set])));
+    // The set on the profile's own battery wins over the laboratory set of the same cards, which is not bound.
+    expect(calculationSettings(both).measurementSets).toEqual(['f1'.repeat(32), 'f3'.repeat(32)]);
+    const allSets = new Map(all.map(c => [c.sha256, c.set]));
+    const evaluated = await evaluateCalculation(both, CARDS, allSets);
     expect([evaluated.label, ...evaluated.motors.map(m => m.label)]).toEqual(Array(5).fill('measured-input'));
+    expect(evaluated.motors[2]!.measurementSet).toBe('f3'.repeat(32));
+    // Binding both for the same motors is refused rather than leaving one unused.
+    const twice = validateAircraftProfile({ ...structuredClone(both), calculation: { mode: 'measured', measurementSets: ['f1'.repeat(32), 'f2'.repeat(32), 'f3'.repeat(32)] } });
+    await expect(checkProfileMeasurements(twice, allSets)).rejects.toThrow(`Measurement sets ${'f3'.repeat(32)} and ${'f2'.repeat(32)} both apply to motor 3: bind one`);
   });
 
   test('missing quantities are listed and never filled in', async () => {

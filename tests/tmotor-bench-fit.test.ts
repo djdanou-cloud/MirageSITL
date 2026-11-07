@@ -76,3 +76,57 @@ describe('T-Motor MN7005 KV230 + P24*7.2 datasheet fit (TASK-145)', () => {
     if (out) writeFileSync(out, `${JSON.stringify({ bladeGeometry: derived.manifest.rotors?.[0] ?? null, fit }, null, 2)}\n`);
   }, 300_000);
 });
+
+// The stakeholder's decision of 2026-11-07: a set of the motor's cards on a laboratory supply binds to a battery-powered profile. The
+// T-Motor set, stored on a laboratory supply, is calibrated through the application's own path (calibrateMotor), stored, bound as a new
+// profile version, and derived for all four motors, while the profile's own battery card stays the combination it belongs to.
+describe('the T-Motor set on a laboratory supply binds to the forum quad (TASK-145)', () => {
+  it('calibrates, stores and binds it as a calculation from measurements labeled measured-input on a laboratory supply', async () => {
+    const { createHash } = await import('node:crypto');
+    const { MemoryBackend, ProjectStore } = await import('../packages/project/src/store.ts');
+    const { measurementSetFromBenchCsv, measurementSetDraft, validateMeasurementSet } = await import('../packages/aircraft/src/measurements.ts');
+    const { profileDraft } = await import('../packages/aircraft/src/profile.ts');
+    const { bindMeasurements, evaluateCalculation, motorSetKeys } = await import('../packages/aircraft/src/calculation-mode.ts');
+    const { bindCalibration, calibrateMotor, savePropulsionCalibration, validatePropulsionCalibration } = await import('../packages/aircraft/src/propulsion-calibration.ts');
+    const store = new ProjectStore(new MemoryBackend(), { storage: null, validators: { 'component-card': validateComponentCard, 'measurement-set': validateMeasurementSet,
+      'aircraft-profile': validateAircraftProfile, 'propulsion-calibration': validatePropulsionCalibration } });
+    const projectId = (await store.createProject('Forum quad')).record.id;
+    const cards = new Map<string, ComponentCard>();
+    const add = async (path: string) => {
+      const card = validateComponentCard(json(`components/${path}`));
+      const stored = await store.createItem(projectId, 'component-card', { name: path, payload: card });
+      cards.set(stored.sha256, card);
+      return stored.sha256;
+    };
+    const motor = await add('tmotor-mn7005-kv230.json'), propeller = await add('tmotor-p24x72.json');
+    const esc = await add('tmotor-alpha-40a.json'), battery = await add('battery-6s-42ah-forum-144558.json');
+    const set = await measurementSetFromBenchCsv(readFileSync('tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv', 'utf8'), {
+      combination: { motor, propeller, esc, supply: { kind: 'laboratory' } }, fileName: 'tmotor-mn7005-kv230-p24x72.csv', date: '2026-07-28',
+      description: 'T-Motor datasheet table, MN7005 KV230 with P24*7.2 CF at 24 V (manufacturer data)', applicability: 'Manufacturer data: stand and air not stated; air density assumed 1.225 kg/m³.' });
+    const storedSet = await store.createItem(projectId, 'measurement-set', measurementSetDraft('T-Motor datasheet', set));
+    const fixture = validateAircraftProfile(json('aircraft/tmotor-mn7005-quad.json'));
+    const base = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
+      motors: fixture.motors.map(item => ({ ...item, components: { motor, propeller, esc } })) }), [{ card: propeller, polar: 'naca6409-neuralfoil-v1' }]);
+    const measured = await bindMeasurements(base, 'measured', [{ sha256: storedSet.sha256, createdAt: storedSet.record.createdAt, set }]);
+    const sets = new Map([[storedSet.sha256, set]]);
+    const evaluated = await evaluateCalculation(measured, cards, sets);
+    expect(evaluated.label).toBe('measured-input');
+    expect(evaluated.motors.every(m => m.measurementSet === storedSet.sha256 && m.reason === 'Bench data of this motor, propeller and ESC on a laboratory supply.')).toBe(true);
+    const resolved = resolveComponents(measured, cards);
+    if (!resolved.components) throw new Error(`Missing: ${resolved.missing.join('; ')}`);
+    const betModuleSha256 = createHash('sha256').update(readFileSync('packages/wasm-bet/dist/mirage_bet.scalar.wasm')).digest('hex');
+    const calibration = await calibrateMotor({ module, betModuleSha256, profile: measured, components: resolved.components, motorId: 1, set: { sha256: storedSet.sha256, set } });
+    // The calibration belongs to the motor's own combination (the profile's battery), not to the set's laboratory key.
+    const keys = await motorSetKeys(measured, measured.motors[0]!);
+    expect(calibration.combinationKey).toBe(keys?.exact);
+    expect(calibration.fit.residuals).toHaveLength(11);
+    expect(calibration.measuredOn).toBe('2026-07-28');
+    const stored = await savePropulsionCalibration(store, projectId, 'T-Motor MN7005 + P24x7.2', calibration);
+    const bound = bindCalibration(measured, stored);
+    expect(bound.schemaVersion).toBe(6);
+    await store.createItem(projectId, 'aircraft-profile', profileDraft('Forum quad', bound));
+    const derived = await deriveVehicleManifest(bound, resolved.components, { modelId: 145 });
+    expect((derived.manifest.propulsionCalibrations ?? []).map(item => item.rotorId)).toEqual([1, 2, 3, 4]);
+    expect(derived.manifest.datasets.find(dataset => dataset.kind === 'measured')).toMatchObject({ sourceSha256: storedSet.sha256, acquiredAt: '2026-07-28T00:00:00Z' });
+  }, 300_000);
+});

@@ -146,8 +146,8 @@ implementation.
   and real forum logs (`data/flight-logs/inventory.json`, kept outside the
   repository, `node scripts/check-baro-dips.mjs --dir DIRECTORY`) reproduced three
   of four held-out landing dips; the miss waits on the stakeholder. TASK-145 is
-  BLOCKED_DECISION: T-Motor's datasheet fits, but binding it needs a supply
-  decision. TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
+  DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
+  Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
   atmosphere, terrain and jamming stream into SIM_GPS1_*, and the inductive motor,
   its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
   Terrain planes in sessions and live terrain admission remain open.

@@ -5616,7 +5616,9 @@ Scope S04 and S15. An aircraft profile version is either a **Preliminary
 calculation**, built from specifications and geometry, or a **Calculation from
 measurements**, which also uses static bench data. Bench data belongs to one
 exact combination of motor, propeller, ESC and power supply and is never used
-for another. The confidence labels follow TASK-133
+for another, except that data measured on a laboratory supply also serve its
+motor, propeller and ESC on a battery (stakeholder's decision of 2026-11-07).
+The confidence labels follow TASK-133
 ([phase1-fidelity.md](decisions/phase1-fidelity.md)). Configuration-time code
 only; never call it from a physics step.
 
@@ -5736,8 +5738,11 @@ The combination key is the SHA-256 of the canonical JSON of `combination`, so
 two sets share a key exactly when they name the same card versions and the
 same supply. The supply is part of the combination (S04): a battery card
 version, or a laboratory power supply, which no card describes. A profile's
-supply is its battery card, so data measured on a laboratory supply never
-binds to it.
+supply is its battery card. By the stakeholder's decision of 2026-11-07, which
+first let T-Motor's own datasheet (TASK-145) serve the battery-powered forum
+quad, a set of a motor's motor, propeller and ESC cards on a laboratory supply
+also binds to that motor whatever the battery, labeled as such; until then it
+never bound.
 
 ### Profile schema 2
 
@@ -5763,14 +5768,18 @@ changing a binding creates a new version.
 
 * `motorCombination(profile, motor)` is the motor's motor, propeller and ESC
   cards with the profile's battery card, or null while any is not selected.
+* `motorSetKeys(profile, motor)` is the motor's two set keys: `exact`, its
+  combination, and `laboratory`, its motor, propeller and ESC cards on a
+  laboratory supply; null while any card or the battery is not selected.
 * `bindMeasurements(profile, mode, candidates)` returns a schema 2 version in
-  the given mode. In measured mode it binds, for each motor combination, the
-  newest candidate set of exactly that combination; candidates of other
-  combinations are never bound.
+  the given mode. In measured mode it binds, for each motor, the newest
+  candidate set of exactly its combination, else the newest of its laboratory
+  combination; candidates of other combinations are never bound.
 * `checkProfileMeasurements` refuses a bound set that is not available, that
-  matches no motor's combination, or that binds the same combination as
-  another. A profile edited onto other cards therefore cannot keep a stale
-  binding.
+  matches no motor's combination, that binds the same combination as another,
+  or that applies to a motor another bound set already serves (a set on the
+  battery and one on a laboratory supply of the same cards). A profile edited
+  onto other cards therefore cannot keep a stale binding.
 * `evaluateCalculation(profile, cards, sets)` labels each motor and the
   aircraft:
 
@@ -5780,6 +5789,7 @@ changing a binding creates a new version.
 | Measured | a card or the battery not selected | `preliminary` | No measurements can bind |
 | Measured | no bound set of its combination | `preliminary` | No set of this combination is bound |
 | Measured | a bound set of its combination | `measured-input` | Bench data of this exact combination |
+| Measured | a bound set of its cards on a laboratory supply | `measured-input` | Bench data of this motor, propeller and ESC on a laboratory supply |
 
 The aircraft takes the weakest label of its motors (F-06). `flight-checked`
 belongs to TASK-184 and is never assigned here. Each motor lists what its
@@ -5788,8 +5798,9 @@ calculation lacks, never filling it in: unselected cards, unknown card values
 motor with bench data also lists its limits of use: the measured rpm range
 with the F-03 warning margin of 10% on either side, that static single-rotor
 data does not validate forward flight or descent, that it does not validate a
-coaxial pair's interaction when the motor is in one, and the set's own
-applicability. In measured mode the aircraft notes that the mode does not
+coaxial pair's interaction when the motor is in one, that a laboratory
+supply held its voltage where a battery sags when the set was measured on
+one, and the set's own applicability. In measured mode the aircraft notes that the mode does not
 certify the aircraft. TASK-145 fits the propulsion model to the bound data.
 
 ### Components tab
@@ -5811,10 +5822,12 @@ measurement-set and profile validators, so archive imports are checked too.
 generated from known values with 50-digit decimal arithmetic, checks the
 combination key against SHA-256 computed with `node:crypto`, and checks that a
 profile differing from a set in any one card version, or in its supply,
-binds nothing. It also covers the rejection cases, the store and archive
-round trip, and the labels. `tests/browser/measurements.spec.ts` uploads and
-types bench data in Chromium and checks that only the bound combination's
-motors change their label. The roadmap entry records the results.
+binds nothing; since 2026-11-07 a set on a laboratory supply is the exception
+and binds whatever the battery. It also covers the rejection cases, the store
+and archive round trip, and the labels. `tests/browser/measurements.spec.ts`
+uploads and types bench data in Chromium and checks that only the motors of
+the bound combination, or of its cards on a laboratory supply, change their
+label. The roadmap entry records the results.
 
 ## Sensor configuration v1 (TASK-143)
 
@@ -6928,10 +6941,20 @@ R 0.132 Ω and I₀ 0.889 A with an RMS electrical residual of 1.45 W; envelope 
 1.225 kg/m³. The residuals run from −7.4 % of thrust at 2023 rpm to +3.8 % at 2835 rpm: the table's
 thrust coefficient falls from 0.0717 to 0.0647 over that range, which a scaled polar on a fixed
 geometry does not follow. The fitted R is above the 71 mΩ of the product page because the fit's
-lossless ESC leaves the ESC's losses to the motor. The binding stays open: a calibration belongs to
-its combination, whose supply is the profile's battery card (TASK-140), and T-Motor's stand did not
-run on the owner's battery, so the Components tab cannot bind this set to the profile without a
-decision to accept a laboratory or unknown supply (BLOCKED_DECISION).
+lossless ESC leaves the ESC's losses to the motor.
+
+A calibration belongs to its motor's combination, whose supply is the profile's battery card
+(TASK-140), and T-Motor's stand did not run on the owner's battery. By the stakeholder's decision
+of 2026-11-07 ("Yes, allow it") a set on a laboratory supply binds to the motors with its motor,
+propeller and ESC cards whatever the battery (section "Calculation modes and measurement sets v1"),
+so the T-Motor set is stored on a laboratory supply; `calibrateMotor` accepts a set of the motor's
+exact or laboratory combination and records the motor's own combination key. The second test of
+`tests/tmotor-bench-fit.test.ts` (2 passed) calibrates, stores and binds it through the store
+(schema 6, all four rotors calibrated, the bench data a `measured` dataset dated 2026-07-28), and
+the second test of `tests/browser/propulsion-calibration.spec.ts` (2 passed in Chromium) does it in
+the Components tab: lift ×0.47.., drag ×1.24.., eleven residual rows, the envelope 2023 to 2835 rpm,
+version 2 saved and every motor calibrated after a reload. Measured mode works on real data; the
+data are the manufacturer's, and the user judges how far to trust them.
 
 ## Profile-driven dynamics (TASK-144)
 

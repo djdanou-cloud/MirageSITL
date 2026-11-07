@@ -473,8 +473,9 @@ absent column and is never filled in. Bench CSV v2 extends the TASK-090 file
 with the conditions and optional torque, voltage and current; its bounds
 refuse common unit mistakes, such as a temperature in °C or a thrust in
 grams. A profile in measured mode binds sets, and a motor is labeled
-`measured-input` only when a bound set has exactly its combination; every
-other motor stays `preliminary`, and the aircraft takes the weakest label
+`measured-input` only when a bound set has exactly its combination, or its
+motor, propeller and ESC on a laboratory supply (stakeholder's decision of
+2026-11-07); every other motor stays `preliminary`, and the aircraft takes the weakest label
 (TASK-133). The Components tab (`apps/web/src/library/`) lists the cards,
 uploads or takes typed bench data, and switches each profile's mode while
 showing each motor's label, missing quantities and limits of use. The contract

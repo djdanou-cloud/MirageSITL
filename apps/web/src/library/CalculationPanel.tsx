@@ -90,7 +90,8 @@ export function CalculationPanel({ store, library, onSaved }: { store: ProjectSt
       <h3 id="calculation-heading">Calculation modes</h3>
       <p className="hint">
         Preliminary calculation uses specifications and geometry only. Calculation from measurements uses bench data for each motor
-        whose exact combination of cards was measured; every other motor stays preliminary, and the aircraft takes its weakest label.
+        whose exact combination of cards was measured, or whose motor, propeller and ESC were measured on a laboratory supply; every
+        other motor stays preliminary, and the aircraft takes its weakest label.
       </p>
       {library.profiles.length === 0 && <p>The project has no aircraft profiles yet.</p>}
       <div className="project-grid">

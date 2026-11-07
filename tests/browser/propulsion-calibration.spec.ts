@@ -126,3 +126,60 @@ test("a measured motor is fitted to its own bench data, and the calibration bind
   for (const id of [1, 2]) await expect(motors.getByTestId(`calibration-${id}`)).toContainText(/Calibrated \(lift ×\d+\.\d{4}, drag ×\d+\.\d{4}\) from the set measured on 2026-10-29/);
   await expect(motors.getByTestId("calibration-3")).toHaveCount(0);
 });
+
+// The first real bench data (2026-11-07): T-Motor's datasheet table for MN7005 KV230 with the P24*7.2 CF propeller, stored on a
+// laboratory supply and bound to the forum aircraft's battery-powered quad by the stakeholder's decision of that day, fitted in the
+// Components tab with its eleven residuals shown, saved and bound; all four motors fly it calibrated. Manufacturer data, not ours.
+test("T-Motor's datasheet on a laboratory supply is fitted in the Components tab and binds to the battery-powered forum quad", async ({ page }) => {
+  test.setTimeout(300_000);
+  execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
+  await page.goto("/");
+  const texts = {
+    motor: read("../fixtures/components/tmotor-mn7005-kv230.json"), propeller: read("../fixtures/components/tmotor-p24x72.json"),
+    esc: read("../fixtures/components/tmotor-alpha-40a.json"), battery: read("../fixtures/components/battery-6s-42ah-forum-144558.json"),
+    profile: read("../fixtures/aircraft/tmotor-mn7005-quad.json"), bench: read("../fixtures/components/tmotor-mn7005-kv230-p24x72.csv"),
+  };
+  await page.evaluate(async ({ urls, texts }) => {
+    const { ProjectStore } = await import(urls.store) as Store;
+    const { profileDraft, validateAircraftProfile, withPropellerPolars } = await import(urls.profile) as Profiles;
+    const { measurementSetDraft, measurementSetFromBenchCsv } = await import(urls.measurements) as Measurements;
+    const { bindMeasurements } = await import(urls.calculation) as Calculation;
+    const { saveNavigation } = await import(urls.navigation) as Navigation;
+    const store = await ProjectStore.openIndexedDb();
+    try {
+      const project = await store.createProject("Forum quad");
+      const add = async (name: string, text: string) => (await store.createItem(project.record.id, "component-card", { name, payload: JSON.parse(text) as unknown })).sha256;
+      const motor = await add("MN7005 KV230", texts.motor), propeller = await add("P24x7.2 CF", texts.propeller);
+      const esc = await add("Alpha 40A", texts.esc), battery = await add("2 x 6S 21 Ah", texts.battery);
+      const set = await measurementSetFromBenchCsv(texts.bench, {
+        combination: { motor, propeller, esc, supply: { kind: "laboratory" } }, fileName: "tmotor-mn7005-kv230-p24x72.csv", date: "2026-07-28",
+        description: "T-Motor datasheet table (manufacturer data)", applicability: "Manufacturer data: stand and air not stated." });
+      const stored = await store.createItem(project.record.id, "measurement-set", measurementSetDraft("T-Motor datasheet", set));
+      const fixture = validateAircraftProfile(JSON.parse(texts.profile));
+      const profile = withPropellerPolars(validateAircraftProfile({ ...fixture, battery: { card: battery },
+        motors: fixture.motors.map(item => ({ ...item, components: { motor, propeller, esc } })) }), [{ card: propeller, polar: "naca6409-neuralfoil-v1" }]);
+      const measured = await bindMeasurements(profile, "measured", [{ sha256: stored.sha256, createdAt: stored.record.createdAt, set }]);
+      await store.createItem(project.record.id, "aircraft-profile", profileDraft("Forum quad", measured));
+      await saveNavigation(store, { tab: "components", projectId: project.record.id });
+    } finally {
+      store.close();
+    }
+  }, { urls, texts });
+  await page.reload();
+  const panel = page.getByRole("tabpanel", { name: "Components", exact: true });
+  const motors = panel.getByRole("list", { name: "Motors of Forum quad" });
+  const one = motors.getByTestId("calibration-1");
+  await expect(one).toContainText("Not calibrated: the BET rotor flies on its catalog polar.");
+  await one.getByRole("button", { name: "Fit to the bench data" }).click();
+  const result = one.getByTestId("calibration-result-1");
+  await expect(result).toBeVisible({ timeout: 120_000 });
+  await expect(result).toContainText(/Lift ×0\.47\d\d, drag ×1\.24\d\d in \d+ iterations; RMS thrust residual \d+\.\d{4} N, torque \d+\.\d{5} N·m\./);
+  await expect(result).toContainText("Motor at KV 230: R ");
+  await expect(result.getByRole("region", { name: "Residuals of motor 1" }).locator("tbody tr")).toHaveCount(11);
+  await expect(result).toContainText("Envelope: 2023 to 2835 rpm at ");
+  expect((await result.textContent()) ?? "").not.toMatch(/\b(pass|fail|verdict|tolerance)\b/i);
+  await result.getByRole("button", { name: "Save and bind as a new profile version" }).click();
+  await expect(panel.getByTestId("calculation-status")).toHaveText("Saved the calibration and version 2 of Forum quad, which flies every motor of this combination calibrated.");
+  await page.reload();
+  for (const id of [1, 2, 3, 4]) await expect(motors.getByTestId(`calibration-${id}`)).toContainText(/Calibrated \(lift ×0\.47\d\d, drag ×1\.24\d\d\) from the set measured on 2026-07-28/);
+});
