@@ -23,6 +23,7 @@ pub mod abi;
 pub mod blade;
 pub mod coaxial;
 pub mod motor;
+pub mod esc;
 pub mod battery;
 pub mod math;
 pub mod frame;

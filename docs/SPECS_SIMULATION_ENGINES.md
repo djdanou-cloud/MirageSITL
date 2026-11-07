@@ -6206,6 +6206,118 @@ against a finite difference of ArduPilot's atmosphere and the IMU mount;
 `tests/integration/sitl-sensors.test.ts` breaks each audit check once. The
 roadmap entry records the native captures.
 
+## Barometer v2 (TASK-116)
+
+The pressure errors that dominate barometric altitude near the ground and in fast flight. The
+stock ArduCopter V4.7.2 SITL takes no barometer reading from outside: SIM_JSON has no barometer
+field, and in the simulator build `AP_Baro::init` returns after creating its SITL barometers,
+before it would probe an MSP barometer (checked in the pinned source and in a test run). By the
+stakeholder's decision of 2026-11-07 the errors therefore reach ArduPilot as its own barometer
+offset: the physics session works them out every step, samples their sum every tenth of a
+second of simulated time, and the run controller writes `SIM_BAROn_GLITCH` of each simulated
+barometer (`SIM_BARO_COUNT`) through the parameter service. A test run moved ArduPilot's pressure
+by −22 Pa for a 2 m offset.
+
+```text
+Δp = Σ_j C_j(sign u_j)·½ρ·u_j²            position error, u the vehicle's air velocity in body axes
+   + k·q_i·exp(−z/(λ·R̄))                  ground cushion, q_i = T/(4A)
+   + c·q_i                                 prop wash
+   + r·(t − t_on) + κ·(T − T_on)           drift
+   + (τ/3600)·(t − t_on)                   weather pressure trend
+SIM_BAROn_GLITCH = held + Δp·dh/dp(home)
+```
+
+q_i is ½ρv_i² with the hover induced velocity v_i = √(T/(2ρA)) of momentum theory, for the
+rotors' total thrust T and disc area A, so ρ cancels. The position error has the form of
+ArduPilot's own `SIM_BAROn_WCF_*`. The cushion's exponential shape and its two constants are a
+modelling choice; logged takeoff and landing dips would fit them. Drift and trend accumulate from
+the tick their effect goes on. The static port is taken at the CG. Noise and sensor delay stay
+ArduPilot's (`SIM_BAROn_RND`, `SIM_BAROn_DELAY`, set from the Sensors tab), and the stream adds to
+the Sensors tab's bias, which `SIM_BAROn_GLITCH` already holds. Each write replaces the one before
+it; the run counts them (`barometerOffset`) rather than listing each, and ArduPilot's own log has
+every one as a PARM record.
+
+The five effects (`EFFECT_CATALOG`, family `barometer`, `packages/physics/src/barometer.ts`):
+
+| Effect | Parameters | Intensity multiplies |
+| --- | --- | --- |
+| `baro.position-error` | `positiveCoefficient` (forward, right, down) and `negativeCoefficient` (back, left, up), each −2..2 | every C |
+| `baro.ground-cushion` | `gain` k 0..10, `decayRadii` λ 0.1..10 rotor radii | k |
+| `baro.prop-wash` | `coefficient` c −2..2 | c |
+| `baro.drift` | `ratePaPerS` −10..10 Pa/s, `temperaturePaPerK` −100..100 Pa/K | both |
+| `baro.pressure-trend` | `trendPaPerHour` −1000..1000 Pa/h | τ |
+
+They need a link to ArduPilot (`delivery.attached`) and a run whose parameters the controller
+may write; otherwise they are refused by name. `BarometerErrors.step` neither takes nor returns a
+double, since V8 boxes doubles across a call it does not inline: the first allocation probe found
+63 bytes a step that way.
+
+Checks, limits set before the first run: `tests/barometer.test.ts`, 6 passed, every effect against
+its closed form within 1e-12 relative, off computing nothing, and the offset as TASK-147 converts
+the bias. `tests/effect-controls.test.ts`, 8 barometer tests passed through the real session: off
+and intensity 0 bitwise identical to absent and sampling nothing, on sampled on the expected ticks
+(8 samples from tick 5 to 280 at 400 Hz) and once more, as 0, when it goes off; the inputs filled
+from the step; refused without a link. `tests/run-controller.test.ts`: the stream writes the held
+value plus Δp·dh/dp to both barometers, nothing for an unchanged error, and the held values when
+the last effect goes off. `node scripts/check-bet-runtime.mjs --allocation`, exit 0, with all five
+effects among the session graph's commands: 1,848 bytes over 1,000,000 steps, no collections.
+`tests/browser/barometer-ground-effect.spec.ts`, 1 passed: the quad X flies twice with native
+ArduCopter V4.7.2 through the application alone, `GND_EFFECT_COMP` written to 1 and to 0 on the
+Parameters tab and the cushion (k 1.5, λ 2) applied on the Faults tab before take-off; in its
+DataFlash logs, while within 1 m of the ground, the barometer read 1.83 m and 1.82 m low and the
+EKF's worst height error was 0.13 m with the compensation and 0.39 m without. A comparison with
+logged takeoff and landing dips needs flight logs (BLOCKED_EXTERNAL).
+
+## GNSS v2 (TASK-117)
+
+GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the
+atmosphere and jamming (`packages/sensors/src/gnss.ts`). By the stakeholder's decision of
+2026-11-07 they reach ArduPilot as its own simulated receiver's parameters, written by the run
+controller every 0.2 s of simulated time, off the physics Worker: `SIM_GPS1_GLTCH_X` and `_Y`, the
+latitude and longitude offsets in degrees, `_Z` in metres, `SIM_GPS1_NUMSATS`, `SIM_GPS1_ACC` and,
+without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own rate, lag and noise.
+
+* Orbits: the almanac propagation of IS-GPS-200 Table 20-VI (μ = 3.986005e14 m³/s², Ω̇e =
+  7.2921151467e-5 rad/s). The constellation is synthetic, the Walker 24/6/1 pattern at 55° on
+  circular orbits of half a sidereal day, not any day's orbits; `parseYumaAlmanac` reads a real
+  almanac once one is stored (its download from navcen.uscg.gov timed out on 2026-11-07).
+* Geometry: elevation and azimuth of each satellite above the mask, and Q = (GᵀG)⁻¹ of the rows
+  [−e_E, −e_N, −e_U, 1] for the dilutions.
+* Ionosphere: the Klobuchar model of IS-GPS-200 20.3.3.5.2.5 with RTKLIB's default broadcast set;
+  the receiver removes it with the same model, so a stated fraction remains. Troposphere: the
+  Saastamoinen delays of a standard atmosphere at 70 % humidity, mapped by 1/cos z; likewise.
+* Terrain: a line of sight marched over the run's terrain lattice; a blocked satellite is lost, or
+  tracked as non-line-of-sight with an excess path. On the synthetic pad nothing is hidden.
+* Jamming: (C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c) against an open sky of 45 dB-Hz at the zenith
+  and 35 at the horizon; below the tracking threshold a satellite is lost.
+* Position error: δx = (GᵀG)⁻¹Gᵀδρ of the remaining biases in local east, north, up; the reported
+  accuracy is σ·HDOP.
+
+| Effect | Parameters | Intensity multiplies |
+| --- | --- | --- |
+| `gnss.constellation` | `maskDeg` 0..30°, `uereM` σ 0.1..30 m | σ |
+| `gnss.atmosphere` | `ionosphereResidual` 0..2, `troposphereResidual` 0..2 | both |
+| `gnss.terrain` | `nlosExcessM` 0..200 m | the excess |
+| `gnss.jamming-budget` | `jammingToSignalDb` −30..80 dB, `spectralSeparation` Q 1..2, `thresholdDbHz` 15..40 | J/S (by 10·log10 i dB) |
+
+GNSS effects and `ew.gnss-jamming` write the same receiver parameters, so each is refused while
+the other is on.
+
+Checks, limits set before the first run: `tests/gnss-errors.test.ts`, 12 passed: the dilutions of
+one satellite at the zenith and three on the horizon (HDOP = VDOP = √(4/3), TDOP = √(1/3), GDOP =
+√3) within 1e-9; a common bias goes into the clock and a zenith bias moves the fix down by itself;
+a circular orbit against an independent rotation within 1e-6 m and half a sidereal day; the
+Klobuchar floor and peak; the Saastamoinen dry zenith delay 2.3070 m; the jamming budget 20.08
+dB-Hz; a ridge hiding a satellite at 20° and not at 30°; on the synthetic sky four to twelve
+satellites through a day, an atmosphere error linear in its residual and mostly vertical, a wall
+losing or reflecting the eastern sky, and a jammer losing the fix. `tests/run-controller.test.ts`:
+off writes nothing; on, the count and σ·HDOP as an independent solution gives them, offsets for
+the atmosphere, the lock held off by a jammer, the held values back when every effect is off, and
+GNSS jamming refused meanwhile. Not yet: a real almanac or broadcast ephemeris, the multipath
+envelope and C/N0-dependent noise, the receiver's own latency and rate, jamming from EW zones
+(`packages/ew/src/engine.ts`), a native SITL flight with the stream, and the comparison with
+logged open-sky and urban statistics (BLOCKED_EXTERNAL).
+
 ## Electromechanical drive (TASK-092)
 
 The production drive replaces the ideal torque-source ESC with an ESC, a
@@ -6471,6 +6583,47 @@ balance within 1e-9; the cut and partial-cut faults; the manifest mapping;
 the thrust fit; and the torque-path digest. `scripts/check-bet-runtime.mjs
 --allocation` adds the ESC-drive graph and the native drive allocator tests.
 The roadmap entry records the native ArduCopter flight on the drive.
+
+## Motor and ESC v2 (TASK-105)
+
+The first increment, in the native kernel (`native/bet/src/motor.rs`, `native/bet/src/esc.rs`),
+not yet in the flight path:
+
+```text
+L·di/dt = v − R(T_w)·i − k(T_m)·Ω          i(t) = i∞ + (i₀ − i∞)·e^(−t/τ),  τ = L/R,  i∞ = (v − k·Ω)/R
+R(T) = R₂₀·(1 + 0.00393·(T − 20 °C))       k(T) = k₂₀·(1 + β·(T − 20 °C)),  β = −0.0012 /K (NdFeB)
+C_w·dT_w/dt = P_cu − (T_w − T_h)/R_wh
+C_h·dT_h/dt = P_fe + (T_w − T_h)/R_wh − (T_h − T_air)·(1 + c·V)/R_ha
+```
+
+`InductiveMotor` integrates the current exactly with v and Ω held over a step, i∞ bounded by the
+ESC's current and brake limits, and gives the mean current, torque k·⟨i⟩ less the no-load torque
+k·I₀, the copper loss R·⟨i²⟩ and the iron loss k·I₀·Ω. `MotorThermal` integrates the two-node
+network exactly through the closed-form exponential of its 2×2 matrix. `EscShaper` takes the
+autopilot's command through the ESC: DShot's 2000 throttle steps (values 48 to 2047) or PWM at the
+timer step, frames at the ESC's rate arriving a fixed number of frames late, a ramp limit, and a
+start duty below which a stopped motor stays stopped. Desynchronization is not modelled.
+
+Motor speed reaches ArduPilot's ESC telemetry (for `INS_HNTCH_MODE 3`) only through the browser
+build, by the stakeholder's decision of 2026-11-07: the native SITL's JSON link has no field for it.
+HAL mailbox version 2 (`native/ardupilot/hal/browser_hal.h`) carries 16 f64 rev/min at byte 896 by
+firmware output channel, their channel mask in header word 13, and `sitl-state.patch` copies them to
+`fdm.rpm` and `fdm.motor_mask`, which `AP_ESC_Telem_SITL` reads. `WasmSitlCoupling` fills them from
+the dynamics' power telemetry, the magnitude for a reversed rotor; a motor on output channel 16 or
+higher has no slot.
+
+Checks, limits set before the first run: `cargo test -p mirage-bet --test motor --test esc`, 11
+passed: the current against the analytic RL step within 1e-12 and its mean against Simpson's rule
+within 1e-9; the power identity v·⟨i⟩ = R·⟨i²⟩ + k·Ω·⟨i⟩ + L·(i₁² − i₀²)/(2·dt) within 1e-9; the
+steady state, the temperature laws and the current and brake limits; the thermal network against
+an independent RK4 integration within 1e-6 K, one 600 s step equal to 600 steps of 1 s, and its
+steady state; DShot's values, PWM's timer step, the latency in frames, the ramp's 200 steps and the
+start duty. `tests/wasm-hal.test.ts`, 9 passed, with the speeds in their channels' slots, a bad
+speed refused whole and version 1 firmware refused. Native HAL exchange of version 2 frames for
+1,000,000 steps at 400, 800 and 1200 Hz without a fault, compiled on the Mac without its allocation
+counter (the probe's `--wrap=malloc` needs GNU ld). Not yet: the models in the bound-rotor drive and
+the flight, a rebuilt WASM firmware and the notch-tracking check with it, and thrust-stand
+temperature runs (BLOCKED_EXTERNAL).
 
 ## Propulsion calibration: TASK-145
 

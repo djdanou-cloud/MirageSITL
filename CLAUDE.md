@@ -141,6 +141,11 @@ implementation.
   up to seven body parts such as a camera pod, which the Aircraft tab edits and
   both 3D views draw; they replace the standard hull in the manifest, the
   clearance check and the accident report, which names a struck part as the body.
+  TASK-116 is BLOCKED_EXTERNAL on logged baro dips: five barometer effects stream
+  into ArduPilot's SIM_BAROn_GLITCH, and its ground-effect compensation was
+  exercised in native SITL. TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
+  atmosphere, terrain and jamming stream into SIM_GPS1_*, and the inductive motor,
+  its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and

@@ -3,12 +3,16 @@ import {type PhysicsHz,type ActuatorFrameV2,type FlightState,type PilotInput,
   ActuatorFlagV2,newActuatorFrameV2,newSensorFrameV2,newInput,SensorKindV2} from '@mirage/protocol';
 import {IdealSensors,type SensorTruth} from '@mirage/sensors/ideal';
 import {LocalTangentFrame} from '@mirage/sensors/geodesy';
+import {MotorColumn} from '@mirage/physics/limit-monitor';
 import {BrowserWasmSession,type BrowserFirmwareEvent,type BrowserWasmConfiguration} from './wasm-browser.ts';
 import {parseArdupilotWasmManifest} from './wasm-loader.ts';
 
 export const HAL_BYTES=1024;
 export const HAL_MAGIC=0x4d48414c;
-export const HAL_VERSION=1;
+/** Version 2 (TASK-105) adds each output channel's motor speed at byte 896 and its channel mask in header word 13. */
+export const HAL_VERSION=2;
+/** The output channels that can carry a motor speed. */
+export const HAL_RPM_CHANNELS=16;
 export const HalState={initial:0,requested:1,supplied:2,stop:3,stopped:4,fault:5} as const;
 export const HAL_EXPORTS=['mirage_hal_version','mirage_hal_mailbox','mirage_hal_configure','mirage_hal_notify','mirage_hal_stop'] as const;
 interface HalModule {
@@ -36,6 +40,11 @@ export function newWasmSensorInput():Float64Array {
 export class WasmHalPort {
   readonly input=newWasmSensorInput();
   readonly diagnostics=new Float64Array(16);
+  /**
+   * TASK-105: each motor's speed, rev/min, in physical motor order, as ESC telemetry reports it; a motor on output channel 16
+   * or higher has no slot, so its speed is not published. Published with every submit.
+   */
+  readonly motorRpm=new Float64Array(16);
   private readonly words:Int32Array;
   private readonly floatScratch=new Float64Array(1);
   private readonly wordScratch:Int32Array;
@@ -51,8 +60,8 @@ export class WasmHalPort {
   private stopped=false;
   fault='';
   constructor(value:unknown,options:WasmHalOptions) {
-    if(!moduleShape(value)||!(value.HEAPU8.buffer instanceof SharedArrayBuffer)||value._mirage_hal_version()!==1)
-      throw Error('HAL-enabled firmware ABI v1 required');
+    if(!moduleShape(value)||!(value.HEAPU8.buffer instanceof SharedArrayBuffer)||value._mirage_hal_version()!==HAL_VERSION)
+      throw Error(`HAL-enabled firmware ABI v${HAL_VERSION} required`);
     if(![400,800,1200].includes(options.hz)||(options.epoch>>>0)!==options.epoch||options.epoch===0||
         (options.motorMapId>>>0)!==options.motorMapId||options.motorChannels.length<1||options.motorChannels.length>16||
         !options.motorChannels.every(c=>Number.isInteger(c)&&c>=0&&c<32)||new Set(options.motorChannels).size!==options.motorChannels.length)
@@ -62,7 +71,7 @@ export class WasmHalPort {
     const address=value._mirage_hal_mailbox();this.buffer=value.HEAPU8.buffer;
     if(!Number.isInteger(address)||address<0||address%64!==0||address+HAL_BYTES>this.buffer.byteLength)throw Error('Invalid HAL mailbox pointer');
     this.words=new Int32Array(this.buffer,address,HAL_BYTES/4);
-    if(Atomics.load(this.words,0)!==HAL_MAGIC||Atomics.load(this.words,1)!==1||Atomics.load(this.words,2)!==HAL_BYTES)
+    if(Atomics.load(this.words,0)!==HAL_MAGIC||Atomics.load(this.words,1)!==HAL_VERSION||Atomics.load(this.words,2)!==HAL_BYTES)
       throw Error('HAL mailbox identity mismatch');
     this.module=value;this.hz=options.hz;this.epoch=options.epoch;this.motorMapId=options.motorMapId;
     this.pwmRange=max-this.pwmMin;this.channels=new Uint32Array(options.motorChannels);
@@ -72,6 +81,8 @@ export class WasmHalPort {
   get state():number{return Atomics.load(this.words,3);}
   get steps():number{return this.sent;}
   get rateHz():PhysicsHz{return this.hz;}
+  /** The number of motors, in physical order. */
+  get motorCount():number{return this.channels.length;}
   get memoryStable():boolean{return this.module.HEAPU8.buffer===this.buffer;}
   /** Never clears a firmware fault or advances a paused firmware. */
   private ready():boolean {
@@ -116,6 +127,20 @@ export class WasmHalPort {
     if(Math.abs(v[0]!)>90||Math.abs(v[1]!)>180||Math.abs(v[2]!)>100000||Math.abs(norm-1)>1e-6||
         v[19]!<0||v[20]!<0||v[21]!<0||v[22]!<0||!Object.is(v[38],0)||!Object.is(v[39],0)||this.sent>=9007199254)return false;
     for(let i=23;i<35;i++)if(v[i]!<0||v[i]!>1)return false;
+    const rpm=this.motorRpm;
+    for(let i=0;i<this.channels.length;i++) {
+      const r=rpm[i]!;
+      if(!Number.isFinite(r)||r<0||r>1e6)return false;
+    }
+    let mask=0;
+    for(let c=0;c<HAL_RPM_CHANNELS;c++){Atomics.store(this.words,224+c*2,0);Atomics.store(this.words,225+c*2,0);}
+    for(let i=0;i<this.channels.length;i++) {
+      const c=this.channels[i]!;
+      if(c>=HAL_RPM_CHANNELS)continue;
+      mask|=1<<c;this.floatScratch[0]=rpm[i]!;
+      Atomics.store(this.words,224+c*2,this.wordScratch[0]!);Atomics.store(this.words,225+c*2,this.wordScratch[1]!);
+    }
+    Atomics.store(this.words,13,mask);
     for(let i=0;i<40;i++) {
       this.floatScratch[0]=v[i]!;Atomics.store(this.words,16+i*2,this.wordScratch[0]!);Atomics.store(this.words,17+i*2,this.wordScratch[1]!);
     }
@@ -140,6 +165,8 @@ export interface WasmSitlPhysics {
   readonly windNedMps:Float64Array;
   /** [state of charge, bus voltage V, bus current A] (TASK-092); absent for dynamics without an electrical drive. */
   readonly electrical?:Float64Array;
+  /** TASK-105: power telemetry, whose motor rows (MotorColumn of @mirage/physics/limit-monitor) give each motor's speed; absent without one. */
+  readonly power?:{readonly motors:Float64Array}|null;
   useActuators(frame:ActuatorFrameV2):void;stepNow(input:PilotInput):void;
 }
 export interface WasmSitlOrigin {
@@ -200,6 +227,9 @@ export class WasmSitlCoupling {
     // Value 21 is a unipolar power-module reading (TASK-092): regenerative bus current reads 0.
     v[19]=Math.sqrt(2*this.sensor.values[0]!/1.225);v[20]=s.batteryVoltage;v[21]=this.physics.electrical?Math.max(0,this.physics.electrical[2]!):0;v[22]=Math.max(0,-s.down);
     v[35]=t.windNedMps[0]!;v[36]=t.windNedMps[1]!;v[37]=t.windNedMps[2]!;
+    // TASK-105: each motor's speed for ESC telemetry; a motor that turns backwards reports its magnitude, as eRPM does.
+    const power=this.physics.power,rpm=this.port.motorRpm;
+    for(let i=0;i<rpm.length;i++)rpm[i]=power&&i<this.port.motorCount?Math.abs(power.motors[i*MotorColumn.stride+MotorColumn.Rpm]??0):0;
     if(!this.port.submit()){this.fault='HAL sensor publication failed';this.port.stop();return false;}
     return true;
   }

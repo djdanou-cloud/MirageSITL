@@ -265,3 +265,147 @@ impl DriveMotor {
         Ok(DriveElectrical { current_a: current, terminal_power_w: terminal, copper_loss_w: copper, torque_nm: torque })
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Motor v2 (TASK-105): the winding's inductance, its temperature, and the motor's heat.
+
+/// Annealed copper's resistance temperature coefficient at 20 °C, 1/K (IEC 60028): R(T) = R₂₀·(1 + α·(T − 20 °C)).
+pub const COPPER_COEFFICIENT_PER_K: f64 = 0.00393;
+/// A sintered NdFeB magnet's reversible remanence coefficient, 1/K: about −0.12 %/K for common grades (manufacturers'
+/// datasheets, for example Arnold Magnetic Technologies' N42), which scales the torque constant k(T) = k₂₀·(1 + β·(T − 20 °C)).
+pub const NDFEB_COEFFICIENT_PER_K: f64 = -0.0012;
+
+/// The winding resistance at a temperature, ohm.
+pub fn winding_resistance_ohm(resistance_20c_ohm: f64, winding_c: f64) -> f64 {
+    resistance_20c_ohm * (1.0 + COPPER_COEFFICIENT_PER_K * (winding_c - 20.0))
+}
+/// The torque constant at a magnet temperature, Nm/A.
+pub fn torque_constant_at(torque_constant_20c: f64, coefficient_per_k: f64, magnet_c: f64) -> f64 {
+    torque_constant_20c * (1.0 + coefficient_per_k * (magnet_c - 20.0))
+}
+
+/// A brushless motor with its winding inductance: L·di/dt = v − R(T_w)·i − k_e(T_m)·Ω, the applied voltage v (duty times
+/// the bus voltage) and Ω held over a step and the current integrated exactly. The ESC's current limits bound the current;
+/// below the back-EMF it brakes, down to the brake limit. The no-load current I₀ is the iron and bearing loss, a torque k·I₀.
+#[derive(Clone, Copy, Debug)]
+pub struct InductiveMotor {
+    resistance_20c_ohm: f64,
+    torque_constant_20c: f64,
+    inductance_h: f64,
+    current_limit_a: f64,
+    brake_current_limit_a: f64,
+    no_load_current_a: f64,
+    magnet_coefficient_per_k: f64,
+}
+/// One step of an [`InductiveMotor`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct InductiveStep {
+    /// The winding current at the end of the step, A.
+    pub current_a: f64,
+    /// Its mean over the step, A: the electromagnetic torque is k·mean.
+    pub mean_current_a: f64,
+    /// Mean electromagnetic torque less the no-load torque, Nm.
+    pub torque_nm: f64,
+    /// Mean copper loss R·⟨i²⟩, W, which heats the winding.
+    pub copper_loss_w: f64,
+    /// No-load loss k·I₀·Ω, W, which heats the stator and housing.
+    pub iron_loss_w: f64,
+    /// Mean electrical power drawn, v·⟨i⟩, W.
+    pub input_power_w: f64,
+    /// The current sat at a limit at the end of the step.
+    pub current_limited: bool,
+}
+impl InductiveMotor {
+    /// Validates once, outside the step.
+    pub fn new(resistance_20c_ohm: f64, torque_constant_20c: f64, inductance_h: f64, current_limit_a: f64, brake_current_limit_a: f64,
+        no_load_current_a: f64, magnet_coefficient_per_k: f64) -> Result<Self, MotorError> {
+        let values = [resistance_20c_ohm, torque_constant_20c, inductance_h, current_limit_a, brake_current_limit_a, no_load_current_a, magnet_coefficient_per_k];
+        if !values.iter().all(|v| v.is_finite()) || resistance_20c_ohm <= 0.0 || torque_constant_20c <= 0.0 || inductance_h <= 0.0
+            || current_limit_a <= 0.0 || brake_current_limit_a < 0.0 || no_load_current_a < 0.0 || !(-0.01..=0.0).contains(&magnet_coefficient_per_k) {
+            return Err(MotorError);
+        }
+        Ok(Self { resistance_20c_ohm, torque_constant_20c, inductance_h, current_limit_a, brake_current_limit_a, no_load_current_a, magnet_coefficient_per_k })
+    }
+    /// One step from `current_a`: with τ = L/R and i∞ = (v − k·Ω)/R, i(t) = i∞ + (i₀ − i∞)·e^(−t/τ), whose mean over dt is
+    /// i∞ + (i₀ − i∞)·(τ/dt)·(1 − e^(−dt/τ)) and mean square follows the same way. i∞ is bounded by the current limits,
+    /// as the ESC holds the current at a limit by its duty.
+    pub fn step(&self, current_a: f64, applied_v: f64, omega: f64, winding_c: f64, magnet_c: f64, dt: f64) -> Result<InductiveStep, MotorError> {
+        if ![current_a, applied_v, omega, winding_c, magnet_c, dt].iter().all(|v| v.is_finite()) || applied_v < 0.0 || omega < 0.0
+            || dt <= 0.0 || dt > 0.01 || !(-60.0..=250.0).contains(&winding_c) || !(-60.0..=250.0).contains(&magnet_c) {
+            return Err(MotorError);
+        }
+        let r = winding_resistance_ohm(self.resistance_20c_ohm, winding_c);
+        let k = torque_constant_at(self.torque_constant_20c, self.magnet_coefficient_per_k, magnet_c);
+        let free = (applied_v - k * omega) / r;
+        let target = free.clamp(-self.brake_current_limit_a, self.current_limit_a);
+        let tau = self.inductance_h / r;
+        let decay = (-dt / tau).exp();
+        let (a, b) = (target, current_a - target);
+        let end = a + b * decay;
+        let mean = a + b * (tau / dt) * (1.0 - decay);
+        let mean_square = a * a + 2.0 * a * b * (tau / dt) * (1.0 - decay) + b * b * (tau / (2.0 * dt)) * (1.0 - decay * decay);
+        let no_load_torque = k * self.no_load_current_a;
+        let torque = k * mean - if omega > 0.0 { no_load_torque } else { 0.0 };
+        let out = InductiveStep {
+            current_a: end, mean_current_a: mean, torque_nm: torque, copper_loss_w: r * mean_square,
+            iron_loss_w: no_load_torque * omega, input_power_w: applied_v * mean, current_limited: target != free,
+        };
+        if ![out.current_a, out.mean_current_a, out.torque_nm, out.copper_loss_w, out.iron_loss_w, out.input_power_w].iter().all(|v| v.is_finite()) {
+            return Err(MotorError);
+        }
+        Ok(out)
+    }
+}
+
+/// A two-node thermal network of a motor: the winding (capacity C_w) heated by its copper loss, linked through R_wh to the
+/// stator and housing (C_h) heated by the iron loss, which the air cools through R_ha/(1 + c·V), V the airspeed past it
+/// (the rotor's wash). The linear system dx/dt = A·x + b with constant losses over a step is integrated exactly with the
+/// closed-form exponential of its 2×2 matrix.
+#[derive(Clone, Copy, Debug)]
+pub struct MotorThermal {
+    winding_capacity_j_per_k: f64,
+    housing_capacity_j_per_k: f64,
+    winding_to_housing_k_per_w: f64,
+    housing_to_air_k_per_w: f64,
+    airflow_per_mps: f64,
+}
+impl MotorThermal {
+    /// Validates once, outside the step.
+    pub fn new(winding_capacity_j_per_k: f64, housing_capacity_j_per_k: f64, winding_to_housing_k_per_w: f64, housing_to_air_k_per_w: f64,
+        airflow_per_mps: f64) -> Result<Self, MotorError> {
+        let values = [winding_capacity_j_per_k, housing_capacity_j_per_k, winding_to_housing_k_per_w, housing_to_air_k_per_w, airflow_per_mps];
+        if !values.iter().all(|v| v.is_finite() && *v > 0.0) && !(values[..4].iter().all(|v| v.is_finite() && *v > 0.0) && airflow_per_mps == 0.0) {
+            return Err(MotorError);
+        }
+        Ok(Self { winding_capacity_j_per_k, housing_capacity_j_per_k, winding_to_housing_k_per_w, housing_to_air_k_per_w, airflow_per_mps })
+    }
+    /// The temperatures [winding, housing] °C after `dt` from `temperatures`, with the losses W, the air temperature °C
+    /// and the airspeed m/s held over the step.
+    pub fn step(&self, temperatures: [f64; 2], winding_loss_w: f64, housing_loss_w: f64, air_c: f64, airspeed_mps: f64, dt: f64) -> Result<[f64; 2], MotorError> {
+        if ![temperatures[0], temperatures[1], winding_loss_w, housing_loss_w, air_c, airspeed_mps, dt].iter().all(|v| v.is_finite())
+            || winding_loss_w < 0.0 || housing_loss_w < 0.0 || airspeed_mps < 0.0 || dt <= 0.0 {
+            return Err(MotorError);
+        }
+        let (cw, ch) = (self.winding_capacity_j_per_k, self.housing_capacity_j_per_k);
+        let g1 = 1.0 / self.winding_to_housing_k_per_w;
+        let g2 = (1.0 + self.airflow_per_mps * airspeed_mps) / self.housing_to_air_k_per_w;
+        let (a11, a12, a21, a22) = (-g1 / cw, g1 / cw, g1 / ch, -(g1 + g2) / ch);
+        // Steady state: the housing sheds every loss to the air, the winding sits above it by its own loss times R_wh.
+        let housing_ss = air_c + (winding_loss_w + housing_loss_w) / g2;
+        let winding_ss = housing_ss + winding_loss_w / g1;
+        let (x1, x2) = (temperatures[0] - winding_ss, temperatures[1] - housing_ss);
+        // e^(A·t) = (e^(λ₁t)·(A − λ₂I) − e^(λ₂t)·(A − λ₁I)) / (λ₁ − λ₂); A is similar to a symmetric matrix, so λ are real and distinct.
+        let (trace, det) = (a11 + a22, a11 * a22 - a12 * a21);
+        let root = (trace * trace / 4.0 - det).sqrt();
+        let (l1, l2) = (trace / 2.0 + root, trace / 2.0 - root);
+        let (e1, e2) = ((l1 * dt).exp(), (l2 * dt).exp());
+        let s = 1.0 / (l1 - l2);
+        let (m11, m12) = (s * (e1 * (a11 - l2) - e2 * (a11 - l1)), s * (e1 - e2) * a12);
+        let (m21, m22) = (s * (e1 - e2) * a21, s * (e1 * (a22 - l2) - e2 * (a22 - l1)));
+        let out = [winding_ss + m11 * x1 + m12 * x2, housing_ss + m21 * x1 + m22 * x2];
+        if !out.iter().all(|v| v.is_finite()) {
+            return Err(MotorError);
+        }
+        Ok(out)
+    }
+}
