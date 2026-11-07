@@ -13,13 +13,14 @@ import type { SensorConfiguration } from './sensor-fields.ts';
 // S08) its sensor configuration, schema 4 (TASK-144, S05) the airfoil polar
 // of each propeller, schema 5 (TASK-096, S05) drag areas the user states
 // for the airframe, and schema 6 (TASK-145, S04) the propulsion calibrations it
-// binds, with or without stated drag. Each profile has one canonical schema: the lowest
+// binds, with or without stated drag, and schema 7 (TASK-196, S03) the body the user describes in place of
+// the standard hull, with any of the above. Each profile has one canonical schema: the lowest
 // that holds its content. Configuration-time code only; never call it from a
 // physics step. Units are SI; positions are body FRD metres from the body
 // reference point.
 
 /** The newest schema; a profile is written in the lowest schema that holds its content, and every schema stays valid. */
-export const PROFILE_SCHEMA_VERSION = 6;
+export const PROFILE_SCHEMA_VERSION = 7;
 export type MotorLevel = 'single' | 'upper' | 'lower';
 export type SpinDirection = 'ccw' | 'cw';
 export interface ArmSpec {
@@ -73,6 +74,31 @@ export interface StatedAirframeDrag {
   readonly maxAirspeedMps: number;
   /** Where the values came from, 1..1024 characters. */
   readonly source: string;
+}
+/** TASK-196: a part fixed to the body, such as a camera or a cargo box: a vertical cylinder. Depths are body FRD z. */
+export interface BodyPart {
+  /** 1..64 characters, unique in the body; the accident and clearance reports name the part by it. */
+  readonly name: string;
+  /** Body x (forward) and y (right) of the part's axis, m. */
+  readonly xM: number;
+  readonly yM: number;
+  /** How far the part's bottom lies below the reference point, m. */
+  readonly bottomDepthM: number;
+  readonly diameterM: number;
+  readonly heightM: number;
+}
+/**
+ * TASK-196: the airframe's contact shapes as the user describes them, in place of the standard hull (TASK-095): a body
+ * cylinder about the body z axis, every arm a capsule of one thickness from that axis to its motor mount, and up to seven
+ * parts. Mass properties are stated separately and do not follow from it.
+ */
+export interface BodySpec {
+  readonly diameterM: number;
+  readonly heightM: number;
+  /** How far the body's bottom lies below the reference point, m; negative when it lies above. */
+  readonly bottomDepthM: number;
+  readonly armDiameterM: number;
+  readonly parts: readonly BodyPart[];
 }
 export type CalculationMode = 'preliminary' | 'measured';
 /** The S04 input mode of a profile version and the measurement sets it binds. */
@@ -134,7 +160,17 @@ export type AircraftProfile =
     readonly airframeDrag?: StatedAirframeDrag;
     /** One or more, in ascending combination-key order. */
     readonly propulsionCalibrations: readonly BoundCalibration[];
+  })
+  | (ProfileFields & {
+    readonly schemaVersion: 7; readonly calculation: CalculationSettings; readonly sensorConfiguration: SensorConfiguration | null;
+    readonly propellerPolars: readonly PropellerPolar[];
+    readonly airframeDrag?: StatedAirframeDrag;
+    /** Zero or more, in ascending combination-key order. */
+    readonly propulsionCalibrations: readonly BoundCalibration[];
+    readonly body: BodySpec;
   });
+/** TASK-196: at most this many hull shapes, the vehicle manifest's limit: the body, the arms and the parts. */
+export const MAX_HULL_SHAPES = 16;
 
 // Union types express nullable fields, as in the vehicle manifest schema.
 const ajv = addSensorSchemaKeywords(new Ajv({ strict: true, strictNumbers: true, allowUnionTypes: true }));
@@ -182,6 +218,21 @@ function checkInertia(matrix: readonly number[], label: string, definite: boolea
   if (!definite && smallest < -slack) fail(`${label} must be positive semi-definite`);
   if (largest - smallest - middle > slack) fail(`${label} violates the rigid-body triangle inequality`);
 }
+/** TASK-196: part names unique, every arm reaching out of the body cylinder, and at most 16 hull shapes in all. */
+function checkBody(body: BodySpec, arms: readonly ArmSpec[]): void {
+  const names = new Set<string>();
+  for (const part of body.parts) {
+    const name = part.name.trim();
+    if (name !== part.name) fail(`Body part name "${part.name}" has leading or trailing spaces`);
+    if (names.has(name)) fail(`Two body parts are named ${name}`);
+    names.add(name);
+  }
+  const radius = body.diameterM / 2;
+  for (const arm of arms) if (!(arm.lengthM > radius)) fail(`Arm ${arm.id} ends inside the body: its length must exceed the body radius ${radius} m`);
+  if (1 + arms.length + body.parts.length > MAX_HULL_SHAPES) {
+    fail(`The body, ${arms.length} arms and ${body.parts.length} parts make more than ${MAX_HULL_SHAPES} hull shapes`);
+  }
+}
 function ascending(ids: readonly number[]): boolean {
   return ids.every((id, index) => index === 0 || id > ids[index - 1]!);
 }
@@ -206,9 +257,10 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
   if (profile.schemaVersion < 3 && profile.sensorConfiguration !== null) {
     fail(`Schema ${profile.schemaVersion} profiles hold no sensor configuration`);
   }
-  if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 to 6');
-  if (profile.schemaVersion === 5 ? !('airframeDrag' in profile) : profile.schemaVersion < 5 && 'airframeDrag' in profile) fail('Stated airframe drag appears exactly in schema 5, and optionally in schema 6');
-  if ((profile.schemaVersion === 6) !== ('propulsionCalibrations' in profile)) fail('Propulsion calibrations appear exactly in schema 6');
+  if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 to 7');
+  if (profile.schemaVersion === 5 ? !('airframeDrag' in profile) : profile.schemaVersion < 5 && 'airframeDrag' in profile) fail('Stated airframe drag appears exactly in schema 5, and optionally in schemas 6 and 7');
+  if ((profile.schemaVersion >= 6) !== ('propulsionCalibrations' in profile)) fail('Propulsion calibrations appear exactly in schemas 6 and 7');
+  if ((profile.schemaVersion === 7) !== ('body' in profile)) fail('A body appears exactly in schema 7');
   if (profile.schemaVersion === 3 && profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
   if (profile.sensorConfiguration !== null) {
     try {
@@ -237,9 +289,10 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
       fail('Measurement sets must be unique and in ascending order');
     }
   }
-  if (profile.schemaVersion === 6) {
+  if (profile.schemaVersion >= 6 && 'propulsionCalibrations' in profile) {
     const bound = profile.propulsionCalibrations;
-    if (profile.calculation.mode !== 'measured') fail('Only a calculation from measurements binds propulsion calibrations');
+    if (profile.schemaVersion === 6 && bound.length === 0) fail('Schema 6 profiles bind at least one propulsion calibration');
+    if (bound.length > 0 && profile.calculation.mode !== 'measured') fail('Only a calculation from measurements binds propulsion calibrations');
     bound.forEach((entry, index) => {
       if (index > 0 && entry.combinationKey <= bound[index - 1]!.combinationKey) fail('Propulsion calibrations must be one per combination, in ascending key order');
       if (!profile.calculation.measurementSets.includes(entry.measurementSet)) fail('A propulsion calibration needs its measurement set bound');
@@ -273,6 +326,7 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
       }
     }
   });
+  if (profile.schemaVersion === 7 && 'body' in profile) checkBody(profile.body, profile.arms);
   checkInertia(profile.massProperties.inertiaCgKgM2, 'Aircraft inertia', true);
   if (profile.payload) checkInertia(profile.payload.inertiaCgKgM2, 'Payload inertia', false);
   return freeze(profile);
@@ -305,15 +359,20 @@ export function propellerPolarsOf(profile: AircraftProfile): readonly PropellerP
 
 /** The airframe drag a profile states (TASK-096), or null: the standard hull's preliminary estimate. */
 export function airframeDragOf(profile: AircraftProfile): StatedAirframeDrag | null {
-  return profile.schemaVersion === 5 ? profile.airframeDrag : profile.schemaVersion === 6 ? profile.airframeDrag ?? null : null;
+  return profile.schemaVersion === 5 ? profile.airframeDrag : profile.schemaVersion >= 6 && 'propulsionCalibrations' in profile ? profile.airframeDrag ?? null : null;
 }
 /** The propulsion calibrations a profile version binds (TASK-145); none below schema 6. */
 export function propulsionCalibrationsOf(profile: AircraftProfile): readonly BoundCalibration[] {
-  return profile.schemaVersion === 6 ? profile.propulsionCalibrations : [];
+  return profile.schemaVersion >= 6 && 'propulsionCalibrations' in profile ? profile.propulsionCalibrations : [];
+}
+/** The body a profile describes (TASK-196), or null: the standard hull. */
+export function bodyOf(profile: AircraftProfile): BodySpec | null {
+  return profile.schemaVersion === 7 ? profile.body : null;
 }
 
 /**
- * The profile in its canonical schema for the given content: schema 5 with
+ * The profile in its canonical schema for the given content: schema 7 with a
+ * body, else schema 6 with a propulsion calibration, else schema 5 with
  * stated airframe drag, else schema 4 with any propeller polar, else schema 3
  * with a sensor configuration, else schema 2, except that a schema 1 profile
  * whose calculation stays the implicit preliminary one stays schema 1.
@@ -322,7 +381,7 @@ export function propulsionCalibrationsOf(profile: AircraftProfile): readonly Bou
 export function withProfileContent(profile: AircraftProfile, content: {
   readonly calculation?: CalculationSettings; readonly sensorConfiguration?: SensorConfiguration | null;
   readonly propellerPolars?: readonly PropellerPolar[]; readonly airframeDrag?: StatedAirframeDrag | null;
-  readonly propulsionCalibrations?: readonly BoundCalibration[];
+  readonly propulsionCalibrations?: readonly BoundCalibration[]; readonly body?: BodySpec | null;
 }): AircraftProfile {
   const config = content.sensorConfiguration === undefined ? profile.sensorConfiguration : content.sensorConfiguration;
   const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
@@ -338,6 +397,11 @@ export function withProfileContent(profile: AircraftProfile, content: {
   const calibrations = [...(content.propulsionCalibrations ?? propulsionCalibrationsOf(profile))]
     .filter(entry => calculation.mode === 'measured' && calculation.measurementSets.includes(entry.measurementSet))
     .sort((a, b) => (a.combinationKey < b.combinationKey ? -1 : a.combinationKey > b.combinationKey ? 1 : 0));
+  const body = content.body === undefined ? bodyOf(profile) : content.body;
+  if (body) {
+    return validateAircraftProfile({ ...fields, schemaVersion: 7, calculation, sensorConfiguration: sensors, propellerPolars: polars,
+      ...(drag ? { airframeDrag: drag } : {}), propulsionCalibrations: calibrations, body });
+  }
   if (calibrations.length > 0) {
     return validateAircraftProfile({ ...fields, schemaVersion: 6, calculation, sensorConfiguration: sensors, propellerPolars: polars,
       ...(drag ? { airframeDrag: drag } : {}), propulsionCalibrations: calibrations });
@@ -361,6 +425,11 @@ export function withProfileContent(profile: AircraftProfile, content: {
  */
 export function withSensorConfiguration(profile: AircraftProfile, config: SensorConfiguration | null): AircraftProfile {
   return withProfileContent(profile, { sensorConfiguration: config });
+}
+
+/** The profile with the body the user describes (TASK-196), or with null the standard hull again (schema 6 or lower). */
+export function withBody(profile: AircraftProfile, body: BodySpec | null): AircraftProfile {
+  return withProfileContent(profile, { body });
 }
 
 /** The profile binding these propulsion calibrations (TASK-145); an empty list returns it to schema 5 or lower. */

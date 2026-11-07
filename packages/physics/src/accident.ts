@@ -224,12 +224,13 @@ export function accidentRows(event: AccidentEvent): number[][] {
 
 /**
  * One line for an accident, for the Run tab. A derived manifest's rotor IDs are the profile's motor
- * IDs; its hull is the standard hull (TASK-095), whose shape 0 is the body and shape k the arm
- * `armIds[k - 1]`, the arms in ascending ID order.
+ * IDs; `hullNames[id]` names its hull shape `id` (`hullPartNames` of `@mirage/aircraft/standard-hull`:
+ * the body, the arms, and a described body's parts as part of the body, TASK-196). Without a name
+ * shape 0 reads as the body and any other by its ID.
  */
-export function describeAccident(event: AccidentEvent, armIds: readonly number[] = []): string {
+export function describeAccident(event: AccidentEvent, hullNames: readonly string[] = []): string {
   const part = event.part;
   const what = part.part === 'propeller' ? `The propeller of motor ${part.rotorId}`
-    : part.hullId === 0 ? 'The body' : `Arm ${armIds[part.hullId - 1] ?? `shape ${part.hullId}`}`;
+    : hullNames[part.hullId] ?? (part.hullId === 0 ? 'The body' : `Hull shape ${part.hullId}`);
   return `${what} struck the ground at ${event.simTimeS.toFixed(2)} s: ${event.forceN.toFixed(1)} N, ${(event.penetrationM * 1000).toFixed(1)} mm deep`;
 }

@@ -3,12 +3,14 @@ import { bindMeasurements, type MeasurementCandidate } from "@mirage/aircraft/ca
 import { readComponentCard, type ComponentType } from "@mirage/aircraft/components";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
-import { calculationSettings, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, calculationSettings, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
+import { bodyHull, hullPartNames } from "@mirage/aircraft/standard-hull";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import { nameLanguage } from "../shell/project-files";
 import { describeLibraryError } from "../library/library-data";
-import { AircraftScheme3D, type RenderedRotor } from "./AircraftScheme3D";
+import { AircraftScheme3D, type RenderedHullShape, type RenderedRotor } from "./AircraftScheme3D";
+import { BodySize } from "./BodySize";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
@@ -24,6 +26,7 @@ import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, prop
 // the layout derivation of the last valid form, and the ArduPilot outputs
 // and frame parameters of the valid form follow it (TASK-142). The propeller
 // clearance of the valid form, with its proposed fix, follows them (TASK-195).
+// A described body (TASK-196) is drawn in the scheme at its size.
 
 interface Editing {
   /** Null for a profile that is not stored yet. */
@@ -60,6 +63,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   const [busy, setBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
   const [rendered, setRendered] = useState<readonly RenderedRotor[]>([]);
+  const [renderedHull, setRenderedHull] = useState<readonly RenderedHullShape[]>([]);
   const [shared, setShared] = useState<{ motor: string | null; propeller: string | null; esc: string | null }>({ motor: null, propeller: null, esc: null });
 
   useEffect(() => {
@@ -118,6 +122,12 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   if (layout) lastLayout.current = layout;
   if (!editing) lastLayout.current = null;
   const shownLayout = layout ?? lastLayout.current;
+  // A described body's hull for the scheme (TASK-196), following the valid form.
+  const hull = useMemo(() => {
+    if (!result?.ok) return null;
+    const body = bodyOf(result.profile);
+    return body ? { shapes: bodyHull(result.profile, body), names: hullPartNames(result.profile) } : null;
+  }, [result]);
   // Each motor's propeller radius from its card, or null while a motor has none.
   const radii = useMemo(() => {
     if (!result?.ok) return null;
@@ -264,13 +274,16 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
           <section className="project-section" aria-labelledby="scheme-heading">
             <h3 id="scheme-heading">Scheme</h3>
             {shownLayout ? (
-              <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-current={layout ? "true" : "false"}>
+              <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-rendered-hull={JSON.stringify(renderedHull)}
+                data-current={layout ? "true" : "false"}>
                 {!layout && <p className="hint">The form has problems, so the scheme shows the last valid layout.</p>}
-                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} onRendered={setRendered} />
+                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} hull={layout ? hull?.shapes ?? null : null}
+                  hullNames={hull?.names ?? []} onRendered={setRendered} onRenderedHull={setRenderedHull} />
               </div>
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
           <ArmTable form={editing.form} cards={library.cards} onChange={setForm} />
+          <BodySize form={editing.form} profile={result?.ok ? result.profile : null} radii={radii} onChange={setForm} />
           <ClearancePanel profile={result?.ok ? result.profile : null} radii={radii} dirty={dirty} saveBlocked={nameError !== null} busy={busy}
             onSave={fixed => persist(fixed, "Saved the propeller clearance fix as")} />
           <OutputMapping profile={result?.ok ? result.profile : null} profileSha256={!dirty && editing.head ? editing.head.sha256 : null} />

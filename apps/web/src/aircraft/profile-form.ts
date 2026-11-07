@@ -1,7 +1,8 @@
 import {
-  airframeDragOf, propellerPolarsOf, validateAircraftProfile, withAirframeDrag, withPropellerPolars, type AircraftProfile, type CalculationSettings,
-  type ProfileMotor, type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
+  airframeDragOf, bodyOf, MAX_HULL_SHAPES, propellerPolarsOf, validateAircraftProfile, withAirframeDrag, withBody, withPropellerPolars, type AircraftProfile,
+  type BodySpec, type CalculationSettings, type ProfileMotor, type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
 } from '@mirage/aircraft/profile';
+import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
 import type { AirframeDrag, MassProperties } from '@mirage/physics/vehicle-manifest';
 import { parseDecimal } from '../library/library-data';
@@ -58,6 +59,23 @@ export interface DragForm {
   readonly maxAirspeedMps: string;
   readonly source: string;
 }
+/** TASK-196: a part fixed to the body, a vertical cylinder; depths are below the reference point. */
+export interface BodyPartForm {
+  readonly name: string;
+  readonly xM: string;
+  readonly yM: string;
+  readonly bottomDepthM: string;
+  readonly diameterM: string;
+  readonly heightM: string;
+}
+/** TASK-196: the body the user describes, in place of the standard hull. */
+export interface BodyForm {
+  readonly diameterM: string;
+  readonly heightM: string;
+  readonly bottomDepthM: string;
+  readonly armDiameterM: string;
+  readonly parts: readonly BodyPartForm[];
+}
 export interface ProfileForm {
   readonly arms: readonly ArmForm[];
   readonly mass: MassForm;
@@ -77,6 +95,10 @@ export interface ProfileForm {
   readonly dragStated: boolean;
   /** Kept while the drag is not stated, so stating it again restores the values. */
   readonly drag: DragForm;
+  /** TASK-196: whether the profile describes its body; otherwise it flies the standard hull. */
+  readonly bodyStated: boolean;
+  /** Kept while the body is not described, so describing it again restores the values. */
+  readonly body: BodyForm;
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -116,6 +138,32 @@ function dragForm(drag: StatedAirframeDrag): DragForm {
   return { areas: [a[0] ?? '', a[1] ?? '', a[2] ?? ''], cop: [c[0] ?? '', c[1] ?? '', c[2] ?? ''], maxAirspeedMps: String(drag.maxAirspeedMps),
     source: drag.source };
 }
+export function emptyBody(): BodyForm {
+  return { diameterM: '', heightM: '', bottomDepthM: '', armDiameterM: '', parts: [] };
+}
+export function emptyBodyPart(): BodyPartForm {
+  return { name: '', xM: '0', yM: '0', bottomDepthM: '', diameterM: '', heightM: '' };
+}
+/** The most parts a body of this many arms can have: the hull holds at most 16 shapes. */
+export function maxBodyParts(armCount: number): number {
+  return Math.max(0, MAX_HULL_SHAPES - 1 - armCount);
+}
+/** TASK-196: the body form filled from the standard hull (body cylinder, then arm capsules), for the user to replace. */
+export function bodyFormFromHull(hull: readonly HullShape[]): BodyForm {
+  const body = hull[0], arms = hull.slice(1).flatMap(shape => (shape.kind === 'capsule' ? [shape.radiusM] : []));
+  if (!body || body.kind !== 'cylinder') return emptyBody();
+  return {
+    diameterM: shown(2 * body.radiusM), heightM: shown(2 * body.halfHeightM), bottomDepthM: shown((body.centerBodyM[2] ?? 0) + body.halfHeightM),
+    armDiameterM: arms.length > 0 ? shown(2 * Math.max(...arms)) : '', parts: [],
+  };
+}
+function bodyForm(body: BodySpec): BodyForm {
+  return {
+    diameterM: String(body.diameterM), heightM: String(body.heightM), bottomDepthM: String(body.bottomDepthM), armDiameterM: String(body.armDiameterM),
+    parts: body.parts.map(part => ({ name: part.name, xM: String(part.xM), yM: String(part.yM), bottomDepthM: String(part.bottomDepthM),
+      diameterM: String(part.diameterM), heightM: String(part.heightM) })),
+  };
+}
 export function emptyMass(): MassForm {
   return { massKg: '', cg: ['', '', ''], inertia: { xx: '', yy: '', zz: '', xy: '', xz: '', yz: '' } };
 }
@@ -124,6 +172,7 @@ export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
     calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [], dragStated: false, drag: emptyDrag(),
+    bodyStated: false, body: emptyBody(),
   };
 }
 
@@ -156,7 +205,12 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
     calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
     propellerPolars: propellerPolarsOf(profile), ...dragOf(profile),
+    ...bodyFormOf(profile),
   };
+}
+function bodyFormOf(profile: AircraftProfile): { bodyStated: boolean; body: BodyForm } {
+  const body = bodyOf(profile);
+  return { bodyStated: body !== null, body: body ? bodyForm(body) : emptyBody() };
 }
 function dragOf(profile: AircraftProfile): { dragStated: boolean; drag: DragForm } {
   const stated = airframeDragOf(profile);
@@ -242,6 +296,23 @@ export function profileFromForm(form: ProfileForm): FormResult {
     if (d.source.trim() === '') read.errors.push('Say where the drag areas come from');
     drag = { dragAreasM2, centerOfPressureBodyM, maxAirspeedMps, source: d.source.trim() };
   }
+  let body: BodySpec | null = null;
+  if (form.bodyStated) {
+    const b = form.body;
+    const parts = b.parts.map((part, index) => {
+      const label = `Body part ${index + 1}`;
+      if (part.name.trim() === '') read.errors.push(`Give ${label.toLowerCase()} a name`);
+      return {
+        name: part.name.trim(), xM: read.number(part.xM, `${label} x`), yM: read.number(part.yM, `${label} y`),
+        bottomDepthM: read.number(part.bottomDepthM, `${label} bottom depth`), diameterM: read.positive(part.diameterM, `${label} diameter`, 'm'),
+        heightM: read.positive(part.heightM, `${label} height`, 'm'),
+      };
+    });
+    body = {
+      diameterM: read.positive(b.diameterM, 'Body diameter', 'm'), heightM: read.positive(b.heightM, 'Body height', 'm'),
+      bottomDepthM: read.number(b.bottomDepthM, 'Body bottom depth'), armDiameterM: read.positive(b.armDiameterM, 'Arm thickness', 'm'), parts,
+    };
+  }
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
   const candidate = {
     schemaVersion: form.sensorConfiguration ? 3 : form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
@@ -253,7 +324,9 @@ export function profileFromForm(form: ProfileForm): FormResult {
     // Schema 4 exactly when a polar is chosen (TASK-144).
     const polars = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
     // Schema 5 exactly when drag is stated (TASK-096).
-    const profile = drag ? withAirframeDrag(polars, drag) : polars;
+    const dragged = drag ? withAirframeDrag(polars, drag) : polars;
+    // Schema 7 exactly when the body is described (TASK-196).
+    const profile = body ? withBody(dragged, body) : dragged;
     return { ok: true, profile };
   } catch (cause) {
     return { ok: false, errors: [cause instanceof Error ? cause.message.replace(/^Invalid aircraft profile: /, '') : String(cause)] };

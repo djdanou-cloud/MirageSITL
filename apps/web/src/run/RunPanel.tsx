@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentTerrain } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
-import { readAircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, readAircraftProfile } from "@mirage/aircraft/profile";
+import { bodyHull, hullPartNames } from "@mirage/aircraft/standard-hull";
+import type { HullShape } from "@mirage/physics/vehicle-manifest";
 import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { RunDriver } from "./session-link";
@@ -96,10 +98,18 @@ function layoutOf(stored: StoredVersion | undefined): AircraftLayout | null {
   try { return deriveLayout(readAircraftProfile(stored)); } catch { return null; }
 }
 
-/** The arm IDs of a stored profile version in ascending order, which number the standard hull's arm shapes; empty when it does not validate. */
-function armIdsOf(stored: StoredVersion | undefined): readonly number[] {
+/** What each hull shape of a stored profile version stands for, by hull ID (TASK-196); empty when it does not validate. */
+function hullNamesOf(stored: StoredVersion | undefined): readonly string[] {
   if (!stored) return [];
-  try { return readAircraftProfile(stored).arms.map(arm => arm.id); } catch { return []; }
+  try { return hullPartNames(readAircraftProfile(stored)); } catch { return []; }
+}
+/** The hull of a profile version that describes its body (TASK-196), drawn in the flight view; null otherwise. */
+function describedHullOf(stored: StoredVersion | undefined): readonly HullShape[] | null {
+  if (!stored) return null;
+  try {
+    const profile = readAircraftProfile(stored), body = bodyOf(profile);
+    return body ? bodyHull(profile, body) : null;
+  } catch { return null; }
 }
 
 /** The stage line for a run state; a connection says Connecting and Disconnecting. */
@@ -460,7 +470,8 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const routePoints = routeDefinition?.route ?? null;
   const route = useMemo((): readonly RoutePoint[] => (routePoints ?? []).map((point, index) => ({ northM: point.northM, eastM: point.eastM, downM: -point.altitudeM, label: `Route point ${index + 1}` })), [routePoints]);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
-  const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
+  const hullNames = useMemo(() => hullNamesOf(chosen), [chosen]);
+  const describedHull = useMemo(() => describedHullOf(chosen), [chosen]);
   const accidents = view?.accidents ?? [];
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
@@ -559,7 +570,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         onRelease={() => setManualRefusal(controller.current?.releaseManual() ?? "")} refusal={manualRefusal} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
-          <FlightView runtime={runtime} layout={layout} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
+          <FlightView runtime={runtime} layout={layout} hull={describedHull} hullNames={hullNames} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
             onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
           <div className="flight-view-panels">
             <MotorCheckPanel check={view?.motorCheck ?? null} refusal={motorRefusal}
@@ -594,7 +605,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       {accidents.length > 0 && (
         <div className="sitl-accidents">
           <h4>Accidents</h4>
-          <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, armIds)}</li>)}</ul>
+          <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, hullNames)}</li>)}</ul>
         </div>
       )}
       {state.name === "paused" && <p className="hint" role="status" data-testid="sitl-pause-hint">{PAUSE_HINT[state.reason]}</p>}

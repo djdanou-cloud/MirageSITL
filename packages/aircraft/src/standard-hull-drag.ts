@@ -27,7 +27,8 @@ export const STANDARD_HULL_DRAG = Object.freeze({
 });
 
 /**
- * The drag of a validated standard hull: the body cylinder (ID 0) and arm capsules. Each shape of unit axis a adds
+ * The drag of a validated standard hull: the body cylinder (ID 0) and arm capsules, or of a profile's described body
+ * (TASK-196), whose parts are further cylinders. Each shape of unit axis a adds
  * C_D,across·A_side·(I − a·aᵀ) + C_D,along·A_end·(a·aᵀ). A cylinder's side area is its diameter times its height and its end
  * area πr²; an arm counts from the body cylinder's radius outward, its side area its diameter times that length and its end
  * area πr². The center of pressure is the shapes' centers (an arm's at the middle of its counted length) weighted by the
@@ -72,11 +73,11 @@ function clean(value: number): number {
   return value === 0 ? 0 : value;
 }
 
-/** The manifest dataset text of the standard hull drag. */
-export function standardHullDragDerivation(): string {
+/** The manifest dataset text of the standard hull drag; `ofProfileBody` for the estimate from a body the profile describes (TASK-196). */
+export function standardHullDragDerivation(ofProfileBody = false): string {
   const h = STANDARD_HULL_DRAG;
-  return `Standard hull drag ${STANDARD_HULL_DRAG_VERSION} of @mirage/aircraft, a preliminary estimate from the synthetic standard ` +
-    `hull, not measured: each cylinder or capsule adds C_D times its area across its axis (C_D ${h.crossFlowDragCoefficient}, a ` +
+  return `Standard hull drag ${STANDARD_HULL_DRAG_VERSION} of @mirage/aircraft, a preliminary estimate from the ` +
+    `${ofProfileBody ? 'body the aircraft profile describes' : 'synthetic standard hull'}, not measured: each cylinder or capsule adds C_D times its area across its axis (C_D ${h.crossFlowDragCoefficient}, a ` +
     `subcritical circular cylinder of infinite span, an upper estimate) and along it (C_D ${h.endOnDragCoefficient}, a flat disk or ` +
     `blunt end, Hoerner 1965); arms count from the body radius outward; the center of pressure weights the shapes' centers by their ` +
     `drag areas; the airspeed range ends where the widest shape reaches Reynolds number ${h.criticalReynoldsNumber} in ISA sea-level ` +

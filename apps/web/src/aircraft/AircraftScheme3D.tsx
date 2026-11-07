@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, Mesh, MeshStandardMaterial, Quaternion, Sprite, SpriteMaterial, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AircraftLayout, RotorLayout } from "@mirage/aircraft/layout";
+import type { HullShape } from "@mirage/physics/vehicle-manifest";
 import { armMounts, frdToRender, rotorRenderPose, schemeDimensions } from "./scheme-geometry";
 
 // The aircraft scheme (TASK-141, S03): every rotor drawn from the TASK-138
@@ -11,7 +12,9 @@ import { armMounts, frdToRender, rotorRenderPose, schemeDimensions } from "./sch
 // disc colored by spin with an arrow in the turning direction, and its thrust
 // axis. A table repeats the scheme in text. The scheme draws only on change.
 // The Run tab's flight view (TASK-185) draws the same Rotor and Strut on the
-// flying aircraft, so the editor and the flight show one model.
+// flying aircraft, so the editor and the flight show one model. A profile
+// that describes its body (TASK-196) is drawn with that body's cylinder, arms
+// and parts at their size, in place of the schematic box and struts.
 
 export const SPIN_COLORS = { ccw: "#5fd3b0", cw: "#e8a65d" } as const;
 export const BODY_COLOR = "#8fa3b0";
@@ -92,6 +95,60 @@ export function Rotor({ rotor, discRadius }: { rotor: RotorLayout; discRadius: n
   );
 }
 
+/** A hull shape as drawn (TASK-196), read back from the scene: what it stands for and its render-space centre. */
+export interface RenderedHullShape {
+  readonly hullId: number;
+  readonly name: string;
+  readonly kind: "cylinder" | "capsule";
+  readonly position: readonly number[];
+}
+
+/**
+ * The hull shapes of a described body (TASK-196) at their size: each cylinder about its axis and each capsule
+ * between its ends. `names[id]` names shape `id`; each mesh carries it with its hull ID.
+ */
+export function HullShapes({ hull, names }: { hull: readonly HullShape[]; names: readonly string[] }) {
+  return (
+    <group name="hull">
+      {hull.map(shape => {
+        const userData = { hullId: shape.id, hullName: names[shape.id] ?? `Hull shape ${shape.id}`, hullKind: shape.kind };
+        if (shape.kind === "cylinder") {
+          const axis = new Vector3(...frdToRender(shape.axisBody)).normalize();
+          const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), axis);
+          return (
+            <mesh key={shape.id} userData={userData} position={[...frdToRender(shape.centerBodyM)]} quaternion={quaternion}>
+              <cylinderGeometry args={[shape.radiusM, shape.radiusM, 2 * shape.halfHeightM, 32]} />
+              <meshStandardMaterial color={BODY_COLOR} />
+            </mesh>
+          );
+        }
+        const start = new Vector3(...frdToRender(shape.startBodyM)), end = new Vector3(...frdToRender(shape.endBodyM));
+        const along = end.clone().sub(start), length = along.length();
+        const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), length > 0 ? along.clone().normalize() : new Vector3(0, 1, 0));
+        return (
+          <mesh key={shape.id} userData={userData} position={start.clone().add(end).multiplyScalar(0.5)} quaternion={quaternion}>
+            <capsuleGeometry args={[shape.radiusM, length, 6, 16]} />
+            <meshStandardMaterial color={BODY_COLOR} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+/** The drawn hull shapes of a scene, in hull ID order. */
+export function renderedHull(root: Object3D): RenderedHullShape[] {
+  const shapes: RenderedHullShape[] = [];
+  const position = new Vector3();
+  root.traverse(object => {
+    const hullId: unknown = object.userData.hullId, hullName: unknown = object.userData.hullName, hullKind: unknown = object.userData.hullKind;
+    if (typeof hullId !== "number" || typeof hullName !== "string" || (hullKind !== "cylinder" && hullKind !== "capsule")) return;
+    object.getWorldPosition(position);
+    shapes.push({ hullId, name: hullName, kind: hullKind, position: position.toArray() });
+  });
+  return shapes.sort((a, b) => a.hullId - b.hullId);
+}
+
 /** A thin box from the reference point to a body FRD point. */
 export function Strut({ to, thickness }: { to: readonly number[]; thickness: number }) {
   const end = new Vector3(...frdToRender(to));
@@ -123,9 +180,11 @@ function Controls({ span }: { span: number }) {
   return null;
 }
 
-function Probe({ onRendered }: { onRendered: (rotors: readonly RenderedRotor[]) => void }) {
+function Probe({ onRendered, onRenderedHull }: {
+  onRendered: (rotors: readonly RenderedRotor[]) => void; onRenderedHull?: (hull: readonly RenderedHullShape[]) => void;
+}) {
   const scene = useThree(state => state.scene);
-  const last = useRef("");
+  const last = useRef(""), lastHull = useRef("");
   useFrame(() => {
     const rotors: RenderedRotor[] = [];
     const position = new Vector3(), rotation = new Quaternion();
@@ -150,16 +209,26 @@ function Probe({ onRendered }: { onRendered: (rotors: readonly RenderedRotor[]) 
       last.current = json;
       onRendered(rotors);
     }
+    if (!onRenderedHull) return;
+    const hull = renderedHull(scene), hullJson = JSON.stringify(hull);
+    if (hullJson !== lastHull.current) {
+      lastHull.current = hullJson;
+      onRenderedHull(hull);
+    }
   });
   return null;
 }
 
 const format = (value: number) => (Math.abs(value) < 5e-4 ? "0" : value.toFixed(3));
 
-export function AircraftScheme3D({ layout, name, onRendered }: {
+export function AircraftScheme3D({ layout, name, hull = null, hullNames = [], onRendered, onRenderedHull }: {
   layout: AircraftLayout;
   name: string;
+  /** TASK-196: the hull of a described body, drawn at its size; null draws the schematic body and struts. */
+  hull?: readonly HullShape[] | null;
+  hullNames?: readonly string[];
   onRendered?: (rotors: readonly RenderedRotor[]) => void;
+  onRenderedHull?: (hull: readonly RenderedHullShape[]) => void;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -169,24 +238,27 @@ export function AircraftScheme3D({ layout, name, onRendered }: {
         <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: 40, near: 0.01, far: 100 }}>
           <ambientLight intensity={0.8} />
           <directionalLight position={[2, 4, 3]} intensity={1.2} />
-          <mesh>
-            <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
-            <meshStandardMaterial color={BODY_COLOR} />
-          </mesh>
+          {hull ? <HullShapes hull={hull} names={hullNames} /> : (
+            <mesh>
+              <boxGeometry args={[span * 0.12, span * 0.05, span * 0.18]} />
+              <meshStandardMaterial color={BODY_COLOR} />
+            </mesh>
+          )}
           {/* Forward (body x) is render -z. */}
           <mesh position={[0, 0, -span * 0.22]} rotation={[-Math.PI / 2, 0, 0]}>
             <coneGeometry args={[span * 0.04, span * 0.1, 12]} />
             <meshStandardMaterial color="#9af0d1" />
           </mesh>
-          {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
+          {!hull && mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
           {layout.rotors.map(rotor => <Rotor key={rotor.motorId} rotor={rotor} discRadius={discRadius} />)}
           <Controls span={span} />
-          {onRendered && <Probe onRendered={onRendered} />}
+          {onRendered && <Probe onRendered={onRendered} onRenderedHull={onRenderedHull} />}
         </Canvas>
       </div>
       <p className="hint">
         Body axes: x forward, y right, z down, from the reference point. Turquoise rotors turn counter-clockwise and amber rotors clockwise,
         seen from the thrust side; the white arrow is the thrust axis.
+        {hull ? " The body, arms and parts are drawn at the size the profile describes." : " The body and arms are schematic."}
       </p>
       {/* Focusable, so a keyboard user can scroll the table on a narrow screen. */}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={`Motor table of ${name}`}>

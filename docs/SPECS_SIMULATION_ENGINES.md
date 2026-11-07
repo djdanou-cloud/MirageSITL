@@ -5352,10 +5352,10 @@ values. The derived manifest holds:
 | `battery` | The resolved values, or null |
 | `rotorWakePairs` | One per coaxial pair, from the upper rotor to the lower one |
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
-| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source |
+| `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source; a profile that describes its body (schema 7, TASK-196) has no `standard-hull` dataset |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
 | `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear") |
-| `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs") |
+| `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs"); for a profile that describes its body (schema 7, TASK-196) that body, from the profile's dataset (section "Described body (TASK-196)") |
 | `airframe.drag` | The standard hull's preliminary drag (derivation 6, TASK-096; section "Airframe drag") |
 | `ardupilot`, `controlSurfaces` | Null or empty; TASK-142 owns `ardupilot` |
 
@@ -6871,10 +6871,11 @@ feet throughout, and the contact faults the session on any native allocation.
 
 ### Standard hull and propeller discs
 
-Aircraft profiles give no body or arm size. By the user's decision of
-2026-11-01 (TASK-095 increment 4) derivation 4 works the frame out from the
-arms and propellers, marked not measured, and body size fields are a later
-task (TASK-196); the propeller clearance check that blocks a run, with a
+A profile that gives no body or arm size flies the standard hull. By the
+user's decision of 2026-11-01 (TASK-095 increment 4) derivation 4 works the
+frame out from the arms and propellers, marked not measured; a profile that
+describes its body (schema 7, TASK-196) flies that body instead (section
+"Described body (TASK-196)"); the propeller clearance check that blocks a run, with a
 previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 (`packages/aircraft/src/standard-hull.ts`, rules version 1, synthetic dataset
 `standard-hull`) is:
@@ -6887,7 +6888,7 @@ previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 A 10 in quadcopter on 0.225 m arms gets a body 0.11 m across and 0.045 m tall
 and arms 13 mm thick; an octocopter with 44 in propellers on 1.25 m arms a body
 0.63 m across and 0.25 m tall and arms 56 mm thick. A body that hangs low, or a
-pod below it, is not represented until TASK-196.
+pod below it, needs the described body of TASK-196.
 
 `buildProfileDynamics` adds one propeller disc per rotor: a cylinder at the hub
 about its thrust axis, its radius the rotor's and half its thickness 0.025 times
@@ -6920,6 +6921,72 @@ degrees nose down, dropped 5 mm above its lowest shape, strikes first and alone
 with the propeller disc that the geometry puts lowest, at a point on that disc,
 at all three rates.
 
+### Described body (TASK-196)
+
+Aircraft profile schema 7 (`packages/aircraft/src/profile.ts`) adds an
+optional `body`: the airframe's contact shapes as the user describes them, in
+place of the standard hull. A schema 7 profile holds any content of schema 6
+as well (polars, stated drag, propulsion calibrations, of which it may bind
+none). A profile without a body keeps its lowest schema and derives the same
+bytes as before, so `DERIVATION_VERSION` stays 6. Depths are body FRD z,
+metres below the reference point.
+
+| Field | Meaning | Limits |
+| --- | --- | --- |
+| `diameterM`, `heightM` | The body cylinder about the body z axis | Above 0, at most 10 m |
+| `bottomDepthM` | How far the body's bottom lies below the reference point; negative when it lies above | −10 to 10 m |
+| `armDiameterM` | The thickness of every arm | Above 0, at most 1 m |
+| `parts[]` | Parts fixed to the body, such as a camera or a cargo box: `name`, axis `xM` and `yM`, `bottomDepthM`, `diameterM`, `heightM`, each a vertical cylinder | At most 7; names 1 to 64 characters, unique, without leading or trailing spaces |
+
+Code also checks that every arm is longer than the body radius, so each arm
+reaches out of the body, and that the body, the arms and the parts make at
+most 16 hull shapes. `bodyHull` gives, in the standard hull's order, the body
+(ID 0) centred `heightM`/2 above its bottom, one capsule per arm (IDs 1 to N)
+from the body axis to its motor mount at the arm's height with radius
+`armDiameterM`/2, then each part (IDs N + 1 onward) centred `heightM`/2 above
+its bottom. `profileHull` returns that hull or the standard hull. Everything
+that read the standard hull reads it:
+
+* the manifest's `hull`, whose provenance is then the profile derivation's
+  dataset; the `standard-hull` dataset is left out;
+* the supports' rest without a stated clearance (the lowest part one static
+  deflection above the ground);
+* the preliminary drag estimate, whose dataset text then says it is from the
+  body the profile describes;
+* the propeller clearance check, which treats each part as part of the body
+  (a `propeller-body` clash names the part, a `ground` clash a `body-part`);
+* the accident line, whose `describeAccident(event, hullPartNames(profile))`
+  names a struck part "The body (camera pod)";
+* both 3D views, which draw the body, arms and parts at their size in place of
+  the schematic box and struts.
+
+Mass properties are stated separately and do not follow from the sizes. The
+Aircraft tab's "Body and arms" section starts a new description from the
+standard hull's sizes.
+
+Checks, limits set before the first run: `tests/aircraft-body.test.ts`, 9
+passed. Schema 7 holds exactly while a body is described, and removing it
+restores the former bytes; the five rejections; the hull against the entered
+sizes within 1e-12 m; the manifest's hull, provenance and drag text, with the
+supports at a stated clearance unchanged; without a clearance the pod rests
+one static deflection (5 mm) above the ground within 1e-9 m. A pod hanging
+0.13 m down at the quad's 0.12 m clearance is "The body (camera pod) reaches
+10.0 mm below the ground at rest", and the fix raises the clearance to
+0.135 m. A body 0.26 m across makes four `propeller-body` clashes of
+0.032 m each, and the fix grows the arms; a cargo box beside the body clashes
+by name. In the WASM flight dynamics at 400 Hz the quad dropped 0.2 m with
+its motors off, a touchdown at about 2 m/s, strikes the ground with the
+camera pod 3 mm above the ground at rest: one accident, hull shape 5, "The
+body (camera pod) struck the ground at 0.21 s" (989.6 N, the step's normal
+impulse of 2.47 N·s over 2.5 ms on a rigid shape). The same pod resting 3 mm
+above the ground for 2 s, and a pod 40 mm above the ground in the same drop,
+raise none. `tests/browser/aircraft-body.spec.ts`, 1 passed: through the UI
+alone, describing the body starts from the standard hull's sizes; a camera
+pod entered 0.13 m down is listed as the clash above and drawn in the 3D
+scheme below and forward of the body; raised to 0.117 m it clears; the profile
+saves as schema 7 with exactly the entered values, and switching the body off
+saves it back in schema 4; axe finds no violation; the tab fits 390 px.
+
 ### Propeller clearance
 
 By the user's decisions of 2026-11-01 (TASK-095 increment 4) a profile whose
@@ -6928,12 +6995,13 @@ it changes the profile before it saves a new version; it never edits a
 profile silently. `packages/aircraft/src/clearance.ts` (TASK-195) checks the
 parts the flight physics uses, at the geometry the manifest derivation gives:
 each propeller is its propeller disc and the body the standard hull's
-cylinder (`clearanceShapes(profile, propellerRadiusM)`).
+cylinder, or a described body's cylinder and parts (TASK-196)
+(`clearanceShapes(profile, propellerRadiusM)`).
 
 | Clash | When | Size reported |
 | --- | --- | --- |
 | `propellers` | Two discs of motors on different arms overlap or touch | How far the tips overlap seen from above: R₁ + R₂ minus the hubs' horizontal distance |
-| `propeller-body` | A disc overlaps or touches the body cylinder | R + body radius minus the hub's horizontal distance from the body axis |
+| `propeller-body` | A disc overlaps or touches the body cylinder, or a described body's part, which it names (TASK-196) | R + body or part radius minus the hub's horizontal distance from its axis |
 | `ground` | With a stated ground clearance, the lowest point of a hull shape or a disc, level, at or below the ground at rest | Depth below the ground |
 
 The two rotors of a coaxial pair share their arm's axis by design and are not

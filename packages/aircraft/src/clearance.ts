@@ -1,8 +1,8 @@
 import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import { deriveLayout, type AircraftLayout } from './layout.ts';
-import { validateAircraftProfile, type AircraftProfile } from './profile.ts';
+import { bodyOf, validateAircraftProfile, type AircraftProfile } from './profile.ts';
 import { restingClearanceM, STANDARD_GEAR } from './standard-gear.ts';
-import { hullLowestDepthM, propellerDisc, standardHull } from './standard-hull.ts';
+import { hullLowestDepthM, profileHull, propellerDisc } from './standard-hull.ts';
 
 // Propeller clearance (TASK-195, S03, S18): whether the propellers of an
 // aircraft profile clear each other, the body and the ground, and the
@@ -13,7 +13,9 @@ import { hullLowestDepthM, propellerDisc, standardHull } from './standard-hull.t
 //
 // The parts are the contact shapes the flight physics uses (TASK-095): each
 // propeller a disc at its hub (`propellerDisc`), the body the standard hull's
-// cylinder, at the geometry the manifest derivation gives the profile. Two
+// cylinder, at the geometry the manifest derivation gives the profile. A
+// profile that describes its body (TASK-196) has that body's cylinder, arms
+// and parts instead; a part is checked as part of the body. Two
 // parts clash when they overlap or touch. The two rotors of a coaxial pair
 // share their arm's axis by design and are not checked against each other; a
 // propeller is not checked against the arms, since a real propeller turns
@@ -44,12 +46,17 @@ export const CLEARANCE_RULES = Object.freeze({
 export type ClearancePart =
   | { readonly kind: 'propeller'; readonly motorId: number }
   | { readonly kind: 'body' }
+  /** TASK-196: a part of a described body, by its name. */
+  | { readonly kind: 'body-part'; readonly name: string }
   | { readonly kind: 'arm'; readonly armId: number };
 export type ClearanceClash =
   /** Two propeller discs overlap; `overlapM` is how far their tips overlap seen from above. */
   | { readonly kind: 'propellers'; readonly motorIds: readonly [number, number]; readonly overlapM: number }
-  /** A propeller disc reaches the body; `overlapM` is how far its tip reaches into the body seen from above. */
-  | { readonly kind: 'propeller-body'; readonly motorId: number; readonly overlapM: number }
+  /**
+   * A propeller disc reaches the body, or with a described body (TASK-196) one of its parts, named in `part`;
+   * `overlapM` is how far its tip reaches into it seen from above.
+   */
+  | { readonly kind: 'propeller-body'; readonly motorId: number; readonly overlapM: number; readonly part?: string }
   /** A part reaches the ground at rest; `depthM` is how far its lowest point lies below it. */
   | { readonly kind: 'ground'; readonly part: ClearancePart; readonly depthM: number };
 export interface ClearanceReport {
@@ -62,7 +69,7 @@ export interface ClearanceReport {
 /** The parts of a profile as the checks see them, body FRD metres from the reference point. */
 export interface ClearanceShapes {
   readonly layout: AircraftLayout;
-  /** The standard hull: the body (ID 0), then one capsule per arm in ascending arm ID order. */
+  /** The hull: the body (ID 0), then one capsule per arm in ascending arm ID order, then a described body's parts (TASK-196). */
   readonly hull: readonly HullShape[];
   /** One propeller disc per rotor in ascending motor ID order, the disc ID the motor ID. */
   readonly discs: readonly HullShape[];
@@ -213,7 +220,7 @@ export function clearanceShapes(profile: AircraftProfile, propellerRadiusM: (mot
     if (!(radius > 0) || !Number.isFinite(radius)) throw new Error(`Motor ${rotor.motorId} has no propeller radius`);
   }
   return {
-    layout, hull: standardHull(profile, propellerRadiusM),
+    layout, hull: profileHull(profile, propellerRadiusM),
     discs: layout.rotors.map(rotor => propellerDisc(rotor, propellerRadiusM(rotor.motorId))),
   };
 }
@@ -235,7 +242,11 @@ export function propellerClearance(input: unknown, propellerRadiusM: (motorId: n
   const { layout, hull, discs } = clearanceShapes(profile, propellerRadiusM);
   const clashes: ClearanceClash[] = [];
   const body = hull[0];
-  if (body === undefined) throw new Error('The standard hull has no body');
+  if (body === undefined) throw new Error('The hull has no body');
+  // The body and, for a described body (TASK-196), its parts after the arms.
+  const partNames = (bodyOf(profile)?.parts ?? []).map(part => part.name);
+  const bodyShapes: [string | undefined, HullShape][] = [[undefined, body],
+    ...partNames.map((name, k): [string | undefined, HullShape] => [name, hull[1 + profile.arms.length + k] ?? body])];
   layout.rotors.forEach((rotor, i) => {
     const disc = discs[i];
     if (disc === undefined) return;
@@ -248,14 +259,17 @@ export function propellerClearance(input: unknown, propellerRadiusM: (motorId: n
   });
   layout.rotors.forEach((rotor, i) => {
     const disc = discs[i];
-    if (disc === undefined || !touches(disc, body)) return;
-    clashes.push({ kind: 'propeller-body', motorId: rotor.motorId, overlapM: Math.max(0, disc.radiusM + body.radiusM - planDistanceM(disc, body)) });
+    for (const [part, shape] of bodyShapes) {
+      if (disc === undefined || !touches(disc, shape)) continue;
+      const overlapM = Math.max(0, disc.radiusM + shape.radiusM - planDistanceM(disc, shape));
+      clashes.push(part === undefined ? { kind: 'propeller-body', motorId: rotor.motorId, overlapM } : { kind: 'propeller-body', motorId: rotor.motorId, overlapM, part });
+    }
   });
   const groundClearanceM = restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
   const parts: [ClearancePart, HullShape][] = [
     ...hull.map((shape, i): [ClearancePart, HullShape] => {
-      const arm = profile.arms[i - 1];
-      return [i === 0 || arm === undefined ? { kind: 'body' } : { kind: 'arm', armId: arm.id }, shape];
+      const arm = profile.arms[i - 1], name = partNames[i - 1 - profile.arms.length];
+      return [i === 0 ? { kind: 'body' } : arm !== undefined ? { kind: 'arm', armId: arm.id } : { kind: 'body-part', name: name ?? `shape ${i}` }, shape];
     }),
     ...discs.map((disc): [ClearancePart, HullShape] => [{ kind: 'propeller', motorId: disc.id }, disc]),
   ];
@@ -273,6 +287,7 @@ function partName(part: ClearancePart): string {
   switch (part.kind) {
     case 'propeller': return `The propeller of motor ${part.motorId}`;
     case 'body': return 'The body';
+    case 'body-part': return `The body (${part.name})`;
     case 'arm': return `Arm ${part.armId}`;
     default: return assertNever(part);
   }
@@ -288,8 +303,8 @@ export function describeClash(clash: ClearanceClash): string {
       return shown(clash.overlapM) ? `${pair} overlap by ${millimetres(clash.overlapM)}` : `${pair} touch`;
     }
     case 'propeller-body': {
-      const propeller = `The propeller of motor ${clash.motorId}`;
-      return shown(clash.overlapM) ? `${propeller} reaches ${millimetres(clash.overlapM)} into the body` : `${propeller} touches the body`;
+      const propeller = `The propeller of motor ${clash.motorId}`, body = clash.part === undefined ? 'the body' : `the body (${clash.part})`;
+      return shown(clash.overlapM) ? `${propeller} reaches ${millimetres(clash.overlapM)} into ${body}` : `${propeller} touches ${body}`;
     }
     case 'ground':
       return shown(clash.depthM) ? `${partName(clash.part)} reaches ${millimetres(clash.depthM)} below the ground at rest`
@@ -338,10 +353,11 @@ export function clearanceFix(input: unknown, propellerRadiusM: (motorId: number)
   });
   const clears = (candidate: AircraftProfile): boolean => {
     const { hull, discs } = clearanceShapes(candidate, propellerRadiusM);
-    const body = hull[0];
-    return body !== undefined && pairs.every(pair => {
-      const disc = discs[pair.first], other = pair.second < 0 ? body : discs[pair.second];
-      return disc !== undefined && other !== undefined && shapeDistanceM(disc, other) >= pair.gapM;
+    // The body and a described body's parts (TASK-196), which follow the arms.
+    const body = [hull[0], ...hull.slice(1 + candidate.arms.length)];
+    return pairs.every(pair => {
+      const disc = discs[pair.first], others = pair.second < 0 ? body : [discs[pair.second]];
+      return disc !== undefined && others.every(other => other !== undefined && shapeDistanceM(disc, other) >= pair.gapM);
     });
   };
   const lengths = profile.arms.map(arm => arm.lengthM);

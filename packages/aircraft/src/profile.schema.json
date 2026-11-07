@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mirage-sitl.invalid/schemas/aircraft-profile.schema.json",
-  "title": "MirageSITL aircraft profile schema 1, 2, 3, 4 and 5",
-  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank.",
+  "title": "MirageSITL aircraft profile schemas 1 to 7",
+  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank; and, from schema 7 (TASK-196), a body exactly in schema 7, whose parts have unique names, whose arms all reach out of the body cylinder, and which makes at most 16 hull shapes with the arms.",
   "definitions": {
     "cardReference": {
       "description": "SHA-256 address of a component-card version in the project store (TASK-136, TASK-139), or null while none is selected.",
@@ -38,7 +38,7 @@
     "sensorConfiguration"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2, 3, 4, 5, 6] },
+    "schemaVersion": { "enum": [1, 2, 3, 4, 5, 6, 7] },
     "units": { "const": "SI" },
     "bodyFrame": { "const": "FRD" },
     "arms": {
@@ -179,9 +179,9 @@
       }
     },
     "propulsionCalibrations": {
-      "description": "Schema 6 only (TASK-145): the propulsion calibrations this profile version binds, one per combination key, with the values of each calibration record.",
+      "description": "Schemas 6 and 7 (TASK-145): the propulsion calibrations this profile version binds, one per combination key, with the values of each calibration record; one or more in schema 6.",
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 16,
       "items": {
         "type": "object",
@@ -215,6 +215,36 @@
         "centerOfPressureBodyM": { "$ref": "#/definitions/vector3" },
         "maxAirspeedMps": { "description": "The top of the airspeed range the values hold for.", "type": "number", "exclusiveMinimum": 0 },
         "source": { "description": "Where the values came from.", "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "body": {
+      "description": "Schema 7 only (TASK-196): the airframe's contact shapes as the user describes them, in place of the standard hull. Depths are body FRD z, metres below the reference point.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diameterM", "heightM", "bottomDepthM", "armDiameterM", "parts"],
+      "properties": {
+        "diameterM": { "description": "Diameter of the body cylinder about the body z axis.", "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "heightM": { "description": "Height of the body cylinder.", "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "bottomDepthM": { "description": "How far the body's bottom lies below the reference point; negative when it lies above.", "type": "number", "minimum": -10, "maximum": 10 },
+        "armDiameterM": { "description": "Thickness of every arm, a capsule from the body axis to the motor mount at the arm's height.", "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "parts": {
+          "description": "Parts fixed to the body, such as a camera or a cargo box, each a vertical cylinder.",
+          "type": "array",
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "xM", "yM", "bottomDepthM", "diameterM", "heightM"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "\\S" },
+              "xM": { "description": "Body x (forward) of the part's axis.", "type": "number", "minimum": -10, "maximum": 10 },
+              "yM": { "description": "Body y (right) of the part's axis.", "type": "number", "minimum": -10, "maximum": 10 },
+              "bottomDepthM": { "description": "How far the part's bottom lies below the reference point.", "type": "number", "minimum": -10, "maximum": 10 },
+              "diameterM": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+              "heightM": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 }
+            }
+          }
+        }
       }
     },
     "calculation": {

@@ -137,6 +137,10 @@ implementation.
   TASK-195 is DONE: no run starts from a profile whose propellers overlap each
   other, reach the body or the ground, and the Aircraft tab proposes the fix
   (longer arms or a larger clearance) and saves it only on confirmation.
+  TASK-196 is DONE: profile schema 7 describes the body, the arm thickness and
+  up to seven body parts such as a camera pod, which the Aircraft tab edits and
+  both 3D views draw; they replace the standard hull in the manifest, the
+  clearance check and the accident report, which names a struck part as the body.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
