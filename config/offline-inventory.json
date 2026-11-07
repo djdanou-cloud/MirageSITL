@@ -29,6 +29,8 @@
     { "origin": "https://ardupilot.org", "use": "documentation-link", "reason": "ArduPilot documentation cited in tooling comments." },
     { "origin": "https://ntrs.nasa.gov", "use": "documentation-link", "reason": "Citation of NASA TM X-3561 for the landing-gear drop fixture." },
     { "origin": "https://nrel.sitefinity.cloud", "use": "documentation-link", "reason": "Citation of the NREL AirfoilPrep reference in the airfoil-input audit." },
+    { "origin": "https://discuss.ardupilot.org", "use": "documentation-link", "reason": "Citation of the forum topics the real flight logs of data/flight-logs/inventory.json come from; the logs are kept offline." },
+    { "origin": "https://drive.google.com", "use": "documentation-link", "reason": "Citation of the links the forum posts gave for the real flight logs of data/flight-logs/inventory.json; never fetched by MirageSITL." },
     { "origin": "https://m-selig.ae.illinois.edu", "use": "documentation-link", "reason": "Citation of the UIUC propeller and airfoil coordinate databases; the data were provided offline." },
     { "origin": "https://creativecommons.org", "use": "documentation-link", "reason": "License URL recorded for ESA WorldCover (CC BY 4.0)." },
     { "origin": "https://doi.org", "use": "documentation-link", "reason": "Dataset DOI recorded for ESA WorldCover." },

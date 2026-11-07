@@ -1,0 +1,710 @@
+{
+  "schemaVersion": 1,
+  "kind": "logged-gnss",
+  "status": "REPORTED",
+  "reasons": [],
+  "inventorySha256": "2afee1c7342c57bb5623d997d407dda45010352e9a31d6d041d20ccd1d798377",
+  "model": {
+    "constellation": "synthetic Walker 24/6/1",
+    "maskDeg": 10,
+    "uereM": 1.5,
+    "stepS": 10
+  },
+  "logs": [
+    {
+      "file": "topic-144558-00000205.BIN",
+      "sha256": "54c8530d6ebcbe27dcefedfd27655dd7ff5a994adbffd6660dc28ce7e6083153",
+      "aircraft": "mn7005-kv230-24in-7.2kg",
+      "receiver": "not stated",
+      "epochs": 26487,
+      "durationS": 2648.5,
+      "rateHz": 10,
+      "status": {
+        "3": 26487
+      },
+      "satellites": {
+        "p5": 28,
+        "p50": 28,
+        "p95": 28,
+        "samples": 26487
+      },
+      "hdop": {
+        "p5": 0.6,
+        "p50": 0.6,
+        "p95": 0.6,
+        "samples": 26487
+      },
+      "horizontalAccuracyM": {
+        "p5": 1.5,
+        "p50": 1.52,
+        "p95": 1.53,
+        "samples": 26487
+      },
+      "verticalAccuracyM": {
+        "p5": 2,
+        "p50": 2.04,
+        "p95": 2.06,
+        "samples": 26487
+      },
+      "speedAccuracyMps": {
+        "p5": 0.01,
+        "p50": 0.03,
+        "p95": 0.05,
+        "samples": 26487
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 8,
+          "p95": 8,
+          "samples": 264
+        },
+        "hdop": {
+          "p5": 0.87,
+          "p50": 0.88,
+          "p95": 1.12,
+          "samples": 264
+        },
+        "accuracyM": {
+          "p5": 1.31,
+          "p50": 1.31,
+          "p95": 1.69,
+          "samples": 264
+        },
+        "solutions": 264
+      }
+    },
+    {
+      "file": "topic-131210-00000148.BIN",
+      "sha256": "57204a6457db8d8ca4f3b459b0d7248841a4a43ff01203c2847ab56e7fe93597",
+      "aircraft": "tmotor-230kv-24in-6kg",
+      "receiver": "CUAV Neo 3 Pro",
+      "epochs": 7169,
+      "durationS": 1433.6,
+      "rateHz": 5,
+      "status": {
+        "3": 579,
+        "4": 6590
+      },
+      "satellites": {
+        "p5": 21,
+        "p50": 24,
+        "p95": 28,
+        "samples": 7169
+      },
+      "hdop": {
+        "p5": 0.5,
+        "p50": 0.56,
+        "p95": 0.7,
+        "samples": 7169
+      },
+      "horizontalAccuracyM": {
+        "p5": 1.23,
+        "p50": 1.47,
+        "p95": 1.77,
+        "samples": 7169
+      },
+      "verticalAccuracyM": {
+        "p5": 1.82,
+        "p50": 1.99,
+        "p95": 2.27,
+        "samples": 7169
+      },
+      "speedAccuracyMps": {
+        "p5": 0.21,
+        "p50": 0.28,
+        "p95": 0.4,
+        "samples": 7169
+      },
+      "model": {
+        "visible": {
+          "p5": 6,
+          "p50": 6,
+          "p95": 7,
+          "samples": 142
+        },
+        "hdop": {
+          "p5": 0.98,
+          "p50": 1.13,
+          "p95": 1.16,
+          "samples": 142
+        },
+        "accuracyM": {
+          "p5": 1.47,
+          "p50": 1.7,
+          "p95": 1.75,
+          "samples": 142
+        },
+        "solutions": 142
+      }
+    },
+    {
+      "file": "topic-131210-00000280.BIN",
+      "sha256": "80c814121c79154198100e50e2c66e899bf499d2a7b512bd6a916577adda6340",
+      "aircraft": "tmotor-230kv-24in-6kg",
+      "receiver": "CUAV Neo 3 Pro",
+      "epochs": 13037,
+      "durationS": 2607,
+      "rateHz": 5,
+      "status": {
+        "4": 13037
+      },
+      "satellites": {
+        "p5": 28,
+        "p50": 29,
+        "p95": 29,
+        "samples": 13037
+      },
+      "hdop": {
+        "p5": 0.48,
+        "p50": 0.48,
+        "p95": 0.5,
+        "samples": 13037
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.73,
+        "p50": 0.8,
+        "p95": 0.85,
+        "samples": 13037
+      },
+      "verticalAccuracyM": {
+        "p5": 1.09,
+        "p50": 1.16,
+        "p95": 1.22,
+        "samples": 13037
+      },
+      "speedAccuracyMps": {
+        "p5": 0.09,
+        "p50": 0.12,
+        "p95": 0.18,
+        "samples": 13037
+      },
+      "model": {
+        "visible": {
+          "p5": 6,
+          "p50": 7,
+          "p95": 9,
+          "samples": 258
+        },
+        "hdop": {
+          "p5": 0.84,
+          "p50": 1.11,
+          "p95": 1.14,
+          "samples": 258
+        },
+        "accuracyM": {
+          "p5": 1.26,
+          "p50": 1.66,
+          "p95": 1.71,
+          "samples": 258
+        },
+        "solutions": 258
+      }
+    },
+    {
+      "file": "topic-140620-00000218.BIN",
+      "sha256": "2bf69f86df0389cff4c3a2271b526f8e3dc74fbb01f9232cd56ded5cb0962f37",
+      "aircraft": "tmotor-7005-230kv-24in-7kg",
+      "receiver": "not stated",
+      "epochs": 2877,
+      "durationS": 575.2,
+      "rateHz": 5,
+      "status": {
+        "3": 1019,
+        "4": 1858
+      },
+      "satellites": {
+        "p5": 28,
+        "p50": 30,
+        "p95": 30,
+        "samples": 2877
+      },
+      "hdop": {
+        "p5": 0.47,
+        "p50": 0.47,
+        "p95": 0.5,
+        "samples": 2877
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.68,
+        "p50": 0.7,
+        "p95": 0.92,
+        "samples": 2877
+      },
+      "verticalAccuracyM": {
+        "p5": 1.14,
+        "p50": 1.18,
+        "p95": 1.31,
+        "samples": 2877
+      },
+      "speedAccuracyMps": {
+        "p5": 0.11,
+        "p50": 0.14,
+        "p95": 0.21,
+        "samples": 2877
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 8,
+          "p95": 8,
+          "samples": 57
+        },
+        "hdop": {
+          "p5": 0.97,
+          "p50": 0.98,
+          "p95": 1.08,
+          "samples": 57
+        },
+        "accuracyM": {
+          "p5": 1.46,
+          "p50": 1.47,
+          "p95": 1.63,
+          "samples": 57
+        },
+        "solutions": 57
+      }
+    },
+    {
+      "file": "topic-145394-11-41-15.BIN",
+      "sha256": "116e128cb152d0c9ba822bd00851fef141bfeea3d16a0f63957ee2531165e096",
+      "aircraft": "mn7005-kv115-24in-12s",
+      "receiver": "not stated",
+      "epochs": 1678,
+      "durationS": 350.2,
+      "rateHz": 4.79,
+      "status": {
+        "3": 1678
+      },
+      "satellites": {
+        "p5": 15,
+        "p50": 15,
+        "p95": 15,
+        "samples": 1678
+      },
+      "hdop": {
+        "p5": 0.66,
+        "p50": 0.66,
+        "p95": 0.66,
+        "samples": 1678
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.64,
+        "p50": 0.66,
+        "p95": 0.67,
+        "samples": 1677
+      },
+      "verticalAccuracyM": {
+        "p5": 1.13,
+        "p50": 1.15,
+        "p95": 1.18,
+        "samples": 1677
+      },
+      "speedAccuracyMps": {
+        "p5": 0.12,
+        "p50": 0.18,
+        "p95": 0.22,
+        "samples": 1677
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 7,
+          "p95": 7,
+          "samples": 35
+        },
+        "hdop": {
+          "p5": 0.99,
+          "p50": 0.99,
+          "p95": 0.99,
+          "samples": 35
+        },
+        "accuracyM": {
+          "p5": 1.48,
+          "p50": 1.49,
+          "p95": 1.49,
+          "samples": 35
+        },
+        "solutions": 35
+      }
+    },
+    {
+      "file": "topic-134119-00000011.BIN",
+      "sha256": "0de8701a1366dff7731ff6848f5aee286e4694235060384babe95702dc14e1ea",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 2978,
+      "durationS": 1506,
+      "rateHz": 1.98,
+      "status": {
+        "4": 2978
+      },
+      "satellites": {
+        "p5": 31,
+        "p50": 32,
+        "p95": 32,
+        "samples": 2978
+      },
+      "hdop": {
+        "p5": 0.45,
+        "p50": 0.46,
+        "p95": 0.5,
+        "samples": 2978
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.21,
+        "p50": 0.22,
+        "p95": 0.24,
+        "samples": 2978
+      },
+      "verticalAccuracyM": {
+        "p5": 0.35,
+        "p50": 0.38,
+        "p95": 0.47,
+        "samples": 2978
+      },
+      "speedAccuracyMps": {
+        "p5": 0.06,
+        "p50": 0.07,
+        "p95": 0.14,
+        "samples": 2978
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 7,
+          "p95": 7,
+          "samples": 60
+        },
+        "hdop": {
+          "p5": 1.13,
+          "p50": 1.13,
+          "p95": 1.16,
+          "samples": 60
+        },
+        "accuracyM": {
+          "p5": 1.69,
+          "p50": 1.69,
+          "p95": 1.75,
+          "samples": 60
+        },
+        "solutions": 60
+      }
+    },
+    {
+      "file": "topic-134119-00000014.BIN",
+      "sha256": "9ef47249d002a74dfb07976efbe2cc43da618e0d72642dc6322a31ebe10e9c27",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 1196,
+      "durationS": 1049.6,
+      "rateHz": 1.14,
+      "status": {
+        "4": 1196
+      },
+      "satellites": {
+        "p5": 32,
+        "p50": 32,
+        "p95": 32,
+        "samples": 1196
+      },
+      "hdop": {
+        "p5": 0.46,
+        "p50": 0.47,
+        "p95": 0.5,
+        "samples": 1196
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.23,
+        "p50": 0.25,
+        "p95": 0.3,
+        "samples": 1196
+      },
+      "verticalAccuracyM": {
+        "p5": 0.38,
+        "p50": 0.42,
+        "p95": 0.51,
+        "samples": 1196
+      },
+      "speedAccuracyMps": {
+        "p5": 0.06,
+        "p50": 0.08,
+        "p95": 0.13,
+        "samples": 1196
+      },
+      "model": {
+        "visible": {
+          "p5": 6,
+          "p50": 6,
+          "p95": 6,
+          "samples": 25
+        },
+        "hdop": {
+          "p5": 1.15,
+          "p50": 1.16,
+          "p95": 1.25,
+          "samples": 25
+        },
+        "accuracyM": {
+          "p5": 1.73,
+          "p50": 1.74,
+          "p95": 1.88,
+          "samples": 25
+        },
+        "solutions": 25
+      }
+    },
+    {
+      "file": "topic-134119-00000016.BIN",
+      "sha256": "6b4297977f5cb6f94ba860b4f7fb56e005b973e6cf00788112a1874f8c0df00e",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 2134,
+      "durationS": 770.4,
+      "rateHz": 2.77,
+      "status": {
+        "4": 2134
+      },
+      "satellites": {
+        "p5": 32,
+        "p50": 32,
+        "p95": 32,
+        "samples": 2134
+      },
+      "hdop": {
+        "p5": 0.5,
+        "p50": 0.5,
+        "p95": 0.52,
+        "samples": 2134
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.2,
+        "p50": 0.22,
+        "p95": 0.36,
+        "samples": 2134
+      },
+      "verticalAccuracyM": {
+        "p5": 0.36,
+        "p50": 0.41,
+        "p95": 0.62,
+        "samples": 2134
+      },
+      "speedAccuracyMps": {
+        "p5": 0.06,
+        "p50": 0.08,
+        "p95": 0.15,
+        "samples": 2134
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 7,
+          "p95": 8,
+          "samples": 43
+        },
+        "hdop": {
+          "p5": 0.99,
+          "p50": 1.05,
+          "p95": 1.06,
+          "samples": 43
+        },
+        "accuracyM": {
+          "p5": 1.48,
+          "p50": 1.58,
+          "p95": 1.59,
+          "samples": 43
+        },
+        "solutions": 43
+      }
+    },
+    {
+      "file": "topic-134119-00000017.BIN",
+      "sha256": "e628782add08eeed7ef40cfbf577f1040e30a2cf0eb2c6e84e4f1bfb4123af35",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 2755,
+      "durationS": 550.8,
+      "rateHz": 5,
+      "status": {
+        "4": 2755
+      },
+      "satellites": {
+        "p5": 31,
+        "p50": 32,
+        "p95": 32,
+        "samples": 2755
+      },
+      "hdop": {
+        "p5": 0.47,
+        "p50": 0.5,
+        "p95": 0.52,
+        "samples": 2755
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.2,
+        "p50": 0.27,
+        "p95": 0.34,
+        "samples": 2755
+      },
+      "verticalAccuracyM": {
+        "p5": 0.36,
+        "p50": 0.47,
+        "p95": 0.62,
+        "samples": 2755
+      },
+      "speedAccuracyMps": {
+        "p5": 0.06,
+        "p50": 0.08,
+        "p95": 0.14,
+        "samples": 2755
+      },
+      "model": {
+        "visible": {
+          "p5": 6,
+          "p50": 7,
+          "p95": 8,
+          "samples": 55
+        },
+        "hdop": {
+          "p5": 1,
+          "p50": 1.35,
+          "p95": 1.37,
+          "samples": 55
+        },
+        "accuracyM": {
+          "p5": 1.49,
+          "p50": 2.02,
+          "p95": 2.06,
+          "samples": 55
+        },
+        "solutions": 55
+      }
+    },
+    {
+      "file": "topic-134119-00000023.BIN",
+      "sha256": "d030da29e722f5b843fbf9fe72acd0c145a88cd4915dfff407122549d0a296c9",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 5121,
+      "durationS": 1024,
+      "rateHz": 5,
+      "status": {
+        "4": 5121
+      },
+      "satellites": {
+        "p5": 31,
+        "p50": 32,
+        "p95": 32,
+        "samples": 5121
+      },
+      "hdop": {
+        "p5": 0.45,
+        "p50": 0.46,
+        "p95": 0.48,
+        "samples": 5121
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.22,
+        "p50": 0.22,
+        "p95": 0.24,
+        "samples": 5121
+      },
+      "verticalAccuracyM": {
+        "p5": 0.37,
+        "p50": 0.4,
+        "p95": 0.46,
+        "samples": 5121
+      },
+      "speedAccuracyMps": {
+        "p5": 0.06,
+        "p50": 0.08,
+        "p95": 0.14,
+        "samples": 5121
+      },
+      "model": {
+        "visible": {
+          "p5": 8,
+          "p50": 8,
+          "p95": 8,
+          "samples": 102
+        },
+        "hdop": {
+          "p5": 0.88,
+          "p50": 0.88,
+          "p95": 0.89,
+          "samples": 102
+        },
+        "accuracyM": {
+          "p5": 1.32,
+          "p50": 1.33,
+          "p95": 1.33,
+          "samples": 102
+        },
+        "solutions": 102
+      }
+    },
+    {
+      "file": "topic-134119-00000025.BIN",
+      "sha256": "33c18d55ece8828f3337bc775e9d9bf16e9516f2db5ca548713a090019893591",
+      "aircraft": "p80iii-kv100-30in-16kg",
+      "receiver": "CubePilot Here4",
+      "epochs": 193,
+      "durationS": 81.4,
+      "rateHz": 2.36,
+      "status": {
+        "4": 193
+      },
+      "satellites": {
+        "p5": 30,
+        "p50": 31,
+        "p95": 32,
+        "samples": 193
+      },
+      "hdop": {
+        "p5": 0.46,
+        "p50": 0.47,
+        "p95": 0.5,
+        "samples": 193
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.26,
+        "p50": 0.27,
+        "p95": 0.3,
+        "samples": 193
+      },
+      "verticalAccuracyM": {
+        "p5": 0.41,
+        "p50": 0.43,
+        "p95": 0.48,
+        "samples": 193
+      },
+      "speedAccuracyMps": {
+        "p5": 0.07,
+        "p50": 0.09,
+        "p95": 0.15,
+        "samples": 193
+      },
+      "model": {
+        "visible": {
+          "p5": 7,
+          "p50": 7,
+          "p95": 7,
+          "samples": 8
+        },
+        "hdop": {
+          "p5": 1.13,
+          "p50": 1.13,
+          "p95": 1.13,
+          "samples": 8
+        },
+        "accuracyM": {
+          "p5": 1.69,
+          "p50": 1.69,
+          "p95": 1.69,
+          "samples": 8
+        },
+        "solutions": 8
+      }
+    }
+  ]
+}

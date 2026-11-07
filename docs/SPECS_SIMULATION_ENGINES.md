@@ -6271,8 +6271,85 @@ effects among the session graph's commands: 1,848 bytes over 1,000,000 steps, no
 ArduCopter V4.7.2 through the application alone, `GND_EFFECT_COMP` written to 1 and to 0 on the
 Parameters tab and the cushion (k 1.5, λ 2) applied on the Faults tab before take-off; in its
 DataFlash logs, while within 1 m of the ground, the barometer read 1.83 m and 1.82 m low and the
-EKF's worst height error was 0.13 m with the compensation and 0.39 m without. A comparison with
-logged takeoff and landing dips needs flight logs (BLOCKED_EXTERNAL).
+EKF's worst height error was 0.13 m with the compensation and 0.39 m without.
+
+### Logged dips (TASK-116, 2026-11-07)
+
+The comparison with logged dips uses the real ArduCopter logs of `data/flight-logs/inventory.json`
+(stakeholder's decision of 2026-11-07), kept outside the repository and checked by SHA-256.
+`measureBarometerDips` (`packages/analysis/src/barometer-dips.ts`) finds each motor start and stop
+in a log and measures the barometer's excess pressure around it against a height reference that
+does not use the barometer:
+
+```text
+Δp(t) = p_baro(t) − (p_ref − ρ·g·(h_gnss(t) − h_ref))      ρ = p_ref / (R_d · 288.15 K)
+```
+
+p_ref and h_ref are the means of the barometer and GNSS altitude over the motors-off window: the
+4 s before a start (from −4.5 s to −0.5 s) or after a stop (from +1 s to +5 s). An event counts only
+when the throttle (`CTUN.ThO`) stays at or below 0.05 over that whole window, the window holds at
+least 10 barometer samples, and the GNSS height at the start or stop is within 0.5 m of h_ref, so
+the vehicle is on the ground; otherwise the event is listed as skipped with its reason. The
+measured samples are those with the motors on (`ThO` above 0.05) in the 15 s after a start or
+before a stop. The GNSS altitude (`GPS.Alt` of the first receiver) is interpolated linearly to the
+barometer's times. The air temperature of the hydrostatic correction is not logged and is taken
+as 288.15 K, which moves a 1 m correction by about 0.4 % per 1 K. The sample noise is the standard
+deviation of the barometer in the motors-off window. The near-ground excess is the mean Δp of the
+samples within 0.3 m of h_ref.
+
+The cushion is fitted to the landings, where the thrust is close to the weight, so q_i = m·g/(4A)
+from the owner's stated mass and the rotor count and radius: the samples of the 15 s before each
+stop with heights from 0 to 2 m (heights below 0 clipped to 0) are fitted by least squares with
+
+```text
+Δp = q_i · (k_e · exp(−h / (λ·R)) + c)
+```
+
+for λ on a grid of 200 log-spaced values from 0.1 to 10 (the effect's range) and k_e, c linear at
+each λ. h is the height above the landed position, so k_e = k·exp(−z₀/(λR)) for a static port z₀
+above the ground when landed. The prediction for a held-out log runs the model itself,
+`BarometerErrors` with the ground-cushion and prop-wash effects at the fitted k_e, λ and c, on the
+held-out log's measured heights.
+
+Declared before the first comparison: a held-out landing's near-ground excess is reproduced when
+the prediction is within 5 Pa or 30 % of the measured one, whichever is larger. 5 Pa is about two
+standard deviations of one barometer sample in these logs (about 2 Pa) and 0.4 m of altitude, and
+30 % covers the stated masses and the GNSS height's lag. Hold-out pairs, of one configuration each:
+`tmotor-230kv-24in-6kg` fitted on 00000148 and held out on 00000280; `p80iii-kv100-30in-16kg`
+after its flight controller was remounted (00000014 onwards) fitted on 00000014 and 00000016 and
+held out on 00000017, 00000023 and 00000025. The other logs are measured and fitted only.
+`node scripts/check-baro-dips.mjs --dir DIRECTORY` checks every file's SHA-256 against the
+inventory, writes `test-results/validation/logged-baro-dips.json` and exits 0 when every hold-out
+is reproduced, 1 when one is not or a file differs, and 2 without the directory.
+
+One rule was added after the first run, because its event list showed it was missing: a start or
+stop counts only when the vehicle flew, that is a measured sample at least 1 m above h_ref
+(`minFlightHeightM`); motor spin-ups on the ground with the throttle above 0.05 had been counted
+as landings. It changed the fits of the 16 kg aircraft and no held-out verdict.
+
+Result (2026-11-07, `node scripts/check-baro-dips.mjs`, exit 1; `tests/barometer-dips.test.ts` 3
+passed): the dips are real and differ by aircraft. Near-ground excess and fit per configuration
+(k_e, λ, c; q_i from the stated mass):
+
+| Configuration | q_i, Pa | Events (skipped) | Near-ground excess, Pa | k_e | λ | c | Fit RMS, Pa |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `mn7005-kv230-24in-7.2kg` | 15.1 | 2 (0) | 8.1 takeoff, 6.6 landing | 0.79 | 0.75 | −0.27 | 3.4 |
+| `tmotor-230kv-24in-6kg` | 12.6 | 4 (4) | 7.3 to 12.9 | 7.69 | 1.25 | −1.05 | 9.1 |
+| `tmotor-7005-230kv-24in-7kg` | 14.7 | 2 (0) | 20.8 takeoff, 15.9 landing | 2.20 | 0.78 | −0.40 | 3.6 |
+| `mn7005-kv115-24in-12s` | not stated | 2 (0) | −1.4, −0.2 | | | | |
+| 16 kg, first mount (00000011) | 18.4 | 5 (7) | 11.6 to 27.6 | 2.53 | 0.67 | −0.34 | 4.6 |
+| 16 kg, remounted (00000014 on) | 21.5 | 12 (10) | −4.1 to 2.4 | 0.26 | 0.17 | −0.06 | 3.7 |
+
+Hold-outs: the remounted 16 kg aircraft is reproduced on all three held-out landings (measured
+1.65, −2.65, 0.23 Pa; predicted −0.91, 1.26, −0.56 Pa). The 6 kg aircraft is not: its held-out
+landing measured 10.43 Pa and the fit predicted 52.35 Pa. The fit's one landing had a single sample
+within 0.3 m of the ground, because the GNSS height still read about 0.4 m while the barometer
+showed the touchdown, so the exponential was extrapolated to the ground from above 0.3 m (k_e 7.7,
+RMS 9.1 Pa). The same aircraft before and after its flight controller was remounted shows a near-
+ground excess of 12 to 28 Pa and then of −4 to 2 Pa: where the barometer sits decides the dip, so no
+constant fits every aircraft and the cushion's gain belongs to the aircraft's configuration. The
+four determined fits give k_e from 0.26 to 2.5 and λ from 0.17 to 0.78; the effect's defaults (k 1,
+λ 1) lie within that spread of gains.
 
 ## GNSS v2 (TASK-117)
 
@@ -6328,6 +6405,38 @@ GNSS jamming refused meanwhile. Not yet: a real almanac or broadcast ephemeris, 
 envelope and C/N0-dependent noise, the receiver's own latency and rate, jamming from EW zones
 (`packages/ew/src/engine.ts`), a native SITL flight with the stream, and the comparison with
 logged open-sky and urban statistics (BLOCKED_EXTERNAL).
+
+### Logged receiver statistics (TASK-117, 2026-11-07)
+
+The real ArduCopter logs of `data/flight-logs/inventory.json` (stakeholder's decision of
+2026-11-07) hold what each first receiver reported: its fix type (`GPS.Status`), satellites,
+HDOP and its own accuracy estimates (`GPA.HAcc`, `VAcc`, `SAcc`). They do not hold its position
+error: that needs a reference position, and the logs record GNSS only while armed, apart from 157 s
+before the first take-off of one log, too short for a correlation time of a minute. The position-
+error statistics of the DoD therefore stay BLOCKED_EXTERNAL, and no limit applies to what follows.
+`gnssLogStatistics` (`packages/analysis/src/gnss-statistics.ts`) gives nearest-rank 5th, 50th
+and 95th percentiles of the epochs with a 3-D fix or better, and the GNSS v2 model's geometry at the
+same positions and GPS times (`gnssSolution` on the synthetic Walker 24/6/1 constellation with the
+`gnss.constellation` defaults, mask 10° and σ 1.5 m, one solution per 10 s). TimeUS and GMS are read
+in their stored units whatever FMTU scales them to. `node scripts/check-gnss-stats.mjs --dir
+DIRECTORY` checks every file's SHA-256 and writes `test-results/validation/logged-gnss.json` without
+any position; exit 0 REPORTED, 1 for a missing or different file, 2 without the directory.
+
+Result (2026-11-07, exit 0; `tests/gnss-log-statistics.test.ts` 2 passed), medians:
+
+| Receiver (logs) | Satellites | HDOP | HAcc, m | VAcc, m | Model satellites | Model HDOP | Model σ·HDOP, m |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CubePilot Here4 (6 logs, SBAS) | 31 to 32 | 0.46 to 0.50 | 0.22 to 0.27 | 0.38 to 0.47 | 6 to 8 | 0.88 to 1.35 | 1.33 to 2.02 |
+| CUAV Neo 3 Pro (2 logs) | 24, 29 | 0.56, 0.48 | 1.47, 0.80 | 1.99, 1.16 | 6, 7 | 1.13, 1.11 | 1.70, 1.66 |
+| not stated (00000218) | 30 | 0.47 | 0.70 | 1.18 | 8 | 0.98 | 1.47 |
+| not stated (KV115 aircraft) | 15 | 0.66 | 0.66 | 1.15 | 7 | 0.99 | 1.49 |
+| NMEA receiver (00000205) | 28 | 0.60 | 1.52 | 2.04 | 8 | 0.88 | 1.31 |
+
+The real multi-constellation receivers track four to five times the satellites of the synthetic
+GPS-only sky and report about half its HDOP; the Here4 reports a horizontal accuracy six to seven
+times smaller than the model's default σ·HDOP. The NMEA receiver of 00000205 reported 28 satellites
+and HDOP 0.60 at every one of its 26,487 epochs: values it held, not measurements. A real
+multi-constellation almanac and a receiver-class σ are what the comparison asks for.
 
 ## Electromechanical drive (TASK-092)
 
@@ -6790,6 +6899,39 @@ density band flags every other window; over 1,000,000 steps it allocates
 nothing (0 GCs, the measurement's own 4,640 B) with the flag on in 500,000. A
 real bench file (G4) is still to be fitted and its residuals shown before
 measured mode is called working.
+
+### Manufacturer data (2026-11-07)
+
+By the stakeholder's decision of 2026-11-07 the first real bench data are T-Motor's own datasheet
+table for MN7005 KV230 with the P24*7.2" CF propeller, from an image posted on the ArduPilot forum
+(`data/flight-logs/inventory.json`, bench table `tmotor-datasheet-mn7005-kv230-p24x72`): manufacturer
+data, not a measurement of ours, with the stand and the air unstated. Its eleven rows (40 to 60 %
+throttle) are transcribed into `tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv`: thrust
+from grams by 9.80665 m/s², torque and current as printed, the assumed air density 1.225 kg/m³,
+the table's nominal 24 V as the supply, and each row's voltage as the table's power over its
+current, so V·I reproduces the printed power (the table has no voltage column). The table's
+neighbour for MN6007 II KV320 is not transcribed: its first row belongs to another propeller.
+The cards (`tmotor-mn7005-kv230.json`, `tmotor-p24x72.json`, `tmotor-alpha-40a.json`,
+`battery-6s-42ah-forum-144558.json`) name a source for every value: the datasheet table, T-Motor's
+product pages read on 2026-11-07 (71 mΩ and 188 g with the cable, idle 0.9 A at 22 V, 28 A and
+700 W over 180 s; propeller two blades and 56 ± 2 g), the owner's posts and the log's own battery
+thresholds (MOT_BAT_VOLT_MAX 24.6 V, MOT_BAT_VOLT_MIN 16.8 V); unknown values are null.
+`tests/fixtures/aircraft/tmotor-mn7005-quad.json` is the forum aircraft's quad X at its stated
+7.2 kg with assumptions: arm length 0.5 m, inertia 0.25, 0.25 and 0.48 kg·m² (four 0.4 kg motor
+and propeller masses at 0.5 m and a 5.6 kg central box of 0.3 × 0.3 × 0.15 m), CG at the centre and
+0.3 m ground clearance.
+
+`tests/tmotor-bench-fit.test.ts` (1 passed) fits the data on the rotor this profile builds from the
+propeller card (derived BET geometry, NACA6409 polar) with the motor at the card's KV 230: lift
+×0.474, drag ×1.249 in 7 iterations; RMS thrust residual 0.69 N and torque 0.020 N·m; motor
+R 0.132 Ω and I₀ 0.889 A with an RMS electrical residual of 1.45 W; envelope 2023 to 2835 rpm at
+1.225 kg/m³. The residuals run from −7.4 % of thrust at 2023 rpm to +3.8 % at 2835 rpm: the table's
+thrust coefficient falls from 0.0717 to 0.0647 over that range, which a scaled polar on a fixed
+geometry does not follow. The fitted R is above the 71 mΩ of the product page because the fit's
+lossless ESC leaves the ESC's losses to the motor. The binding stays open: a calibration belongs to
+its combination, whose supply is the profile's battery card (TASK-140), and T-Motor's stand did not
+run on the owner's battery, so the Components tab cannot bind this set to the profile without a
+decision to accept a laboratory or unknown supply (BLOCKED_DECISION).
 
 ## Profile-driven dynamics (TASK-144)
 

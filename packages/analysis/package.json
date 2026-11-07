@@ -1,5 +1,5 @@
 {
   "name": "@mirage/analysis", "version": "0.1.0", "private": true, "type": "module",
-  "exports": { "./response-series": "./src/response-series.ts", "./metrics": "./src/metrics.ts", "./compare": "./src/compare.ts", "./log-to-experiment": "./src/log-to-experiment.ts", "./truth-vs-estimate": "./src/truth-vs-estimate.ts", "./resimulate": "./src/resimulate.ts", "./fidelity": "./src/fidelity.ts" },
-  "dependencies": { "@mirage/aircraft": "0.1.0", "@mirage/dataflash": "0.1.0", "@mirage/physics": "0.1.0", "@mirage/scenarios": "0.1.0" }
+  "exports": { "./response-series": "./src/response-series.ts", "./metrics": "./src/metrics.ts", "./compare": "./src/compare.ts", "./log-to-experiment": "./src/log-to-experiment.ts", "./truth-vs-estimate": "./src/truth-vs-estimate.ts", "./resimulate": "./src/resimulate.ts", "./fidelity": "./src/fidelity.ts", "./barometer-dips": "./src/barometer-dips.ts", "./gnss-statistics": "./src/gnss-statistics.ts" },
+  "dependencies": { "@mirage/aircraft": "0.1.0", "@mirage/dataflash": "0.1.0", "@mirage/physics": "0.1.0", "@mirage/scenarios": "0.1.0", "@mirage/sensors": "0.1.0" }
 }
