@@ -122,7 +122,7 @@
         "frame": { "value": "quad X with reversed motor directions (FRAME_CLASS 1, FRAME_TYPE 18, 'QUAD/X_REV')", "locator": "the log's parameters and MSG records" },
         "battery": { "value": "4S; BATT_CAPACITY 4000 mAh in 00000084, 4800 mAh in 00000116 and 00000167", "locator": "the logs' parameters" },
         "propeller": { "value": "3.5 inch", "locator": "the stakeholder, 2026-11-08" },
-        "massKg": { "value": null, "locator": "the stakeholder, 2026-11-08: the mass changed between flights, some carrying a payload, and which log carried it is not known" },
+        "massKg": { "value": 0.68, "locator": "the stakeholder, 2026-11-08: 680 g with the battery, without payload; some flights carried a payload. 00000116 and 00000167 lift off at 16,000 to 17,000 rpm and hover at 17,075 and 17,062 rpm with 209 and 206 W, the same thrust within 0.2 % of speed, so they flew the same mass; 00000084 hovers at 21,478 rpm with 212 W, which a heavier load on the same propellers cannot give (1.58 times the thrust would need about twice the power), so it most likely flew other propellers" },
         "rangefinder": { "value": "RNGFND1_TYPE 10 with optical flow (FLOW_TYPE 5)", "locator": "the log's parameters" },
         "motorRpm": { "value": "bidirectional DShot600 (MOT_PWM_TYPE 6, SERVO_BLH_BDMASK 15), 14 poles", "locator": "the log's parameters" },
         "flightController": { "value": "MatekH743-bdshot, board 00330029 30335119 38323836", "locator": "the log's MSG records" }

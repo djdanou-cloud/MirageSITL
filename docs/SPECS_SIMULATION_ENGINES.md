@@ -6488,7 +6488,15 @@ with the GNSS height, which cannot resolve centimetres. A metric that separates 
 excess from the airborne offset would test the model's shape directly; it would be declared before
 a run on new logs, since these have been seen. The stakeholder added on 2026-11-08 that the aircraft
 has 3.5-inch propellers and flew some of these flights with a payload, which log not being known: the
-pressure-unit fit's premise of one mass across 00000116 and 00000167 may not hold either.
+pressure-unit fit's premise of one mass across 00000116 and 00000167 may not hold either. The stakeholder
+then gave 680 g with the battery and without payload, and asked for the flights to be checked. They
+agree with each other: 00000116 and 00000167 lift off at 16,000 to 17,000 rpm and hover at 17,075 and
+17,062 rpm on 209 and 206 W, the same thrust within 0.2 % of speed, so the premise holds for this
+pair; at 680 g the hover power means an overall efficiency of 0.33 against the ideal 69.8 W, which a
+small ducted or multi-blade propeller can give. 00000084 hovers at 21,478 rpm on 212 W: on the same
+propellers 1.58 times the thrust would need about twice the power, so it most likely flew other
+propellers, and stays out of any fit with the other two. In real units the fit on 00000116 is
+k_e 1.11 and λ 0.22 rotor radii (q_i 67.1 Pa); the hold-out's outcome does not depend on the units.
 
 ## GNSS v2 (TASK-117)
 
