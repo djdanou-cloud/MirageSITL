@@ -511,7 +511,8 @@ const DEFAULTS = DEFAULT_SENSOR_CONFIGURATION;
 const ARDUPILOT_OWNED: SensorConfiguration = {
   ...DEFAULTS,
   barometer: { ...DEFAULTS.barometer, noiseRmsPa: 3, biasPa: 20 },
-  gnss: { ...DEFAULTS.gnss, updateRateHz: 10, horizontalSigmaM: 1.5 },
+  // The horizontal GNSS error is MirageSITL's since mapping 4; its stream has its own test.
+  gnss: { ...DEFAULTS.gnss, updateRateHz: 10 },
   magnetometer: { ...DEFAULTS.magnetometer, biasGauss: [0.01, 0, -0.02] },
 };
 /** Two MirageSITL-owned error terms, which the external-SITL path cannot apply yet (user decision: refused at start, naming them). */
@@ -1574,6 +1575,45 @@ describe('effect controls in a run (TASK-168)', () => {
     expect(h.controller.gnssReceiver).toBeNull();
     const last = new Map(paramSets(h).map(write => [write.name, write.value]));
     expect([last.get('SIM_GPS1_GLTCH_Z'), last.get('SIM_GPS1_LCKTIME'), last.get('SIM_GPS1_NUMSATS')]).toEqual([0, 0, 10]);
+  });
+
+  test('the Sensors tab\'s horizontal GNSS error wanders into ArduPilot\'s receiver offsets through the GNSS stream (mapping 4)', async () => {
+    const original = fixture;
+    try {
+      fixture = await storedProfile({ ...ARDUPILOT_OWNED, gnss: { ...ARDUPILOT_OWNED.gnss, horizontalSigmaM: 2.5 } });
+      const run = (await preparedRun(fixture.store, fixture.stored)).run;
+      const deg = Math.PI / 180, lat = DEFAULT_HOME[0] * deg, normal = primeVerticalRadiusM(lat);
+      const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(lat) ** 2) ** 1.5;
+      /** One run's offsets in metres, north and east, after each of the same status updates. */
+      const flight = async (): Promise<number[][]> => {
+        const h = harness(() => Promise.resolve(run), null, catalog);
+        await reach(h, 'flying');
+        const rows: number[][] = [];
+        let at = h.controller.view.status?.simTimeS ?? 0, last = new Map<string, number>();
+        for (const dt of [0.2, 0.05, 0.2, 1, 0.2]) {
+          h.physics.sent.length = 0;
+          at += dt;
+          status(h, { ready: true, reason: '', simTimeS: at });
+          const writes = new Map(paramSets(h).filter(write => write.name.startsWith('SIM_GPS1_GLTCH')).map(write => [write.name, write.value]));
+          // Within 0.2 s of the last solution nothing is written; after it both horizontal offsets are, and the height offset is not.
+          if (dt < 0.2) { expect(writes.size).toBe(0); continue; }
+          expect([...writes.keys()].sort()).toEqual(['SIM_GPS1_GLTCH_X', 'SIM_GPS1_GLTCH_Y']);
+          last = writes;
+          rows.push([(last.get('SIM_GPS1_GLTCH_X') ?? NaN) * deg * meridional, (last.get('SIM_GPS1_GLTCH_Y') ?? NaN) * deg * normal * Math.cos(lat)]);
+        }
+        // No satellite geometry effect: the count and accuracy stay ArduPilot's own.
+        expect(h.controller.gnssReceiver?.values.get('SIM_GPS1_NUMSATS')).toBe(10);
+        return rows;
+      };
+      const first = await flight(), second = await flight();
+      // A wander of metres: every offset within 4σ, and each update moves it.
+      for (const [north, east] of first) { expect(Math.abs(north!)).toBeLessThan(10); expect(Math.abs(east!)).toBeLessThan(10); }
+      expect(new Set(first.map(row => row[0])).size).toBe(first.length);
+      // Seeded by the profile version: the same run writes the same offsets.
+      expect(second).toEqual(first);
+    } finally {
+      fixture = original;
+    }
   });
 
   test('a barometer effect is refused while ArduPilot\'s parameters cannot be written', () => {

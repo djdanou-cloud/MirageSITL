@@ -48,7 +48,7 @@ const ORACLE: readonly [SensorFieldPath, string, number | 'euler', number | 'eul
   ['imu.positionBodyM', 'm', -2, 2, 'mirage'],
   ['imu.orientationRad', 'rad', 'euler', 'euler', 'mirage'],
   ['gnss.updateRateHz', 'Hz', 1, 20, 'ardupilot'],
-  ['gnss.horizontalSigmaM', 'm', 0, 100, 'ardupilot-locked'],
+  ['gnss.horizontalSigmaM', 'm', 0, 100, 'mirage'],
   ['gnss.verticalSigmaM', 'm', 0, 100, 'ardupilot'],
   ['gnss.velocitySigmaMps', 'm/s', 0, 10, 'ardupilot'],
   ['gnss.latencyUs', 'µs', 0, 1000000, 'ardupilot'],
@@ -74,7 +74,7 @@ const SOURCES: { readonly [path: string]: readonly [string | null, readonly stri
   'imu.gyroBiasRadS': ['imu.gyro.bias', ['SIM_GYR1_BIAS', 'SIM_GYR2_BIAS', 'SIM_GYR3_BIAS', 'SIM_GYR4_BIAS', 'SIM_GYR5_BIAS']],
   'imu.latencyUs': ['imu.latency', []], 'imu.positionBodyM': ['imu.lever-arm', ['SIM_IMU_POS']],
   'imu.orientationRad': ['imu.misalignment', ['SIM_IMU_ORIENT']],
-  'gnss.updateRateHz': ['gnss.receiver', ['SIM_GPS1_HZ', 'SIM_GPS2_HZ']], 'gnss.horizontalSigmaM': ['gnss.position-noise', []],
+  'gnss.updateRateHz': ['gnss.receiver', ['SIM_GPS1_HZ', 'SIM_GPS2_HZ']], 'gnss.horizontalSigmaM': [null, []],
   'gnss.verticalSigmaM': ['gnss.position-noise', ['SIM_GPS1_NOISE', 'SIM_GPS2_NOISE']],
   'gnss.velocitySigmaMps': ['gnss.velocity-noise', ['SIM_GPS1_VERR', 'SIM_GPS2_VERR']],
   'gnss.latencyUs': ['gnss.delay', ['SIM_GPS1_LAG_MS', 'SIM_GPS2_LAG_MS']],
@@ -195,7 +195,7 @@ describe('profile schema 3', () => {
   });
 });
 
-describe('ownership mapping 3 on native-json', () => {
+describe('ownership mapping 4 on native-json', () => {
   test('the ArduPilot defaults are TASK-089\'s own default matrix with the stock owner of every schema 3 source, and set no parameter', () => {
     const matrix = sensorOwnershipMatrix(null);
     expect(matrix.schemaVersion).toBe(3);
@@ -235,7 +235,7 @@ describe('ownership mapping 3 on native-json', () => {
       'imu.accelNoiseDensityMps2PerSqrtHz': { kind: 'neutral', value: 0 }, 'imu.gyroNoiseDensityRadSPerSqrtHz': { kind: 'neutral', value: 0 },
       'imu.accelBiasMps2': { kind: 'neutral', value: [0, 0, 0] }, 'imu.gyroBiasRadS': { kind: 'neutral', value: [0, 0, 0] },
       'imu.latencyUs': { kind: 'neutral', value: 0 }, 'imu.positionBodyM': { kind: 'neutral', value: 'at-cg' },
-      'imu.orientationRad': { kind: 'neutral', value: [0, 0, 0] },
+      'imu.orientationRad': { kind: 'neutral', value: [0, 0, 0] }, 'gnss.horizontalSigmaM': { kind: 'neutral', value: 0 },
       'battery.voltageGainError': { kind: 'neutral', value: 0 }, 'battery.voltageOffsetV': { kind: 'neutral', value: 0 },
       'battery.voltageNoiseRmsV': { kind: 'neutral', value: 0 }, 'battery.currentGainError': { kind: 'neutral', value: 0 },
       'battery.currentOffsetA': { kind: 'neutral', value: 0 }, 'battery.currentNoiseRmsA': { kind: 'neutral', value: 0 },
@@ -326,12 +326,12 @@ describe('SITL parameters and MirageSITL plans (TASK-147)', () => {
     expect(() => barometerAltitudePerPascal(12000)).toThrow('within');
   });
 
-  test('a horizontal GNSS error in an earlier profile version still reads, and nothing applies it', () => {
+  test('a horizontal GNSS error is MirageSITL\'s (mapping 4): specified, it writes no boot parameter, since the run streams it', () => {
     const stored = validateSensorConfiguration(withValue('gnss.horizontalSigmaM', 1.5));
     expect(stored.gnss.horizontalSigmaM).toBe(1.5);
     expect(resolveSensorConfiguration(stored).fields.find(field => field.path === 'gnss.horizontalSigmaM')).toMatchObject({
-      applicable: false, stored: 1.5, effective: { kind: 'ardupilot-stock' } });
-    expect(Object.keys(parameters(stored)).filter(name => name.includes('HNSE'))).toEqual([]);
+      owner: 'mirage', applicable: true, stored: 1.5, effective: { kind: 'specified', value: 1.5 } });
+    expect(Object.keys(parameters(stored)).filter(name => name.includes('HNSE') || name.includes('GLTCH'))).toEqual([]);
   });
 
   test('specified ArduPilot-owned values become the SITL parameters of their error models', () => {
@@ -433,12 +433,11 @@ describe('presets', () => {
     const imu = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'imu-icm-42688-p' });
     expect(imu.applied).toEqual(['imu.accelNoiseDensityMps2PerSqrtHz', 'imu.gyroNoiseDensityRadSPerSqrtHz']);
     expect(validateSensorConfiguration(imu.configuration).imu).toMatchObject({ preset: { catalogVersion: 1, id: 'imu-icm-42688-p' }, accelBiasMps2: null });
-    // ArduCopter V4.7.2 has no horizontal GNSS error, so this preset is kept as a reference and says why it applies nothing.
+    // Mapping 4: MirageSITL applies the horizontal GNSS error, so this preset fills it again.
     const gnss = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'gnss-neo-m9n' });
-    expect(gnss.applied).toEqual([]);
-    expect(gnss.skipped.map(item => item.field)).toEqual(['gnss.horizontalSigmaM']);
-    expect(gnss.skipped[0]?.reason).toContain('V4.7.2 has no horizontal GNSS error');
-    expect(validateSensorConfiguration(gnss.configuration).gnss).toMatchObject({ preset: { catalogVersion: 1, id: 'gnss-neo-m9n' }, horizontalSigmaM: null });
+    expect(gnss.applied).toEqual(['gnss.horizontalSigmaM']);
+    expect(gnss.skipped).toEqual([]);
+    expect(validateSensorConfiguration(gnss.configuration).gnss).toMatchObject({ preset: { catalogVersion: 1, id: 'gnss-neo-m9n' }, horizontalSigmaM: 1.6986436005760381 });
     const battery = applySensorPreset(DEFAULT_SENSOR_CONFIGURATION, { catalogVersion: 1, id: 'battery-ina226' });
     expect(validateSensorConfiguration(battery.configuration).battery.voltageNoiseRmsV).toBe(0.0003608439182435161);
     // Other values of the block stay.
@@ -481,7 +480,7 @@ describe('experiment copy', () => {
     expect(kept.record.dependencies.map(d => d.sha256)).toEqual([v2.sha256]);
     expect(Buffer.from(canonicalBytes(Reflect.get(kept.record.payload, 'sensors'))).equals(Buffer.from(canonicalBytes(sensorSnapshot(await store.get(v2.sha256)))))).toBe(true);
     expect(sensorSnapshot(v3).resolution.state).toBe('ideal');
-    expect(snapshot).toMatchObject({ schemaVersion: 3, profileSha256: v2.sha256, mappingVersion: 3, configuration: specified });
+    expect(snapshot).toMatchObject({ schemaVersion: 3, profileSha256: v2.sha256, mappingVersion: 4, configuration: specified });
     expect(snapshot.resolution.state).toBe('specified');
     expect(snapshot.resolution.fields.filter(f => f.effective.kind === 'specified').map(f => [f.path, f.effective])).toEqual([
       ['imu.accelNoiseDensityMps2PerSqrtHz', { kind: 'specified', value: 6.864654999999999e-4 }],

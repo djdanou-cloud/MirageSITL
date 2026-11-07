@@ -6039,20 +6039,26 @@ in the line. The bridge validator requires finite numbers in it.
 
 ### Ownership mapping 2
 
-`SENSOR_OWNERSHIP_MAPPING_VERSION` is 3. Mapping 1 (TASK-143) is the record of
-what TASK-143 shipped; mapping 2 replaced it for every resolution, and mapping 3
-(TASK-198, decision D-01) replaces mapping 2. Mapping 3 differs in one field:
-ArduCopter V4.7.2 has no horizontal GNSS error, so `gnss.horizontalSigmaM` cannot be
-set. Its reason says so, a preset that fills it reports it as not applied, and a
-value that an earlier profile version holds still reads and is applied by nothing
-(`keepsStoredValue`). What this section says of mapping 2 otherwise holds for mapping 3.
+`SENSOR_OWNERSHIP_MAPPING_VERSION` is 4. Mapping 1 (TASK-143) is the record of
+what TASK-143 shipped; mapping 2 replaced it for every resolution, mapping 3
+(TASK-198, decision D-01) replaced mapping 2, and mapping 4 (TASK-117, the
+stakeholder's decision of 2026-11-07) replaces mapping 3. Mapping 3 locked
+`gnss.horizontalSigmaM`, since ArduCopter V4.7.2 has no horizontal GNSS error.
+Mapping 4 makes it MirageSITL's, with no TASK-089 source: in specified mode the run
+controller streams an east and a north first-order Gauss–Markov wander of that
+standard deviation and a 60 s correlation time (`HorizontalWander`, seeded by the
+profile version's SHA-256) into `SIM_GPS1_GLTCH_X` and `_Y`, with the GNSS effects of
+TASK-117, and the Run tab admits it while it still refuses the other MirageSITL-owned
+errors. A preset fills it again. Experiment records keep the mapping they were made
+with, and both 3 and 4 read. What this section says of mapping 2 otherwise holds for mapping 4.
 
 | Owner | Fields | Source and delivery |
 |---|---|---|
 | MirageSITL | IMU noise densities, biases, position, latency and orientation | the five mapping 1 sources, `imu.latency`, `imu.misalignment`; JSON IMU vectors |
 | MirageSITL | Battery voltage and current gain, offset and noise | `battery.voltage`, `battery.current`; JSON battery section |
 | ArduPilot SITL | Barometer noise, bias and latency; magnetometer noise and bias | as in mapping 1 |
-| ArduPilot SITL | GNSS rate, horizontal and vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| ArduPilot SITL | GNSS rate, vertical position error, velocity error and latency | `gnss.receiver` (rate), `gnss.position-noise`, `gnss.velocity-noise`, `gnss.delay` |
+| MirageSITL | GNSS horizontal position error (mapping 4) | no source; the run controller's stream into `SIM_GPS1_GLTCH_X`, `_Y` |
 | Locked | Magnetometer position | no source: a uniform Earth field reads the same anywhere on the airframe |
 | ArduPilot SITL, locked | Magnetometer orientation | `mag.misalignment`: `SIM_MAGn_ORIENT` takes only discrete 45° rotations and MirageSITL delivers no magnetometer data on `native-json`; a small misalignment needs a firmware change (D-10) |
 
@@ -6301,7 +6307,12 @@ without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own r
 | `gnss.jamming-budget` | `jammingToSignalDb` −30..80 dB, `spectralSeparation` Q 1..2, `thresholdDbHz` 15..40 | J/S (by 10·log10 i dB) |
 
 GNSS effects and `ew.gnss-jamming` write the same receiver parameters, so each is refused while
-the other is on.
+the other is on. The stream also carries the Sensors tab's horizontal GNSS error (mapping 4):
+a seeded first-order Gauss–Markov wander per horizontal axis, x ← φ·x + σ·√(1 − φ²)·w with
+φ = e^(−Δt/60 s), added to the solution's east and north error; the 60 s correlation time is a
+modelling choice that logged open-sky data would fit. `tests/gnss-errors.test.ts` holds its
+variance within 5 % of σ² and its lag-one correlation within 0.005 over 1,000,000 steps, and
+`tests/run-controller.test.ts` its writes every 0.2 s, of metres, repeated by the same profile.
 
 Checks, limits set before the first run: `tests/gnss-errors.test.ts`, 12 passed: the dilutions of
 one satellite at the zenith and three on the horizon (HDOP = VDOP = √(4/3), TDOP = √(1/3), GDOP =
@@ -7804,8 +7815,8 @@ gain of about half what the flights imply; it uses the steady thrust slope, and
 the difference is not resolved. This is a result about these gains on this
 aircraft, and no measured aircraft confirms it. Decision A-13 of 2026-11-04 limits
 the body rates in each hold of TASK-158's flight to a standard deviation of
-1 deg/s, so the quad flies that acceptance with `INS_GYRO_FILTER` at 40 Hz, typed
-into the Parameters tab after READY, and the other configurations fly stock.
+1 deg/s, so from then the quad flew that acceptance with `INS_GYRO_FILTER` at 40 Hz,
+typed into the Parameters tab after READY, and the other configurations flew stock.
 
 TASK-198 found on 2026-11-06 that this oscillation no longer occurs, on either
 firmware. `node scripts/phase1/nominal-flight.mjs --configuration quad --stock-settings`
@@ -7816,8 +7827,9 @@ commit 0.08 deg/s. TASK-098 replaces the uniform inflow's fixed 0.1 s lag with a
 physical time scale of milliseconds. That this lag cost the loop its phase margin is
 the likely reading; it has not been shown separately. The negative control of A-13
 therefore no longer fails, and `tests/integration/phase1-nominal.test.ts` still holds the 1 deg/s
-limit to hand-built readings. Whether the quad keeps the 40 Hz filter is the
-stakeholder's decision.
+limit to hand-built readings. On 2026-11-07 the stakeholder dropped the 40 Hz filter:
+the quad flies its acceptance at stock settings and held 0.10, 0.09 and 0.05 deg/s,
+and all five configurations, flown again under the changed rules, hold 51 PASS.
 
 ### Rotor lookup-table mode (TASK-103)
 

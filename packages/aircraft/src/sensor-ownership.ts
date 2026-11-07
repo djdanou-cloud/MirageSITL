@@ -7,7 +7,7 @@ import { readAircraftProfile } from './profile.ts';
 import { readField } from './sensor-config.ts';
 import {
   OTHER_ARDUPILOT_TERMS, SENSOR_FIELDS, SENSOR_KINDS, SENSOR_OWNERSHIP_MAPPING_VERSION, type FieldOwner, type FieldValue,
-  type PresetReference, type SensorConfiguration, type SensorFieldPath, type SensorKind, type SensorPath,
+  type PresetReference, type SensorConfiguration, type SensorOwnershipMappingVersion, type SensorFieldPath, type SensorKind, type SensorPath,
 } from './sensor-fields.ts';
 import { findSensorPreset, presetCatalog, type PresetCitation } from './sensor-presets.ts';
 
@@ -43,7 +43,7 @@ export type ResidualId = 'imu-accel-noise-floor' | 'imu-gyro-noise-floor' | 'gns
 export interface Residual { readonly id: ResidualId; readonly text: string; readonly verified: boolean }
 export type SensorState = 'ardupilot-defaults' | 'specified' | 'ideal';
 export interface ResolvedSensorConfiguration {
-  readonly mappingVersion: typeof SENSOR_OWNERSHIP_MAPPING_VERSION;
+  readonly mappingVersion: SensorOwnershipMappingVersion;
   readonly path: SensorPath;
   readonly state: SensorState;
   /** SENSOR_FIELDS order. */
@@ -142,7 +142,7 @@ export const SENSOR_SNAPSHOT_VERSION = 3;
 export interface SensorSnapshot {
   readonly schemaVersion: typeof SENSOR_SNAPSHOT_VERSION;
   readonly profileSha256: string;
-  readonly mappingVersion: typeof SENSOR_OWNERSHIP_MAPPING_VERSION;
+  readonly mappingVersion: SensorOwnershipMappingVersion;
   /** The stored configuration; null is the ArduPilot defaults. */
   readonly configuration: SensorConfiguration | null;
   readonly resolution: ResolvedSensorConfiguration;

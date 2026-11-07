@@ -11,8 +11,15 @@ import type { ErrorSourceId } from '@mirage/autopilot/error-ownership';
 // MirageSITL-owned and unassigned fields.
 
 export const SENSOR_CONFIGURATION_SCHEMA_VERSION = 1;
-/** Field-to-owner mapping on native-json; 2 since TASK-147 added the schema 3 sources of the TASK-089 taxonomy, 3 since ArduCopter V4.7.2 (D-01) has no horizontal GNSS error. */
-export const SENSOR_OWNERSHIP_MAPPING_VERSION = 3;
+/**
+ * Field-to-owner mapping on native-json; 2 since TASK-147 added the schema 3 sources of the TASK-089 taxonomy, 3 since ArduCopter V4.7.2
+ * (D-01) has no horizontal GNSS error, 4 since MirageSITL applies the horizontal GNSS error through the TASK-117 receiver stream (the
+ * stakeholder's decision of 2026-11-07).
+ */
+export const SENSOR_OWNERSHIP_MAPPING_VERSION = 4;
+/** Mappings an experiment record may hold: a record keeps the mapping it was made with. */
+export const READABLE_MAPPING_VERSIONS = [3, 4] as const;
+export type SensorOwnershipMappingVersion = (typeof READABLE_MAPPING_VERSIONS)[number];
 export type SensorPath = 'native-json';
 export type SensorMode = 'ideal' | 'specified';
 export const SENSOR_KINDS = ['imu', 'gnss', 'barometer', 'magnetometer', 'battery'] as const;
@@ -217,13 +224,14 @@ export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
     isError: false, neutral: null, source: 'gnss.receiver', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
     ardupilotParameters: ['SIM_GPS1_HZ', 'SIM_GPS2_HZ'], stepUs: null, presettable: false, ...open,
   }),
+  // Mapping 4: MirageSITL applies it as a horizontal wander streamed into the receiver's position offset (TASK-117). It has no TASK-089 source,
+  // and so no excluded owner to check against one: ArduCopter V4.7.2 has no horizontal GNSS error at all (its SIM_GPSn_NOISE moves the altitude only).
   field('gnss.horizontalSigmaM', {
     label: 'GNSS horizontal position error (1σ per axis)', siUnit: 'm', display: SI, shape: 'scalar',
     minimum: 0, maximum: 100, exclusiveMinimum: false, rangeBasis: 'At most 100 m.',
-    isError: true, neutral: 0, source: 'gnss.position-noise', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: [], stepUs: null,
-    ...locked('ArduCopter V4.7.2 has no horizontal GNSS error: its SIM_GPSn_NOISE moves the altitude only, so nothing can apply this value.'),
-    keepsStoredValue: true,
+    isError: true, neutral: 0, source: null, owner: 'mirage', excludedOwners: [],
+    // The run controller writes SIM_GPS1_GLTCH_X and _Y during the run; no boot parameter belongs to it.
+    ardupilotParameters: [], stepUs: null, presettable: true, ...open,
   }),
   field('gnss.verticalSigmaM', {
     label: 'GNSS vertical position error (1σ)', siUnit: 'm', display: SI, shape: 'scalar',

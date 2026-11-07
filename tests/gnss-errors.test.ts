@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CA_CHIP_RATE, GPS_EARTH_RATE_RADS, GPS_MU, almanacEcefInto, dilution, effectiveCn0DbHz, gnssSolution, klobucharDelayS, lineOfSightClear, positionError,
-  saastamoinenDelayM, walkerConstellation, type AlmanacSatellite, type SatelliteView,
+  saastamoinenDelayM, walkerConstellation, GNSS_WANDER_TAU_S, HorizontalWander, type AlmanacSatellite, type SatelliteView,
 } from '@mirage/sensors/gnss';
 
 // TASK-117: the GNSS v2 building blocks against closed forms worked by hand. Tolerances, declared before the first run: 1e-9
@@ -136,5 +136,36 @@ describe('a solution on the synthetic constellation', () => {
     expect([jammed.tracked, jammed.fix, jammed.accuracyM]).toEqual([0, false, null]);
     const quiet = at(7200, { ...sky, jamming: { jammingToSignalDb: 0, spectralSeparation: 1.5, thresholdDbHz: 28 } });
     expect(quiet.tracked).toBe(at(7200).tracked);
+  });
+});
+
+describe('the horizontal wander of the Sensors tab (mapping 4)', () => {
+  // Declared before the first run: over 1,000,000 steps of 0.2 s (55 hours, 3,333 correlation times) the variance within 5 % of σ²
+  // and the lag-one correlation within 0.005 of e^(−0.2/60), each axis; the same seed gives the same wander, bit for bit.
+  it('is a first-order Gauss–Markov process of standard deviation σ and correlation time 60 s, repeated by its seed', () => {
+    expect(GNSS_WANDER_TAU_S).toBe(60);
+    const wander = new HorizontalWander(2.5, 42), n = 1_000_000, dt = 0.2;
+    const sums = [0, 0], squares = [0, 0], lagged = [0, 0], previous = [wander.errorEnM[0]!, wander.errorEnM[1]!];
+    for (let i = 0; i < n; i++) {
+      wander.step(dt);
+      for (let axis = 0; axis < 2; axis++) {
+        const x = wander.errorEnM[axis]!;
+        sums[axis]! += x; squares[axis]! += x * x; lagged[axis]! += x * previous[axis]!; previous[axis] = x;
+      }
+    }
+    for (let axis = 0; axis < 2; axis++) {
+      const mean = sums[axis]! / n, variance = squares[axis]! / n - mean * mean;
+      expect(Math.abs(variance / 6.25 - 1)).toBeLessThan(0.05);
+      expect(Math.abs((lagged[axis]! / n - mean * mean) / variance - Math.exp(-dt / 60))).toBeLessThan(0.005);
+    }
+    const a = new HorizontalWander(2.5, 7), b = new HorizontalWander(2.5, 7), c = new HorizontalWander(2.5, 8);
+    for (let i = 0; i < 100; i++) { a.step(0.2); b.step(0.2); c.step(0.2); }
+    expect([...a.errorEnM]).toEqual([...b.errorEnM]);
+    expect([...a.errorEnM]).not.toEqual([...c.errorEnM]);
+    // Zero σ stays at zero; a bad σ is refused.
+    const still = new HorizontalWander(0, 1);
+    still.step(1);
+    expect([...still.errorEnM].every(value => value === 0)).toBe(true);
+    expect(() => new HorizontalWander(-1, 1)).toThrow('Invalid GNSS wander');
   });
 });

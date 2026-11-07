@@ -1,3 +1,4 @@
+import { SeededRandom } from '@mirage/test-support/prng';
 import { geodeticToEcefInto } from './geodesy.ts';
 
 // GNSS v2 (TASK-117): GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the atmosphere
@@ -307,4 +308,39 @@ export function gnssSolution(almanac: readonly AlmanacSatellite[], receiver: Gns
   const sigma = effects.constellation?.uereM ?? null;
   return { visible: views.length, tracked: lines.length, nonLineOfSight, dilution: d, errorEnuM: error,
     accuracyM: fix && sigma !== null && d ? sigma * d.hdop : null, fix };
+}
+
+/**
+ * The correlation time of the horizontal GNSS wander, s: a modelling choice. Code-phase GNSS position errors drift over tens of
+ * seconds rather than jumping between fixes; the first-order Gauss–Markov form is the usual model of such an error, and 60 s
+ * sits in the range its correlation times are quoted in. Logged open-sky data would fit it (BLOCKED_EXTERNAL).
+ */
+export const GNSS_WANDER_TAU_S = 60;
+/** The random stream of the horizontal wander, one per axis after it. */
+export const GNSS_WANDER_STREAM = 0x00117001;
+
+/**
+ * The Sensors tab's horizontal GNSS error (mapping 4): an east and a north first-order Gauss–Markov wander of standard deviation σ,
+ * x ← φ·x + σ·√(1 − φ²)·w with φ = e^(−Δt/τ), exact for any step, starting from its stationary distribution. Seeded, so a seed
+ * repeats it. Control-loop code: it allocates nothing after construction.
+ */
+export class HorizontalWander {
+  /** East and north, m. */
+  readonly errorEnM = new Float64Array(2);
+  private readonly draw = new Float64Array(1);
+  private readonly random: SeededRandom;
+  constructor(readonly sigmaM: number, seed: number, readonly tauS: number = GNSS_WANDER_TAU_S) {
+    if (!Number.isFinite(sigmaM) || sigmaM < 0 || !Number.isFinite(tauS) || tauS <= 0) throw new Error('Invalid GNSS wander');
+    this.random = new SeededRandom(seed >>> 0, GNSS_WANDER_STREAM);
+    for (let axis = 0; axis < 2; axis++) { this.random.nextGaussianInto(this.draw, 0); this.errorEnM[axis] = sigmaM * this.draw[0]!; }
+  }
+  /** Advances both axes by `dtS` seconds. */
+  step(dtS: number): void {
+    if (!(dtS > 0)) return;
+    const phi = Math.exp(-dtS / this.tauS), scale = this.sigmaM * Math.sqrt(1 - phi * phi);
+    for (let axis = 0; axis < 2; axis++) {
+      this.random.nextGaussianInto(this.draw, 0);
+      this.errorEnM[axis] = phi * this.errorEnM[axis]! + scale * this.draw[0]!;
+    }
+  }
 }
