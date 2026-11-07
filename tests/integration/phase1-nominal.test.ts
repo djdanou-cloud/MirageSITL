@@ -34,7 +34,7 @@ const PASSING = {
     refusal: { error: null, facts: { problems: ['Output 1 is assigned to motors 1 and 4.'], saveDisabled: true, layoutErrors: ['The layout needs 1 to 8 arms.'], versions: 1 } },
     start: { error: null, facts: {
       ready: 'READY', readyAtSimS: 41.1, recordSha256: SHA('b'), profileSha256: SHA('a'), physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 1,
-      firmware: { id: 'arducopter-8ab6afde', firmwareVersion: 'ArduCopter V4.8.0-dev', commit: '8ab6afde107a91df1b5f60ade8f333cb8a61b190',
+      firmware: { id: 'arducopter-fb773567', firmwareVersion: 'ArduCopter V4.7.2', commit: 'fb773567896014da007bca58358704d4a0d8516f',
         binarySha256: SHA('c'), defaultParametersSha256: SHA('d') },
       hashed: { binarySha256: SHA('c'), defaultParametersSha256: SHA('d') },
     } },

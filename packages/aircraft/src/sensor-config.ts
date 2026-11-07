@@ -56,6 +56,7 @@ export function validateSensorConfiguration(input: unknown): SensorConfiguration
   for (const spec of SENSOR_FIELDS) {
     const value = readField(config, spec.path);
     if (value === null) continue;
+    if (spec.keepsStoredValue) continue;
     if (!spec.applicable) fail(`${spec.label} cannot be applied on native-json yet: ${spec.disabledReason ?? ''}`);
     if (spec.stepUs !== null && typeof value === 'number' && value % spec.stepUs !== 0) {
       fail(`${spec.label} must be a whole number of milliseconds, because ArduPilot applies it in milliseconds`);

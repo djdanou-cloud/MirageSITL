@@ -6,7 +6,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 
-// TASK-174 (S10): manual flight of native ArduCopter 8ab6afde with a mocked
+// TASK-174 (S10): manual flight of native ArduCopter fb773567 with a mocked
 // USB controller (the Gamepad API, default TASK-038 calibration: throttle on
 // axis 2, -1 down, 1 up), through the Run tab alone. With the throttle down
 // MirageSITL sets altitude hold and arms; raising the throttle climbs and
@@ -21,7 +21,7 @@ import { seedQuadProject } from "../support/run-tab";
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 

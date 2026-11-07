@@ -39,7 +39,7 @@ const fake = writeFakeFirmware(scratch, { modeFile: join(scratch, "fake-mode") }
 const fakeDefaults = join(scratch, "copter.parm");
 writeFileSync(fakeDefaults, "SYSID_THISMAV 1\n");
 function entry(id: string, binary: string, defaults: string, commit = sitlLock.commit): FirmwareEntry {
-  return { id, firmwareVersion: "ArduCopter V4.8.0-dev", commit, binaryPath: binary, binarySha256: sha256(binary), defaultParametersPath: defaults, defaultParametersSha256: sha256(defaults) };
+  return { id, firmwareVersion: "ArduCopter V4.7.2", commit, binaryPath: binary, binarySha256: sha256(binary), defaultParametersPath: defaults, defaultParametersSha256: sha256(defaults) };
 }
 /** Fakes are shell scripts; this admission accepts any executable regular file. */
 const admitAny = (path: string) => readFileSync(path);
@@ -492,7 +492,7 @@ describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL",
   test("runs JSON lockstep through the hosted bridge, carries MAVLink through the relay, and stops the owned group", async () => {
     const home = join(scratch, "real-home");
     const token = ensureToken(home);
-    writeCatalogEntry(home, entry("arducopter-8ab6afde", REAL_BINARY, REAL_DEFAULTS));
+    writeCatalogEntry(home, entry("arducopter-fb773567", REAL_BINARY, REAL_DEFAULTS));
     const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: REAL_PYTHON });
     try {
       const checks = await call(launcher, token, "GET", "/v1/prerequisites");
@@ -500,7 +500,7 @@ describe.skipIf(!realAvailable)("launcher with the real pinned ArduCopter SITL",
       const checksList: readonly unknown[] = Array.isArray(list) ? list : [];
       const firmware = checksList.find(check => field(check, "id") === "firmware");
       expect(field(firmware, "status")).toBe("ok");
-      await flyLockstep(launcher, token, "arducopter-8ab6afde");
+      await flyLockstep(launcher, token, "arducopter-fb773567");
     } finally {
       await launcher.close();
     }

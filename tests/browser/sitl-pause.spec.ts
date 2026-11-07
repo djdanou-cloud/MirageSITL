@@ -30,7 +30,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 /** At least 10 min, the DoD's pause, with a margin. */
 const PAUSE_MS = 605_000;
 /** ArduCopter's failsafe, EKF fault and crash messages; its normal EKF start-up lines ("EKF3 IMU0 origin set") are not among them. */

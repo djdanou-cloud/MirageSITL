@@ -44,7 +44,7 @@ export const CRITERIA = {
 /** The write every run makes through the Parameters tab: what a flight in GUIDED that lands in LAND does not read (TASK-188). */
 export const PARAMETER_CHANGE = { name: 'RTL_ALT_FINAL_M', value: 1 } as const;
 
-/** ArduCopter 8ab6afde's stock values of the settings each report names, as its logs hold them. Tolerance: float32 rounding. */
+/** ArduCopter V4.7.2's stock values of the settings each report names, as its logs hold them. Tolerance: float32 rounding. */
 export const STOCK_SETTINGS = {
   INS_GYRO_FILTER: 20, ATC_RAT_RLL_P: 0.135, ATC_RAT_RLL_I: 0.135, ATC_RAT_RLL_D: 0.0036, ATC_RAT_PIT_P: 0.135, ATC_RAT_PIT_I: 0.135, ATC_RAT_PIT_D: 0.0036,
 } as const;

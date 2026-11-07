@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/ArduPilot/ardupilot",
-  "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "commit": "fb773567896014da007bca58358704d4a0d8516f",
   "target": "ArduCopter JSON external physics",
   "takeoffMinAltitudeM": 3,
   "holdAltitudeM": 10,

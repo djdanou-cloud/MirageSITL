@@ -18,7 +18,7 @@ function withMass(card: ComponentCard, massKg: number | null): ComponentCard {
   return validateComponentCard({ ...card, values: { ...card.values, massKg }, provenance: { ...card.provenance, massKg: massKg === null ? null : 'example' } });
 }
 const HOVER = parseFlightTask({ schemaVersion: 1, type: 'hover', parameters: { altitudeM: 5, durationS: 10 }, route: null, initial: { ground: { northM: 0, eastM: 0, headingDeg: 0, stateOfCharge: 1 }, air: null }, finish: 'land' });
-const FIRMWARE = { catalogId: 'arducopter-8ab6afd', firmwareVersion: 'ArduCopter V4.8.0-dev', commit: 'a'.repeat(40), binarySha256: 'b'.repeat(64), defaultParametersSha256: 'c'.repeat(64) };
+const FIRMWARE = { catalogId: 'arducopter-fb77356', firmwareVersion: 'ArduCopter V4.7.2', commit: 'a'.repeat(40), binarySha256: 'b'.repeat(64), defaultParametersSha256: 'c'.repeat(64) };
 const inputs = (edit: Partial<ComparedInputs> = {}): ComparedInputs => ({
   faults: null, profile: { sha256: 'd'.repeat(64) }, sitl: { ownership: 'launcher', experimentId: '20261101120000000-0a1b2c3d', ardupilot: FIRMWARE }, session: { home: [-35.363261, 149.16523, 584, 0], physicsHz: 800, speedup: 4 },
   parameters: [{ name: 'MOT_PWM_MIN', value: 1000, source: 'pwm' }, { name: 'COMPASS_DEC', value: 0.22, source: 'site' }], frameScript: null, sensors: { mode: 'ideal' },

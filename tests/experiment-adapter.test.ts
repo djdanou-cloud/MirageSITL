@@ -22,7 +22,7 @@ const CHANGES: readonly ParameterChange[] = [
   change('ATC_F', 61, 0, 1, confirmed(1), 7),
 ];
 const payload = {
-  profile: { sha256: 'a'.repeat(64), id: 'p1', version: 3, name: 'Quad X' }, sitl: { ownership: 'launcher', experimentId: 'e1', ardupilot: { catalogId: 'c', firmwareVersion: 'ArduCopter V4.8.0-dev', commit: 'b'.repeat(40) } },
+  profile: { sha256: 'a'.repeat(64), id: 'p1', version: 3, name: 'Quad X' }, sitl: { ownership: 'launcher', experimentId: 'e1', ardupilot: { catalogId: 'c', firmwareVersion: 'ArduCopter V4.7.2', commit: 'b'.repeat(40) } },
   session: { physicsHz: 800, clockMode: 'sitl-lockstep', speedup: 1, home: [-35.36, 149.16, 584, 0], modelId: 1 }, parameters: [{ name: 'X', value: 1, source: 'profile' }], frameScript: null, recording: null,
   lineage: { kind: 'original' }, flightTask: null,
 } as unknown as ExperimentPayload;

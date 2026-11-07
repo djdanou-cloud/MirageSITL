@@ -2,7 +2,7 @@
 
 Английский источник: [macos-sitl.md](../decisions/macos-sitl.md).
 
-Статус: PASS на 2026-10-29. Запись содержит доказательства нативного
+Статус: PASS на 2026-10-29, повторено на ArduCopter V4.7.2 2026-11-06 (раздел в конце). Запись содержит доказательства нативного
 запуска для D-02; она не выбирает виртуальную машину/контейнер или пакет выпуска.
 Заказчик принял D-02 2026-11-06: нативная сборка на Mac пользователя из закреплённых
 исходников.
@@ -41,7 +41,7 @@ ELF64 EXEC/PIE на Linux. Проверяются полные таблицы к
 ```bash
 # Source is a fresh checkout at this exact commit.
 git -C .cache/task-127/ardupilot rev-parse HEAD
-# Expected: 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+# Expected: fb773567896014da007bca58358704d4a0d8516f
 git -C .cache/task-127/ardupilot submodule update --init --recursive --depth 1 modules/waf modules/mavlink modules/gtest modules/gsoap modules/littlefs modules/lwip modules/DroneCAN/DSDL modules/DroneCAN/libcanard modules/DroneCAN/dronecan_dsdlc modules/DroneCAN/pydronecan
 python3 -m venv .cache/task-127/venv
 .cache/task-127/venv/bin/python -m pip install pymavlink==2.4.50 empy==3.3.4 dronecan==1.0.27 pexpect==4.9.0 pyserial==3.5
@@ -138,4 +138,13 @@ dropped, restart, stale, invalid и resend. Прошивка завершена 
 целевых файлов тестов допуска/полёта/MAVLink/моста (50 тестов), typecheck,
 lint, сборка web и двуязычная документация.
 
-<!-- source-sha256: d797ad5341feb3e087eeebde38fb85a41943b3215c27664b210a752b3e621272 -->
+## Наблюдаемый результат на ArduCopter V4.7.2 — 2026-11-06
+
+После решения D-01 та же процедура выполнена на штатном V4.7.2, коммит `fb773567896014da007bca58358704d4a0d8516f`, на том же Mac с
+macOS 27.2. Установщик собрал его в новой домашней папке за 53,175 с: Mach-O размером 4 821 160
+байт, SHA-256 `5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841`. `node scripts/run-sitl.mjs` выполнил полёт: 67 273 кадра физики при 800 Гц
+и 4 161 оцениваемая выборка, 84,09 симулированной секунды за 42,60 секунды реального времени,
+удержание 10,2 с и 31 961 событие телеметрии. Аудит исходного потока и аудит захвата завершились
+с кодом 0. Всё, что выше этого раздела, относится к `8ab6afd`.
+
+<!-- source-sha256: 7da0c53d21fca51f3c957e0ebc13ff82d285da8b7c9044390545ba04a7413fbd -->

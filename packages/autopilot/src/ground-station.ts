@@ -5,7 +5,7 @@
 // codec. Cold path: one call per user action or per second, never inside the
 // physics step. Command and mode numbers are those of the pinned
 // ardupilotmega.xml/common.xml (MAVLink 2e2b6af99084e4fde9bb304c84bb9253a1a98b6f)
-// and of ArduCopter's mode table at 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+// and of ArduCopter's mode table at fb773567896014da007bca58358704d4a0d8516f
 // (ArduCopter/mode.h).
 import { encodeInto } from "@mirage/mavlink/codec";
 import { packInto } from "@mirage/mavlink/messages";

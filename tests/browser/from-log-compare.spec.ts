@@ -6,13 +6,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { readExperimentRecords, seedQuadProject } from "../support/run-tab";
 
-// TASK-183 (S15): a log gives a run its place and settings, one parameter changed, and native ArduCopter 8ab6afde flies it: its path is computed afresh, so it can and here does
+// TASK-183 (S15): a log gives a run its place and settings, one parameter changed, and native ArduCopter fb773567 flies it: its path is computed afresh, so it can and here does
 // go elsewhere than the recording, which sat still on the ground. The comparison opens with metrics, and in the viewer on aligned timelines.
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const REFERENCE = join(ROOT, "tests/fixtures/dataflash/sitl-copter.bin");
 const TAKEOFF_M = 5;
 

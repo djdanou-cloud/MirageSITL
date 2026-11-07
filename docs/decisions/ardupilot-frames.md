@@ -2,10 +2,11 @@
 
 English source. [Russian mirror](../ru/ardupilot-frames.md).
 
-Status: DONE, 2026-10-29. D-01 compatibility evidence uses the existing
-pinned **ArduCopter V4.8.0-dev**, commit
-`8ab6afde107a91df1b5f60ade8f333cb8a61b190`. No firmware pin or native source
-is changed. This record checks stock frames and the stock Lua motor-matrix
+Status: DONE, 2026-10-29. The stakeholder decided D-01 on 2026-11-06: stable
+**ArduCopter V4.7.2**, commit `fb773567896014da007bca58358704d4a0d8516f` (section "The move to V4.7.2" at the end).
+Up to that section this record is the original evidence on the then pinned
+**ArduCopter V4.8.0-dev**, commit
+`8ab6afde107a91df1b5f60ade8f333cb8a61b190`. It changed no firmware pin or native source. This record checks stock frames and the stock Lua motor-matrix
 interface; it does not approve a new release/default firmware version.
 
 ## Source-derived catalog
@@ -228,8 +229,8 @@ positive-control GC events.
 ## Copter-4.7.2 beside the pin — 2026-11-06
 
 Evidence for D-01, requested by the stakeholder on 2026-11-06 ("Test Copter-4.7.2
-first"). It selects nothing: the pin stays at `8ab6afd`, and these runs were made
-in a throwaway copy of the repository with its lock set to the stable release
+first"). When it was written it selected nothing: the pin was still `8ab6afd`, and these runs
+were made in a throwaway copy of the repository with its lock set to the stable release
 **ArduCopter V4.7.2**, commit `fb773567896014da007bca58358704d4a0d8516f`, dated
 2026-10-11, four days before the pinned development commit. No firmware patch was
 applied. Same Mac, binary SHA-256
@@ -301,3 +302,44 @@ whole matrix again, whose evidence names `8ab6afd`.
 **Not run on 4.7.2:** `npm test`, the one-hour flight and the five global workflows
 of the acceptance matrix, and any real aircraft. The browser suite's 23 skipped
 tests include the WASM firmware specs.
+
+## The move to V4.7.2 — 2026-11-06 (decision D-01, TASK-198)
+
+The stakeholder decided in the words "Move to 4.7.2". `scripts/sitl.lock.json` now pins
+stock ArduCopter V4.7.2, with no firmware patch. The 16-motor path stays stock:
+`FRAME_CLASS` 15 with the Lua scripting matrix. `node scripts/install-macos.mjs` installed
+it into a new home, with `copter` built in 53.175 s. The arm64 Mach-O is 4,821,160 bytes,
+SHA-256 `5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841`; the hash depends on the folder it is built in, so the throwaway copy
+above has another. The frame catalog, the SITL source catalog, the JSON protocol fixture,
+the parameter metadata (this commit alone) and the declination table are generated from it.
+
+The ten probes repeated on the moved tree: all ten runs and twenty audits exit 0, with zero
+gaps, duplicates and drops, and all 406,613 frames replay with zero position and quaternion
+error.
+
+| Frame | Motor checks | Bench frames | Flight frames | Hold s | Truth hold range m |
+| --- | --- | --- | --- | --- | --- |
+| quad-x | 4/4 | 10881 | 67273 | 10.21 | 9.765762–9.983820 |
+| hexa-x | 6/6 | 12322 | 67273 | 10.20 | 9.765828–9.984049 |
+| octo-x | 8/8 | 13764 | 67273 | 10.21 | 9.738442–9.985262 |
+| x8 | 8/8 | 13764 | 67273 | 10.20 | 9.767991–9.983418 |
+| paired-16 | 16/16 | 19533 | 67257 | 10.20 | 9.766755–9.983961 |
+
+What moved with it, because V4.7.2 has no such parameters: `imu.board-trim` is now
+`SIM_ACC_TRIM`, which turns the accelerometer only; `baro.ground-effect` has no owner, since
+the firmware has no such error; `gnss.position-noise` is the vertical `SIM_GPSn_NOISE` alone.
+So the Sensors tab's GNSS horizontal position error is disabled, with its reason, the NEO-M9N
+preset reports that it applies nothing, and a value in an earlier profile version still reads
+and is applied by nothing. Experiments recorded on `8ab6afd` carry sensor snapshot 2 and are
+refused with a reason that names it. The opt-in `imu-noise-floor` patch is rebased onto V4.7.2
+and stays unused under D-10.
+
+What did not move: the browser WASM firmware, which is not a Phase 1 path, keeps
+`native/ardupilot/source.lock.json` at `8ab6afd` with its patches, parity tests and evidence,
+and moving it needs its own task; the DataFlash fixture stays the V4.8.0-dev log it is;
+and `docs/hardware/ardupilot-sensors.md`, whose hash the sensor presets bind, keeps its
+citations at `8ab6afde`. The user-setting names it lists all exist at V4.7.2 except `GNDEFF_ALT`
+and `GNDEFF_TMO`, which are `GND_EFFECT_COMP` there.
+
+The evidence on V4.7.2 is in TASK-198: the whole acceptance matrix, the five aircraft, the
+16-motor hour, TASK-129's pauses, the parameter and sensor runs and the EW limits.

@@ -11,7 +11,7 @@ import { COMPLETION } from "../../packages/scenarios/src/flight-tasks";
 // TASK-172 (S10): the Flight tasks tab and its route editor, through the
 // application alone. A route typed, reordered and saved reads back unchanged
 // after a reload, and saving it again adds no version. Then a stored route with
-// a ground start away from the pad is flown by native ArduCopter 8ab6afde from
+// a ground start away from the pad is flown by native ArduCopter fb773567 from
 // the Run tab: the recording's first truth rows hold the ground values, ArduPilot
 // acknowledges the mission, requested and actual are shown side by side and
 // recorded, the experiment record holds the definition, and Repeat flies the
@@ -29,7 +29,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 const tasksPanel = (page: Page): Locator => page.getByRole("tabpanel", { name: "Flight tasks", exact: true });
 async function openTasks(page: Page): Promise<Locator> {

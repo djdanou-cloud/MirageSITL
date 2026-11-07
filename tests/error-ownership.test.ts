@@ -9,7 +9,7 @@ import {
 import catalogJson from './fixtures/sitl/ardupilot-catalog.json';
 import ownership from './fixtures/sitl/error-ownership.json';
 import protocol from './fixtures/sitl/json-protocol.json';
-import lock from '../native/ardupilot/source.lock.json';
+import lock from '../scripts/sitl.lock.json';
 
 const catalog = parseArduPilotCatalog(catalogJson);
 const [parityNative, parityBrowser, ewNative] = ownership.matrices;
@@ -27,7 +27,7 @@ function expanded(source: ErrorSourceId): string[] {
 }
 
 describe('pinned ArduPilot source catalog', () => {
-  it('comes from the commit pinned in source.lock.json', () => {
+  it('comes from the commit pinned in sitl.lock.json', () => {
     expect(lock.commit).toBe(PINNED_ARDUPILOT_COMMIT);
     expect(catalogJson.ardupilotCommit).toBe(lock.commit);
     // Thirteen files since TASK-089 and six that TASK-147 added for its facts.
@@ -279,8 +279,8 @@ describe('ownership matrix schema 3 (TASK-147)', () => {
   it('neutralizes the new ArduPilot sources through cataloged parameters, admitting the GNSS build condition by its fact', () => {
     const off = schema3(parityNative, { 'imu.misalignment': ['none'], 'mag.misalignment': ['none'], 'gnss.position-noise': ['none'],
       'gnss.velocity-noise': ['none'], 'gnss.delay': ['none'] });
-    expect(settings(ownershipParameterProfile(off, catalog))).toEqual(['SIM_GPS1_HNSE 0', 'SIM_GPS1_LAG_MS 0', 'SIM_GPS1_NOISE 0',
-      'SIM_GPS1_VERR_X 0', 'SIM_GPS1_VERR_Y 0', 'SIM_GPS1_VERR_Z 0', 'SIM_GPS2_HNSE 0', 'SIM_GPS2_LAG_MS 0', 'SIM_GPS2_NOISE 0',
+    expect(settings(ownershipParameterProfile(off, catalog))).toEqual(['SIM_GPS1_LAG_MS 0', 'SIM_GPS1_NOISE 0',
+      'SIM_GPS1_VERR_X 0', 'SIM_GPS1_VERR_Y 0', 'SIM_GPS1_VERR_Z 0', 'SIM_GPS2_LAG_MS 0', 'SIM_GPS2_NOISE 0',
       'SIM_GPS2_VERR_X 0', 'SIM_GPS2_VERR_Y 0', 'SIM_GPS2_VERR_Z 0', 'SIM_IMU_ORIENT 0', 'SIM_MAG1_ORIENT 0', 'SIM_MAG2_ORIENT 0', 'SIM_MAG3_ORIENT 0']);
     expect(catalog.parameters.get('SIM_GPS1_LAG_MS')?.conditions).toEqual(['#if AP_SIM_GPS_ENABLED']);
     const withoutFact = parseArduPilotCatalog({ ...catalogJson, facts: catalogJson.facts.filter(f => f.id !== 'sim-gps-enabled') });

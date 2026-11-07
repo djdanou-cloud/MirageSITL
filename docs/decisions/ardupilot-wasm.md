@@ -10,8 +10,8 @@ in the roadmap. Native/WASM full flight parity (TASK-047) and GPL-3.0-or-later
 artifact redistribution (`BLOCKED_DECISION`) remain open; neither a compiler
 probe nor successful boot enables browser autopilot READY.
 
-The base commit is `8ab6afde107a91df1b5f60ade8f333cb8a61b190`, matching TASK-041's
-JSON oracle. The upstream board is `libraries/AP_HAL_SITL/hwdef/wasm`, with
+The base commit is `8ab6afde107a91df1b5f60ade8f333cb8a61b190`, which was TASK-041's JSON oracle until
+TASK-198 moved native SITL to ArduCopter V4.7.2 (decision D-01); this browser build keeps it. The upstream board is `libraries/AP_HAL_SITL/hwdef/wasm`, with
 `HAL_SITL_WASM_ENABLED`, `PROXY_TO_PTHREAD` and an exported serial byte bridge.
 `native/ardupilot/source.lock.json` pins source bytes;
 `native/ardupilot/toolchain.lock.json` pins SDK/compiler/submodules;

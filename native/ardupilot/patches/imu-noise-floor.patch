@@ -1,8 +1,8 @@
 diff --git a/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp b/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
-index 183f813..50d1da8 100644
+index 86d17a7..af1ac64 100644
 --- a/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
 +++ b/libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp
-@@ -111,7 +111,8 @@ void AP_InertialSensor_SITL::generate_accel()
+@@ -108,7 +108,8 @@ void AP_InertialSensor_SITL::generate_accel()
 
          // minimum noise levels are 2 bits, but averaged over many
          // samples, giving around 0.01 m/s/s
@@ -12,7 +12,7 @@ index 183f813..50d1da8 100644
          float noise_variation = 0.05f;
          // this smears the individual motor peaks somewhat emulating physical motors
          float freq_variation = 0.12f;
-@@ -222,7 +223,8 @@ void AP_InertialSensor_SITL::generate_gyro()
+@@ -219,7 +220,8 @@ void AP_InertialSensor_SITL::generate_gyro()
          float r = radians(sitl->state.yawRate) + _gyro_drift;
 
          // minimum gyro noise is less than 1 bit
@@ -23,12 +23,12 @@ index 183f813..50d1da8 100644
          // this smears the individual motor peaks somewhat emulating physical motors
          constexpr float freq_variation = 0.12f;
 diff --git a/libraries/SITL/SITL.cpp b/libraries/SITL/SITL.cpp
-index 75a1f79..3330132 100644
+index b12b1c8..f7861ed 100644
 --- a/libraries/SITL/SITL.cpp
 +++ b/libraries/SITL/SITL.cpp
-@@ -1327,6 +1327,24 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
-     // @Units: deg
-     AP_GROUPINFO("AHRS_OFF_YAW", 52, SIM, sim_ahrs_offset.yaw, 0),
+@@ -1299,6 +1299,24 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
+     // @Description: If non-zero the vehicle will be clamped in position until the value on this servo channel passes 1800PWM
+     AP_GROUPINFO("CLAMP_CH",     49, SIM, clamp_ch, 0),
 
 +    // MirageSITL patch: indices 57 and 58 sit in the gap below the IMUT subgroups.
 +
@@ -52,10 +52,10 @@ index 75a1f79..3330132 100644
  #if HAL_INS_TEMPERATURE_CAL_ENABLE
 
 diff --git a/libraries/SITL/SITL.h b/libraries/SITL/SITL.h
-index df74b34..1c76b77 100644
+index c548c31..6066fd1 100644
 --- a/libraries/SITL/SITL.h
 +++ b/libraries/SITL/SITL.h
-@@ -650,6 +650,9 @@ public:
+@@ -604,6 +604,9 @@ public:
      AP_Vector3f gyro_scale[INS_MAX_INSTANCES];  // percentage
      AP_Vector3f gyro_bias[INS_MAX_INSTANCES]; // in rad/s
      AP_Float accel_noise[INS_MAX_INSTANCES]; // in m/s/s
@@ -64,4 +64,4 @@ index df74b34..1c76b77 100644
 +    AP_Float gyro_noise_floor;  // in degrees/second
      AP_Vector3f accel_bias[INS_MAX_INSTANCES]; // in m/s/s
      AP_Vector3f accel_scale[INS_MAX_INSTANCES]; // in m/s/s
-     AP_Vector3f board_trim;  // rigid board mounting offset (rad), rotates accel+gyro+compass
+     AP_Vector3f accel_trim;

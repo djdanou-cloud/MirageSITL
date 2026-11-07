@@ -7,7 +7,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-169 (S09): the Faults and interference tab against native ArduCopter 8ab6afde. A schedule built through the UI holds one effect of
+// TASK-169 (S09): the Faults and interference tab against native ArduCopter fb773567. A schedule built through the UI holds one effect of
 // each class, the run applies it by itself from the first arming, one more is applied by hand, and a vertical step and an effect without
 // a run are refused where they show. Every outcome is on the tab and in the stored experiment. Nothing here says what ArduPilot does about
 // them, which tests/sitl-fault-effects.test.ts records.
@@ -15,7 +15,7 @@ import { viteFileUrl } from "../support/vite-url";
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 

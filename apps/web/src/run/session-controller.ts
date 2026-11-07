@@ -445,7 +445,7 @@ const STREAMS: readonly (readonly [number, number])[] = [[193, 100000], [24, 100
  * time. An acknowledgement does not prove the stream runs: a link's first
  * send pass sets every interval from its SRn_ stream rates
  * (GCS_MAVLINK::update_send, initialise_message_intervals_from_streamrates at
- * 8ab6afde), overwriting an interval acknowledged before it, which a SITL
+ * V4.7.2), overwriting an interval acknowledged before it, which a SITL
  * whose scheduler starts only when MirageSITL connects (TASK-155) receives.
  */
 const STREAM_SILENCE_MS = 2000;

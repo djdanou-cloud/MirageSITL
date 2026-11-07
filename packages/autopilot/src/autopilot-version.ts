@@ -1,6 +1,6 @@
 // The identity a running ArduPilot reports about itself (TASK-155): its
 // AUTOPILOT_VERSION, answered to MAV_CMD_REQUEST_MESSAGE. At ArduPilot
-// 8ab6afde107a91df1b5f60ade8f333cb8a61b190 (GCS_Common.cpp
+// fb773567896014da007bca58358704d4a0d8516f (GCS_Common.cpp
 // send_autopilot_version, AP_FWVersionDefine.h) flight_sw_version packs
 // major, minor, patch and the FIRMWARE_VERSION_TYPE from the high byte down,
 // and flight_custom_version holds the first 8 characters of the source's git

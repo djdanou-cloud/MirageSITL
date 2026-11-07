@@ -44,7 +44,7 @@ writeFileSync(fakeDefaults, "SYSID_THISMAV 1\n");
 async function launcher(): Promise<{ launcher: Launcher; token: string }> {
   const home = mkdtempSync(join(scratch, "home-"));
   const token = ensureToken(home);
-  writeCatalogEntry(home, { id: "fake", firmwareVersion: "ArduCopter V4.8.0-dev", commit: sitlLock.commit, binaryPath: fake.binary,
+  writeCatalogEntry(home, { id: "fake", firmwareVersion: "ArduCopter V4.7.2", commit: sitlLock.commit, binaryPath: fake.binary,
     binarySha256: sha256(fake.binary), defaultParametersPath: fakeDefaults, defaultParametersSha256: sha256(fakeDefaults) });
   const started = await startLauncher({ home, origin: ORIGIN, port: 0, python: "/nonexistent/python", admit: path => Buffer.from(path) });
   cleanups.push(() => started.close());

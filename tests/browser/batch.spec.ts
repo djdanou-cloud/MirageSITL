@@ -7,7 +7,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-176 (S12): a batch of three parameter sets typed on the Experiments tab, flown by native ArduCopter 8ab6afde one after another
+// TASK-176 (S12): a batch of three parameter sets typed on the Experiments tab, flown by native ArduCopter fb773567 one after another
 // with nobody touching the Run tab. The middle set cannot boot, which must not take the third with it. ArduPilot's own parameter
 // report in each recording is what shows a set took effect, and the two experiments must differ in their initial parameters and nothing else.
 
@@ -26,7 +26,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 /** What the records and the recording of a run say. */
 async function readRun(page: Page, record: string) {
@@ -106,7 +106,7 @@ test("a batch of typed parameter sets flies each in turn, records its failure, a
     await expect(run.getByLabel("ArduPilot build", { exact: true })).toHaveValue(FIRMWARE_ID);
     await run.getByLabel("Speed").selectOption("4");
     await experimentsTab.click();
-    await expect(panel.getByTestId("batch-scenario")).toContainText("Quad X batch, Roll doublet, arducopter-8ab6afde, 4×");
+    await expect(panel.getByTestId("batch-scenario")).toContainText("Quad X batch, Roll doublet, arducopter-fb773567, 4×");
 
     // A set may not name what the aircraft profile sets; the reason names it, and the batch cannot start.
     await panel.getByLabel("Set 1 parameters", { exact: true }).fill("FRAME_CLASS,2\n");

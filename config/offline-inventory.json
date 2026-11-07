@@ -140,14 +140,14 @@
       "id": "ardupilot-source",
       "category": "native-artifact",
       "item": "ArduPilot ArduCopter source for the external native SITL",
-      "version": "Commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190 (scripts/sitl.lock.json); the Phase 1 version or versions are decision D-01",
+      "version": "ArduCopter V4.7.2, commit fb773567896014da007bca58358704d4a0d8516f (scripts/sitl.lock.json), decision D-01",
       "source": "https://github.com/ArduPilot/ardupilot with its submodules",
       "license": "GPL-3.0-or-later",
       "licenseStatus": "restricted",
-      "decision": "D-01 (TASK-128) selects the version. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision.",
+      "decision": "D-01, decided on 2026-11-06, selects stable ArduCopter V4.7.2. D-02, decided on 2026-11-06: building on the user's Mac from the pinned source distributes nothing; shipping a prebuilt SITL binary carries GPL-3.0 source obligations and needs its own decision.",
       "neededFor": "Every integrated session (TASK-151, TASK-153)",
       "installDownload": true,
-      "status": "pending"
+      "status": "ready"
     },
     {
       "id": "ardupilot-build-toolchain",
@@ -190,7 +190,7 @@
       "id": "ardupilot-parameter-metadata",
       "category": "metadata",
       "item": "ArduPilot parameter metadata (names, ranges, units, descriptions)",
-      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, ArduCopter, 5799 parameters (scripts/generate-param-metadata.mjs)",
+      "version": "ArduPilot fb773567896014da007bca58358704d4a0d8516f, ArduCopter, 5687 parameters (scripts/generate-param-metadata.mjs)",
       "source": "Generated offline from the pinned ArduPilot checkout by its Tools/autotest/param_metadata/param_parse.py; no download beyond the source",
       "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
       "licenseStatus": "restricted",
@@ -199,14 +199,14 @@
       "installDownload": false,
       "status": "ready",
       "files": [
-        { "path": "data/ardupilot/param-metadata.json", "bytes": 1734597, "sha256": "1b0645bc1d0cc38253231512d24e21092273ccfd6c81aa749d4aadc0fd9f98cd" }
+        { "path": "data/ardupilot/param-metadata.json", "bytes": 1669076, "sha256": "ce46ec5ac58e59e4e7f581a981f3d7399676394842666fb6674d0937da1c1931" }
       ]
     },
     {
       "id": "ardupilot-declination-table",
       "category": "reference-data",
       "item": "ArduPilot compass declination table",
-      "version": "ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
+      "version": "ArduPilot fb773567896014da007bca58358704d4a0d8516f, libraries/AP_Declination/tables.cpp (scripts/generate-declination.mjs)",
       "source": "Generated offline from the pinned ArduPilot checkout; tables.cpp is itself generated from the IGRF; no download beyond the source",
       "license": "GPL-3.0-or-later (generated from the ArduPilot source)",
       "licenseStatus": "restricted",
@@ -215,7 +215,7 @@
       "installDownload": false,
       "status": "ready",
       "files": [
-        { "path": "data/ardupilot/declination.json", "bytes": 6891, "sha256": "1464d76226df8baeea4d14a1fc28fbcd3e12b9a694f119e20652f414ed9afde5" }
+        { "path": "data/ardupilot/declination.json", "bytes": 6891, "sha256": "338563f59085e70c38aa6eb939b9f39d238904b37ae72d8753bb329113f6a6f5" }
       ]
     },
     {

@@ -41,7 +41,7 @@ export function auditFrameCapture(input){
   assert.equal(run.host?.platform,'darwin','TASK-128 target evidence requires native macOS');
   assert.equal(run.host?.architecture,'arm64');assert.equal(run.nativeBinary?.format,'mach-o64');
   assert.equal(run.nativeBinary?.architecture,'arm64');
-  assert.equal(run.sourceCommit,'8ab6afde107a91df1b5f60ade8f333cb8a61b190');
+  assert.equal(run.sourceCommit,'fb773567896014da007bca58358704d4a0d8516f');
   assert.match(run.firmwareSha256,/^[a-f0-9]{64}$/);
   assert(Array.isArray(run.sourceInputs)&&run.sourceInputs.length>=20,'Missing source identities');
   for(const input of run.sourceInputs){

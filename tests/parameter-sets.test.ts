@@ -2,7 +2,7 @@
 // The payloads are validated from unknown, stored as `parameter-set` and
 // `parameter-log` versions that depend on their run's experiment record, and
 // compared and restored against a live list with ArduPilot's own metadata
-// (data/ardupilot/param-metadata.json, generated from 8ab6afde).
+// (data/ardupilot/param-metadata.json, generated from fb773567).
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, test } from 'vitest';
 import type { ParameterValue, WriteState } from '../packages/autopilot/src/param-service.ts';
@@ -13,7 +13,7 @@ import {
   validateParameterSet, type ParameterChange, type ParameterLog, type ParameterSet,
 } from '../apps/web/src/params/parameter-sets.ts';
 
-const COMMIT = '8ab6afde107a91df1b5f60ade8f333cb8a61b190';
+const COMMIT = 'fb773567896014da007bca58358704d4a0d8516f';
 const EXPERIMENT = '20261102120000000-0000002a';
 let metadata: ParameterMetadataSet;
 beforeAll(() => {

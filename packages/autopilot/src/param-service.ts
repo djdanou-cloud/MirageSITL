@@ -1,6 +1,6 @@
 // ArduPilot parameter service (TASK-159, S11). Downloads the autopilot's
 // complete parameter list, writes parameters and classifies every write by
-// read-back, after ArduPilot's handlers at 8ab6afde (GCS_Param.cpp):
+// read-back, after ArduPilot's handlers at V4.7.2 (GCS_Param.cpp):
 //
 // * PARAM_REQUEST_LIST makes ArduPilot stream every parameter as PARAM_VALUE
 //   with its index and param_count. ArduPilot ignores the request until its

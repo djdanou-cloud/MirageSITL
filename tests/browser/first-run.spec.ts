@@ -23,7 +23,7 @@ test("the first-run check reports each prerequisite of a real launcher with its 
   chmodSync(binary, 0o755);
   writeFileSync(defaults, "SYSID_THISMAV 1\n");
   writeCatalogEntry(home, {
-    id: "fake", firmwareVersion: "ArduCopter V4.8.0-dev", commit: "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+    id: "fake", firmwareVersion: "ArduCopter V4.7.2", commit: "fb773567896014da007bca58358704d4a0d8516f",
     binaryPath: binary, binarySha256: sha256(binary), defaultParametersPath: defaults, defaultParametersSha256: sha256(defaults),
   });
   const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(scratch, "missing-python"), admit: path => readFileSync(path) });

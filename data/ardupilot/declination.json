@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "commit": "8ab6afde107a91df1b5f60ade8f333cb8a61b190",
+  "commit": "fb773567896014da007bca58358704d4a0d8516f",
   "sourcePath": "libraries/AP_Declination/tables.cpp",
   "sourceSha256": "e89dd833c61581bf1684538ce69e5b701c93c7ed568ce96364c0e55ac60a2bee",
   "resolutionDeg": 10,

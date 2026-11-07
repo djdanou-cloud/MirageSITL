@@ -2,7 +2,8 @@
 
 English source. [Russian mirror](../ru/macos-sitl.md).
 
-Status: PASS on 2026-10-29. This records the native launch evidence
+Status: PASS on 2026-10-29, repeated on ArduCopter V4.7.2 on 2026-11-06 (section at the
+end). This records the native launch evidence
 for D-02; it does not select a virtual machine/container or a release package.
 The stakeholder decided D-02 on 2026-11-06: the native build on the user's Mac from
 the pinned source.
@@ -41,7 +42,7 @@ network access. No system Python packages or shell startup files are changed.
 ```bash
 # Source is a fresh checkout at this exact commit.
 git -C .cache/task-127/ardupilot rev-parse HEAD
-# Expected: 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+# Expected: fb773567896014da007bca58358704d4a0d8516f
 git -C .cache/task-127/ardupilot submodule update --init --recursive --depth 1 modules/waf modules/mavlink modules/gtest modules/gsoap modules/littlefs modules/lwip modules/DroneCAN/DSDL modules/DroneCAN/libcanard modules/DroneCAN/dronecan_dsdlc modules/DroneCAN/pydronecan
 python3 -m venv .cache/task-127/venv
 .cache/task-127/venv/bin/python -m pip install pymavlink==2.4.50 empy==3.3.4 dronecan==1.0.27 pexpect==4.9.0 pyserial==3.5
@@ -134,3 +135,12 @@ zero bad CRCs; and zero duplicate, gap, dropped, restart, stale, invalid or
 resend counters. Firmware ended by bounded SIGKILL escalation and Python
 exited 0. Ten focused admission/flight/MAVLink/bridge test files (50 tests),
 typecheck, lint, web build and bilingual docs pass on the same tree.
+
+## Observed on ArduCopter V4.7.2 — 2026-11-06
+
+After decision D-01 the same procedure ran on stock V4.7.2, commit `fb773567896014da007bca58358704d4a0d8516f`, on the same Mac
+with macOS 27.2. The installer built it in a new home in 53.175 s, a Mach-O of 4,821,160 bytes
+with SHA-256 `5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841`. `node scripts/run-sitl.mjs` flew it: 67,273 physics frames at 800 Hz and
+4,161 scored samples, 84.09 simulated seconds in 42.60 wall seconds, a hold of 10.2 s, and
+31,961 telemetry events. The raw audit and the capture audit exit 0. Everything above this
+section is the record of `8ab6afd`.

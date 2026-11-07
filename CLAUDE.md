@@ -427,13 +427,13 @@ implementation.
   interrupted. The Logging tab and the Run tab's wiring are TASK-163/165.
   Decisions D-04
   and D-06 to D-12 are decided. TASK-127 and TASK-128 are DONE: stock
-  ArduCopter `8ab6afd` builds and flies natively on Apple Silicon
+  ArduCopter builds and flies natively on Apple Silicon
   ([macos-sitl.md](docs/decisions/macos-sitl.md)), and its stock frames and
   scripting matrix drive all five S19 configurations, 16 motors included
-  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). That is the
-  evidence for D-01, which the stakeholder has not recorded yet (stable Copter-4.7.2 was
-  tested beside the pin on 2026-11-06, in the same record), and for D-02,
-  which the stakeholder decided on 2026-11-06: the native build on the user's Mac. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
+  ([ardupilot-frames.md](docs/decisions/ardupilot-frames.md)). The stakeholder
+  decided D-01 on 2026-11-06: stable ArduCopter V4.7.2, commit `fb77356` (TASK-198), and
+  D-02 the same day: the native build on the user's Mac. The browser WASM firmware
+  keeps its own lock at `8ab6afd`. TASK-129 records D-03: JSON lockstep without `no_lockstep` owns
   simulated time, a 60 s pause does not induce a failsafe, parameter access
   waits until resume, and acceleration is host-limited
   ([sitl-clock.md](docs/decisions/sitl-clock.md)). TASK-136 defined the project archive of D-05, TASK-139 its
@@ -450,10 +450,10 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 and TASK-191 wait on the
-  stakeholder's D-01, and TASK-099, TASK-100, TASK-101, TASK-145 and TASK-184 on
-  measured data. A-06 passes: five runs in a row on 2026-11-06, after one failing run with
-  a 50.01 ms interval of unproven cause. TASK-090's
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured data for TASK-099, TASK-100, TASK-101,
+  TASK-145 and TASK-184. A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
+  failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
+  stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
   `scripts/fidelity-capture.mjs` writes a capture from two logs; TASK-108 and TASK-115
   are DEFERRED with their Phase 1 parts done. The bridge's message limit follows the
   run's rate and speed-up (TASK-175): a flat 4096 per second closed any run above 5.1

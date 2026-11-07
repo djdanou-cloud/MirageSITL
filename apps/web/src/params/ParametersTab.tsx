@@ -17,7 +17,7 @@ import {
 // where a paused lockstep SITL answers after Resume (TASK-129). Each write
 // shows its state (requested, confirmed, refused, timed out or no longer
 // current) and whether ArduPilot uses it only after a restart; ArduPilot
-// 8ab6afde accepts writes while armed (GCS_Param.cpp handle_param_set), so
+// V4.7.2 accepts writes while armed (GCS_Param.cpp handle_param_set), so
 // no change needs a disarm. Every change is logged with the run, and a set
 // of the current values can be saved, compared and sent back. A parameter
 // file of the values is exported for loading by hand (TASK-161).

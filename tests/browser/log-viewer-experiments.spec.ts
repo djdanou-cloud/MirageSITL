@@ -6,7 +6,7 @@ import { expect, test, type Locator } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 
-// TASK-180 (S14): a real run of native ArduCopter 8ab6afde opens in the Analysis tab, with ArduPilot's own log in the offline viewer,
+// TASK-180 (S14): a real run of native ArduCopter fb773567 opens in the Analysis tab, with ArduPilot's own log in the offline viewer,
 // its parameter changes on the plot's timeline and in the panel beside it, requested, confirmed and rejected told apart. A log from
 // elsewhere shows what it holds and marks the rest unknown. The viewer is the build of scripts/build-uavlogviewer.mjs, served from
 // MIRAGE_UAVLOGVIEWER_DIR.
@@ -14,7 +14,7 @@ import { seedQuadProject } from "../support/run-tab";
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
 test.skip(process.env.MIRAGE_UAVLOGVIEWER_DIR === undefined, "Needs MIRAGE_UAVLOGVIEWER_DIR, the build of scripts/build-uavlogviewer.mjs");
@@ -77,7 +77,7 @@ test("a stored run opens in the viewer with its log, events and context, and a l
     await expect(context).toHaveAttribute("data-source", "experiment");
     const row = (label: string) => context.locator(`[data-testid="analysis-context-row"][data-label="${label}"]`);
     await expect(row("Aircraft profile")).toContainText("version 1");
-    await expect(row("ArduPilot")).toContainText("8ab6afde");
+    await expect(row("ArduPilot")).toContainText("fb773567");
     await expect(row("Wind and temperature")).toHaveAttribute("data-unknown", "true");
     // Its events, told apart.
     const events = context.getByTestId("analysis-events").locator("tbody tr");

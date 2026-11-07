@@ -2912,7 +2912,7 @@ within 5 %, a lift-off then a touchdown under 3 m/s, and no accident.
 ## Implemented ArduPilot JSON lockstep: TASK-041
 
 The protocol is pinned to ArduPilot commit
-8ab6afde107a91df1b5f60ade8f333cb8a61b190 (`libraries/SITL/SIM_JSON.{h,cpp}` and
+fb773567896014da007bca58358704d4a0d8516f (`libraries/SITL/SIM_JSON.{h,cpp}` and
 the JSON example readme; SHA-256 in `tests/fixtures/sitl/json-protocol.json`,
 sources not copied). SITL sends a little-endian servo packet
 `{u16 magic, u16 frame_rate, u32 frame_count, u16 pwm[N]}`: 40 bytes with
@@ -3012,7 +3012,7 @@ controls to motors remains a hardware-profile decision (TASK-050).
 returns READY only when pinned firmware source evidence, a verified board
 profile and live observation agree; the matrix and evidence live in
 [hardware/hitl-matrix.md](hardware/hitl-matrix.md). At ArduPilot
-8ab6afde107a91df1b5f60ade8f333cb8a61b190 no HIL_SENSOR/HIL_GPS/
+fb773567896014da007bca58358704d4a0d8516f no HIL_SENSOR/HIL_GPS/
 HIL_ACTUATOR_CONTROLS handler exists, so ArduPilot is UNSUPPORTED for this
 path. At PX4 4d7e4de77742c3ae8187ffc998ed6d04629c611b HIL_SENSOR is decoded only
 in HIL mode, so the live check requires `MAV_MODE_FLAG_HIL_ENABLED` (32) in
@@ -3393,13 +3393,13 @@ This section specifies the acceptance tooling, collision lattice, scenario runne
 
 Shared evidence helpers bound input to 32 MiB, verify exact input SHA-256, reject malformed/nonfinite fields and write version 1 reports under test-results/validation. PASS exits 0, FAIL exits 1 and BLOCKED_EXTERNAL exits 2. Missing input never becomes a green test. Hardware/source strings in an imported JSON are declarations requiring operator review, not cryptographic proof of physical execution. Structural tests are explicitly synthetic and cannot admit hardware or firmware modes. CLI reports retain sourceRevision, validatorSha256 and, when supplied, inputSha256; keep original captures for audit.
 
-SITL locks firmware commit 8ab6afde107a91df1b5f60ade8f333cb8a61b190, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
+SITL locks firmware commit fb773567896014da007bca58358704d4a0d8516f, EKF3 and arming checks. The owned Linux driver `scripts/sitl/driver.mjs` (with pinned pymavlink 2.4.50 sidecar `scripts/sitl/telemetry.py`) drives the verified native ArduCopter ELF against `BetRigidBodyBackend`. The analyzer requires contiguous servoFrame from zero, four 1000–2000 us PWM channels, increasing timestamps with <=0.1 s gaps, real source/model/firmware provenance and healthy EKF. Stages must progress arm→takeoff→hold→land, in GUIDED=4 until LAND=9. Takeoff altitude is >=3 m, hold is 10 m ±1 m for >=10 s, and the final sample must be disarmed below 0.5 m. A private process run is bounded to 120 s/16 MiB; only its owned child/group is terminated. Pinned sources/hashes do not alone prove binary reproducibility. Full-rate capture verification (`scripts/check-sitl-capture.mjs --input CAPTURE_DIRECTORY`) and trace v2 details are specified in the TASK-042 native closed-loop section below.
 
 TASK-051 is a version 2 proposal and is not a version 1 acceptance gate. Its analyzer, kept for that later firmware, covers 60–3600 s. Virtual Hybrid SITL uses provenance source `virtual-sitl`, copter `SIM_RATE_HZ` of at least 400, and p99 compute lateness <=2.5 ms, with no drone and no serial port. Recorded Simulation-on-Hardware requires ArduPilot >=4.6.3, `AHRS_EKF_TYPE` 10, `GPS1_TYPE` 100, `SIM_MAG1_DEVID` 97539, heartbeat gaps <=2.5 s, and an unplug that drops the link and disables actuators. Plane, rover and blimp Hybrid SITL use `SIM_RATE_HZ` of at least 50 and p99 lateness <=5 ms. See the version 2 procedure; the CLI does not open a serial port or arm a vehicle.
 
 EW requires a no-fault control plus jamming, position-step, velocity-drift, magnetic and motor-loss cases. TASK-059 native acquisition uses scripts/run-ew-sitl.mjs, the existing TASK-042 driver and the TASK-058 EwEngine. GPS1_TYPE=14 accepts actual GPS_INPUT packets at 10 Hz; GPS2_TYPE=0 prevents a clean backup masking the injected receiver. Physics JSON position/velocity remain true. A 30 m north step, 0.5 m/s² north drift capped at 4 m/s, and severity-1 jamming affect GPS only. Magnetic bias adds [0.3,0.2,0] Gauss in FRD through all three SIM_MAGn_OFS parameters (negative milliGauss because SIM_Compass subtracts offsets); no attitude or IMU-force corruption is used. Motor 0 loses its complete force and yaw wrench after motor lag through the explicit synthetic instant-thrust-loss contract, not an electrical motor model.
 
-The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response capture, live READY admission, 5 s stable hold before injection, 12 s exposure and 8 s recovery; complete motor loss has a bounded 3 s exposure and no recovery claim. Disabling drift uses step-to-truth. Fault runs retain unhealthy EKF flags, innovation ratios, modes and trajectory rather than requiring TASK-042's healthy landing gate. Native source 8ab6afde migrated ARMING_CHECK to ARMING_SKIPCHK: the actual full parameter readback must show ARMING_SKIPCHK=0, EK3_ENABLE=1 and AHRS_EKF_TYPE=3. The legacy parameters.parm remains historical; no check is bypassed.
+The plan is fixed before calibration: seed 59, 800 Hz physics, 100 Hz response capture, live READY admission, 5 s stable hold before injection, 12 s exposure and 8 s recovery; complete motor loss has a bounded 3 s exposure and no recovery claim. Disabling drift uses step-to-truth. Fault runs retain unhealthy EKF flags, innovation ratios, modes and trajectory rather than requiring TASK-042's healthy landing gate. Native source V4.7.2 migrated ARMING_CHECK to ARMING_SKIPCHK: the actual full parameter readback must show ARMING_SKIPCHK=0, EK3_ENABLE=1 and AHRS_EKF_TYPE=3. The legacy parameters.parm remains historical; no check is bypassed.
 
 Schema 2 manifests name six ordered capture directories. scripts/sitl/check-ew.py independently re-decodes both raw directions with pymavlink 2.4.50 and CRC validation, checks every transmitted GPS_INPUT against its source observation and quantization, checks firmware GPS readbacks and the complete pre-fault parameter snapshot. scripts/sitl/audit-ew.mjs reruns that decoder, replays every actual PWM through the original rigid-body WASM and canonical fault schedule, compares truth and quaternion, reconstructs every baseline/distorted observation, verifies compass fault/recovery acknowledgments, and joins response rows to original heartbeat/EKF/global-position messages with <=1 s freshness. Truth hashes compare before/after observation processing in the same tick. Separate closed-loop flights may have different trajectories; motor failure intentionally changes physical truth. The former schema-1 self-declared changed-observation flags do not establish native acceptance.
 
@@ -4357,10 +4357,10 @@ to switch off an error that the pinned upstream applies unconditionally (see
 
 `python3 tests/fixtures/sitl/generate.py` writes
 `tests/fixtures/sitl/ardupilot-catalog.json` from 13 files at the pinned commit
-`8ab6afde107a91df1b5f60ade8f333cb8a61b190`, recording each file's SHA-256. The
+`fb773567896014da007bca58358704d4a0d8516f`, recording each file's SHA-256. The
 GPL sources are not copied. The catalog lists:
 
-* the 323 SIM_* parameters of the SITL tables and the barometer, airspeed and
+* the 303 SIM_* parameters of the SITL tables and the barometer, airspeed and
   GPS sub-tables, with compiled defaults, `AP_Vector3f` flags scoped to each
   parameter class, and enclosing preprocessor conditions;
 * the copter and JSON-backend defaults;
@@ -4402,8 +4402,9 @@ catalog and covered by the TASK-041 oracle:
 | `imu.gyro.drift` | `SIM_DRIFT_SPEED 0` | both | gyro fields |
 | `imu.vibration` | `SIM_VIB_FREQ 0`, `SIM_VIB_MOT_MAX 0` | both | accel and gyro fields |
 | `imu.lever-arm` | `SIM_IMU_POS 0` | both | accel fields |
-| `imu.board-trim` | `SIM_BRD_TRIM 0` | both | none (it also rotates the compass) |
-| `baro.noise`, `.drift`, `.glitch`, `.delay`, `.wind`, `.ground-effect` | `SIM_BARO/BAR2/BAR3_RND`, `_DRIFT`, `_GLITCH`, `_DELAY`, `_WCF_*`, `_GEFF_M` = 0 | both | none (altitude shares navigation truth) |
+| `imu.board-trim` | `SIM_ACC_TRIM 0` | both | none (at V4.7.2 it turns the accelerometer only, and MirageSITL offers no such error) |
+| `baro.noise`, `.drift`, `.glitch`, `.delay`, `.wind` | `SIM_BARO/BAR2/BAR3_RND`, `_DRIFT`, `_GLITCH`, `_DELAY`, `_WCF_*` = 0 | both | none (altitude shares navigation truth) |
+| `baro.ground-effect` | none: V4.7.2 has no barometer ground effect, so nobody applies one | neither | none |
 | `mag.noise`, `mag.delay` | `SIM_MAG_RND 0`, `SIM_MAG_DELAY 0` | both | `hal:magnetic-field` |
 | `mag.hard-iron` | `SIM_MAGn_OFS 0`, n = 1–3 | both | `mavlink:sim-mag-offsets`; `hal:magnetic-field` |
 | `mag.soft-iron` | `SIM_MAGn_DIA 0` (identity), `SIM_MAGn_ODI 0`, `SIM_MAGn_SCALING 1` | both | `hal:magnetic-field` |
@@ -4434,7 +4435,7 @@ exactly the parameter lines of the driver's experiment block:
 
 ```text
 # MirageSITL error-ownership profile v1
-# matrix task-059-ew-native; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190
+# matrix task-059-ew-native; path native-json; ArduPilot fb773567896014da007bca58358704d4a0d8516f
 GPS1_RATE_MS 100
 GPS1_TYPE 14
 GPS2_TYPE 0
@@ -4468,7 +4469,7 @@ The user decided that MirageSITL runs with ArduPilot's default behaviour by
 default and that a setting switches off ArduPilot's fixed IMU noise floors on
 request. No upstream parameter can do that, so
 `native/ardupilot/patches/imu-noise-floor.patch` (SHA-256
-`7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96`) changes
+`0cb35155f676914f7afe70abbcede25f69b1da0ee009b009138a781d8a819177`) changes
 three pinned files: `libraries/SITL/SITL.h`, `libraries/SITL/SITL.cpp` and
 `libraries/AP_InertialSensor/AP_InertialSensor_SITL.cpp`. It replaces the two
 constants with parameters in the `var_ins` table:
@@ -4531,7 +4532,7 @@ node scripts/ownership-profile.mjs --imu-noise-floor off
 
 ```text
 # MirageSITL error-ownership profile v1
-# matrix imu-noise-floor-off-native-json; path native-json; ArduPilot 8ab6afde107a91df1b5f60ade8f333cb8a61b190; patches imu-noise-floor 7a43d2ed8f05570500a5d6dc0c9205832628f85acec0378978a8bde30faedb96
+# matrix imu-noise-floor-off-native-json; path native-json; ArduPilot fb773567896014da007bca58358704d4a0d8516f; patches imu-noise-floor 0cb35155f676914f7afe70abbcede25f69b1da0ee009b009138a781d8a819177
 SIM_ACC_FLOOR 0
 SIM_GYR_FLOOR 0
 ```
@@ -4617,7 +4618,7 @@ two firmware builds:
 These changes alter the driver, sidecar and raw-audit sources, so the frozen
 TASK-059 matrix (`tests/fixtures/scenarios/ew-matrix.json`) no longer applied, as the
 user accepted on 2026-10-27. TASK-171 froze it again with the current driver, on
-macOS. EW calibration and validation also bind the
+macOS, and TASK-198 froze it again on ArduCopter V4.7.2. EW calibration and validation also bind the
 firmware and parameter hashes, so both must use the same firmware and setting.
 Earlier TASK-042/043 audits name the earlier `check-raw.py`; re-run it to
 refresh them.
@@ -6012,14 +6013,14 @@ schema. `imuNoiseFloorMatrix` stays at schema 2.
 | `imu.latency` | nothing: SITL has no IMU delay | none | `json:imu.accel_body`, `json:imu.gyro` | nobody |
 | `imu.misalignment` | `SIM_IMU_ORIENT`, discrete rotations | `SIM_IMU_ORIENT 0` | `json:imu.accel_body`, `json:imu.gyro` | ArduPilot |
 | `mag.misalignment` | `SIM_MAGn_ORIENT`, discrete rotations | `SIM_MAGn_ORIENT 0` | `hal:magnetic-field` only | ArduPilot |
-| `gnss.position-noise` | `SIM_GPSn_HNSE` circle, `SIM_GPSn_NOISE` sine, period 12.6 s | `HNSE 0`, `NOISE 0` | none | ArduPilot |
+| `gnss.position-noise` | `SIM_GPSn_NOISE`, a vertical sine with a period of 12.6 s; V4.7.2 has no horizontal error | `NOISE 0` | none | ArduPilot |
 | `gnss.velocity-noise` | `SIM_GPSn_VERR`, uniform per axis | `VERR 0` | none | ArduPilot |
 | `gnss.delay` | `SIM_GPSn_LAG_MS`, 100 ms stock | `LAG_MS 0` | none | ArduPilot |
 | `battery.voltage` | nothing: the analog chain divides and multiplies by 10.1 | none | `json:battery.voltage` | nobody |
 | `battery.current` | nothing: the analog chain divides and multiplies by 17 | none | `json:battery.current` | nobody |
 
 The catalog records the source facts behind each row, read from the pinned
-files `SIM_GPS.cpp`, `SIM_Compass.cpp`, `AP_InertialSensor_SITL.cpp`,
+files `SIM_GPS.cpp`, `AP_Compass_SITL.cpp`, `AP_InertialSensor_SITL.cpp`,
 `SIM_JSON.cpp`, `SITL_State_common.cpp`, `AnalogIn.cpp`,
 `AP_HAL/board/sitl.h`, `AP_BattMonitor_Analog.cpp` and `AP_Math.cpp`.
 `SIM_GPSn_*` parameters are built under `#if AP_SIM_GPS_ENABLED`, which the
@@ -6038,8 +6039,13 @@ in the line. The bridge validator requires finite numbers in it.
 
 ### Ownership mapping 2
 
-`SENSOR_OWNERSHIP_MAPPING_VERSION` is 2. Mapping 1 (TASK-143) is the record of
-what TASK-143 shipped; mapping 2 replaces it for every resolution.
+`SENSOR_OWNERSHIP_MAPPING_VERSION` is 3. Mapping 1 (TASK-143) is the record of
+what TASK-143 shipped; mapping 2 replaced it for every resolution, and mapping 3
+(TASK-198, decision D-01) replaces mapping 2. Mapping 3 differs in one field:
+ArduCopter V4.7.2 has no horizontal GNSS error, so `gnss.horizontalSigmaM` cannot be
+set. Its reason says so, a preset that fills it reports it as not applied, and a
+value that an earlier profile version holds still reads and is applied by nothing
+(`keepsStoredValue`). What this section says of mapping 2 otherwise holds for mapping 3.
 
 | Owner | Fields | Source and delivery |
 |---|---|---|
@@ -6078,7 +6084,7 @@ ArduPilot-owned values; a name that would receive two values fails the call.
 | Magnetometer noise σ (G) | `SIM_MAG_RND` | √3·1000·σ mG |
 | Magnetometer bias b (G) | `SIM_MAGn_OFS_{X,Y,Z}` | COMPASS_OFSn − 1000·b mG; Ideal writes b = 0 |
 | GNSS rate (Hz) | `SIM_GPSn_HZ` (GPS1, GPS2) | the rate |
-| GNSS horizontal σ (m) | `SIM_GPSn_HNSE` | √2·σ: a circle of radius r gives r/√2 per axis |
+| GNSS horizontal σ (m) | none: V4.7.2 has no horizontal error | a stored value is kept and not applied |
 | GNSS vertical σ (m) | `SIM_GPSn_NOISE` | √2·σ: a sine of amplitude A gives A/√2 |
 | GNSS velocity σ (m/s) | `SIM_GPSn_VERR_{X,Y,Z}` | √3·σ, the half-width of uniform noise |
 | GNSS latency (µs) | `SIM_GPSn_LAG_MS` | latency/1000 ms |
@@ -6183,7 +6189,9 @@ adds the stock terms without a value and, while a GNSS position error is set,
 the receiver's deterministic wander. The hard-iron pairing is no longer a
 residual: the capture shows it nets to zero. Sensor snapshot 2
 (`SENSOR_SNAPSHOT_VERSION`) adds the residual texts to the experiment record
-and carries mapping 2 and its schema 3 matrix.
+and carries mapping 2 and its schema 3 matrix. Snapshot 3 (TASK-198) carries mapping 3
+and the changed wander text, and an experiment recorded with snapshot 2 is refused
+with a reason that names both.
 
 ### Verification (TASK-147)
 
@@ -7419,8 +7427,8 @@ the same canonical bytes.
 ### Frame selection
 
 The only source is the TASK-128 catalog of the pinned firmware
-(`tests/fixtures/sitl/frames.json`, ArduCopter V4.8.0-dev, commit
-`8ab6afde107a91df1b5f60ade8f333cb8a61b190`), validated from `unknown` once at
+(`tests/fixtures/sitl/frames.json`, ArduCopter V4.7.2, commit
+`fb773567896014da007bca58358704d4a0d8516f`), validated from `unknown` once at
 module load by `parseFrameCatalog`. `frameConfiguration(profile,
 profileSha256)` decides in this order:
 
@@ -7576,6 +7584,18 @@ aircraft, and no measured aircraft confirms it. Decision A-13 of 2026-11-04 limi
 the body rates in each hold of TASK-158's flight to a standard deviation of
 1 deg/s, so the quad flies that acceptance with `INS_GYRO_FILTER` at 40 Hz, typed
 into the Parameters tab after READY, and the other configurations fly stock.
+
+TASK-198 found on 2026-11-06 that this oscillation no longer occurs, on either
+firmware. `node scripts/phase1/nominal-flight.mjs --configuration quad --stock-settings`
+now reads 0.09 deg/s of roll on V4.7.2, and 0.10 and 0.08 deg/s in two flights on
+`8ab6afd` with the same code. A bisection with that control on `8ab6afd` puts the
+change at TASK-098 (commit `47f59de`): the commit before it reads 59.39 deg/s and that
+commit 0.08 deg/s. TASK-098 replaces the uniform inflow's fixed 0.1 s lag with a
+physical time scale of milliseconds. That this lag cost the loop its phase margin is
+the likely reading; it has not been shown separately. The negative control of A-13
+therefore no longer fails, and `tests/integration/phase1-nominal.test.ts` still holds the 1 deg/s
+limit to hand-built readings. Whether the quad keeps the 40 Hz filter is the
+stakeholder's decision.
 
 ### Allocation
 
@@ -7898,7 +7918,7 @@ completes during warming, and READY waits for it. Its `sitl` is:
 |---|---|
 | ownership | `external` |
 | connectionId | the launcher connection ID |
-| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.8.0-dev`) |
+| ardupilot | `commit` (the verified commit), `gitHash` (its first 8 characters, as reported) and `firmwareVersion` (`flight_sw_version` as text, for example `4.7.2`) |
 | endpoints | the connection descriptor |
 
 `session.speedup` is null, because SITL's own command line set it, and
@@ -7992,7 +8012,7 @@ skipped frame.
 
 Before take-off, the Run tab's motor check asks ArduPilot to spin each frame
 motor alone and shows which physics rotor turned. ArduCopter's own motor test
-(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at 8ab6afde) spins the
+(`MAV_CMD_DO_MOTOR_TEST`, `ArduCopter/motor_test.cpp` at V4.7.2) spins the
 motor whose test order is requested (`AP_MotorsMatrix::output_test_seq`):
 `GroundStation.motorTestInto` sends the test order, throttle type 1 (a PWM
 value, which ArduCopter accepts without the RC calibration check), 1150 us
@@ -8046,7 +8066,7 @@ all passing) and no check in flight.
 `ParameterService` (`packages/autopilot/src/param-service.ts`) is the cold-path
 parameter client of an integrated session: it downloads the autopilot's
 complete parameter list, writes parameters and classifies every write by
-read-back. It follows ArduPilot's handlers at 8ab6afde
+read-back. It follows ArduPilot's handlers at V4.7.2
 (`libraries/GCS_MAVLink/GCS_Param.cpp`) and sends through the session's
 `GroundStation`, so its frames share the ground station's MAVLink sequence.
 `GroundStation.paramSetInto(name, value, paramType)` packs PARAM_SET (23) with
@@ -8130,7 +8150,7 @@ files, the anomalies and one record per parameter. A record keeps `group`,
 pairs, ascending), and the flags `rebootRequired`, `readOnly` and `volatile`,
 plus the user level. The upstream fields `path` and `Calibration` are dropped. An
 upstream field the generator does not know fails the run. A reversed range is
-left out of its record and listed under `anomalies`; at 8ab6afde that is
+left out of its record and listed under `anomalies`; at V4.7.2 that is
 `TA_GSP_AIRBRAKE`. The file is written one parameter per line, and
 `--check` regenerates it and exits 1 on any difference.
 
@@ -8199,7 +8219,7 @@ reason, and without a change entry, in these cases:
 Otherwise the service writes it, and a refusal by the service is a change
 like any other.
 
-Writes are possible in flight and while paused. ArduPilot 8ab6afde's
+Writes are possible in flight and while paused. ArduPilot V4.7.2's
 PARAM_SET handler (`GCS_Param.cpp`, `handle_param_set`) refuses nothing
 because the vehicle is armed, so no change needs a disarm. A paused lockstep
 SITL answers after Resume and its simulated time stands (TASK-129), so a
@@ -8297,7 +8317,7 @@ is renumbered (then downloaded again), for a connection and after the run
 stops. `tests/parameter-sets.test.ts` covers both payloads, their records and
 dependencies in the store, and comparison and restore with the pinned
 metadata. `tests/browser/parameters-tab.spec.ts` runs the tab against native
-ArduCopter 8ab6afde (the TASK-152 installation): every write state except the
+ArduCopter V4.7.2 (the TASK-152 installation): every write state except the
 timeout, which a real ArduPilot does not produce for a listed parameter, a
 write in flight and while paused, a set compared and sent back, an old value
 sent back from the history, and the history after a reload.
@@ -8314,7 +8334,7 @@ to a flight controller.
 comment lines with the context, then one `NAME,VALUE` line per parameter,
 sorted by name. Each value is the shortest decimal that reads back to
 exactly its float32 (`formatParameterValue`, TASK-159), so ArduPilot's own
-loader gets the same float32: at 8ab6afde, `AP_Param::parse_param_line`
+loader gets the same float32: at V4.7.2, `AP_Param::parse_param_line`
 skips `#` lines and splits a line on `,`, space, `=` and tab. A name that
 loader cannot read, a duplicate, or a value that is not a finite float32
 refuses the export. The header names:
@@ -8448,7 +8468,7 @@ time and at 25 times that pace give byte-identical state lines: 1106 frames
 until the climb without an autopilot tips the quad and two propellers
 strike, on the same tick at both paces, with the same accident reports. That
 tolerance, identical bytes, was declared before the test.
-`tests/browser/run-speed.spec.ts` runs native ArduCopter 8ab6afde through the
+`tests/browser/run-speed.spec.ts` runs native ArduCopter V4.7.2 through the
 Run tab in real time and as fast as possible. The tolerances were declared
 before the test: the speed the panel reports over an interval agrees with
 the test's own measurement of simulated over wall time over the same 20 s
@@ -8518,7 +8538,7 @@ checks the watchdog on a real session: overrides every 40 ms keep the frames
 stepping, 250 ms of silence is still fresh, and 1 ms more pauses the session
 before the frame, unanswered, while the running state reported after a pump
 never refreshes it. `tests/browser/manual-flight.spec.ts` flies native
-ArduCopter 8ab6afde with a mocked controller through the Run tab.
+ArduCopter V4.7.2 with a mocked controller through the Run tab.
 
 ## Flight tasks (TASK-172)
 
@@ -8711,7 +8731,7 @@ places. `tests/profile-dynamics.test.ts` checks the ground start in the dynamics
 400, 800 and 1200 Hz, and `tests/run-controller.test.ts` the controller's flow
 against scripted frames. `tests/integration/flight-tasks-sitl.test.ts` flies each
 of the ten types, an airborne start, a straight flight and a route from another
-place, and a climb and a descent at 5 m/s, with native ArduCopter 8ab6afde through
+place, and a climb and a descent at 5 m/s, with native ArduCopter V4.7.2 through
 the launcher's bridge at speed 4 and 800 Hz, observing as the Run tab does and
 reading the limits from the autopilot, and writes the traces to an ignored report.
 `tests/browser/flight-tasks.spec.ts` round-trips the route editor through a
@@ -8810,7 +8830,7 @@ does what it is commanded, the attitude's bytes and quaternion, and the refusal.
 `tests/response-series.test.ts` checks the series from rows written out by hand,
 and that one time scale draws a response 0.25 s late as 0.25 s late.
 `tests/integration/flight-tasks-sitl.test.ts` flies each of the eight types with
-native ArduCopter 8ab6afde at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
+native ArduCopter V4.7.2 at speed 4 and 800 Hz, with the truth sampled at 50 Hz.
 `tests/browser/maneuvers.spec.ts` defines one on the Flight tasks tab, flies a roll
 doublet and an altitude step from the Run tab, and compares the table's numbers and
 the chart's drawn lines with what it computes from the recording's own rows.
@@ -8897,7 +8917,7 @@ input changes and what is not an input, the refusals of a false
 repeat or variant and of a parent from elsewhere, the unchanged parent, an
 exported experiment imported into an empty store and its external
 dependencies, and the trajectory difference against a hand-computed oracle.
-`tests/browser/experiments-tab.spec.ts` runs native ArduCopter 8ab6afde
+`tests/browser/experiments-tab.spec.ts` runs native ArduCopter V4.7.2
 through the application alone: an original run, its repeat and a variant at
 another speed, the comparison, and an export imported into another browser
 profile.
@@ -9009,7 +9029,7 @@ arithmetic next to it. `tests/thrust-capacity.test.ts` checks the thrust against
 oracle, the flight dynamics on a body 100 000 times heavier with gravity off, on a stiff
 pack whose voltage hardly moves, within 0.5 % set beforehand; and the sag and the limit by
 hand against the pack's law. `tests/bus-coupling.test.ts` flies the real pack (TASK-197). `tests/browser/compare-experiments.spec.ts`
-flies one hover on two configurations with native ArduCopter 8ab6afde, and compares the page's
+flies one hover on two configurations with native ArduCopter V4.7.2, and compares the page's
 numbers with what it works out from the recording's rows and the cards on its own.
 
 
@@ -9339,7 +9359,7 @@ them; the project store gains no record kind for them in this task.
 ### Verification (TASK-164)
 
 `tests/dataflash-capture.test.ts` checks the `LOG_*` rules against the
-metadata of 8ab6afde. It reads the VER and PARM records of the real SITL log
+metadata of V4.7.2. It reads the VER and PARM records of the real SITL log
 slice of TASK-178, and classifies that slice whole, with its tail cut, with a
 damaged range inside, and with no bytes. It attributes files to runs (new,
 grown, or rewritten at the same size) and writes the manifest atomically.

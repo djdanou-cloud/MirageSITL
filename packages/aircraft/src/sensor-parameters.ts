@@ -93,12 +93,11 @@ function ardupilotValues(config: SensorConfiguration | null, context: SitlSensor
   const magNoise = scalar(config, 'magnetometer.noiseRmsGauss'), magBias = vector(config, 'magnetometer.biasGauss');
   if (magNoise !== null) values.set('SIM_MAG_RND', Math.sqrt(3) * 1000 * magNoise);
   if (magBias !== null) compass(magBias);
-  const rate = scalar(config, 'gnss.updateRateHz'), horizontal = scalar(config, 'gnss.horizontalSigmaM');
+  const rate = scalar(config, 'gnss.updateRateHz');
   const vertical = scalar(config, 'gnss.verticalSigmaM'), velocity = scalar(config, 'gnss.velocitySigmaMps'), lag = scalar(config, 'gnss.latencyUs');
   for (const receiver of RECEIVERS) {
     if (rate !== null) values.set(`${receiver}_HZ`, rate);
-    // A circle of radius r gives r/√2 per horizontal axis; a sine of amplitude A gives A/√2.
-    if (horizontal !== null) values.set(`${receiver}_HNSE`, Math.SQRT2 * horizontal);
+    // A sine of amplitude A gives A/√2.
     if (vertical !== null) values.set(`${receiver}_NOISE`, Math.SQRT2 * vertical);
     if (velocity !== null) for (const axis of AXES) values.set(`${receiver}_VERR_${axis}`, Math.sqrt(3) * velocity);
     if (lag !== null) values.set(`${receiver}_LAG_MS`, lag / 1000);

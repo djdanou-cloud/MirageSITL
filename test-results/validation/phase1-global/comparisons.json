@@ -38,204 +38,484 @@
     "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        5.45849609375,
-        6.67236328125,
-        5.583984375
+        2.41748046875,
+        3.7919921875,
+        3.7197265625
       ],
       "after": [
-        5.29296875,
-        6.2119140625,
-        5.54833984375
+        2.58056640625,
+        3.517578125,
+        3.6201171875
       ]
     }
   },
   "application": {
-    "commit": "fb51e0fedb59395a2efba2efc10ccd695578483f",
+    "commit": "060050797e8b44126e027e8f1b557676c90241ed",
     "uncommitted": [
       {
         "status": " M",
-        "path": "apps/web/src/physics.worker.ts",
-        "sha256": "d0218be4a48c771839bb35cbd9e5b604f779aca72d910f1d2540dd1be6f19821"
+        "path": "apps/bridge/src/ardupilot-json.ts",
+        "sha256": "786b98c873d7afd1dbf392d61c588a12aa7256998cc79d0a29e6c40ed827b966"
+      },
+      {
+        "status": " M",
+        "path": "apps/launcher/src/catalog.ts",
+        "sha256": "67381747731cdf7c2b2dc52137337d782cf3ea99d282848dc01fed09be34be62"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/params/ParametersTab.tsx",
+        "sha256": "cd268161f03ad2aae932b2a1aa461acbb8a4fc009580cdfc54f6ac3be7d6ce12"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/params/parameter-sets.ts",
+        "sha256": "7105e474c566ad86259e5d9a3903abc4552aadc0abc153b30245ada2635e9036"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/run/ManualConnect.tsx",
+        "sha256": "ff8622bf76365702ff42ff55246f5b0489df7adb260b4d0cbdee29a759e1ac11"
       },
       {
         "status": " M",
         "path": "apps/web/src/run/session-controller.ts",
-        "sha256": "4979e45e6c6c99d888fc69b09b3748a6316a1eb8efe201ecec8d55c3b0c82304"
+        "sha256": "18ffd39f674c7e088aa6c1a16640caf02ce1b8327b33230a9d4c559dd806a759"
       },
       {
         "status": " M",
         "path": "config/offline-inventory.json",
-        "sha256": "d8b48a95e8a0bff99c30031e646dc8db05b7e574f5dac4783461d945dcb7a8f3"
+        "sha256": "c221dd92c0f69565aa5bb4b00a685e7faa02442e7775f4416cc7d5e1ac3d714b"
       },
       {
         "status": " M",
-        "path": "docs/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "fbbbcc16d570732150641c4771672a72631fd670916269dc2c06091e9dfdf333"
+        "path": "data/ardupilot/declination.json",
+        "sha256": "338563f59085e70c38aa6eb939b9f39d238904b37ae72d8753bb329113f6a6f5"
       },
       {
         "status": " M",
-        "path": "docs/architecture.md",
-        "sha256": "7c1ab4acb3c5802e6767bd03936abe56b90f38eecf5748f3a7f18be9a8af5b86"
+        "path": "data/ardupilot/param-metadata.json",
+        "sha256": "ce46ec5ac58e59e4e7f581a981f3d7399676394842666fb6674d0937da1c1931"
       },
       {
         "status": " M",
-        "path": "docs/operations/install-macos.md",
-        "sha256": "749af51933e83ae78d333cf5f1371d2f4ed3af4520453da17b9588f1dbb5d286"
+        "path": "docs/hardware/hitl-matrix.md",
+        "sha256": "5c9ba8eb5d162b12ec0fb6b17af3c1fa165c98a074eef102dd141e8eaa0b97b2"
       },
       {
         "status": " M",
-        "path": "docs/operations/offline-inventory.md",
-        "sha256": "ed17e303319db67e173db589a1e948e5d6a616c6051fc66963a02b8cbcffedd9"
+        "path": "docs/ru/hitl-matrix.md",
+        "sha256": "65d9d792c51d0bf02070c671286a3388b590d69376d76a5d49465e4be3806229"
       },
       {
         "status": " M",
-        "path": "docs/operations/runbook.md",
-        "sha256": "43d543f1393a4e43312d9e5c4be34676511025135cb39c8114336af56ff42e7e"
+        "path": "native/ardupilot/patches/imu-noise-floor.patch",
+        "sha256": "0d2e38182895df422faf0be9ffb13fbacdfe6a4214b31e3ade68e0e3724419f1"
       },
       {
         "status": " M",
-        "path": "docs/ru/SPECS_SIMULATION_ENGINES.md",
-        "sha256": "76eafb201116419b32591433b8c1eb5ab3970397c98c560439431973b1b0f04a"
+        "path": "packages/aircraft/src/sensor-config.ts",
+        "sha256": "7171416e2f6114bf89a5349fd6396242e040b529af8571b0a467c1e2aa200259"
       },
       {
         "status": " M",
-        "path": "docs/ru/architecture.md",
-        "sha256": "b558f204fa2ca4c35b50b9184a682a5c7bb01aa53a2197c9b03056fd404707bf"
+        "path": "packages/aircraft/src/sensor-fields.ts",
+        "sha256": "8dd9e8f96026bd8a31a512585d0b0e65133e3e83cafa842084002a0b96601503"
       },
       {
         "status": " M",
-        "path": "docs/ru/install-macos.md",
-        "sha256": "7e1821b74750b0a58ea6206e983cae23495d089a2847efbb60a762aa9c878e70"
+        "path": "packages/aircraft/src/sensor-ownership.ts",
+        "sha256": "9361c4186942aace3b56843addc06afd31cdd65d559630f63eb8df0a50c4c5b9"
       },
       {
         "status": " M",
-        "path": "docs/ru/offline-inventory.md",
-        "sha256": "47434519451bc437834f260f88ddbff2029272bbde70a0db25e68f4d40fae2c3"
+        "path": "packages/aircraft/src/sensor-parameters.ts",
+        "sha256": "bdd1d090d0ffb024aa4fb3b2e0f4bca492d989fd0c511210107eb6b1c0f35acd"
       },
       {
         "status": " M",
-        "path": "docs/ru/runbook.md",
-        "sha256": "beefb179520222d1a4ff00726fcadbd51f896ee56a9795267cde2dae1b89b7cf"
+        "path": "packages/autopilot/src/autopilot-version.ts",
+        "sha256": "122c0d1ea4ad5381d66813777cc50e88c6a65208497caf67680a743e3db5dee7"
       },
       {
         "status": " M",
-        "path": "native/contact/src/lib.rs",
-        "sha256": "8245ff7aca969575a77df73aac8a539b905b6624a55f9bfead76bced1bd02fab"
+        "path": "packages/autopilot/src/error-ownership.ts",
+        "sha256": "6187a993a31f69819ad72c57c20ef05604d6f49cd95d12eb26ba2f547b5162ac"
       },
       {
         "status": " M",
-        "path": "native/contact/tests/contact.rs",
-        "sha256": "f5cf83c05053ca984fcf652a5dfa90e6dc1aa5fc0ce24c5dfd58988b597e0934"
+        "path": "packages/autopilot/src/external-sitl.ts",
+        "sha256": "e3026ccf47d6f8e504f36fcdbbd157672dd12b8d6ea0ae9122ac7b2f1e7445eb"
       },
       {
         "status": " M",
-        "path": "native/rapier/patches/parry-halfspace-reuse.patch",
-        "sha256": "eac310515375fbedf182ac39210a165ef325ca3bfbf66e644c7624644deccd79"
+        "path": "packages/autopilot/src/ground-station.ts",
+        "sha256": "7f66f73890ff0281ca79a10861639419f536226dcc4d3241c9b4dad206045952"
       },
       {
         "status": " M",
-        "path": "native/rapier/patches/reuse-step-buffers.patch",
-        "sha256": "9e5d7df38bef975a5fe19bf475557889ccc53744454dda44125371bc52e24da1"
+        "path": "packages/autopilot/src/hitl-capabilities.ts",
+        "sha256": "a7512e62d49633add33fa3727ce3da012bc81312ad1434c1288a51a9ba9ffc53"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/bet-dynamics.ts",
-        "sha256": "ee824714afad5156279e330642fd48f0bcc9edb700b2030b3a8ca594627159e0"
+        "path": "packages/autopilot/src/motor-test.ts",
+        "sha256": "4f23a7b093c54795bff89129a074a473d77a86567f3b90f1c8222a8e735651e5"
       },
       {
         "status": " M",
-        "path": "packages/physics/src/session-v2.ts",
-        "sha256": "ed8eb89fe72f7d75a4fb4a76fbfc649f61194d2ee0131278d1694f6e663c9874"
+        "path": "packages/autopilot/src/param-file.ts",
+        "sha256": "05a57fb68b53ab358812f41d4c2b623b15b95e44c350b96f1d1451c91012d186"
       },
       {
         "status": " M",
-        "path": "scripts/install-macos.mjs",
-        "sha256": "8e5b6c39235322bc2ccf36fdaac23edc52ee5a1265ca2d89e67dec130f6344da"
+        "path": "packages/autopilot/src/param-service.ts",
+        "sha256": "f8ea6ac397612002f36cb9de42cb46710f70f457bf42b3053ec299ee95ec2622"
       },
       {
         "status": " M",
-        "path": "scripts/install/install-rules.ts",
-        "sha256": "199097c4220b3aee3c98c3b365493c1ad90573ddb8c453dabdc3f4cd061fb9b3"
+        "path": "scripts/bench-hitl.mjs",
+        "sha256": "f2f5671e6efddf00f72cb5735405133ed05539b63e8c3fb89c50d631aa55cd09"
       },
       {
         "status": " M",
-        "path": "scripts/phase1/acceptance-rules.ts",
-        "sha256": "dcd28a622e9708a59151ba2bfffd942b08e7378309b8f1ee2546ce30621570d2"
+        "path": "scripts/check-sitl-frames.mjs",
+        "sha256": "0352e8b95df8fcbde17da038d0cc1de20a770b5731879b45e3897099bfcc8b5b"
       },
       {
         "status": " M",
-        "path": "scripts/phase1/acceptance.mjs",
-        "sha256": "e83be939552c731025cba7f391891647d408650edc87e3d4c74c585f2feaec3b"
+        "path": "scripts/check-sitl-pause.mjs",
+        "sha256": "c8e3f1e675cbd4465dc9a6b0fed01b8675ef80f656e1b7366c35fbd53ff91e81"
+      },
+      {
+        "status": " M",
+        "path": "scripts/freeze-ew.mjs",
+        "sha256": "5497c13817efecc81299efaa1da7ecc5a0dfb5679e2a1656bc10688c4f7cf279"
+      },
+      {
+        "status": " M",
+        "path": "scripts/phase1/nominal-rules.ts",
+        "sha256": "d9f73e3322757fd0a974da0fca761f9d9794549a91f7044f34858aa76348dc39"
+      },
+      {
+        "status": " M",
+        "path": "scripts/run-virtual-hitl.mjs",
+        "sha256": "dd7cba1f281eb6fb8bc41e3444388ab92b0cc8a20b3e1605bf46504b9e44b9b0"
+      },
+      {
+        "status": " M",
+        "path": "scripts/sitl.lock.json",
+        "sha256": "70e49eb918f9b70a19eb8b4ec613208b5fc9204e2954b0fcaa921e5e0fd77aba"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
-        "sha256": "db897a0c15f35a1d52b0b4fdf88fdad77a2f4ed9097e6db24c479e97dd51f16a"
+        "sha256": "b6f6eae5f6a036d609691a1b2bb1e8a6f02b1ba255baa0bdbc17bfa44f3eec7a"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-nominal/hexa.json",
-        "sha256": "a892155e86355b797f613627118b8cd2f20272c339dca7b75280fa2a6da0b10d"
+        "sha256": "27577ca584c63f6006150b03c9a98482cc47a7493516f0953d8dfd0d7b59ce6b"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
-        "sha256": "d127737ae8db0d6e08e0014ca8820ab3b432d4e626e6582d94ecae6f889aa111"
+        "sha256": "c666273418672352d33505534c461fba2ed1a4185492f85aea902304314a9d72"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-nominal/octo.json",
-        "sha256": "6e4b11c50593f06cde0fa4f1b7bcc659a628b1256e0ac85f9da1542e8aa336c4"
+        "sha256": "7f027157c361c481fc94214b5c44c3c0e4405d4076327f5af3e05bd6b3e26981"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/quad-stock-settings.json",
+        "sha256": "ff4b153ad542195a1804f073532901d6d192e23d4ec9ad50e53597d343847f01"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-nominal/quad.json",
-        "sha256": "41cbe28666079b27147c4e393569103a17810f428598bfd2aab11f835be446c3"
+        "sha256": "90e7d2c15ecec39102c9994f602a737e5f7768256ff98ae620ce520a822784aa"
       },
       {
         "status": " M",
         "path": "test-results/validation/phase1-nominal/x8.json",
-        "sha256": "b992c2a6c8d864c019eb2670389bdb6753361b5f709b2cde80a83692a343c501"
+        "sha256": "3ebeaab7602c317ca35c0ea2ecb0cb27b6558c2f3839b4912fc1050b5adfd3a5"
       },
       {
         "status": " M",
-        "path": "tests/browser/flight-view-frames.spec.ts",
-        "sha256": "4f8081963b0a707f77ae190e5fb0cc98670cc9902989e09d0516a89db303733c"
+        "path": "tests/batch.test.ts",
+        "sha256": "bc431d003c9ace7a7624687b7c04a3d23ea4d8d468416bcc1c5a4def9443d0f6"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/batch.spec.ts",
+        "sha256": "0d4da87d06bb1d4856662e4fe1cb15141201ca2a5053fdfd8bfb27193de4d52d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/compare-experiments.spec.ts",
+        "sha256": "503b4f47381d10ba980363bfe35bab895691b950a7b632c0af23b0d890c0e1b3"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/ekf-drift.spec.ts",
+        "sha256": "c8836751ea3ef87b3f663bc7715a536b08a4b7ef0243948888859906421cfafa"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/experiments-tab.spec.ts",
+        "sha256": "fc0c1415c4006634af065a03c2bb966dbdc17d5933aeed359390b168aaede9d6"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/external-sitl.spec.ts",
+        "sha256": "72e9db996515a4b7ea7e9e519a8e5993d0575ebad7b0eb7a6033bd57e18a1150"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/faults-tab.spec.ts",
+        "sha256": "e29d5ba358cee5d1fec1db0875d4c135588c13a775cfe47e39efd9145230ae7d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/fidelity-report.spec.ts",
+        "sha256": "5ddf6ec485059d257cac73b9e6fdbbf4e5bee00e9c02050405863cc4a5e355b5"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/first-run.spec.ts",
+        "sha256": "680fb09f096dff084d00c4357134e50bf1aad1b962b3d0174ba075df001f4a9e"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/flight-tasks.spec.ts",
+        "sha256": "6074f4a51f47b34aff56ec4c3fa2ef2610f3ea0312f6f1b99a908751e37ed49f"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/from-log-compare.spec.ts",
+        "sha256": "eedbb7cce135bda46bc732cef9b2b98125dbfdfbd7909a2a62e3c6aa936102d7"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/from-log.spec.ts",
+        "sha256": "0e92bf684081caa7fd27d87822873be1f941040a06a34d17670283f6b9f8688e"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/location-flight.spec.ts",
+        "sha256": "d1d5d3cb111e593f5555318c732ee09b2876d688bf46a08f833ccaaf7273a053"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/log-viewer-experiments.spec.ts",
+        "sha256": "c7b44a410fab0708732d025d24aaa417e09ac62c91e70c889990401bd651bd61"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/logging-tab.spec.ts",
+        "sha256": "4cf620a0a3d5f11cef93ede548872228baf452f11d5b275a1074c8048d723048"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/maneuvers.spec.ts",
+        "sha256": "ce4cf257f7e1bda4414844c466a0c9e03b1686ce188d2f94d83b21c4977110d7"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/manual-connect.spec.ts",
+        "sha256": "e74dd4b9df1c419b1c5d5e7f84331c6ffda053f75bc3c09f7b963a014c7bb4b9"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/manual-flight.spec.ts",
+        "sha256": "f321fbdd0806bce019aa37186ed5887a4916b070341a8479671bce326402d895"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/parameter-export.spec.ts",
+        "sha256": "3f148bbe2e179640033153d074d099ad29d0fad25509f1ff4e470b1340c46861"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/parameters-tab.spec.ts",
+        "sha256": "c6e32156085e0ee3b8be68860158010abf57a470d3b671756ab2656339f960b0"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "b8b9bb771bb6894235d446ab361d1d378ad40720edc7edd1e2c0f27c68aa1f3e"
       },
       {
         "status": " M",
         "path": "tests/browser/phase1-nominal.spec.ts",
-        "sha256": "6e328405b30eabbd3c1fbfea1c1ac8d7e855176a59da7739a9dd6bd8f3bd2071"
+        "sha256": "722138d8fae7daf97b3ff2c2c49e01f65b840aa326bfdb497fac1f32aea8eff3"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/propeller-clearance.spec.ts",
+        "sha256": "2770d91b0c591cbf1a72064ebaeaa4cd6c985ebe0cd99c4c488b95a912ecccd0"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/run-speed.spec.ts",
+        "sha256": "170a96c6b1169016345473318b3829eb0b5fd3643b0da75589f29d419a18bf0d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/sensors-tab.spec.ts",
+        "sha256": "1265e2c2580bdd89149b00ddb65624d35e5e0e3aa9f7a556c1483306d1fbdf3b"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/sitl-pause.spec.ts",
+        "sha256": "2e8e3ccf7568405369859d2fbd691f127fe5aa4869d7957c0ba82232e939d095"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/terrain-contact-session.spec.ts",
+        "sha256": "0007c3bc2924fe76e72a29344a843c4a1aa214d87a64278d400f233ef68cb964"
       },
       {
         "status": " M",
         "path": "tests/browser/terrain-sitl.spec.ts",
-        "sha256": "5e7556cf3cf754b85250bf8143eea4d31d87cb5649deb4977a63c05cb35019dd"
+        "sha256": "101ad8ddd2e2516beada2c45a95b19c166720e7bf4aac489dda8b13ed8345a81"
       },
       {
         "status": " M",
-        "path": "tests/install-macos.test.ts",
-        "sha256": "4394e5857a542a8db56989129294a128881927e864fe35ae8beecde591af2176"
+        "path": "tests/browser/weather-sitl.spec.ts",
+        "sha256": "07a94fefe1a681e12f8c588cf127d972d695f7b0d82325263ae22f45b79dfe15"
+      },
+      {
+        "status": " M",
+        "path": "tests/dataflash-capture.test.ts",
+        "sha256": "d6d676994775ddd8fe650142d8d56327f5a3b746ed7dc590265c250ba1e34fb7"
+      },
+      {
+        "status": " M",
+        "path": "tests/error-ownership.test.ts",
+        "sha256": "26c01dabd3b1abaf06b1068c413f368afc3eb6e4145f3c96b085ddc24e6b819b"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-adapter.test.ts",
+        "sha256": "5ac80ea0639c0857a8f2c3c1bb108e3d82c143de9fa6dacfe69bb3755085699b"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-compare.test.ts",
+        "sha256": "f24bb5a65cb608b0ff62b66755c1587729daac98d5227b8eb115d3ad0f031d0d"
+      },
+      {
+        "status": " M",
+        "path": "tests/experiment-record.test.ts",
+        "sha256": "5c31475900998adb5f90f6cc21377580465da070961d1ed61181508e67da7922"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/registry.json",
+        "sha256": "e082bc1da4796482e17aa6659fdf74baa215cbe3574851d967ba353efbfcf162"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/ardupilot-catalog.json",
+        "sha256": "d13b2e99ccbaf767e9d036897594b7e478073f238288548ded2cc3216c43f1b6"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/error-ownership.json",
+        "sha256": "4526b0cfc802397c5dc61783681af3c46f25bd17935739af2504d88459687805"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/frames.json",
+        "sha256": "fa0da3eaa29127fdfa4fe3ed4ae7ccd99454163731613c6a6878cee539ea2493"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/generate.py",
+        "sha256": "3571bd4b3ef12c3fe02eda474854b36b685bf7b2681586c1f5f933fb37cf07a0"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/generate_frames.py",
+        "sha256": "99d20b2e27b751617132fdfaba741664a3f3d0956d9d9ca7aa214bc1e6cae635"
+      },
+      {
+        "status": " M",
+        "path": "tests/fixtures/sitl/json-protocol.json",
+        "sha256": "3c6f7c9b4e66017664c617966cd2e57a7abf7e42c2db49e2f7f3517012dd5e72"
+      },
+      {
+        "status": " M",
+        "path": "tests/hitl-report.test.ts",
+        "sha256": "2ce10c221e1f6f055ecb07985252e7501d13857f4632197193bf971a0714e0f0"
+      },
+      {
+        "status": " M",
+        "path": "tests/integration/phase1-nominal.test.ts",
+        "sha256": "aef45eb857e355a11cde5efa0acdacfc67dc5c58329de4788531c220367599b4"
+      },
+      {
+        "status": " M",
+        "path": "tests/integration/recovery-drill.test.ts",
+        "sha256": "2c9b00af5b8416270b2c759c76d8a663395702dbcfa654b2ba06888908fa1675"
+      },
+      {
+        "status": " M",
+        "path": "tests/launcher-connections.test.ts",
+        "sha256": "be888184a208c664d3c22c087f8112b8467b5100dc6ebe5587489043bdcbcc3e"
       },
       {
         "status": " M",
         "path": "tests/launcher.test.ts",
-        "sha256": "979cc9f49cf93eb5eb5a6e8d89cfef5a442c2e9ee08a508696d348a5b56180fc"
+        "sha256": "35d8f304fe1ca4c2ec09fcbd38a291a07ccd6f9366d5bcbd54359ceda742c286"
       },
       {
         "status": " M",
-        "path": "tests/phase1-acceptance.test.ts",
-        "sha256": "6a8eb4085877d7116489638fbcc0e7abbdb5e9e50452d18c031cbb275944877d"
+        "path": "tests/offline-inventory.test.ts",
+        "sha256": "92f85fffda09890d3c7fa0d493622f351f2832d31113e2af959f8f4d0baad9f9"
+      },
+      {
+        "status": " M",
+        "path": "tests/param-file.test.ts",
+        "sha256": "fcfc37ca86c29c7f7d6d249f5127eb40211c285f333ad29a3f77820eaa53f653"
+      },
+      {
+        "status": " M",
+        "path": "tests/param-service.test.ts",
+        "sha256": "ac252e8cffaeda2cf0e67a9109bed6ee1fd4adf941f06842e191bb345d497bef"
+      },
+      {
+        "status": " M",
+        "path": "tests/parameter-readback.test.ts",
+        "sha256": "a2948fd9ea9a9065412584766265cf0ee24a578d6ba9cc6ee8738eb30717b8f1"
+      },
+      {
+        "status": " M",
+        "path": "tests/parameter-sets.test.ts",
+        "sha256": "a2b19a497d2d0c22eb66ae193458776e72342db0a5d1a00d0ee1236185c9a301"
+      },
+      {
+        "status": " M",
+        "path": "tests/recorder-v2.test.ts",
+        "sha256": "b8a4dc1d54faef046bcbf012ece835b9350547a90e1b23fbc78236a2d107f9c3"
       },
       {
         "status": " M",
         "path": "tests/run-controller.test.ts",
-        "sha256": "e36fcc0b320fadf5212b331151e2be6e705b5b86c5c200b1a5b14271f1efb044"
+        "sha256": "b315894c77e29780a149ae2a65c17299d84276682803dd1d175701c17ff86014"
       },
       {
-        "status": "??",
-        "path": "scripts/geodata/setup-macos.sh",
-        "sha256": "b1233b1c4c121dc7813de52114ccf9cdfb2d196b9bbfcb72befacc06babf59cb"
+        "status": " M",
+        "path": "tests/sensor-config.test.ts",
+        "sha256": "b03d09de88552a514897617bb874549cfb128f81ecefccabbd55dcac2d91204b"
+      },
+      {
+        "status": " M",
+        "path": "tests/sensor-form.test.ts",
+        "sha256": "35bf5d61b67c18cc0f931675abe3b4823bc9f4ad14955ab6e412f90011bdf9a1"
       }
     ]
   },
@@ -243,9 +523,9 @@
     "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
     "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
     "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
-    "tests/browser/compare-experiments.spec.ts": "65d6c3d82da1413f0bb173a9400cf5d7d269d08b0e132f3ecfb9604c39c6f9f0",
+    "tests/browser/compare-experiments.spec.ts": "503b4f47381d10ba980363bfe35bab895691b950a7b632c0af23b0d890c0e1b3",
     "tests/browser/log-compare.spec.ts": "efbfd5597f56d7e0520a094c09cae7e8c089563e3d2d5b5d32d0cecc93d9b6ae",
-    "tests/browser/from-log-compare.spec.ts": "82d3df935007dca5db4329dd60eb82590f4b62dc725f286d87d8d2bad34ced7f"
+    "tests/browser/from-log-compare.spec.ts": "eedbb7cce135bda46bc732cef9b2b98125dbfdfbd7909a2a62e3c6aa936102d7"
   },
   "runs": [
     {

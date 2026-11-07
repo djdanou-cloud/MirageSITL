@@ -199,11 +199,11 @@ const listRequests = (frames: readonly SentFrame[]) => frames.filter(frame => fr
 const experimentId = (n: number) => `20261101120000000-${n.toString(16).padStart(8, '0')}`;
 /** The build identity in the launcher's experiment view. */
 const FIRMWARE: LauncherFirmware = {
-  id: 'arducopter-8ab6afd', firmwareVersion: 'ArduCopter V4.8.0-dev (8ab6afde)', commit: SITL_COMMIT,
+  id: 'arducopter-fb77356', firmwareVersion: 'ArduCopter V4.7.2 (fb773567)', commit: SITL_COMMIT,
   binarySha256: sha('installed arducopter'), defaultParametersSha256: sha('installed copter.parm'),
 };
 /** The catalog listing of the same build; its version text differs, so a record that copied the catalog would show. */
-const BUILD: CatalogEntry = { id: FIRMWARE.id, firmwareVersion: 'ArduCopter V4.8.0-dev', usable: true, reason: null };
+const BUILD: CatalogEntry = { id: FIRMWARE.id, firmwareVersion: 'ArduCopter V4.7.2', usable: true, reason: null };
 const NO_SESSION = 'No open SITL session for MAVLink';
 const BET_SHA = sha('scalar BET module');
 
@@ -2317,7 +2317,7 @@ const fakeDefaults = join(scratch, 'copter.parm');
 writeFileSync(fakeDefaults, 'SYSID_THISMAV 1\n');
 const fileSha = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 function entry(id: string, binary: string): FirmwareEntry {
-  return { id, firmwareVersion: 'ArduCopter V4.8.0-dev', commit: SITL_COMMIT, binaryPath: binary, binarySha256: fileSha(binary),
+  return { id, firmwareVersion: 'ArduCopter V4.7.2', commit: SITL_COMMIT, binaryPath: binary, binarySha256: fileSha(binary),
     defaultParametersPath: fakeDefaults, defaultParametersSha256: fileSha(fakeDefaults) };
 }
 /** A copy of the fake wrapper under its own catalog ID, so a test may delete or chmod it. */
@@ -2542,7 +2542,7 @@ describe('the real launcher with the fake SITL', () => {
 
     test('lists the catalog, parses a started experiment view, its logs and its stop', async () => {
       const client = new LauncherClient(launcher.port, token);
-      expect(await client.catalog()).toContainEqual({ id: 'fake', firmwareVersion: 'ArduCopter V4.8.0-dev', usable: true, reason: null });
+      expect(await client.catalog()).toContainEqual({ id: 'fake', firmwareVersion: 'ArduCopter V4.7.2', usable: true, reason: null });
       fake.setMode('idle');
       const started = await client.start(spec());
       expect(started.id).toMatch(/^[0-9]{17}-[0-9a-f]{8}$/);
@@ -2955,7 +2955,7 @@ const PARAM_SET = 23, REQUEST_MESSAGE = 512, AUTOPILOT_VERSION_ID = 148, GPS_RAW
 const ENDPOINTS: ConnectionSpec = { jsonPhysicsPort: 9002, mavlink: { transport: 'tcp', port: 5760 } };
 /** FIRMWARE_VERSION_TYPE_DEV (common.xml). */
 const VERSION_DEV = 0, VERSION_OFFICIAL = 255;
-function autopilotVersion(gitHash: string, major = 4, minor = 8, patch = 0, type = VERSION_DEV): Uint8Array {
+function autopilotVersion(gitHash: string, major = 4, minor = 7, patch = 2, type = VERSION_OFFICIAL): Uint8Array {
   const custom = Array.from({ length: 8 }, (_, i) => gitHash.charCodeAt(i) || 0);
   return autopilotFrame(AUTOPILOT_VERSION_ID, { capabilities: 0, uid: 0, flight_sw_version: ((major << 24) | (minor << 16) | (patch << 8) | type) >>> 0,
     middleware_sw_version: 0, os_sw_version: 0, board_version: 0, vendor_id: 0, product_id: 0, flight_custom_version: custom,
@@ -3047,7 +3047,7 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
     expect(h.records.payloads).toHaveLength(1);
     const payload = h.records.payloads[0];
     expect(payload?.sitl).toEqual({ ownership: 'external', connectionId: id,
-      ardupilot: { commit: SITL_COMMIT, gitHash: SITL_COMMIT.slice(0, 8), firmwareVersion: '4.8.0-dev' }, endpoints: ENDPOINTS });
+      ardupilot: { commit: SITL_COMMIT, gitHash: SITL_COMMIT.slice(0, 8), firmwareVersion: '4.7.2' }, endpoints: ENDPOINTS });
     expect(payload?.session).toMatchObject({ physicsHz: 800, speedup: null, home: DEFAULT_HOME, betModuleSha256: BET_SHA });
     expect(payload?.frameScript).toBeNull();
     expect(payload?.parameters).toEqual(h.run.parameters);
@@ -3133,8 +3133,8 @@ describe('SessionController connections to a SITL the user started (TASK-155)', 
     });
 
     test.each([
-      ['another commit', autopilotVersion('0123abcd', 4, 6, 2, VERSION_OFFICIAL), 'the SITL reports ArduPilot 4.6.2 built from commit 0123abcd; MirageSITL has verified only commit 8ab6afde'],
-      ['no git hash', autopilotVersion('', 4, 7, 0), 'the SITL reports ArduPilot 4.7.0-dev built from a source without a git hash'],
+      ['another commit', autopilotVersion('0123abcd', 4, 6, 2, VERSION_OFFICIAL), 'the SITL reports ArduPilot 4.6.2 built from commit 0123abcd; MirageSITL has verified only commit fb773567'],
+      ['no git hash', autopilotVersion('', 4, 7, 0, VERSION_DEV), 'the SITL reports ArduPilot 4.7.0-dev built from a source without a git hash'],
     ])('a version from %s', async (_label, frame, message) => {
       const h = harness();
       await connectTo(h, 'version');

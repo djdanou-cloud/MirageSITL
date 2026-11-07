@@ -1,6 +1,6 @@
 // Virtual one-motor-at-a-time check (TASK-157, S03). Before flight,
 // ArduCopter's own motor test (MAV_CMD_DO_MOTOR_TEST, ArduCopter/motor_test.cpp
-// at 8ab6afde) spins each frame motor alone, in its test order
+// at V4.7.2) spins each frame motor alone, in its test order
 // (AP_MotorsMatrix::output_test_seq), and the physics session shows which
 // rotor that actually turned. The expectation is the TASK-142 frame
 // configuration of the profile: the motor with that test order, the servo

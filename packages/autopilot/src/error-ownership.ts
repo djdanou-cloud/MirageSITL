@@ -5,8 +5,8 @@
 // (native/ardupilot/patches/) only to switch off an error that the pinned
 // upstream applies unconditionally. Configuration-time only.
 
-/** ArduPilot commit pinned in native/ardupilot/source.lock.json. */
-export const PINNED_ARDUPILOT_COMMIT = '8ab6afde107a91df1b5f60ade8f333cb8a61b190';
+/** The ArduPilot commit of scripts/sitl.lock.json: ArduCopter V4.7.2 (decision D-01). The browser HAL build keeps its own lock. */
+export const PINNED_ARDUPILOT_COMMIT = 'fb773567896014da007bca58358704d4a0d8516f';
 export const OWNERSHIP_PROFILE_VERSION = 1;
 /** JSON state keys covered by the TASK-041 oracle and its TASK-147 battery line (tests/fixtures/sitl/json-protocol.json). */
 export const JSON_ORACLE_KEYS = ['timestamp', 'imu.gyro', 'imu.accel_body', 'position', 'velocity', 'quaternion', 'velocity_wind',
@@ -112,8 +112,8 @@ export const ERROR_SOURCES: { readonly [id in ErrorSourceId]: ErrorSourceDefinit
   'imu.vibration': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_VIB_FREQ', 0], ['SIM_VIB_MOT_MAX', 0]], fixed: false,
     facts: ['ins-vibration-frequency', 'ins-vibration-motor'], deliveries: [...ACCEL, ...GYRO] },
   'imu.lever-arm': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_IMU_POS', 0]], fixed: false, facts: ['ins-lever-arm'], deliveries: ACCEL },
-  // The trim also rotates the compass, which no native path can deliver, so only ArduPilot or nobody applies it.
-  'imu.board-trim': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_BRD_TRIM', 0]], fixed: false, facts: ['ins-board-trim'], deliveries: [] },
+  // SIM_ACC_TRIM at V4.7.2: it turns the accelerometer only. MirageSITL offers no such error, so only ArduPilot or nobody applies it.
+  'imu.board-trim': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_ACC_TRIM', 0]], fixed: false, facts: ['ins-accel-trim'], deliveries: [] },
   // Barometer altitude shares the position fields with navigation truth, so no path carries a separate baro error.
   'baro.noise': { sensor: 'baro', ardupilotPaths: BOTH, neutralize: baros('RND'), fixed: false, facts: ['baro-noise'], deliveries: [] },
   'baro.drift': { sensor: 'baro', ardupilotPaths: BOTH, neutralize: baros('DRIFT'), fixed: false, facts: ['baro-drift'], deliveries: [] },
@@ -121,7 +121,8 @@ export const ERROR_SOURCES: { readonly [id in ErrorSourceId]: ErrorSourceDefinit
   'baro.delay': { sensor: 'baro', ardupilotPaths: BOTH, neutralize: baros('DELAY'), fixed: false, facts: ['baro-delay'], deliveries: [] },
   'baro.wind': { sensor: 'baro', ardupilotPaths: BOTH, fixed: false, facts: ['baro-wind'], deliveries: [],
     neutralize: ['FWD', 'BAK', 'RGT', 'LFT', 'UP', 'DN'].flatMap(side => baros(`WCF_${side}`)) },
-  'baro.ground-effect': { sensor: 'baro', ardupilotPaths: BOTH, neutralize: baros('GEFF_M'), fixed: false, facts: ['baro-ground-effect'], deliveries: [] },
+  // V4.7.2 has no barometer ground effect (tests/fixtures/sitl/generate.py asserts its absence), so nobody applies one. The ID stays in the schemas.
+  'baro.ground-effect': { sensor: 'baro', ardupilotPaths: [], neutralize: [], fixed: false, facts: [], deliveries: [] },
   'mag.noise': { sensor: 'mag', ardupilotPaths: BOTH, neutralize: [['SIM_MAG_RND', 0]], fixed: false, facts: ['compass-noise'], deliveries: MAG },
   'mag.hard-iron': { sensor: 'mag', ardupilotPaths: BOTH, neutralize: mags('OFS', 0), fixed: false, facts: ['compass-hard-iron'],
     deliveries: ['mavlink:sim-mag-offsets', 'hal:magnetic-field'] },
@@ -142,9 +143,9 @@ export const ERROR_SOURCES: { readonly [id in ErrorSourceId]: ErrorSourceDefinit
   'imu.misalignment': { sensor: 'imu', ardupilotPaths: BOTH, neutralize: [['SIM_IMU_ORIENT', 0]], fixed: false,
     facts: ['ins-imu-orient-accel', 'ins-imu-orient-gyro'], deliveries: [...ACCEL, ...GYRO] },
   'mag.misalignment': { sensor: 'mag', ardupilotPaths: BOTH, neutralize: mags('ORIENT', 0), fixed: false, facts: ['compass-orient'], deliveries: MAG },
-  // The SITL receiver's position error is a deterministic wander: a circle and a vertical sine with a 12.6 s period.
-  'gnss.position-noise': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: [...gpss('HNSE', 0), ...gpss('NOISE', 0)], fixed: false,
-    facts: ['sim-gps-enabled', 'gps-wander-period', 'gps-horizontal-wander', 'gps-vertical-wander'], deliveries: [] },
+  // The SITL receiver's position error at V4.7.2 is a vertical sine with a 12.6 s period; it has no horizontal error.
+  'gnss.position-noise': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: gpss('NOISE', 0), fixed: false,
+    facts: ['sim-gps-enabled', 'gps-vertical-wander'], deliveries: [] },
   'gnss.velocity-noise': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: gpss('VERR', 0), fixed: false,
     facts: ['sim-gps-enabled', 'gps-velocity-error', 'rand-float-uniform'], deliveries: [] },
   'gnss.delay': { sensor: 'gnss', ardupilotPaths: BOTH, neutralize: gpss('LAG_MS', 0), fixed: false, facts: ['sim-gps-enabled', 'gps-lag'], deliveries: [] },

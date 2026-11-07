@@ -22,7 +22,7 @@ const hybrid={schemaVersion:2,provenance:{...provenance,source:'native-sitl'},bo
 assert.equal(assessHitl(hybrid).status,'PASS');
 assert.equal(assessHitl(hybrid).metrics.p99LatenessMs,1);
 assert.equal(assessHitl(hybrid).metrics.droneConnected,false);
-const virtual={...hybrid,execution:'virtual',provenance:{...hybrid.provenance,source:'virtual-sitl'},firmware:{stack:'ardupilot',major:0,minor:0,patch:0,gitShort:'8ab6afde'}};
+const virtual={...hybrid,execution:'virtual',provenance:{...hybrid.provenance,source:'virtual-sitl'},firmware:{stack:'ardupilot',major:0,minor:0,patch:0,gitShort:'fb773567'}};
 assert.equal(assessHitl(virtual).status,'PASS');
 assert.equal(assessHitl(virtual).metrics.droneConnected,false);
 assert.equal(assessHitl(virtual).metrics.firmwareObserved,false);

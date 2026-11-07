@@ -8,7 +8,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-184 (S15) on the reference Mac: a hover of native ArduCopter 8ab6afde flown from the Run tab, then compared on the Analysis tab with
+// TASK-184 (S15) on the reference Mac: a hover of native ArduCopter fb773567 flown from the Run tab, then compared on the Analysis tab with
 // a second log through the fidelity report alone. The second log here is the repository's SITL log (tests/fixtures/dataflash/sitl-copter.bin):
 // no real flight log exists yet (G4), so the report must say it is simulated and the profile version must stay not flight-checked. Declared:
 //  - the report shows every quantity's row, over the interval and per regime, compared or missing with a reason, and no word that judges;
@@ -21,7 +21,7 @@ const urls = { store: viteFileUrl(new URL("../../packages/project/src/store.ts",
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const REAL = process.env.MIRAGE_REAL_FLIGHT_LOG ?? join(ROOT, "tests/fixtures/dataflash/sitl-copter.bin");
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

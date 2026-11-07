@@ -7,12 +7,12 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { readExperimentRecords, seedQuadProject } from "../support/run-tab";
 
 // TASK-182 (S15): a real log and an interval give a report field by field; the user supplies the aircraft; the run it plans starts on
-// native ArduCopter 8ab6afde at the log's home with the log's settings, and its experiment says where it came from.
+// native ArduCopter fb773567 at the log's home with the log's settings, and its experiment says where it came from.
 
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const REFERENCE = join(ROOT, "tests/fixtures/dataflash/sitl-copter.bin");
 
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

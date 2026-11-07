@@ -11,8 +11,8 @@ import type { ErrorSourceId } from '@mirage/autopilot/error-ownership';
 // MirageSITL-owned and unassigned fields.
 
 export const SENSOR_CONFIGURATION_SCHEMA_VERSION = 1;
-/** Field-to-owner mapping on native-json; 2 since TASK-147 added the schema 3 sources of the TASK-089 taxonomy. */
-export const SENSOR_OWNERSHIP_MAPPING_VERSION = 2;
+/** Field-to-owner mapping on native-json; 2 since TASK-147 added the schema 3 sources of the TASK-089 taxonomy, 3 since ArduCopter V4.7.2 (D-01) has no horizontal GNSS error. */
+export const SENSOR_OWNERSHIP_MAPPING_VERSION = 3;
 export type SensorPath = 'native-json';
 export type SensorMode = 'ideal' | 'specified';
 export const SENSOR_KINDS = ['imu', 'gnss', 'barometer', 'magnetometer', 'battery'] as const;
@@ -126,8 +126,10 @@ export interface SensorFieldSpec {
   /** Pinned-catalog parameters the ArduPilot owner writes or TASK-089 neutralizes; n stands for each instance. */
   readonly ardupilotParameters: readonly string[];
   readonly applicable: boolean;
-  /** Required exactly when the field is not applicable; names the task that will deliver it. */
+  /** Required exactly when the field is not applicable; names the task that will deliver it, or why nothing can. */
   readonly disabledReason: string | null;
+  /** An earlier profile version may hold a value here: it still reads, and nothing applies the value. */
+  readonly keepsStoredValue: boolean;
   /** The owner applies the value in steps of this many microseconds, or null. */
   readonly stepUs: number | null;
   /** A preset may fill this field. */
@@ -155,8 +157,8 @@ function field(path: SensorFieldPath, base: Base): SensorFieldSpec {
   if (!kind) throw new Error(`Unknown sensor in ${path}`);
   return { path, sensor: kind, key, ...base };
 }
-const locked = (reason: string) => ({ applicable: false, disabledReason: reason, presettable: false });
-const open = { applicable: true, disabledReason: null };
+const locked = (reason: string) => ({ applicable: false, disabledReason: reason, presettable: false, keepsStoredValue: false });
+const open = { applicable: true, disabledReason: null, keepsStoredValue: false };
 
 /** The 25 fields of sensor configuration schema 1, in schema order. */
 export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
@@ -219,7 +221,9 @@ export const SENSOR_FIELDS: readonly SensorFieldSpec[] = deepFreeze([
     label: 'GNSS horizontal position error (1σ per axis)', siUnit: 'm', display: SI, shape: 'scalar',
     minimum: 0, maximum: 100, exclusiveMinimum: false, rangeBasis: 'At most 100 m.',
     isError: true, neutral: 0, source: 'gnss.position-noise', owner: 'ardupilot', excludedOwners: [GNSS_POLICY],
-    ardupilotParameters: ['SIM_GPS1_HNSE', 'SIM_GPS2_HNSE'], stepUs: null, presettable: true, ...open,
+    ardupilotParameters: [], stepUs: null,
+    ...locked('ArduCopter V4.7.2 has no horizontal GNSS error: its SIM_GPSn_NOISE moves the altitude only, so nothing can apply this value.'),
+    keepsStoredValue: true,
   }),
   field('gnss.verticalSigmaM', {
     label: 'GNSS vertical position error (1σ)', siUnit: 'm', display: SI, shape: 'scalar',
@@ -328,10 +332,9 @@ export const OTHER_ARDUPILOT_TERMS: readonly { readonly source: ErrorSourceId; r
   { source: 'imu.gyro.scale', label: 'Gyroscope scale factor (SIM_GYRn_SCALE)', stock: 'none' },
   { source: 'imu.gyro.drift', label: 'Gyroscope drift (SIM_DRIFT_SPEED)', stock: '0.05 °/s per minute, a triangle wave peaking at 0.25 °/s' },
   { source: 'imu.vibration', label: 'Vibration (SIM_VIB_FREQ, SIM_VIB_MOT_MAX)', stock: 'none' },
-  { source: 'imu.board-trim', label: 'Board trim (SIM_BRD_TRIM)', stock: 'none' },
+  { source: 'imu.board-trim', label: 'Accelerometer trim (SIM_ACC_TRIM)', stock: 'none' },
   { source: 'baro.drift', label: 'Barometer drift (SIM_BAROn_DRIFT)', stock: 'none' },
   { source: 'baro.wind', label: 'Barometer wind error (SIM_BAROn_WCF_*)', stock: 'none' },
-  { source: 'baro.ground-effect', label: 'Barometer ground effect (SIM_BAROn_GEFF_M)', stock: 'none' },
   { source: 'mag.soft-iron', label: 'Magnetometer soft iron and scaling (SIM_MAGn_DIA, _ODI, _SCALING)', stock: 'none' },
   { source: 'mag.delay', label: 'Magnetometer delay (SIM_MAG_DELAY)', stock: 'none' },
   { source: 'mag.anomaly', label: 'Magnetic anomaly (SIM_MAG_ALY)', stock: 'none' },

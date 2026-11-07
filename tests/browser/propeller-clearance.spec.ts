@@ -113,7 +113,7 @@ test("a clashing profile saves with its clashes listed, and the confirmed fix sa
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 
 test("the Run tab refuses the clashing version naming the clashes, and the fixed version flies with native ArduCopter", async ({ page }) => {
   test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");

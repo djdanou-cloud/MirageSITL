@@ -8,7 +8,7 @@ import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { seedQuadProject } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
 
-// TASK-186 (S17) on the reference Mac: native ArduCopter 8ab6afde flies a real-terrain run chosen through the Weather and location
+// TASK-186 (S17) on the reference Mac: native ArduCopter fb773567 flies a real-terrain run chosen through the Weather and location
 // tab, and the run pauses where its loaded terrain ends. Declared before the first run:
 //  - with a 256 m radius the lattice is the four chunks around the home, so its ground ends 512 m north; with the 8 m readiness radius
 //    the first tick whose position is 504 m or more north pauses the run: the reported north lies in [504, 504.02] m (a tick's travel
@@ -32,7 +32,7 @@ const urls = {
 const ROOT = process.cwd();
 const HOME = join(ROOT, ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
-const FIRMWARE_ID = "arducopter-8ab6afde";
+const FIRMWARE_ID = "arducopter-fb773567";
 const FIXTURE = new URL("../fixtures/terrain-qm-slope/", import.meta.url);
 const EVIDENCE = join(ROOT, "test-results/browser/task-186-terrain-sitl.json");
 const FABDEM_EVIDENCE = join(ROOT, "test-results/browser/task-186-fabdem-sitl.json");

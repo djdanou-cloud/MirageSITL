@@ -47,7 +47,7 @@ and none of them is Phase 1 acceptance evidence.
   lockstep, and stock ArduCopter refuses to arm while a gyro's rate is below
   1.8 times its 400 Hz main loop
   (`AP_InertialSensor::pre_arm_check_gyro_backend_rate_hz` at commit
-  8ab6afd). At 400 Hz it reports "PreArm: Gyro 0 rate 400Hz < loop rate*1.8
+  8ab6afd, and in the same words at V4.7.2). At 400 Hz it reports "PreArm: Gyro 0 rate 400Hz < loop rate*1.8
   720Hz", which TASK-153 found on 2026-10-31, after this decision. The
   alternatives were halving the autopilot's loop rate (`SCHED_LOOP_RATE` 200),
   which departs from the default of real flight controllers, and leaving the
@@ -90,7 +90,11 @@ and none of them is Phase 1 acceptance evidence.
   operational criterion for that flight, not a comparison with a measured
   aircraft, so scope amendment SA-01 does not apply to it.
   `node scripts/phase1/nominal-flight.mjs --stock-settings` keeps the negative
-  control: the quad at stock settings fails it.
+  control: the quad at stock settings failed it until TASK-098 changed the rotor inflow.
+  On 2026-11-06 (TASK-198) a bisection on `8ab6afd` read a roll of 59.39 °/s on the commit
+  before TASK-098 and 0.08 °/s on it, and the control now reads 0.09 °/s on V4.7.2. So this
+  flight no longer shows a failure, and `tests/integration/phase1-nominal.test.ts` holds the
+  limit to hand-built readings. The quad keeps the 40 Hz filter until the stakeholder decides otherwise.
 
 ## TASK-073 reconciliation (A-11)
 

@@ -12,7 +12,7 @@ import { readCatalog, verifyEntry } from '../../apps/launcher/src/catalog';
 // by running this with the network blocked. It skips without an installation, and that run counts a skip as a failure.
 const HOME = join(process.cwd(), '.cache/task-152/home');
 const installed = existsSync(join(HOME, 'install-manifest.json'));
-const FIRMWARE = 'arducopter-8ab6afde';
+const FIRMWARE = 'arducopter-fb773567';
 let scratch = '', copy = '';
 const install = () => spawnSync(process.execPath, ['scripts/install-macos.mjs', '--home', copy], { encoding: 'utf8', timeout: 1500_000 });
 const hashOf = (id: string): string => readCatalog(copy).find(entry => entry.id === id)?.binarySha256 ?? '';
