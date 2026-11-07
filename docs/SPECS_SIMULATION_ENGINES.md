@@ -7722,7 +7722,8 @@ scatter, not the interpolation. At 4253 rpm the three-blade 5x3.75 reads C_T 0.1
 0.03831. A least-squares cubic through each propeller's own points leaves raw points up to
 6.08 % away from it, and the table's value is within 2.59 % of that cubic at all 111. That
 second comparison was added after the miss to find its cause, and it does not replace the limit:
-`tests/rotor-map.test.ts` keeps the nine points by name.
+`tests/rotor-map.test.ts` keeps the nine points by name. The stakeholder accepted the miss on
+2026-11-07 and TASK-103 is DONE with it; the limit stays 3 %.
 
 **Cost.** A 16-rotor tick in scalar WASM takes 6.82 µs on average and 8.71 µs at p99 against the
 limit of 31.25 µs, and the BET with dynamic inflow takes 231 µs, 34 times as long, on the
