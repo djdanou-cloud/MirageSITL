@@ -6860,6 +6860,95 @@ dot product turns the published quaternion's rounding into 10⁻⁴ rad.
 lockstep steps at 400 Hz with 0.00404 B/step and no GC event, the quad on its
 feet throughout, and the contact faults the session on any native allocation.
 
+### Described landing gear (TASK-194)
+
+By the user's request of 2026-11-07, the separate approval that the Phase 1
+disposition of TASK-194 asked for, a profile may describe its landing gear in
+place of the standard supports. Aircraft profile schema 7 is schema 6 with an
+optional `landingGear` section (and an empty list of propulsion calibrations
+allowed); a profile is schema 7 exactly when it has a section of its own
+airframe, so a profile without one keeps its schema and derives the bytes it
+did, and the derivation version stays 6.
+
+The section holds the gear's kind, `legs`, `skids` or `wheels`; the bottom of
+each foot or wheel with the struts fully extended (`feetBodyM`, body FRD metres
+from the reference point; three to eight, and for skids an even four to eight,
+skid i running from support 2i to support 2i + 1) and the source of those
+positions; and one set of values for every support, each known with its source
+(1 to 96 characters) or not known with neither. A value that is not known is
+never written into the profile: the derivation applies the standard gear's
+rule for it (`packages/aircraft/src/profile-gear.ts`) and names it as assumed.
+With N supports and the vehicle mass m (the payload included), each support's
+share is m/N and the rules are:
+
+| Value | Rule when not known | Source |
+| --- | --- | --- |
+| Strut and foot stiffness | Pair k = m·g/(N·δ_s), δ_s = 5 mm; the foot 10·k and the strut 10/9·k; a stated strut alone gives the foot 9 times it; a stated foot alone gives the strut 1/(1/k − 1/k_foot) | F-08, TASK-095 |
+| Strut damping | 2·ζ·√(k_pair·m/N), ζ = 0.7 | F-08 |
+| Strut travel | Five static deflections of the pair under the support's share | TASK-095 |
+| Foot radius, rim radius | 0.01 m; the rim half the foot | TASK-095 |
+| Unsprung mass | 1 % of the support's share | TASK-095 |
+| Static and kinetic friction | 0.6 and 0.5; one stated coefficient gives the other in the ratio 5/6 | F-08 |
+| Rolling coefficient | None: wheels need it, legs and skids have none | — |
+
+Each support becomes one manifest `landingGear` entry in profile order: its
+anchor the foot's centre (the bottom less the foot radius), the strut linear
+with the same damping in compression and rebound, the foot's load curve
+linear to rim contact, the tyre damping 2·ζ·√(k_foot·unsprung). Legs and skids
+slide alike in every direction (rolling, lateral and braking coefficients the
+static friction); wheels roll along their heading on their rolling
+coefficient, since the contact's longitudinal friction is
+μ_rolling + (μ_braking − μ_rolling)·b and no multirotor gear brakes. The
+provenance of `landingGear` is the synthetic dataset
+`aircraft-profile-landing-gear`, whose source SHA-256 is the profile's
+canonical SHA-256 and whose text lists every stated value with its source and
+every assumed value; the standard gear's dataset is then absent.
+
+A gear is refused, with its reason, when the CG seen from above lies outside
+the support polygon of the feet (with a 1 µm margin; three feet on one line
+have none), which is how the DoD's "a foot outside every support polygon" is
+read; when a strut travel is zero; when a rim is not inside its foot (with the
+standard values where one is not known); when the kinetic friction exceeds the
+static; when the unsprung mass reaches a support's share; when a foot
+stiffness alone is not above the standard pair stiffness; when wheels lack
+their rolling coefficient or legs and skids state one; when a value lacks its
+source or a source its value; and when a ground clearance is stated beside it,
+since the resting height then follows from the gear. TASK-195's ground check
+rests the aircraft on the described gear, level and each support carrying an
+equal share: the mean foot depth less the strut's compression under the share
+minus its foot and the foot's under the whole share.
+
+The Aircraft tab's Landing gear section (`apps/web/src/aircraft/LandingGear.tsx`)
+describes it: the kind, a row per support, where the positions come from, and
+a value and a source for each value beside its standard rule and the value
+flown, marked when assumed. The ground clearance field is disabled while a gear
+is described. The 3D scheme draws the feet at their bottom points, a strut
+from the reference plane down to each, the skid runners and the wheels, and
+lists the supports. The editor form also keeps a profile's propulsion
+calibrations (TASK-145) through a save, which dropped them before.
+
+**Verification.** `tests/aircraft-profile.test.ts` holds the derivation to the
+rules computed in the test from the stated values (a 1500 N/m strut gives a
+13,500 N/m foot, damping 2·0.7·√(k_pair·0.375 kg), a 6 mm rim, a 3.75 g foot),
+the dataset text to every stated value with its source and every assumed one,
+a fully stated gear of wheels to its own coefficients and none assumed, and
+fifteen gears to their refusals; the five S19 fixtures still derive their
+recorded bytes. `tests/profile-dynamics.test.ts` flies a quad X with its CG
+centred on legs, skids and a tricycle of wheels whose centroid is the CG: each
+comes to rest within 0.1 mm of rigid-plate statics on the manifest's supports
+(`tests/support/standard-gear.ts`) at 400, 800 and 1200 Hz for the legs and
+400 Hz for the others, takes off on equal motor commands, lands and rests
+there again within 0.1 mm, tilting less than 2 degrees and with no hull or
+propeller contact. `tests/aircraft-clearance.test.ts` holds the resting height
+on a gear to its closed form and puts the body on the ground on a gear too
+short for it. `tests/browser/aircraft-editor.spec.ts` describes a gear through
+the UI alone, sees zero travel, a rim outside its foot and a CG outside the
+support polygon refused with their reasons, finds each drawn foot where the
+profile puts it, and flies the saved version in the physics Worker on the
+example cards: rest within 1 mm of the statics height, a climb of a metre, a
+landing back at that height and less than 2 degrees of tilt on equal pilot
+throttle.
+
 ### Standard hull and propeller discs
 
 Aircraft profiles give no body or arm size. By the user's decision of
@@ -6878,7 +6967,8 @@ previewed fix, is TASK-195 (section "Propeller clearance"). The standard hull
 A 10 in quadcopter on 0.225 m arms gets a body 0.11 m across and 0.045 m tall
 and arms 13 mm thick; an octocopter with 44 in propellers on 1.25 m arms a body
 0.63 m across and 0.25 m tall and arms 56 mm thick. A body that hangs low, or a
-pod below it, is not represented until TASK-196.
+pod below it, is a profile's described body (section "Described body
+(TASK-196)").
 
 `buildProfileDynamics` adds one propeller disc per rotor: a cylinder at the hub
 about its thrust axis, its radius the rotor's and half its thickness 0.025 times
@@ -6911,6 +7001,65 @@ degrees nose down, dropped 5 mm above its lowest shape, strikes first and alone
 with the propeller disc that the geometry puts lowest, at a point on that disc,
 at all three rates.
 
+### Described body (TASK-196)
+
+By the user's request of 2026-11-07, the separate approval that the Phase 1
+disposition of TASK-196 asked for, profile schema 7 (section "Described landing
+gear (TASK-194)") also takes an optional `body` section in place of the
+standard hull, with or without a described gear. It holds the central body as
+a cylinder about the body z axis (`radiusM`, `halfHeightM`, and `centerDownM`,
+how far its centre lies below the reference point), the arm thickness
+(`armRadiusM`, the arm capsules' radius, or null for the standard rule of 0.05
+times the largest propeller radius on the arm), up to 15 less the arm count
+named parts (`parts`: a vertical cylinder with its centre, radius and
+half-height, or a capsule with its two ends and radius; a box is entered as
+the cylinder or capsule that encloses it), and the source of the dimensions.
+
+The manifest's `hull` then comes from the profile
+(`packages/aircraft/src/profile-body.ts`): the body cylinder as ID 0, one arm
+capsule per arm from the body axis to its motor mount at the arm's height as
+IDs 1 to N, the parts after them in profile order; its provenance is the
+synthetic dataset `aircraft-profile-hull`, whose source SHA-256 is the
+profile's canonical SHA-256 and whose text gives every dimension, the parts by
+name and the source, and names the arm thickness as the standard hull's,
+assumed, when it is not stated. A profile without a body keeps the standard
+hull and its bytes. The preliminary drag estimate (TASK-096) runs the same
+rules over that hull, a part capsule counted over its whole length about its
+middle rather than from the body radius as an arm is, and its dataset text says
+it is over the hull the profile describes. TASK-195's checks use the described
+body's cylinder for the propellers and every part for the ground, a part on the
+ground named (`body-part`, "The body part Camera pod ..."); an accident of a
+part (a hull shape beyond the arms) is worded with its name by
+`describeAccident(event, armIds, partNames)`, which the Run tab passes from the
+chosen profile. A described body is refused, with its reason, without its
+source, with more parts than the hull holds, with a part name that is blank or
+repeated (case aside), or with a capsule whose two ends coincide.
+
+The Aircraft tab's Body size section (`apps/web/src/aircraft/BodySize.tsx`)
+enters it; the 3D scheme and the Run tab's flight view draw a described body
+and its parts at their size, and the flight view a described landing gear too.
+
+**Verification.** `tests/aircraft-profile.test.ts` holds the derived hull to the
+shapes the design places, written out in the test from the entered values (the
+body at its depth, each arm ending at its motor's hub with the stated radius,
+or 0.007 m, 0.05 times the 0.14 m synthetic propeller, without one, the pod and
+a rail after them), the dataset text to the source and the parts, the drag to
+`standardHullDrag(hull, 4)` with its text, and six bodies to their refusals;
+the five S19 fixtures still derive their recorded bytes.
+`tests/aircraft-clearance.test.ts` holds a 0.1 m body to an overlap of
+R + r minus the 0.225 m hub distance with each propeller, and a pod 5 mm below
+the stated 0.12 m clearance to a ground clash of the camera pod, by name. In
+`tests/profile-dynamics.test.ts` a quad X on legs with a camera pod about 5 mm
+above the ground at rest stands for 2 s with no hull shape touching, and
+dropped level from 0.3 m with its motors off scrapes the pod, which the
+accident monitor reports and `describeAccident` words as "The body part Camera
+pod struck the ground". `tests/browser/aircraft-editor.spec.ts` enters a body
+with a camera pod 8 mm off the ground through the UI alone, finds the body and
+the pod drawn at their centres, and flies the saved version in the physics
+Worker on the example cards: it rests at the statics height, climbs a metre,
+and with the throttle cut lands hard enough to scrape the pod, which the
+session reports by name and pauses on.
+
 ### Propeller clearance
 
 By the user's decisions of 2026-11-01 (TASK-095 increment 4) a profile whose
@@ -6919,7 +7068,8 @@ it changes the profile before it saves a new version; it never edits a
 profile silently. `packages/aircraft/src/clearance.ts` (TASK-195) checks the
 parts the flight physics uses, at the geometry the manifest derivation gives:
 each propeller is its propeller disc and the body the standard hull's
-cylinder (`clearanceShapes(profile, propellerRadiusM)`).
+cylinder, or the described body's with its parts (TASK-196,
+`clearanceShapes(profile, propellerRadiusM)`).
 
 | Clash | When | Size reported |
 | --- | --- | --- |
