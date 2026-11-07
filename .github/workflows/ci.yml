@@ -17,8 +17,7 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     # The job took 6-10 min from 2026-10-30 to 2026-11-02 and a 10 min limit cancelled it twice.
-    # Raised to 40 for one push on 2026-11-07: tests/rotor-map.test.ts outran 20 min twice on a runner 2.4 times slower; the next commit restores 20.
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
         with:
