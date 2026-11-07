@@ -33,12 +33,21 @@ const CONFIGURATIONS = {
   "p80iii-kv100-30in-16kg": { massKg: 16, rotorCount: 4, rotorRadiusM: 15 * INCH },
   // 00000011 flew 32.4-inch foldable propellers, before the flight controller was remounted.
   "p80iii-kv100-32in-16kg-first-mount": { massKg: 16, rotorCount: 4, rotorRadiusM: 16.2 * INCH },
+  // Second list (2026-11-07).
+  "m1200-u8xl-32in-18kg": { massKg: 18, rotorCount: 4, rotorRadiusM: 16 * INCH },
+  "5in-quad-mtf02p-145352": { massKg: null, rotorCount: 4, rotorRadiusM: 2.5 * INCH },
 };
 /** Fit groups: one configuration each, with the logs fitted and the logs held out (declared in the specification). */
 const GROUPS = [
   { id: "mn7005-kv230-24in-7.2kg", configuration: "mn7005-kv230-24in-7.2kg", fit: ["topic-144558-00000205.BIN"], holdOut: [] },
   { id: "tmotor-230kv-24in-6kg", configuration: "tmotor-230kv-24in-6kg", fit: ["topic-131210-00000148.BIN"], holdOut: ["topic-131210-00000280.BIN"] },
-  { id: "tmotor-7005-230kv-24in-7kg", configuration: "tmotor-7005-230kv-24in-7kg", fit: ["topic-140620-00000218.BIN"], holdOut: [] },
+  { id: "tmotor-7005-230kv-24in-7kg", configuration: "tmotor-7005-230kv-24in-7kg", fit: ["topic-140620-00000218.BIN"],
+    holdOut: ["topic-140620-00000175.BIN", "topic-140620-12-11-47.BIN"] },
+  { id: "m1200-u8xl-32in-18kg", configuration: "m1200-u8xl-32in-18kg", fit: ["topic-96944-1NN44LN2.BIN"], holdOut: ["topic-96944-1aYxm5oh.BIN"] },
+  // Indoors without GNSS: the rangefinder is the height reference.
+  { id: "5in-quad-mtf02p-145352", configuration: "5in-quad-mtf02p-145352", heightSource: "rangefinder", fit: [], holdOut: [],
+    measured: ["topic-145352-1fltx_zp.BIN", "topic-145352-1BRaKnj_.BIN", "topic-145352-1r0OAZFa.BIN", "topic-145352-1MrX9c7d.BIN",
+      "topic-145352-1krgUV6Y.BIN", "topic-145352-1nreVudP.BIN", "topic-145352-1XC3hSDH.BIN"] },
   { id: "mn7005-kv115-24in-12s", configuration: "mn7005-kv115-24in-12s", fit: [], holdOut: [], measured: ["topic-145394-11-41-15.BIN"] },
   { id: "p80iii-kv100-30in-16kg-first-mount", configuration: "p80iii-kv100-32in-16kg-first-mount", fit: ["topic-134119-00000011.BIN"], holdOut: [] },
   { id: "p80iii-kv100-30in-16kg-remounted", configuration: "p80iii-kv100-30in-16kg",
@@ -85,7 +94,7 @@ for (const group of GROUPS) {
   const measure = file => {
     const loaded = load(file);
     if (!loaded) return null;
-    const m = measureBarometerDips(loaded.log, aircraft);
+    const m = measureBarometerDips(loaded.log, aircraft, group.heightSource ?? "gnss");
     return { file, sha256: loaded.entry.sha256, measurement: m };
   };
   const fitted = group.fit.map(measure).filter(Boolean), held = group.holdOut.map(measure).filter(Boolean), other = (group.measured ?? []).map(measure).filter(Boolean);
@@ -105,7 +114,7 @@ for (const group of GROUPS) {
   }
   const logs = [...fitted.map(x => ({ ...x, role: "fit" })), ...held.map(x => ({ ...x, role: "hold-out" })), ...other.map(x => ({ ...x, role: "measured" }))];
   groups.push({
-    id: group.id, aircraft: { configuration: group.configuration, ...aircraft },
+    id: group.id, aircraft: { configuration: group.configuration, ...aircraft }, heightSource: group.heightSource ?? "gnss",
     inducedPressurePa: round(logs[0]?.measurement.inducedPressurePa ?? null, 2),
     fit: fit ? { gain: round(fit.gain, 3), decayRadii: round(fit.decayRadii, 3), washCoefficient: round(fit.washCoefficient, 3), rmsPa: round(fit.rmsPa, 2), samples: fit.samples } : null,
     fitError: fitError ?? (aircraft.massKg === null ? "no stated mass" : fit ? null : "no fitted log"),

@@ -3,9 +3,13 @@
   "kind": "logged-baro-dips",
   "status": "FAIL",
   "reasons": [
-    "topic-131210-00000280.BIN landing at 2824.1 s: measured 10.43 Pa, predicted 52.35 Pa"
+    "topic-131210-00000280.BIN landing at 2824.1 s: measured 10.43 Pa, predicted 52.35 Pa",
+    "topic-140620-00000175.BIN landing at 3291.0 s: measured 42.62 Pa, predicted 10.04 Pa",
+    "topic-140620-12-11-47.BIN landing at 261.3 s: measured 37.54 Pa, predicted 11.19 Pa",
+    "topic-140620-12-11-47.BIN landing at 687.6 s: measured 36.03 Pa, predicted 18.12 Pa",
+    "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa"
   ],
-  "inventorySha256": "2afee1c7342c57bb5623d997d407dda45010352e9a31d6d041d20ccd1d798377",
+  "inventorySha256": "01f7d8e4f002ef006e595c2383419833348ad49155261bdda607bebae176521e",
   "method": {
     "throttleOn": 0.05,
     "referenceBeforeS": [
@@ -28,6 +32,7 @@
       "max": 10,
       "count": 200
     },
+    "rangefinderGapS": 0.25,
     "profileBinsM": [
       0,
       0.15,
@@ -51,6 +56,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.30479999999999996
       },
+      "heightSource": "gnss",
       "inducedPressurePa": 15.12,
       "fit": {
         "gain": 0.786,
@@ -188,6 +194,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.30479999999999996
       },
+      "heightSource": "gnss",
       "inducedPressurePa": 12.6,
       "fit": {
         "gain": 7.691,
@@ -470,6 +477,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.30479999999999996
       },
+      "heightSource": "gnss",
       "inducedPressurePa": 14.7,
       "fit": {
         "gain": 2.195,
@@ -595,6 +603,1486 @@
             }
           ],
           "skipped": []
+        },
+        {
+          "file": "topic-140620-00000175.BIN",
+          "sha256": "8d39966009f65198038390b0db0bb5bda5cd48ce5dff30d83fda698a67bb74de",
+          "role": "hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 379.67,
+              "referencePa": 96149,
+              "noisePa": 2.65,
+              "referenceSamples": 41,
+              "samples": 149,
+              "nearGroundPa": 24.27,
+              "nearGroundSamples": 9,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 22.36,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 39.55,
+                  "samples": 1
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 28.51,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": 10.44,
+                  "samples": 5
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": 4.42,
+                  "samples": 8
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -4.62,
+                  "samples": 12
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": 15.74,
+                  "samples": 113
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 3290.97,
+              "referencePa": 96268.1,
+              "noisePa": 3.27,
+              "referenceSamples": 39,
+              "samples": 150,
+              "nearGroundPa": 42.62,
+              "nearGroundSamples": 9,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 45.39,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 40.41,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 14.83,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -6.99,
+                  "samples": 15
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -8.79,
+                  "samples": 22
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -8.68,
+                  "samples": 43
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": -9.42,
+                  "samples": 55
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-140620-12-11-47.BIN",
+          "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03",
+          "role": "hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 70.2,
+              "referencePa": 91214.1,
+              "noisePa": 4.33,
+              "referenceSamples": 39,
+              "samples": 150,
+              "nearGroundPa": 35.47,
+              "nearGroundSamples": 12,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 32.31,
+                  "samples": 10
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 51.29,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 40.36,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": 13.41,
+                  "samples": 8
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -3.66,
+                  "samples": 13
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -5.17,
+                  "samples": 29
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": -4.19,
+                  "samples": 84
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 261.29,
+              "referencePa": 91208.3,
+              "noisePa": 3.26,
+              "referenceSamples": 40,
+              "samples": 151,
+              "nearGroundPa": 37.54,
+              "nearGroundSamples": 16,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 37.98,
+                  "samples": 10
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 36.8,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 23.61,
+                  "samples": 40
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -3.86,
+                  "samples": 24
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -5.76,
+                  "samples": 25
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -5.49,
+                  "samples": 46
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "takeoff",
+              "motorTimeS": 546.2,
+              "referencePa": 91194,
+              "noisePa": 3.43,
+              "referenceSamples": 39,
+              "samples": 150,
+              "nearGroundPa": 26.45,
+              "nearGroundSamples": 20,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 26.15,
+                  "samples": 13
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 27.02,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 9.15,
+                  "samples": 10
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -5.8,
+                  "samples": 8
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -7.61,
+                  "samples": 23
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -2.81,
+                  "samples": 24
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": -2.53,
+                  "samples": 65
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 687.59,
+              "referencePa": 91185.7,
+              "noisePa": 2.69,
+              "referenceSamples": 41,
+              "samples": 150,
+              "nearGroundPa": 36.03,
+              "nearGroundSamples": 45,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 40.22,
+                  "samples": 32
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": 25.72,
+                  "samples": 13
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": 18.89,
+                  "samples": 11
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": 0.41,
+                  "samples": 31
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -4.26,
+                  "samples": 63
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        }
+      ],
+      "holdOuts": [
+        {
+          "file": "topic-140620-00000175.BIN",
+          "motorTimeS": 3290.97,
+          "measuredPa": 42.62,
+          "predictedPa": 10.04,
+          "within": false
+        },
+        {
+          "file": "topic-140620-12-11-47.BIN",
+          "motorTimeS": 261.29,
+          "measuredPa": 37.54,
+          "predictedPa": 11.19,
+          "within": false
+        },
+        {
+          "file": "topic-140620-12-11-47.BIN",
+          "motorTimeS": 687.59,
+          "measuredPa": 36.03,
+          "predictedPa": 18.12,
+          "within": false
+        }
+      ]
+    },
+    {
+      "id": "m1200-u8xl-32in-18kg",
+      "aircraft": {
+        "configuration": "m1200-u8xl-32in-18kg",
+        "massKg": 18,
+        "rotorCount": 4,
+        "rotorRadiusM": 0.4064
+      },
+      "heightSource": "gnss",
+      "inducedPressurePa": 21.26,
+      "fit": {
+        "gain": 0.981,
+        "decayRadii": 0.12,
+        "washCoefficient": -0.862,
+        "rmsPa": 4.93,
+        "samples": 150
+      },
+      "fitError": null,
+      "logs": [
+        {
+          "file": "topic-96944-1NN44LN2.BIN",
+          "sha256": "2deff34c55959b5a5c529ce6580d6cad0f81a1a197cbf4611dd91fe3efd26cbd",
+          "role": "fit",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 523.17,
+              "referencePa": 95346.8,
+              "noisePa": 1.25,
+              "referenceSamples": 34,
+              "samples": 149,
+              "nearGroundPa": 0.58,
+              "nearGroundSamples": 16,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 1.93,
+                  "samples": 14
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -8.86,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -10.64,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -15.97,
+                  "samples": 127
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 1046.47,
+              "referencePa": 95331.1,
+              "noisePa": 1.5,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": -1.44,
+              "nearGroundSamples": 61,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 0.04,
+                  "samples": 55
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -14.99,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -12.04,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -15.28,
+                  "samples": 35
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -21.97,
+                  "samples": 47
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-96944-1aYxm5oh.BIN",
+          "sha256": "bb43b15b2f16c4eb7c20004c3d6a047942e97ce25a42f3c3c21886b0bdbc238f",
+          "role": "hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 296.27,
+              "referencePa": 95623.9,
+              "noisePa": 1.67,
+              "referenceSamples": 31,
+              "samples": 150,
+              "nearGroundPa": 6.17,
+              "nearGroundSamples": 10,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 8.62,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -3.66,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -0.53,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -6.43,
+                  "samples": 71
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -2.97,
+                  "samples": 61
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 605.37,
+              "referencePa": 95625.3,
+              "noisePa": 1.63,
+              "referenceSamples": 39,
+              "samples": 150,
+              "nearGroundPa": 3.29,
+              "nearGroundSamples": 31,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 5.38,
+                  "samples": 22
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -1.83,
+                  "samples": 9
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -6.82,
+                  "samples": 11
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -8.54,
+                  "samples": 40
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -13.24,
+                  "samples": 68
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        }
+      ],
+      "holdOuts": [
+        {
+          "file": "topic-96944-1aYxm5oh.BIN",
+          "motorTimeS": 605.37,
+          "measuredPa": 3.29,
+          "predictedPa": -9.35,
+          "within": false
+        }
+      ]
+    },
+    {
+      "id": "5in-quad-mtf02p-145352",
+      "aircraft": {
+        "configuration": "5in-quad-mtf02p-145352",
+        "massKg": null,
+        "rotorCount": 4,
+        "rotorRadiusM": 0.0635
+      },
+      "heightSource": "rangefinder",
+      "inducedPressurePa": null,
+      "fit": null,
+      "fitError": "no stated mass",
+      "logs": [
+        {
+          "file": "topic-145352-1fltx_zp.BIN",
+          "sha256": "4513ff8823bb1992b56d7d50065aaa21ce8697944c5cc275c8a44089f6549f50",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 620.2,
+              "referencePa": 74335.1,
+              "noisePa": 10.45,
+              "referenceSamples": 41,
+              "samples": 140,
+              "nearGroundPa": 0.32,
+              "nearGroundSamples": 9,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 5.26,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -16.98,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -13.82,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -13.43,
+                  "samples": 6
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -14,
+                  "samples": 121
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 834.1,
+              "referencePa": 74348.3,
+              "noisePa": 12.07,
+              "referenceSamples": 40,
+              "samples": 151,
+              "nearGroundPa": -20.15,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -14.44,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -29.67,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -29.91,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -30.14,
+                  "samples": 101
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -29.39,
+                  "samples": 37
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": [
+            {
+              "kind": "landing",
+              "motorTimeS": 622.5,
+              "reason": "the motors run in the motors-off window"
+            },
+            {
+              "kind": "takeoff",
+              "motorTimeS": 623.5,
+              "reason": "the motors run in the motors-off window"
+            }
+          ]
+        },
+        {
+          "file": "topic-145352-1BRaKnj_.BIN",
+          "sha256": "29611ec212007c8e2aa6b8e8142347171ecd66929dae3b024e9826c7a56ab00a",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 58.09,
+              "referencePa": 74482.4,
+              "noisePa": 18.39,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 7.68,
+              "nearGroundSamples": 6,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 36.39,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -21.03,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -19.79,
+                  "samples": 10
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -17.67,
+                  "samples": 73
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -19.46,
+                  "samples": 61
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-145352-1r0OAZFa.BIN",
+          "sha256": "c864c6ad8e9a5503b3433651ef0b608b2712cbc67aa7e2bcb24383d09af640d8",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 78.58,
+              "referencePa": 74538.6,
+              "noisePa": 3.52,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": -55.92,
+              "nearGroundSamples": 39,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -44.75,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -57.95,
+                  "samples": 33
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -57.53,
+                  "samples": 12
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -57.23,
+                  "samples": 99
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 233.28,
+              "referencePa": 74503,
+              "noisePa": 21.86,
+              "referenceSamples": 41,
+              "samples": 151,
+              "nearGroundPa": -15.54,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -11.15,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -22.86,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -23.15,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -24.9,
+                  "samples": 138
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-145352-1MrX9c7d.BIN",
+          "sha256": "d845c6fdf6d0acf48c074646c78719e73c64f5a974ddc41c0120ac0f2e4dcf33",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 56.5,
+              "referencePa": 74546.8,
+              "noisePa": 23.03,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": -8.08,
+              "nearGroundSamples": 5,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 7.89,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -32.03,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -30.44,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -31.27,
+                  "samples": 126
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -32.24,
+                  "samples": 11
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 251.7,
+              "referencePa": 74534,
+              "noisePa": 22.61,
+              "referenceSamples": 41,
+              "samples": 151,
+              "nearGroundPa": -14.51,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -11.67,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -23.05,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -23.29,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -24.51,
+                  "samples": 138
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "takeoff",
+              "motorTimeS": 442.1,
+              "referencePa": 74542.2,
+              "noisePa": 24.87,
+              "referenceSamples": 40,
+              "samples": 93,
+              "nearGroundPa": -16.4,
+              "nearGroundSamples": 41,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -10.33,
+                  "samples": 32
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -37.98,
+                  "samples": 9
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -36.86,
+                  "samples": 15
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -36.37,
+                  "samples": 25
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -35.38,
+                  "samples": 12
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 451.5,
+              "referencePa": 74510.2,
+              "noisePa": 0.27,
+              "referenceSamples": 39,
+              "samples": 92,
+              "nearGroundPa": 13.71,
+              "nearGroundSamples": 40,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 19.43,
+                  "samples": 31
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -5.99,
+                  "samples": 9
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -4.88,
+                  "samples": 15
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -4.39,
+                  "samples": 25
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -3.4,
+                  "samples": 12
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "takeoff",
+              "motorTimeS": 468,
+              "referencePa": 74544,
+              "noisePa": 14.19,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": -13.59,
+              "nearGroundSamples": 6,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -0.04,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -40.68,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -39.45,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -39.91,
+                  "samples": 86
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -39.97,
+                  "samples": 52
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": [
+            {
+              "kind": "landing",
+              "motorTimeS": 448.1,
+              "reason": "the motors run in the motors-off window"
+            },
+            {
+              "kind": "takeoff",
+              "motorTimeS": 448.4,
+              "reason": "the motors run in the motors-off window"
+            }
+          ]
+        },
+        {
+          "file": "topic-145352-1krgUV6Y.BIN",
+          "sha256": "e95e43e0487727d0816612273986405659dca38a7526657c3200df157b59685c",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 61.73,
+              "referencePa": 74197.4,
+              "noisePa": 10.44,
+              "referenceSamples": 36,
+              "samples": 150,
+              "nearGroundPa": 9.12,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 20.72,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -10.21,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -9.5,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -8.88,
+                  "samples": 4
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -11.48,
+                  "samples": 135
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 214.33,
+              "referencePa": 74194.6,
+              "noisePa": 18.32,
+              "referenceSamples": 40,
+              "samples": 151,
+              "nearGroundPa": -7.08,
+              "nearGroundSamples": 7,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -3.59,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -15.81,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -15.81,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -17.84,
+                  "samples": 81
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -19.41,
+                  "samples": 58
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-145352-1nreVudP.BIN",
+          "sha256": "88572fac09cb274ccb4f5acf3488a75894c60d6bf088c47b0072161f79a5a9a8",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 357.39,
+              "referencePa": 74197.3,
+              "noisePa": 11.8,
+              "referenceSamples": 41,
+              "samples": 149,
+              "nearGroundPa": 7.69,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 14.8,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -13.64,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -12.37,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -12.77,
+                  "samples": 99
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -10.64,
+                  "samples": 39
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "topic-145352-1XC3hSDH.BIN",
+          "sha256": "25874e4564d12428fa7d4638856e498f1d0137494220214aa37a2e97ffcec9de",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 199.06,
+              "referencePa": 74338.7,
+              "noisePa": 11.96,
+              "referenceSamples": 39,
+              "samples": 149,
+              "nearGroundPa": 2.17,
+              "nearGroundSamples": 8,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 13.78,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -17.18,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -15.9,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -15.57,
+                  "samples": 118
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -14.37,
+                  "samples": 20
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": [
+            {
+              "kind": "landing",
+              "motorTimeS": 274.06,
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+            }
+          ]
         }
       ],
       "holdOuts": []
@@ -607,6 +2095,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.30479999999999996
       },
+      "heightSource": "gnss",
       "inducedPressurePa": null,
       "fit": null,
       "fitError": "no stated mass",
@@ -738,6 +2227,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.41147999999999996
       },
+      "heightSource": "gnss",
       "inducedPressurePa": 18.44,
       "fit": {
         "gain": 2.533,
@@ -1073,6 +2563,7 @@
         "rotorCount": 4,
         "rotorRadiusM": 0.381
       },
+      "heightSource": "gnss",
       "inducedPressurePa": 21.5,
       "fit": {
         "gain": 0.262,

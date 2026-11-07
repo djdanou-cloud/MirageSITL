@@ -13,11 +13,14 @@ import { syntheticLog, type SyntheticMessage, type SyntheticValue } from './supp
 //    near-ground mean equals the measured one within 0.02 Pa;
 //  - a stop with the motors running again within the reference window, and a stop 3 m above the ground, are skipped with their reasons,
 //    and so is a spin-up that never leaves the ground (a rule added after the first run on the real logs);
-//  - the declared tolerance is 5 Pa or 30 %, whichever is larger.
+//  - the declared tolerance is 5 Pa or 30 %, whichever is larger;
+//  - with the rangefinder as the height source (declared 2026-11-07), the same landing measured against RFND.Dist (status 4) gives
+//    the same excess within 0.02 Pa, and barometer samples farther than 0.25 s from a good reading are left out.
 const MESSAGES: readonly SyntheticMessage[] = [
   { type: 70, name: 'CTUN', format: 'Qf', columns: ['TimeUS', 'ThO'] },
   { type: 71, name: 'BARO', format: 'QBf', columns: ['TimeUS', 'I', 'Press'] },
   { type: 72, name: 'GPS', format: 'QBf', columns: ['TimeUS', 'I', 'Alt'] },
+  { type: 73, name: 'RFND', format: 'QBfB', columns: ['TimeUS', 'Instance', 'Dist', 'Stat'] },
 ];
 const AIRCRAFT: DipAircraft = { massKg: 7, rotorCount: 4, rotorRadiusM: 0.3048 };
 const { min, max, count } = DIP_METHOD.decayGrid;
@@ -25,7 +28,7 @@ const LAMBDA = min * (max / min) ** (80 / (count - 1)), GAIN = 2, WASH = -0.3;
 const P0 = 95000, H0 = 500, RHO_G = P0 / (287.05 * 288.15) * 9.80665;
 
 /** A descent from 5 m to the ground at 0.5 m/s ending at t = 30 s, motors stopping at 30 s, then 10 s on the ground. */
-function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean } = {}): Uint8Array {
+function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean; rangefinderOutS?: readonly [number, number] } = {}): Uint8Array {
   const rows: { message: string; values: SyntheticValue[] }[] = [];
   const q = inducedPressurePa(AIRCRAFT)!, ground = options.groundM ?? 0;
   const height = (t: number) => (options.groundOnly ? 0 : t < 20 ? 5 : t < 30 ? 5 - 0.5 * (t - 20) : 0) + ground;
@@ -38,6 +41,9 @@ function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: 
       rows.push({ message: 'BARO', values: [us + 1, 0, P0 - RHO_G * h + excess] });
     }
     if (k % 20 === 0) rows.push({ message: 'GPS', values: [us + 2, 0, H0 + height(t)] });
+    // The rangefinder reads the height above its landed reading of 0.02 m; out of range (status 1) in rangefinderOutS.
+    const out = options.rangefinderOutS && t >= options.rangefinderOutS[0] && t < options.rangefinderOutS[1];
+    if (k % 5 === 0) rows.push({ message: 'RFND', values: [us + 3, 0, 0.02 + height(t), out ? 1 : 4] });
   }
   return syntheticLog(MESSAGES, rows);
 }
@@ -85,6 +91,24 @@ describe('logged barometer dips', () => {
     const ground = measureBarometerDips(readDataFlash(landing({ groundOnly: true })), AIRCRAFT);
     expect(ground.events).toEqual([]);
     expect(ground.skipped.map(s => s.reason)).toEqual(['the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight']);
+  });
+
+  it('measures the same landing against the rangefinder, leaving out samples without a good reading nearby', () => {
+    const gnss = measureBarometerDips(readDataFlash(landing()), AIRCRAFT).events[0]!;
+    const ranged = measureBarometerDips(readDataFlash(landing()), AIRCRAFT, 'rangefinder').events[0]!;
+    expect(ranged.samples.length).toBe(gnss.samples.length);
+    ranged.samples.forEach((s, i) => {
+      // The GNSS altitude near 505 m is stored to half a float32 step, 1.5e-5 m.
+      expect(Math.abs(s.heightM - gnss.samples[i]!.heightM)).toBeLessThan(2e-5);
+      expect(Math.abs(s.deltaPa - gnss.samples[i]!.deltaPa)).toBeLessThan(0.02);
+    });
+    // Out of range from 25 s to 26 s: the good readings around the gap are at 24.95 s and 26.00 s, so barometer samples more than
+    // 0.25 s from both, from 25.25 s to 25.75 s, are left out.
+    const gap = measureBarometerDips(readDataFlash(landing({ rangefinderOutS: [25, 26] })), AIRCRAFT, 'rangefinder').events[0]!;
+    const dropped = gnss.samples.filter(s => s.timeS - 24.950003 > 0.25 && 26.000003 - s.timeS > 0.25).length;
+    expect(dropped).toBe(11);
+    expect(gap.samples.length).toBe(gnss.samples.length - dropped);
+    expect(gap.samples.some(s => s.timeS > 25.24 && s.timeS < 25.76)).toBe(false);
   });
 
   it('applies the declared tolerance: 5 Pa or 30 %, whichever is larger', () => {

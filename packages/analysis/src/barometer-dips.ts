@@ -26,6 +26,8 @@ export const DIP_METHOD = Object.freeze({
   /** Landing samples fitted, m above the landed position. */
   fitMaxHeightM: 2,
   decayGrid: Object.freeze({ min: 0.1, max: 10, count: 200 }),
+  /** A rangefinder height is used only within this of a good reading, s. */
+  rangefinderGapS: 0.25,
   /** Height bins of the reported profile, m. */
   profileBinsM: Object.freeze([0, 0.15, 0.3, 0.6, 1.2, 2.4, 4.8]),
 });
@@ -40,6 +42,8 @@ export interface DipAircraft {
   readonly rotorCount: number;
   readonly rotorRadiusM: number;
 }
+/** The height reference: the first GNSS receiver's altitude, or the first rangefinder's distance where its status is good (4). */
+export type DipHeightSource = "gnss" | "rangefinder";
 export interface DipSample { readonly timeS: number; readonly heightM: number; readonly deltaPa: number }
 export interface DipProfileBin { readonly fromM: number; readonly toM: number | null; readonly meanPa: number | null; readonly samples: number }
 export interface DipEvent {
@@ -93,6 +97,26 @@ function series(log: DataFlashLog, groupName: string, columnName: string): Serie
   if (times.length < 2) throw new Error(`The log has fewer than two ${groupName}.${columnName} rows`);
   return { timeS: Float64Array.from(times), values: Float64Array.from(values) };
 }
+/** The first rangefinder's good readings (RFND.Stat 4), m. */
+function rangefinderSeries(log: DataFlashLog): Series {
+  const group = groupOf(log, "RFND");
+  if (!group) throw new Error("The log has no RFND messages");
+  const time = columnOf(group, "TimeUS"), distance = columnOf(group, "Dist"), status = columnOf(group, "Stat"), instance = columnOf(group, "Instance") ?? columnOf(group, "I");
+  if (!time || !distance || !status) throw new Error("The log has no RFND.Dist and RFND.Stat");
+  const times: number[] = [], values: number[] = [];
+  for (let row = 0; row < group.count; row++) {
+    if ((instance && valueAt(instance, row) !== 0) || valueAt(status, row) !== 4) continue;
+    const t = Number(time.values[row]) * 1e-6, v = valueAt(distance, row);
+    if (Number.isFinite(t) && Number.isFinite(v)) { times.push(t); values.push(v); }
+  }
+  if (times.length < 2) throw new Error("The log has fewer than two good RFND readings");
+  return { timeS: Float64Array.from(times), values: Float64Array.from(values) };
+}
+/** Time from t to the nearest row of a series, s. */
+function nearestGapS(s: Series, t: number): number {
+  const i = upperIndex(s, t), a = Math.abs(t - s.timeS[i]!), next = s.timeS[i + 1];
+  return next === undefined ? a : Math.min(a, Math.abs(next - t));
+}
 /** The series at time t, straight between its neighbours and held beyond its ends. */
 function interpolate(s: Series, t: number): number {
   const times = s.timeS, last = times.length - 1;
@@ -111,11 +135,16 @@ export function inducedPressurePa(aircraft: DipAircraft): number | null {
 }
 
 /** Every motor start and stop of a log with its measured excess pressure, or the reason it was skipped. */
-export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): DipMeasurement {
+export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft, heightSource: DipHeightSource = "gnss"): DipMeasurement {
   if (!(aircraft.rotorCount >= 1) || !(aircraft.rotorRadiusM > 0) || (aircraft.massKg !== null && !(aircraft.massKg > 0))) {
     throw new Error("The aircraft needs a positive rotor count, rotor radius and, when stated, mass");
   }
-  const throttle = series(log, "CTUN", "ThO"), pressure = series(log, "BARO", "Press"), altitude = series(log, "GPS", "Alt");
+  const throttle = series(log, "CTUN", "ThO"), pressure = series(log, "BARO", "Press");
+  const altitude = heightSource === "gnss" ? series(log, "GPS", "Alt") : rangefinderSeries(log);
+  const label = heightSource === "gnss" ? "GNSS" : "rangefinder";
+  // The height at t, or null for a rangefinder without a good reading within rangefinderGapS.
+  const heightAt = (t: number): number | null =>
+    heightSource === "rangefinder" && nearestGapS(altitude, t) > DIP_METHOD.rangefinderGapS ? null : interpolate(altitude, t);
   const on = DIP_METHOD.throttleOn, events: DipEvent[] = [], skipped: SkippedDipEvent[] = [];
   const isOn = (t: number) => throttle.values[upperIndex(throttle, t)]! > on;
   for (let i = 1; i < throttle.timeS.length; i++) {
@@ -135,18 +164,21 @@ export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): 
     for (let k = 0; k < pressure.timeS.length; k++) {
       const t = pressure.timeS[k]!;
       if (t < from || t > to) continue;
-      const p = pressure.values[k]!;
-      sum += p; sumSquares += p * p; heightSum += interpolate(altitude, t); n++;
+      const p = pressure.values[k]!, h = heightAt(t);
+      if (h === null) continue;
+      sum += p; sumSquares += p * p; heightSum += h; n++;
     }
     if (n < DIP_METHOD.minReferenceSamples) {
-      skipped.push({ kind, motorTimeS, reason: `${n} barometer samples in the motors-off window, fewer than ${DIP_METHOD.minReferenceSamples}` });
+      skipped.push({ kind, motorTimeS, reason: `${n} barometer samples with a ${label} height in the motors-off window, fewer than ${DIP_METHOD.minReferenceSamples}` });
       continue;
     }
     const referencePa = sum / n, referenceHeightM = heightSum / n;
     const noisePa = Math.sqrt(Math.max(0, (sumSquares - n * referencePa * referencePa) / (n - 1)));
-    const atMotor = interpolate(altitude, motorTimeS) - referenceHeightM;
+    const motorHeight = heightAt(motorTimeS), moment = kind === "takeoff" ? "start" : "stop";
+    if (motorHeight === null) { skipped.push({ kind, motorTimeS, reason: `no good ${label} reading at the motor ${moment}` }); continue; }
+    const atMotor = motorHeight - referenceHeightM;
     if (Math.abs(atMotor) > DIP_METHOD.groundToleranceM) {
-      skipped.push({ kind, motorTimeS, reason: `the GNSS height at the motor ${kind === "takeoff" ? "start" : "stop"} is ${atMotor.toFixed(2)} m from the motors-off reference, not on the ground` });
+      skipped.push({ kind, motorTimeS, reason: `the ${label} height at the motor ${moment} is ${atMotor.toFixed(2)} m from the motors-off reference, not on the ground` });
       continue;
     }
     const rhoG = referencePa / (GAS_CONSTANT_DRY_AIR * DIP_METHOD.airTemperatureK) * STANDARD_GRAVITY;
@@ -156,7 +188,9 @@ export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): 
     for (let k = 0; k < pressure.timeS.length; k++) {
       const t = pressure.timeS[k]!;
       if (t < w0 || t > w1 || !isOn(t)) continue;
-      const heightM = interpolate(altitude, t) - referenceHeightM;
+      const h = heightAt(t);
+      if (h === null) continue;
+      const heightM = h - referenceHeightM;
       samples.push({ timeS: t, heightM, deltaPa: pressure.values[k]! - (referencePa - rhoG * heightM) });
     }
     if (!samples.some(sample => sample.heightM >= DIP_METHOD.minFlightHeightM)) {

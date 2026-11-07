@@ -6364,6 +6364,34 @@ constant fits every aircraft and the cushion's gain belongs to the aircraft's co
 four determined fits give k_e from 0.26 to 2.5 and λ from 0.17 to 0.78; the effect's defaults (k 1,
 λ 1) lie within that spread of gains.
 
+**Second list (2026-11-07), declared before its run.** The stakeholder kept the task open for more
+landings. The inventory gains the 5-inch quad of topic 145352, which flew indoors with a downward
+rangefinder (`RFND`, MTF-02P), the 18 kg quad of topic 96944 and two more logs of the 7 kg aircraft
+of topic 140620 (same board serial). `measureBarometerDips` takes a height source: `gnss` as above,
+or `rangefinder`, which reads `RFND.Dist` of the first rangefinder where `RFND.Stat` is 4 (good)
+and uses a barometer sample only when a good reading lies within 0.25 s of it; the reference height
+is the mean reading of the motors-off window, so h is the height above the landed reading. Every
+other rule is unchanged, and so is the tolerance. New hold-outs: `m1200-u8xl-32in-18kg` fitted on
+`topic-96944-1NN44LN2` and held out on `topic-96944-1aYxm5oh`; `tmotor-7005-230kv-24in-7kg`,
+fitted as before on `topic-140620-00000218`, held out on `topic-140620-00000175` and
+`topic-140620-12-11-47`. The 5-inch quad's mass is not stated, so its seven logs are measured with
+the rangefinder and not fitted. The 6 kg aircraft has no new log, so its miss stands.
+
+Result of the second list (2026-11-07, `node scripts/check-baro-dips.mjs`, exit 1; `tests/barometer-dips.test.ts`
+4 passed): no new hold-out is reproduced, so three of eight are over both lists. The 7 kg aircraft's
+two other logs show near-ground excesses of 42.6, 37.5 and 36.0 Pa at their landings (24 to 35 Pa at
+take-off) where the fit from 00000218, whose landing showed 15.9 Pa, predicts 10.0 to 18.1 Pa: the
+same aircraft, the same method, and a dip two to three times larger from one flight to another. The
+logs do not tell why; what differs between them is the learned hover throttle (`MOT_THST_HOVER`
+0.254 in 00000218, 0.274 and 0.287 in the others, so possibly another load), the receiver's fix
+type, which changes how far the GNSS height lags, and the weather. The 18 kg aircraft's held-out
+landing measured 3.3 Pa against −9.4 Pa predicted: its fit (k_e 0.98, λ 0.12, c −0.86) is driven by
+a strong suction of −15 to −22 Pa in its fit log's low flight that the held-out log shows at −2 to
+−13 Pa. The 5-inch quad's barometer scatters 10 to 25 Pa while its motors are off indoors (one
+window 0.3 Pa), so its near-ground excesses of −56 to +14 Pa cannot be read at the 5 Pa level; its
+low flight shows a suction of −10 to −40 Pa. A dip constant per configuration fitted on one flight
+does not carry to that aircraft's other flights within the declared tolerance.
+
 ## GNSS v2 (TASK-117)
 
 GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the
@@ -6450,6 +6478,15 @@ GPS-only sky and report about half its HDOP; the Here4 reports a horizontal accu
 times smaller than the model's default σ·HDOP. The NMEA receiver of 00000205 reported 28 satellites
 and HDOP 0.60 at every one of its 26,487 epochs: values it held, not measurements. A real
 multi-constellation almanac and a receiver-class σ are what the comparison asks for.
+
+The second list (2026-11-07) adds four outdoor logs; the seven indoor logs of topic 145352 have no
+fix and are listed with that reason, not counted. Medians: the 18 kg aircraft's receiver (not
+stated; 3-D fix only) 16 and 15 satellites, HDOP 0.66 and 0.68, HAcc 0.83 and 0.81 m, VAcc 1.49 and
+1.29 m against the model's 8 and 6 satellites, HDOP 0.92 and 1.30 and σ·HDOP 1.39 and 1.95 m; the
+7 kg aircraft's two other logs 30 satellites, HDOP 0.52, HAcc 0.65 and 0.62 m, VAcc 1.05 and 1.07 m
+against 7 and 8, HDOP 0.98 and 0.87 and 1.48 and 1.31 m. The pattern holds: four times the
+satellites, half the HDOP. Still no reference position, so the error statistics stay
+BLOCKED_EXTERNAL.
 
 ## Electromechanical drive (TASK-092)
 

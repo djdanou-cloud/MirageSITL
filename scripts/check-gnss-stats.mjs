@@ -45,7 +45,14 @@ for (const entry of inventory.logs) {
   const bytes = readFileSync(path), sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== entry.sha256) { reasons.push(`${entry.file} has SHA-256 ${sha256}, not the inventory's ${entry.sha256}`); continue; }
   const aircraft = inventory.aircraft.find(item => item.id === entry.aircraft);
-  const s = gnssLogStatistics(readDataFlash(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)));
+  let s;
+  try {
+    s = gnssLogStatistics(readDataFlash(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)));
+  } catch (error) {
+    // A log flown indoors has no fix: listed with its reason, not counted.
+    logs.push({ file: entry.file, sha256, aircraft: entry.aircraft, receiver: aircraft?.stated.gnss?.value ?? "not stated", missing: error.message });
+    continue;
+  }
   logs.push({
     file: entry.file, sha256, aircraft: entry.aircraft, receiver: aircraft?.stated.gnss?.value ?? "not stated",
     epochs: s.epochs, durationS: round(s.durationS, 1), rateHz: round(s.rateHz, 2), status: s.status,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "datasetId": "ardupilot-forum-flight-logs-2026-11-07",
-  "description": "Real ArduCopter DataFlash logs and one manufacturer bench table that their owners posted publicly on the ArduPilot forum while asking for help. The files are not in the repository: they are too large for git, and nobody granted a license. They are kept outside every checkout and passed to the analysis scripts with --input PATH --sha256 HEX; this file holds each file's SHA-256, size and source. Adopted for TASK-116, TASK-117, TASK-145 and TASK-184 by the stakeholder's decision of 2026-11-07 ('Use the parts that hold up'), after a review that found the logs genuine and several claims of the list that pointed to them wrong (no rangefinder, radar altimeter or ESC telemetry in any log).",
+  "description": "Real ArduCopter DataFlash logs and one manufacturer bench table that their owners posted publicly on the ArduPilot forum while asking for help. The files are not in the repository: they are too large for git, and nobody granted a license. They are kept outside every checkout and passed to the analysis scripts with --input PATH --sha256 HEX; this file holds each file's SHA-256, size and source. Adopted for TASK-116, TASK-117, TASK-145 and TASK-184 by the stakeholder's decision of 2026-11-07 ('Use the parts that hold up'), after a review that found the logs genuine and several claims of the list that pointed to them wrong (no rangefinder, radar altimeter or ESC telemetry in any log). A second list of 2026-11-07 (ardupilot-forum-datasets-v2.md) added the 5-inch quad of topic 145352 with a rangefinder and motor speeds, the 18 kg quad of topic 96944 and two more logs of topic 140620; its other claims checked wrong are noted with their aircraft.",
   "license": "none stated; posted publicly to discuss.ardupilot.org for analysis by others",
   "licenseStatus": "no-explicit-license",
   "localCopy": "Kept outside the repository (on the reference Mac in ~/Projects/MirageSITL-data/forum-logs/, with a SHA256SUMS file); never committed.",
@@ -83,6 +83,36 @@
       "unknown": ["arm length", "inertia", "barometer location"],
       "notes": "No battery records (BAT) in any of its logs. The archive the owner shared also holds 00000019.BIN and 00000020.BIN (684 MB and 127 MB), not kept."
     }
+,
+    {
+      "id": "5in-quad-mtf02p-145352",
+      "topic": "https://discuss.ardupilot.org/t/ardupilot-5-inch-drone-using-optical-flow-and-rangefinder-for-indoor-position-hold-altitude-oscillations/145352",
+      "owner": "jhon_mesa",
+      "stated": {
+        "frame": { "value": "5-inch quad X (FRAME_CLASS 1, FRAME_TYPE 1)", "locator": "post 1 and the log's parameters" },
+        "rangefinder": { "value": "MicoAir MTF-02P optical flow and ToF rangefinder (RNGFND1_TYPE 10)", "locator": "post 1 and the log's parameters" },
+        "motorRpm": { "value": "bidirectional DShot (MOT_PWM_TYPE 5), 14 poles (SERVO_BLH_POLES)", "locator": "the log's parameters" },
+        "flightController": { "value": "DAKEFPVH743, board 002B0019 35335116 33333431", "locator": "the logs' MSG records" }
+      },
+      "unknown": ["mass", "motor and propeller models", "arm length", "inertia", "barometer location"],
+      "notes": "Indoors without GNSS: the rangefinder (RFND, status 4) is the only height reference. Post 19 (andyp1per) reports a motors-on accelerometer offset from vibration on this airframe, which drives the EKF's height; the raw barometer pressure and the rangefinder used here do not depend on it. Which of the seven files each post name belongs to is not known; each is identified by its Google Drive file ID."
+    },
+    {
+      "id": "m1200-u8xl-32in-18kg",
+      "topic": "https://discuss.ardupilot.org/t/tuning-18-kg-quadcopter/96944",
+      "owner": "1afridi",
+      "stated": {
+        "frame": { "value": "T-Drones M1200 quad X", "locator": "post 1" },
+        "massKg": { "value": 18.0, "locator": "post 1 ('an 18kg quadcopter')" },
+        "motor": { "value": "T-Motor U8XL 100KV ('came with U8XL KV100 motor', post 12)", "locator": "posts 1 and 12" },
+        "propeller": { "value": "32 inch", "locator": "post 1" },
+        "esc": { "value": "T-Motor Flame", "locator": "post 12" },
+        "battery": { "value": "12S 30000 mAh", "locator": "post 1" },
+        "flightController": { "value": "CubeOrange, board 00480043 34305112 30383637", "locator": "the logs' MSG records" }
+      },
+      "unknown": ["arm length", "inertia", "propeller make and pitch", "barometer location"],
+      "notes": "The U8XL table the owner posted (post 8) is for KV110, not the KV100 motors the aircraft has, so it is not adopted as this aircraft's bench data."
+    }
   ],
   "logs": [
     { "file": "topic-144558-00000205.BIN", "aircraft": "mn7005-kv230-24in-7.2kg", "sha256": "54c8530d6ebcbe27dcefedfd27655dd7ff5a994adbffd6660dc28ce7e6083153", "bytes": 109277184, "post": 1, "posted": "2026-07-15", "link": "https://drive.google.com/file/d/1IHVtCa8-WGH9xp2Z-gHVAQuWq8X5kDlZ/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
@@ -95,7 +125,18 @@
     { "file": "topic-134119-00000016.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "6b4297977f5cb6f94ba860b4f7fb56e005b973e6cf00788112a1874f8c0df00e", "bytes": 10124424, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
     { "file": "topic-134119-00000017.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "e628782add08eeed7ef40cfbf577f1040e30a2cf0eb2c6e84e4f1bfb4123af35", "bytes": 17545443, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
     { "file": "topic-134119-00000023.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "d030da29e722f5b843fbf9fe72acd0c145a88cd4915dfff407122549d0a296c9", "bytes": 35294700, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
-    { "file": "topic-134119-00000025.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "33c18d55ece8828f3337bc775e9d9bf16e9516f2db5ca548713a090019893591", "bytes": 50842901, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" }
+    { "file": "topic-134119-00000025.BIN", "aircraft": "p80iii-kv100-30in-16kg", "sha256": "33c18d55ece8828f3337bc775e9d9bf16e9516f2db5ca548713a090019893591", "bytes": 50842901, "post": 1, "posted": "2025-05-09", "link": "https://drive.google.com/file/d/1i63zd_19leBadamcyseRDDS390EqhVj2/view", "binding": "member of the post's ZIP archive", "firmware": "ArduCopter V4.5.5 (142aece2)" },
+    { "file": "topic-145352-1fltx_zp.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "4513ff8823bb1992b56d7d50065aaa21ce8697944c5cc275c8a44089f6549f50", "bytes": 12718496, "post": 1, "posted": "2026-08-31", "link": "https://drive.google.com/file/d/1fltx_zpFtINmDIvJlHw_liMBPMYpIqvr/view", "binding": "the post's only link", "firmware": "ArduCopter V4.7.0 (1511f271)" },
+    { "file": "topic-145352-1BRaKnj_.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "29611ec212007c8e2aa6b8e8142347171ecd66929dae3b024e9826c7a56ab00a", "bytes": 16319996, "post": 9, "posted": "2026-09-04", "link": "https://drive.google.com/file/d/1BRaKnj_9I8kxOF-2A_VjD5dh_Dh0cxEZ/view", "binding": "one of the post's two links (testflight2.bin or testflight3.bin), by its Drive ID", "firmware": "ArduCopter V4.7.1 (dbe79216)" },
+    { "file": "topic-145352-1r0OAZFa.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "c864c6ad8e9a5503b3433651ef0b608b2712cbc67aa7e2bcb24383d09af640d8", "bytes": 11502746, "post": 9, "posted": "2026-09-04", "link": "https://drive.google.com/file/d/1r0OAZFaQBUhC3b7n3T5KvrewT6NvJACq/view", "binding": "one of the post's two links (testflight2.bin or testflight3.bin), by its Drive ID", "firmware": "ArduCopter V4.7.1 (dbe79216)" },
+    { "file": "topic-145352-1MrX9c7d.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "d845c6fdf6d0acf48c074646c78719e73c64f5a974ddc41c0120ac0f2e4dcf33", "bytes": 16283246, "post": 14, "posted": "2026-09-07", "link": "https://drive.google.com/file/d/1MrX9c7dOtMy2GjW0ntiY7nrNyc45I9L0/view", "binding": "one of the post's three links (guidetest, guidetest2, guidetest3), by its Drive ID", "firmware": "ArduCopter V4.7.0 (1511f271)" },
+    { "file": "topic-145352-1krgUV6Y.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "e95e43e0487727d0816612273986405659dca38a7526657c3200df157b59685c", "bytes": 8744246, "post": 14, "posted": "2026-09-07", "link": "https://drive.google.com/file/d/1krgUV6Y0L3JrsfmAZdscwCl0HLeU81ir/view", "binding": "one of the post's three links (guidetest, guidetest2, guidetest3), by its Drive ID", "firmware": "ArduCopter V4.7.1 (dbe79216)" },
+    { "file": "topic-145352-1nreVudP.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "88572fac09cb274ccb4f5acf3488a75894c60d6bf088c47b0072161f79a5a9a8", "bytes": 16275496, "post": 14, "posted": "2026-09-07", "link": "https://drive.google.com/file/d/1nreVudPnKxQA5D5EyQM3SXFna-2DWzYN/view", "binding": "one of the post's three links (guidetest, guidetest2, guidetest3), by its Drive ID", "firmware": "ArduCopter V4.7.1 (dbe79216)" },
+    { "file": "topic-145352-1XC3hSDH.BIN", "aircraft": "5in-quad-mtf02p-145352", "sha256": "25874e4564d12428fa7d4638856e498f1d0137494220214aa37a2e97ffcec9de", "bytes": 5193996, "post": 20, "posted": "2026-09-10", "link": "https://drive.google.com/file/d/1XC3hSDHuhXA3xor2eZ-adahXwh4kWFnm/view", "binding": "the post's only link", "firmware": "ArduCopter V4.7.1 (dbe79216)" },
+    { "file": "topic-96944-1NN44LN2.BIN", "aircraft": "m1200-u8xl-32in-18kg", "sha256": "2deff34c55959b5a5c529ce6580d6cad0f81a1a197cbf4611dd91fe3efd26cbd", "bytes": 18307072, "post": 14, "posted": "2023-02-21", "link": "https://drive.google.com/file/d/1NN44LN2sLRsjS5Q3QlCcz7N8iAz9JZZO/view", "binding": "the post's only link", "firmware": "ArduCopter V4.3.3 (34e8e02c)" },
+    { "file": "topic-96944-1aYxm5oh.BIN", "aircraft": "m1200-u8xl-32in-18kg", "sha256": "bb43b15b2f16c4eb7c20004c3d6a047942e97ce25a42f3c3c21886b0bdbc238f", "bytes": 11100160, "post": 18, "posted": "2023-02-28", "link": "https://drive.google.com/file/d/1aYxm5ohCpOT2gUoftzvV8i8fOCRhOgb1/view", "binding": "one of the post's two links, by its Drive ID", "firmware": "ArduCopter V4.3.3 (34e8e02c)" },
+    { "file": "topic-140620-00000175.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "8d39966009f65198038390b0db0bb5bda5cd48ce5dff30d83fda698a67bb74de", "bytes": 122221202, "post": 1, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1sDDKhTxmbQ5H7v9UoFV228352ySNTOQL/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "topic-140620-12-11-47.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03", "bytes": 14997374, "post": 3, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1mulpT1BdlQBfaEZ2JiMbL22sdSUAA-ZS/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
   ],
   "benchTables": [
     {
