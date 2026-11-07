@@ -7,9 +7,10 @@
     "topic-140620-00000175.BIN landing at 3291.0 s: measured 42.62 Pa, predicted 10.04 Pa",
     "topic-140620-12-11-47.BIN landing at 261.3 s: measured 37.54 Pa, predicted 11.19 Pa",
     "topic-140620-12-11-47.BIN landing at 687.6 s: measured 36.03 Pa, predicted 18.12 Pa",
-    "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa"
+    "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa",
+    "stakeholder-00000167.BIN landing at 260.8 s: measured 34.82 Pa, predicted 2.99 Pa"
   ],
-  "inventorySha256": "e4bcb74c33c5ef81d383cd914580c26d4a9101da7ed56031c2fcf6d6377de065",
+  "inventorySha256": "c1dc6292e17fcf6aba74b71e7c9daa1abe64c3c1017cf12c45a82e3598dbea55",
   "method": {
     "throttleOn": 0.05,
     "referenceBeforeS": [
@@ -24,6 +25,7 @@
     "groundToleranceM": 0.5,
     "windowS": 15,
     "minFlightHeightM": 1,
+    "lowHoverS": 5,
     "nearGroundM": 0.3,
     "airTemperatureK": 288.15,
     "fitMaxHeightM": 2,
@@ -57,6 +59,7 @@
         "rotorRadiusM": 0.30479999999999996
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 15.12,
       "fit": {
         "gain": 0.786,
@@ -195,6 +198,7 @@
         "rotorRadiusM": 0.30479999999999996
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 12.6,
       "fit": {
         "gain": 7.691,
@@ -478,6 +482,7 @@
         "rotorRadiusM": 0.30479999999999996
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 14.7,
       "fit": {
         "gain": 2.195,
@@ -978,6 +983,7 @@
         "rotorRadiusM": 0.4064
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 21.26,
       "fit": {
         "gain": 0.981,
@@ -1240,6 +1246,7 @@
         "rotorRadiusM": 0.0635
       },
       "heightSource": "rangefinder",
+      "pressureUnits": false,
       "inducedPressurePa": null,
       "fit": null,
       "fitError": "no stated mass or rotor radius",
@@ -2074,32 +2081,379 @@
                   "samples": 0
                 }
               ]
-            }
-          ],
-          "skipped": [
+            },
             {
               "kind": "landing",
               "motorTimeS": 274.06,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "referencePa": 74357.5,
+              "noisePa": 12.2,
+              "referenceSamples": 41,
+              "samples": 151,
+              "nearGroundPa": -37.49,
+              "nearGroundSamples": 7,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": -39.12,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -35.31,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -35.36,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -33.19,
+                  "samples": 139
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
             }
-          ]
+          ],
+          "skipped": []
         }
       ],
       "holdOuts": []
     },
     {
-      "id": "stakeholder-4s-quad-00000084",
+      "id": "stakeholder-4s-quad",
       "aircraft": {
-        "configuration": "stakeholder-4s-quad-00000084",
-        "massKg": null,
+        "configuration": "stakeholder-4s-quad",
+        "massKg": 0.05125652741500584,
         "rotorCount": 4,
-        "rotorRadiusM": null
+        "rotorRadiusM": 0.1
       },
       "heightSource": "rangefinder",
-      "inducedPressurePa": null,
-      "fit": null,
-      "fitError": "no stated mass or rotor radius",
+      "pressureUnits": true,
+      "inducedPressurePa": 1,
+      "fit": {
+        "gain": 74.808,
+        "decayRadii": 0.1,
+        "washCoefficient": -14.762,
+        "rmsPa": 7.82,
+        "samples": 299
+      },
+      "fitError": null,
       "logs": [
+        {
+          "file": "stakeholder-00000116.BIN",
+          "sha256": "6fe9e769c7353d8e93f0f28bf87ec4ef2df8d99bd4911e5a9114610b2f16652e",
+          "role": "fit",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 48.61,
+              "referencePa": 100561.8,
+              "noisePa": 13.04,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 30.59,
+              "nearGroundSamples": 16,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 73.01,
+                  "samples": 9
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -23.94,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -23.36,
+                  "samples": 134
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 359.11,
+              "referencePa": 100551.7,
+              "noisePa": 2.23,
+              "referenceSamples": 33,
+              "samples": 150,
+              "nearGroundPa": -11.57,
+              "nearGroundSamples": 38,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 2.35,
+                  "samples": 6
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -14.18,
+                  "samples": 32
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -15.13,
+                  "samples": 11
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -14.8,
+                  "samples": 101
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 359.31,
+              "referencePa": 100551.6,
+              "noisePa": 2.24,
+              "referenceSamples": 32,
+              "samples": 149,
+              "nearGroundPa": -7.11,
+              "nearGroundSamples": 39,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 25.16,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -14.17,
+                  "samples": 32
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -15.12,
+                  "samples": 11
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -14.77,
+                  "samples": 99
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 359.31,
+              "reason": "the motors run in the motors-off window"
+            }
+          ]
+        },
+        {
+          "file": "stakeholder-00000167.BIN",
+          "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8",
+          "role": "hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 32.56,
+              "referencePa": 100587.8,
+              "noisePa": 11,
+              "referenceSamples": 41,
+              "samples": 150,
+              "nearGroundPa": 76.91,
+              "nearGroundSamples": 9,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 104.86,
+                  "samples": 7
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -20.94,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -20.36,
+                  "samples": 13
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -19.07,
+                  "samples": 83
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -15.09,
+                  "samples": 45
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 260.76,
+              "referencePa": 100583.9,
+              "noisePa": 0.21,
+              "referenceSamples": 39,
+              "samples": 150,
+              "nearGroundPa": 34.82,
+              "nearGroundSamples": 17,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 88.79,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -13.15,
+                  "samples": 9
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -13.17,
+                  "samples": 10
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -13.6,
+                  "samples": 18
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -14.43,
+                  "samples": 105
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        },
         {
           "file": "stakeholder-00000084.BIN",
           "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e",
@@ -2217,7 +2571,15 @@
           "skipped": []
         }
       ],
-      "holdOuts": []
+      "holdOuts": [
+        {
+          "file": "stakeholder-00000167.BIN",
+          "motorTimeS": 260.76,
+          "measuredPa": 34.82,
+          "predictedPa": 2.99,
+          "within": false
+        }
+      ]
     },
     {
       "id": "mn7005-kv115-24in-12s",
@@ -2228,6 +2590,7 @@
         "rotorRadiusM": 0.30479999999999996
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": null,
       "fit": null,
       "fitError": "no stated mass or rotor radius",
@@ -2360,6 +2723,7 @@
         "rotorRadiusM": 0.41147999999999996
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 18.44,
       "fit": {
         "gain": 2.533,
@@ -2650,7 +3014,7 @@
             {
               "kind": "takeoff",
               "motorTimeS": 1229.5,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor start: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor start, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "landing",
@@ -2665,17 +3029,17 @@
             {
               "kind": "landing",
               "motorTimeS": 1234.4,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "takeoff",
               "motorTimeS": 1247.3,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor start: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor start, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "landing",
               "motorTimeS": 1253.4,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "takeoff",
@@ -2696,6 +3060,7 @@
         "rotorRadiusM": 0.381
       },
       "heightSource": "gnss",
+      "pressureUnits": false,
       "inducedPressurePa": 21.5,
       "fit": {
         "gain": 0.262,
@@ -2878,7 +3243,7 @@
             {
               "kind": "takeoff",
               "motorTimeS": 1861.17,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor start: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor start, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "landing",
@@ -2893,12 +3258,12 @@
             {
               "kind": "landing",
               "motorTimeS": 1884.37,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "takeoff",
               "motorTimeS": 2717.97,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor start: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor start, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "landing",
@@ -2913,7 +3278,7 @@
             {
               "kind": "landing",
               "motorTimeS": 2726.28,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             },
             {
               "kind": "takeoff",
@@ -3094,7 +3459,7 @@
             {
               "kind": "landing",
               "motorTimeS": 993.36,
-              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight"
+              "reason": "the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight"
             }
           ]
         },

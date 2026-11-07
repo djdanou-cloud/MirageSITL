@@ -17,8 +17,10 @@ export const DIP_METHOD = Object.freeze({
   groundToleranceM: 0.5,
   /** Measured samples: motors on within this after a start or before a stop, s. */
   windowS: 15,
-  /** A start or stop counts only when the vehicle flew: a measured sample at least this high, m (added after the first run). */
+  /** A start or stop counts only when the vehicle flew: a measured sample at least this high, m (added after the first run), */
   minFlightHeightM: 1,
+  /** or samples at or above `nearGroundM` spanning at least this long, s (added for a low hover, 2026-11-07). */
+  lowHoverS: 5,
   /** The near-ground excess is the mean of the samples within this of the reference height, m. */
   nearGroundM: 0.3,
   /** Air temperature of the hydrostatic correction, not logged, K. */
@@ -128,6 +130,14 @@ function interpolate(s: Series, t: number): number {
   const f = (t - times[lo]!) / (times[hi]! - times[lo]!);
   return s.values[lo]! + f * (s.values[hi]! - s.values[lo]!);
 }
+/**
+ * The aircraft for a fit in pressure units (declared 2026-11-07): q_i 1 Pa and R 0.1 m, which only set the units of k_e (Pa) and
+ * λ (0.1 m). For one aircraft and battery only, whose true q_i and R do not change between its flights.
+ */
+export function pressureUnitAircraft(rotorCount: number): DipAircraft {
+  const rotorRadiusM = 0.1;
+  return { massKg: 4 * rotorCount * Math.PI * rotorRadiusM ** 2 / STANDARD_GRAVITY, rotorCount, rotorRadiusM };
+}
 /** The stated geometry and mass a fit needs, or null. */
 function fitted(aircraft: DipAircraft): { massKg: number; rotorRadiusM: number } | null {
   return aircraft.massKg === null || aircraft.rotorRadiusM === null ? null : { massKg: aircraft.massKg, rotorRadiusM: aircraft.rotorRadiusM };
@@ -198,8 +208,10 @@ export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft, h
       const heightM = h - referenceHeightM;
       samples.push({ timeS: t, heightM, deltaPa: pressure.values[k]! - (referencePa - rhoG * heightM) });
     }
-    if (!samples.some(sample => sample.heightM >= DIP_METHOD.minFlightHeightM)) {
-      skipped.push({ kind, motorTimeS, reason: `the vehicle stayed below ${DIP_METHOD.minFlightHeightM} m within ${DIP_METHOD.windowS} s of the motor ${kind === "takeoff" ? "start" : "stop"}: a spin-up on the ground, not a flight` });
+    const aloft = samples.filter(sample => sample.heightM >= DIP_METHOD.nearGroundM);
+    const lowHover = aloft.length > 1 && aloft[aloft.length - 1]!.timeS - aloft[0]!.timeS >= DIP_METHOD.lowHoverS;
+    if (!lowHover && !samples.some(sample => sample.heightM >= DIP_METHOD.minFlightHeightM)) {
+      skipped.push({ kind, motorTimeS, reason: `the vehicle stayed below ${DIP_METHOD.minFlightHeightM} m within ${DIP_METHOD.windowS} s of the motor ${kind === "takeoff" ? "start" : "stop"}, nor ${DIP_METHOD.lowHoverS} s at ${DIP_METHOD.nearGroundM} m or more: a spin-up on the ground, not a flight` });
       continue;
     }
     const near = samples.filter(sample => sample.heightM < DIP_METHOD.nearGroundM);

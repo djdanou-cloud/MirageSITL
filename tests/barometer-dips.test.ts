@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readDataFlash } from '../packages/dataflash/src/reader.ts';
-import { DIP_METHOD, fitGroundCushion, inducedPressurePa, measureBarometerDips, predictNearGroundPa, withinDipTolerance,
+import { DIP_METHOD, fitGroundCushion, inducedPressurePa, measureBarometerDips, predictNearGroundPa, pressureUnitAircraft, withinDipTolerance,
   type DipAircraft } from '../packages/analysis/src/barometer-dips.ts';
 import { syntheticLog, type SyntheticMessage, type SyntheticValue } from './support/synthetic-log.ts';
 
@@ -28,10 +28,11 @@ const LAMBDA = min * (max / min) ** (80 / (count - 1)), GAIN = 2, WASH = -0.3;
 const P0 = 95000, H0 = 500, RHO_G = P0 / (287.05 * 288.15) * 9.80665;
 
 /** A descent from 5 m to the ground at 0.5 m/s ending at t = 30 s, motors stopping at 30 s, then 10 s on the ground. */
-function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean; rangefinderOutS?: readonly [number, number] } = {}): Uint8Array {
+function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean; lowHover?: boolean; rangefinderOutS?: readonly [number, number] } = {}): Uint8Array {
   const rows: { message: string; values: SyntheticValue[] }[] = [];
   const q = inducedPressurePa(AIRCRAFT)!, ground = options.groundM ?? 0;
-  const height = (t: number) => (options.groundOnly ? 0 : t < 20 ? 5 : t < 30 ? 5 - 0.5 * (t - 20) : 0) + ground;
+  const top = options.lowHover ? 0.6 : 5;
+  const height = (t: number) => (options.groundOnly ? 0 : t < 20 ? top : t < 30 ? top - (top / 10) * (t - 20) : 0) + ground;
   const on = (t: number) => t < 30 || (options.restartAtS !== undefined && t >= options.restartAtS);
   for (let k = 0; k <= 4000; k++) {
     const t = k * 0.01, us = Math.round(t * 1e6);
@@ -90,7 +91,7 @@ describe('logged barometer dips', () => {
     expect(high.skipped[0]?.reason).toBe('the GNSS height at the motor stop is 3.00 m from the motors-off reference, not on the ground');
     const ground = measureBarometerDips(readDataFlash(landing({ groundOnly: true })), AIRCRAFT);
     expect(ground.events).toEqual([]);
-    expect(ground.skipped.map(s => s.reason)).toEqual(['the vehicle stayed below 1 m within 15 s of the motor stop: a spin-up on the ground, not a flight']);
+    expect(ground.skipped.map(s => s.reason)).toEqual(['the vehicle stayed below 1 m within 15 s of the motor stop, nor 5 s at 0.3 m or more: a spin-up on the ground, not a flight']);
   });
 
   it('measures the same landing against the rangefinder, leaving out samples without a good reading nearby', () => {
@@ -117,6 +118,19 @@ describe('logged barometer dips', () => {
     expect(withinDipTolerance(40, 52)).toBe(true);
     expect(withinDipTolerance(40, 52.01)).toBe(false);
     expect(withinDipTolerance(-20, -26)).toBe(true);
+  });
+
+  it('counts a low hover as a flight: 0.6 m for 5 s and more, never 1 m (declared 2026-11-07)', () => {
+    const low = measureBarometerDips(readDataFlash(landing({ lowHover: true })), AIRCRAFT);
+    expect(low.skipped).toEqual([]);
+    expect(low.events).toHaveLength(1);
+    expect(Math.max(...low.events[0]!.samples.map(s => s.heightM))).toBeLessThan(1);
+  });
+
+  it('fits in pressure units with q_i 1 Pa and R 0.1 m', () => {
+    const unit = pressureUnitAircraft(4);
+    expect(inducedPressurePa(unit)).toBeCloseTo(1, 12);
+    expect(unit.rotorRadiusM).toBe(0.1);
   });
 
   it('measures an aircraft without a stated mass or rotor radius and refuses to fit it', () => {

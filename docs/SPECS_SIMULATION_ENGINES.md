@@ -6402,6 +6402,40 @@ above static while the motors spin up on the ground and 45 Pa at the touchdown (
 4.0 and 0.15 Pa. A mass and a propeller size would let it be fitted; a second flight of the same
 aircraft would let it be held out.
 
+**The stakeholder's flights 00000116 and 00000167 (2026-11-07), declared before their run.** Two
+more flights of the same aircraft (same board serial, ArduCopter V4.6.2), both with
+`BATT_CAPACITY` 4800 where 00000084 has 4000, so another battery and possibly another mass. Two
+changes, made after a first look at these logs and before any fit of them:
+
+* The flight rule misses a real flight that hovers low: 00000116 hovers 50 s between 0.35 and 0.8 m
+  before it climbs, and its landing comes down slowly from 0.65 m. A start or stop now counts as a
+  flight when a measured sample reaches 1 m, as before, or when the samples at or above 0.3 m span
+  at least 5 s (`lowHoverS`); a spin-up on the ground does neither. Every other event's count
+  stays as reported above unless the rerun lists it.
+* Without a stated mass and rotor radius the same model is fitted in pressure units: q_i is taken
+  as 1 Pa and R as 0.1 m, which only set the units, so k_e is in pascals and λ·0.1 m is the decay
+  height. This holds a fit to one aircraft and battery only, where the true q_i and R do not change
+  between its flights.
+
+Hold-out: fitted on 00000116 and held out on 00000167, same battery setting, with the declared
+tolerance; 00000084 is measured only.
+
+Result (2026-11-07, exit 1; `tests/barometer-dips.test.ts` 7 passed): the hold-out is not
+reproduced, three of nine over all lists. The fit on 00000116 (k_e 74.8 Pa, λ at the grid's floor,
+a decay height of 0.01 m, c −14.8 Pa) predicts 3.0 Pa for 00000167's landing, which measured 34.8 Pa.
+The low-hover rule added one event of the 5-inch quad of topic 145352 and moved no hold-out. Binned
+finely against the rangefinder, every flight of the stakeholder's aircraft shows the same two levels:
+an excess of 40 to 180 Pa only within 0.03 to 0.06 m of the landed reading, on the ground or in the
+first centimetres, and a flat suction of −13 to −30 Pa from about 0.1 m up, the same at 0.15 m and at
+3 m; the 5-inch quad of topic 145352 shows the same step to −14 to −45 Pa. The near-ground mean
+(heights below 0.3 m) therefore weighs a step by how many barometer samples, at 10 Hz, fall in the
+few centimetres where the aircraft sits or touches down with its motors at speed, which differs from
+flight to flight: 00000116's slow landing from a 0.6 m hover left 2 to 3 such samples, 00000167's
+take-off and landing 4 to 7. This explains the misses with the rangefinder, and very likely those
+with the GNSS height, which cannot resolve centimetres. A metric that separates the on-ground
+excess from the airborne offset would test the model's shape directly; it would be declared before
+a run on new logs, since these have been seen.
+
 ## GNSS v2 (TASK-117)
 
 GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the

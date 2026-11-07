@@ -115,18 +115,18 @@
     }
 ,
     {
-      "id": "stakeholder-4s-quad-00000084",
+      "id": "stakeholder-4s-quad",
       "topic": null,
       "owner": "the stakeholder",
       "stated": {
         "frame": { "value": "quad X with reversed motor directions (FRAME_CLASS 1, FRAME_TYPE 18, 'QUAD/X_REV')", "locator": "the log's parameters and MSG records" },
-        "battery": { "value": "4S, BATT_CAPACITY 4000 mAh", "locator": "the log's parameters" },
+        "battery": { "value": "4S; BATT_CAPACITY 4000 mAh in 00000084, 4800 mAh in 00000116 and 00000167", "locator": "the logs' parameters" },
         "rangefinder": { "value": "RNGFND1_TYPE 10 with optical flow (FLOW_TYPE 5)", "locator": "the log's parameters" },
         "motorRpm": { "value": "bidirectional DShot600 (MOT_PWM_TYPE 6, SERVO_BLH_BDMASK 15), 14 poles", "locator": "the log's parameters" },
         "flightController": { "value": "MatekH743-bdshot, board 00330029 30335119 38323836", "locator": "the log's MSG records" }
       },
       "unknown": ["mass", "motor and propeller models", "arm length", "inertia", "barometer location"],
-      "notes": "The stakeholder's own flight log, given on 2026-11-07 with the note that the drone was not configured in the best way. The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
+      "notes": "The stakeholder's own flight logs, given on 2026-11-07 with the note that the drone was not configured in the best way; 00000116 and 00000167, given later that day as a bit better, have BATT_CAPACITY 4800 where 00000084 has 4000, so another battery. About 00000084: The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
     }
   ],
   "logs": [
@@ -152,7 +152,9 @@
     { "file": "topic-96944-1aYxm5oh.BIN", "aircraft": "m1200-u8xl-32in-18kg", "sha256": "bb43b15b2f16c4eb7c20004c3d6a047942e97ce25a42f3c3c21886b0bdbc238f", "bytes": 11100160, "post": 18, "posted": "2023-02-28", "link": "https://drive.google.com/file/d/1aYxm5ohCpOT2gUoftzvV8i8fOCRhOgb1/view", "binding": "one of the post's two links, by its Drive ID", "firmware": "ArduCopter V4.3.3 (34e8e02c)" },
     { "file": "topic-140620-00000175.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "8d39966009f65198038390b0db0bb5bda5cd48ce5dff30d83fda698a67bb74de", "bytes": 122221202, "post": 1, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1sDDKhTxmbQ5H7v9UoFV228352ySNTOQL/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
     { "file": "topic-140620-12-11-47.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03", "bytes": 14997374, "post": 3, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1mulpT1BdlQBfaEZ2JiMbL22sdSUAA-ZS/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
-    { "file": "stakeholder-00000084.BIN", "aircraft": "stakeholder-4s-quad-00000084", "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e", "bytes": 71102464, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
+    { "file": "stakeholder-00000084.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e", "bytes": 71102464, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "stakeholder-00000116.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "6fe9e769c7353d8e93f0f28bf87ec4ef2df8d99bd4911e5a9114610b2f16652e", "bytes": 162226176, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "stakeholder-00000167.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8", "bytes": 121294848, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
   ],
   "benchTables": [
     {
