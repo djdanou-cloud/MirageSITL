@@ -129,6 +129,24 @@
       },
       "unknown": ["mass of each flight", "motor model", "propeller model and pitch", "arm length", "inertia", "barometer location"],
       "notes": "The stakeholder's own flight logs, given on 2026-11-07 with the note that the drone was not configured in the best way; 00000116 and 00000167, given later that day as a bit better, have BATT_CAPACITY 4800 where 00000084 has 4000, so another battery. About 00000084: The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
+    },
+    {
+      "id": "stakeholder-speedybee35",
+      "topic": null,
+      "owner": "the stakeholder",
+      "stated": {
+        "frame": { "value": "quad, ArduPilot's BetaFlight X motor order (FRAME_CLASS 1, FRAME_TYPE 12)", "locator": "the log's parameters and MSG records" },
+        "flightController": { "value": "T-Motor H743 Mini (16 MB onboard flash), IMU BMI270; board 001A0036 31315119 38363233", "locator": "the stakeholder's note (sources/stakeholder-speedybee35.txt) and the log's MSG records" },
+        "esc": { "value": "T-Motor 45A Mini 4-in-1 (BLHeli32)", "locator": "the stakeholder's note" },
+        "motor": { "value": "SpeedyBee 2006 1950KV", "locator": "the stakeholder's note" },
+        "battery": { "value": "4S 2800 mAh Li-ion", "locator": "the stakeholder's note" },
+        "receiver": { "value": "Radiomaster RP4TD ExpressLRS 2.4 GHz", "locator": "the stakeholder's note" },
+        "gnss": { "value": "GEPRC GEP-M1025-MI with compass and barometer", "locator": "the stakeholder's note" },
+        "rangefinder": { "value": "RNGFND1_TYPE 10 with optical flow", "locator": "the log's parameters" },
+        "motorRpm": { "value": "bidirectional DShot600, 14 poles", "locator": "the log's parameters" }
+      },
+      "unknown": ["mass", "propeller size and pitch (the file name says SpeedyBee 3.5)", "arm length", "rangefinder height below the rotors", "inertia"],
+      "notes": "The stakeholder's log 19-10-2026-tune-120hz-frt-02.bin with a hardware note, given on 2026-11-08: ArduCopter V4.8.0-dev (ca435933), one 34 s flight hovering 0.1 to 0.9 m above the ground indoors without a GNSS fix; logging was paused before 82.9 s, so no barometer reference before the take-off."
     }
   ],
   "logs": [
@@ -156,7 +174,8 @@
     { "file": "topic-140620-12-11-47.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03", "bytes": 14997374, "post": 3, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1mulpT1BdlQBfaEZ2JiMbL22sdSUAA-ZS/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
     { "file": "stakeholder-00000084.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e", "bytes": 71102464, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
     { "file": "stakeholder-00000116.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "6fe9e769c7353d8e93f0f28bf87ec4ef2df8d99bd4911e5a9114610b2f16652e", "bytes": 162226176, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
-    { "file": "stakeholder-00000167.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8", "bytes": 121294848, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
+    { "file": "stakeholder-00000167.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8", "bytes": 121294848, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "stakeholder-speedybee35-19-10-2026-tune-120hz-frt-02.BIN", "aircraft": "stakeholder-speedybee35", "sha256": "2bfe29bc707968f47a00d6cb6fb60bb0bf31330a84d988515823b0825e4066b3", "bytes": 4892746, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.8.0-dev (ca435933)" }
   ],
   "benchTables": [
     {
