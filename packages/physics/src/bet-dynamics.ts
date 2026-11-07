@@ -4,6 +4,7 @@ import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, Act
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
 import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
 import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
+import type { RotorMapTable } from '../../wasm-bet/src/rotor-map.ts';
 import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
 import type { MotorFaults } from './motor-fault.ts';
@@ -91,6 +92,8 @@ export interface BetFlightConfiguration {
   dynamicInflow?: boolean;
   /** TASK-099, with `dynamicInflow`: Johnson's vortex ring state; each rotor's thrust fluctuation is seeded from this and its index. */
   vortexRingSeed?: number;
+  /** TASK-103: per rotor, the table it takes its loads from, or null for the blade-element kernel. Absent is the BET on every rotor. */
+  rotorMaps?: readonly (RotorMapTable | null)[];
   /** TASK-101: the wakes between rotors and on the airframe. Without it every rotor sees free-stream air. Needs the ESC drive. */
   rotorWake?: RotorWakeConfiguration;
   /** TASK-100: the ground the rotor ground effect sees; without it a flat plane at the session's ground. */
@@ -363,13 +366,15 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         configuration.pilotMix.length!==n*4 || (configuration.motorMapId>>>0)!==configuration.motorMapId ||
         !Number.isFinite(configuration.minimumConfidence) || configuration.minimumConfidence<0 || configuration.minimumConfidence>1)
       throw Error('Invalid BET flight configuration');
+    if(configuration.rotorMaps&&configuration.rotorMaps.length!==n)throw Error('Rotor maps need one entry per rotor');
     const definitions=model.rotors.map((r,i)=>{
-      const polar=configuration.polars.get(r.polarId);
+      const polar=configuration.polars.get(r.polarId),rotorMap=configuration.rotorMaps?.[i]??null;
       if(!polar)throw Error('Missing rotor polar binding');
       return {geometry:r,polar,initialOmegaRadS:configuration.initialOmegaRadS[i]!,
         inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence,
         kernelOptions:configuration.kernelOptions??0,dynamicInflow:configuration.dynamicInflow===true,
-        ...(configuration.vortexRingSeed===undefined?{}:{vortexRingSeed:configuration.vortexRingSeed+i})};
+        ...(configuration.vortexRingSeed===undefined?{}:{vortexRingSeed:configuration.vortexRingSeed+i}),
+        ...(rotorMap?{rotorModel:'map' as const,rotorMap}:{})};
     });
     this.hz=hz;this.dt=1/hz;this.rotorCount=n;this.modelId=model.modelId;this.motorMapId=configuration.motorMapId;
     const drive=configuration.drive;

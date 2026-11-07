@@ -533,7 +533,12 @@ implementation.
   wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
   any other in reach, on by default, so a coaxial pair is not twice one rotor,
   and the airframe's download from the hull; only its comparison with measured
-  data stays BLOCKED_EXTERNAL (D-11). TASK-093 is DONE: `weather.set`
+  data stays BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode
+  (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
+  Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
+  the profile; it stays IN_PROGRESS because 9 of 111 left-out stand points miss the
+  declared 3 %, by the data's own scatter, and that call is the stakeholder's.
+  TASK-093 is DONE: `weather.set`
   applies on its tick to `BetFlightDynamics` (the demo still rejects it); every
   step the rotors read the ISA air at the CG's height above the origin's air
   and a uniform mean wind with a seeded TASK-032 gust, the published airspeed

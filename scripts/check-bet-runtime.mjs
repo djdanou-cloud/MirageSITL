@@ -42,19 +42,20 @@ export {createSessionFaultPort} from './packages/ew/src/session-port.ts';
 export {WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH} from './packages/physics/src/atmosphere.ts';
 export {StateReaderV2,createSharedMemoryV2,createSpscQueue,newFlightStateV2,newHeaderSnapshotV2,tickToNumber} from '@mirage/protocol';
 export {flightConfiguration,rotorDefinition} from './tests/bet-runtime-fixture.ts';
-export {parseNeuralFoilPolar} from './packages/wasm-bet/src/rotor.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
+export {parseNeuralFoilPolar} from './packages/wasm-bet/src/rotor.ts';
+export {readRotorMap} from './packages/wasm-bet/src/rotor-map.ts';`,resolveDir:root,sourcefile:'bet-runtime-entry.ts',loader:'ts'},
   bundle:true,platform:'node',format:'esm',packages:'external',outfile:bundle,metafile:true});
 const {BetRotorEngine,BetRotorEngineV2,BetRigidBodyBackendV2,newBodyTruthV2,BetFlightDynamics,MotorFaults,PhysicsSessionV2,CollisionChunks,createSessionFaultPort,WEATHER_DISCRETE_DOWN,WEATHER_DISCRETE_DURATION,
   WEATHER_DISCRETE_EAST,WEATHER_DISCRETE_NORTH,WEATHER_GUST_RMS,WEATHER_PRESSURE,
   WEATHER_SEED,WEATHER_SLOTS,WEATHER_TEMPERATURE,WEATHER_WIND_DOWN,WEATHER_WIND_EAST,WEATHER_WIND_NORTH,StateReaderV2,createSharedMemoryV2,createSpscQueue,
-  newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition,parseNeuralFoilPolar}=await import(pathToFileURL(bundle).href);
+  newFlightStateV2,newHeaderSnapshotV2,tickToNumber,flightConfiguration,rotorDefinition,parseNeuralFoilPolar,readRotorMap}=await import(pathToFileURL(bundle).href);
 const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/wasm-bet/dist/mirage_bet.${v}.wasm`)));
 const sourceFiles=Object.keys(bundled.metafile.inputs).filter(p=>p!=='bet-runtime-entry.ts').map(p=>p.replaceAll('\\','/'));
 sourceFiles.push('scripts/check-bet-runtime.mjs','scripts/bet-runtime-graphs.ts','native/bet/src/bound.rs','native/bet/src/polar.rs','native/bet/src/lib.rs',
   'native/bet/src/blade.rs','native/bet/src/shaft.rs','native/bet/src/inflow.rs','native/bet/src/rigid_body.rs',
   'native/bet/src/body_abi.rs','native/Cargo.lock','native/rust-toolchain.toml',
   'packages/physics/package.json','packages/wasm-bet/package.json',
-  'native/bet/Cargo.toml','native/bet/tests/allocation.rs','native/bet/tests/bound_v2.rs','native/bet/tests/support/bound_fixture.rs');
+  'native/bet/Cargo.toml','tests/fixtures/rotors/rotor-map-synthetic.json','native/bet/tests/allocation.rs','native/bet/tests/bound_v2.rs','native/bet/tests/support/bound_fixture.rs');
 for (const entry of readdirSync(resolve(root,'native/bet/src')))
   if(entry.endsWith('.rs')) sourceFiles.push('native/bet/src/'+entry);
 const identity={sourceInputs:[...new Set(sourceFiles)].map(file=>({file,sha256:sha(read(file))})),
@@ -108,7 +109,7 @@ if(!allocation){
   if(report.status!=='pass')process.exitCode=1;
 }else{
   const native=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','allocation','--locked'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
-  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('bus_solve_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 3 passed;'))throw Error('Native bound allocator check did not execute');
+  if(!native.includes('production_bound_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('bus_solve_allocates_zero_over_one_million_steps ... ok') || !native.includes('table_rotor_step_allocates_zero_over_one_million_steps ... ok') || !native.includes('test result: ok. 4 passed;'))throw Error('Native bound allocator check did not execute');
   // TASK-092: the ESC drive mode and the shared bus under the same counting allocator.
   const drive=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','bound_v2','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
   // TASK-091: the opt-in kernel modes run under the same counting allocator.
@@ -347,6 +348,17 @@ if(!allocation){
     memoryStable:calibrated.escEngine.memoryStable};
   if(!(flaggedSteps>0&&flaggedSteps<1000000))throw Error('The calibration validity flag did not switch');
   samples.push(calibratedGraph);calibrated.dispose();console.log(JSON.stringify(calibratedGraph));
+  // TASK-103: a table rotor on every arm, turning on the ESC drive in a gusty wind on the pad, its loads read off the nodes at every step.
+  const rotorMap=await readRotorMap(JSON.parse(read('tests/fixtures/rotors/rotor-map-synthetic.json')));
+  for(const [variantIndex,variant] of ['scalar','simd128'].entries()){
+    const tabled=padded();tabled.drive=driven.drive;tabled.rotorMaps=[rotorMap,rotorMap,rotorMap,rotorMap];
+    const table=new BetFlightDynamics(modules[variantIndex],tabled,400);
+    if(table.setWeather(weathers[0])!==null)throw Error('Weather refused');
+    const tableRun=n=>{for(let i=0;i<n;i++){table.nowMs=0;table.stepNow(escPilot);if(table.fault||table.state.down!==0||!(table.electrical[2]>0))throw Error('Table rotor allocation step failed');}};
+    tableRun(100000);await measure(tableRun,10000);
+    const tableGraph={graph:'rotor-map-esc-drive-weather-pad-four-rotor',variant,...await measure(tableRun,1000000),memoryStable:table.escEngine.memoryStable};
+    samples.push(tableGraph);table.dispose();console.log(JSON.stringify(tableGraph));
+  }
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;

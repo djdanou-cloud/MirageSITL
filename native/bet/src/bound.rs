@@ -55,17 +55,17 @@ pub const HOVER_ENTER: f64 = 0.05;
 /// Hover sampling stops when the regime measure rises above this value.
 pub const HOVER_LEAVE: f64 = 0.10;
 
-fn u(b: &[u8], p: usize) -> Option<u32> { Some(u32::from_le_bytes(b.get(p..p+4)?.try_into().ok()?)) }
-fn f(b: &[u8], p: usize) -> Option<f64> { Some(f64::from_le_bytes(b.get(p..p+8)?.try_into().ok()?)) }
-fn put(b: &mut [u8], p: usize, v: f64) { b[p..p+8].copy_from_slice(&v.to_le_bytes()); }
-fn word(b: &mut [u8], p: usize, v: u32) { b[p..p+4].copy_from_slice(&v.to_le_bytes()); }
-fn zero(b: &[u8], a: usize, z: usize) -> bool { b.get(a..z).is_some_and(|v| v.iter().all(|n| *n == 0)) }
-fn vec(b: &[u8], at: usize) -> Option<Vec3> { Some(Vec3::new(f(b,at)?,f(b,at+8)?,f(b,at+16)?)) }
-fn write_vec(b: &mut [u8], at: usize, v: Vec3) { put(b,at,v.x);put(b,at+8,v.y);put(b,at+16,v.z); }
+pub(crate) fn u(b: &[u8], p: usize) -> Option<u32> { Some(u32::from_le_bytes(b.get(p..p+4)?.try_into().ok()?)) }
+pub(crate) fn f(b: &[u8], p: usize) -> Option<f64> { Some(f64::from_le_bytes(b.get(p..p+8)?.try_into().ok()?)) }
+pub(crate) fn put(b: &mut [u8], p: usize, v: f64) { b[p..p+8].copy_from_slice(&v.to_le_bytes()); }
+pub(crate) fn word(b: &mut [u8], p: usize, v: u32) { b[p..p+4].copy_from_slice(&v.to_le_bytes()); }
+pub(crate) fn zero(b: &[u8], a: usize, z: usize) -> bool { b.get(a..z).is_some_and(|v| v.iter().all(|n| *n == 0)) }
+pub(crate) fn vec(b: &[u8], at: usize) -> Option<Vec3> { Some(Vec3::new(f(b,at)?,f(b,at+8)?,f(b,at+16)?)) }
+pub(crate) fn write_vec(b: &mut [u8], at: usize, v: Vec3) { put(b,at,v.x);put(b,at+8,v.y);put(b,at+16,v.z); }
 
 // SAFETY: f64 has no invalid bit patterns. Alignment and exact length are checked;
 // caller owns this immutable byte slice, and the state header is disjoint from it.
-fn doubles(b: &[u8], start: usize, n: usize) -> Option<&[f64]> {
+pub(crate) fn doubles(b: &[u8], start: usize, n: usize) -> Option<&[f64]> {
     let bytes = b.get(start..start.checked_add(n.checked_mul(8)?)?)?;
     if !cfg!(target_endian="little") || bytes.as_ptr() as usize % 8 != 0 { return None; }
     Some(unsafe { core::slice::from_raw_parts(bytes.as_ptr().cast::<f64>(),n) })
@@ -154,6 +154,13 @@ fn parse_config(b: &[u8], full: bool) -> Result<Config<'_>, i32> {
 
 /// Cold initialization validates and copies config; failure writes no arena byte.
 pub fn init(cfg: &[u8], arena: &mut [u8], pages: u32) -> i32 {
+    if u(cfg,0)==Some(crate::rotor_map::CONFIG_VERSION) {
+        let map=match crate::rotor_map::parse(cfg,true) {Ok(map)=>map,Err(e)=>return e};
+        if arena.len()!=ARENA_HEADER+cfg.len() || arena.len()>u32::MAX as usize {return -6;}
+        arena.fill(0);word(arena,0,MAGIC);word(arena,4,arena.len() as u32);word(arena,8,pages);
+        put(arena,16,map.initial());arena[ARENA_HEADER..].copy_from_slice(cfg);
+        return 0;
+    }
     let c=match config(cfg) {Ok(c)=>c,Err(e)=>return e};
     if c.inflow_state_at.is_some_and(|at| !zero(cfg,at,cfg.len())) {return -3;}
     if arena.len()!=ARENA_HEADER+cfg.len() || arena.len()>u32::MAX as usize {return -6;}
@@ -164,7 +171,7 @@ pub fn init(cfg: &[u8], arena: &mut [u8], pages: u32) -> i32 {
 /// Returns the checked arena length from a header, without creating a full slice.
 pub fn arena_len(header: &[u8]) -> Option<u32> {
     if u(header,0)!=Some(MAGIC) {return None;}
-    u(header,4).filter(|n|*n>= (ARENA_HEADER+CONFIG_HEADER) as u32 && *n <= 512*1024)
+    u(header,4).filter(|n|*n>= (ARENA_HEADER+CONFIG_HEADER) as u32 && *n <= 2*1024*1024)
 }
 
 /// Memory pages recorded at init; native callers use zero.
@@ -274,6 +281,8 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
     let drive_state_free=esc.is_some() || zero(arena,32,56);
     if !zero(input,4,8) || !zero(input,112,128) || !zero(arena,12,16) || !drive_state_free {return Err(-3);}
     let (state,bytes)=arena.split_at(ARENA_HEADER);
+    // A table rotor (TASK-103) has its own loads and no inflow state; the records, the shaft and the drive are the same.
+    if u(bytes,0)==Some(crate::rotor_map::CONFIG_VERSION) {return crate::rotor_map::advance(state,bytes,input,dt,esc);}
     let c=if kernel==Kernel::Production {step_config(bytes)?} else {config(bytes)?};
     let hover_option=c.options & OPTION_HOVER_SAMPLING != 0;
     let hover_previous=f(state,56).ok_or(-3)?;
@@ -446,12 +455,20 @@ pub(crate) fn advance_with(arena: &[u8], input: &[u8], out_len: usize, dt: f64, 
 /// Restores initial speed and zero inflow; invalid handles remain untouched.
 pub fn reset(arena: &mut [u8]) -> i32 {
     if arena_len(arena)!=Some(arena.len() as u32) {return -1;}
+    if is_table(arena) {
+        let initial=match crate::rotor_map::parse(&arena[ARENA_HEADER..],true) {Ok(map)=>map.initial(),Err(e)=>return e};
+        put(arena,16,initial);put(arena,24,0.0);arena[32..64].fill(0);
+        return 0;
+    }
     let (initial,inflow_at)=match config(&arena[ARENA_HEADER..]) {Ok(c)=>(c.initial,c.inflow_state_at),Err(e)=>return e};
     if let Some(at)=inflow_at {arena[ARENA_HEADER+at..].fill(0);}
     // Bytes 32..56 hold the TASK-092 ESC state, 56..64 the hover-sampling state; a reset returns
     // them to an unpowered ESC and full sampling.
     put(arena,16,initial);put(arena,24,0.0);arena[32..64].fill(0);0
 }
+
+/// A table rotor (TASK-103), which has no ground effect to report.
+pub(crate) fn is_table(arena: &[u8]) -> bool {u(arena,ARENA_HEADER)==Some(crate::rotor_map::CONFIG_VERSION)}
 
 /// Invalidates a live handle.
 pub fn dispose(arena: &mut [u8]) {if arena_len(arena).is_some() {word(arena,0,0);}}

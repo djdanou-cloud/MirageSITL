@@ -344,7 +344,8 @@ fixed IMU noise floors can be switched off.
 | ArduPilot configuration | Generated parameter profile | Neutralize the ArduPilot errors MirageSITL owns |
 
 Fidelity is selected per vehicle as a tier. Tier A (rotor lookup tables,
-TASK-103) serves faster-than-real-time regression. Tier B (optimized BET with
+TASK-103, selected per rotor in the flight model and not yet in the aircraft
+profile) serves faster-than-real-time regression. Tier B (optimized BET with
 inflow v2, the electromechanical drive and compliant contact) serves real-time
 training and HIL. Tier C (blade-by-blade rotors, dynamic stall, flexible modes,
 wakes) runs offline in lockstep and may be slower than real time. TASK-090

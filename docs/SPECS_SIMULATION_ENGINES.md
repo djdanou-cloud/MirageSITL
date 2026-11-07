@@ -6491,8 +6491,9 @@ moves the level of its static loads to the bench and keeps their dependence on
 inflow, advance ratio, density and Reynolds number; (2) the two scales are what
 the two measured curves, thrust and torque versus RPM, can set: a static bench
 cannot identify more free parameters, and RPM-dependent factors would fit the
-noise; (3) the table mode of TASK-103 does not exist yet. Scales are confined to
-0.25 to 4: beyond them the polar, not its level, is wrong.
+noise; (3) the table mode of TASK-103 did not exist when this was decided, and a table from a
+stand still flags every flight in moving air. Scales are confined to 0.25 to 4: beyond them the
+polar, not its level, is wrong.
 
 **The static solve** (`staticLoads`, `packages/physics/src/propulsion-calibration.ts`)
 gives the BET rotor's thrust and torque at each bench speed in still air at the
@@ -7596,6 +7597,150 @@ the likely reading; it has not been shown separately. The negative control of A-
 therefore no longer fails, and `tests/integration/phase1-nominal.test.ts` still holds the 1 deg/s
 limit to hand-built readings. Whether the quad keeps the 40 Hz filter is the
 stakeholder's decision.
+
+### Rotor lookup-table mode (TASK-103)
+
+Tier A of the fidelity tiers: a rotor whose loads come from a table instead of the
+blade-element kernel, for faster-than-real-time regression and for measured or
+external-solver data. It is selected per rotor (`rotorModel: "bet" | "map"`) and shares the
+bound-rotor records, the shaft, the ESC drive and the bus with the BET rotor: only the loads
+differ. It has no inflow, flapping or fluctuation state, so body rates, cyclic pitch, ground
+effect and the vortex ring fluctuation are not in it; a query with cyclic pitch is flagged.
+
+Coefficients are non-dimensional, so the `ρ·Ω²` scaling is exact by construction:
+
+```text
+T = cT ρ Ω² R⁴      H = cH ρ Ω² R⁴
+Q = cQ ρ Ω² R⁵      Mr = cR ρ Ω² R⁵      Mp = cM ρ Ω² R⁵      P = cP ρ Ω³ R⁵
+J = |v| / (Ω R)     α = atan2(-v_z, hypot(v_x, v_y))     M_tip = Ω R / a
+s = (ρ a / μ) / (ρ a / μ)_reference
+```
+
+The axes are the advance ratio J, the airflow angle α from −90° (descending into the wake)
+through 0° (edgewise) to +90° (axial climb), the tip Mach number, the Reynolds scale s and the
+collective pitch, in that order, with up to 64 points each and at most 32768 points in all.
+Interpolation is multilinear in the five axes. A table holds a rotor spinning in the +1 sense
+with the air along hub +x; `H`, `Mr` and `Mp` turn with the airflow's direction ψ in the disk,
+and a rotor of the other sense mirrors `Q` and `Mr`. A query more than 1e-9 outside an axis,
+which is the rounding of its own arithmetic, is clamped to the edge and sets output flags 8
+(outside validity) and 512 (`ROTOR_FLAG_MAP_EDGE`); a point of validity below 1 sets flag 8. At
+J = 0 the angle does not matter and is not flagged.
+
+The Reynolds scale was not in the table the budget below was first declared for. `ρ·Ω²` scales
+a rotor at one Reynolds number only: a blade loses lift and gains drag at a lower one, so four
+axes missed the density limit below by up to 29.6 % of thrust at ρ = 0.9, and by 7.3 % even at
+the fastest tips. J, α, M_tip, s and the collective together fix the flow, whichever of density,
+speed of sound and viscosity moved. A table from a thrust stand holds one air: its s axis has
+one point and other air is flagged.
+
+Configuration version 6, on the same arena and records as the BET rotor:
+
+| Bytes | Field |
+| --- | --- |
+| 0, 4 | version 6, total bytes |
+| 8, 12, 16, 20, 24 | points on the J, α, M_tip, s and collective axes |
+| 28 | spin sign, +1 or −1 |
+| 32 | the reference air's ρ a / μ |
+| 40 | radius, m |
+| 48 | reserved zero |
+| 56, 64 | shaft inertia kg·m², bearing viscous damping N·m·s/rad |
+| 72, 80 | step s, initial speed rad/s |
+| 88..128 | reserved zero |
+| 128.. | the five axes, then 7 f64 per point: cT, cH, cQ, cR, cM, cP, validity |
+
+Declared before the first run. On `tests/fixtures/rotors/rotor-map-synthetic.json`, generated
+from the full BET (`baseline-two-blade`, with dynamic inflow), compared with that BET at the
+midpoints of the table's cells, where the interpolation is at its worst:
+
+| Quantity | Region | Limit |
+| --- | --- | --- |
+| Thrust, torque | α ≥ 0 | within 5 % of the BET, or 1 % of that speed's hover value |
+| Thrust, torque | α < 0, validity 1 | within 15 %, or 1 % of that speed's hover value |
+| H-force, rolling and pitching moments | validity 1 | within 20 %, or 1 % of that speed's hover thrust (times R for a moment) |
+| Any load at a table node | all | 1e-9 relative, the generator's settling aside: 1e-12 of the table |
+| Density, against the BET at ρ = 0.9 | α ≥ 0 | within 3 % of thrust and torque |
+
+The bench oracle is the archived UIUC static data (`tests/fixtures/rotors/uiuc-propellers.json`,
+measured): a zero-airflow table reproduces the points it holds within 1e-12, and one built
+from every other point reproduces the ones it left out within 3 % of C_T and C_P. The cost: a
+16-rotor tick in scalar WASM on the reference Mac at most 31.25 µs, half the budget of 800 Hz
+at 20 times real time, as G3 limits compute to half of `dt`. The step allocates nothing:
+zero allocator calls over one million native steps, and zero GC events in WASM.
+
+**Results, with the limits above unchanged.** The fixture has 23 × 20 × 8 × 5 × 1 = 18,400 points,
+11,579 of them of validity 0, in 1.7 MB, and regenerates in about 2 minutes, byte for byte on one machine. The
+axes grew through the first runs: 702 points missed the thrust limit at 49 midpoints, and the
+density limit needed the fifth axis and more points at low speed. A rotor's arena limit rose
+from 512 KiB to 2 MiB to hold this. Sixteen such rotors take 34 MB of the 64 MB
+rotor memory budget, because each holds its table twice, against 12 MB for the BET.
+
+One thing narrows what was declared. The budget says α ≥ 0, and it holds for the queries the
+table does not flag. A point has validity 0 where the BET flags it, which is all descent with
+J > 0, or does not settle, and also, added after the first run showed why, where thrust is
+below 10 % of that speed's hover: the inflow closure has a kink at zero thrust that no table
+can follow, and a percentage of a near-zero load means nothing. So no point below α = 0 has
+validity 1, and the second row of the budget compares nothing. A flagged query still flies on
+the table's numbers. The flag says they are not validated, not that they are refused.
+
+At the midpoints of the cells, for queries the table does not flag:
+
+| Air | Compared (flagged) | Thrust, worst | Torque, worst |
+| --- | --- | --- | --- |
+| ρ = 1.225, s = 1 | 831 (2095, of which 1017 at α ≥ 0) | 1.70 % | 1.25 % |
+| ρ = 0.9, s = 0.735 | 793 (1055 at α ≥ 0) | 2.71 % | 1.43 % |
+| 3000 m standard, s = 0.758 | 793 (1055 at α ≥ 0) | 2.72 % | 2.40 % |
+| 5000 m standard, s = 0.623 | 805 (1043 at α ≥ 0) | 2.39 % | 2.76 % |
+| 40 °C at sea level, s = 0.899 | 795 (1053 at α ≥ 0) | 2.08 % | 1.47 % |
+
+Those percentages have no floor; with the budget's floor of 1 % of hover, no thrust or torque
+exceeds its limit at s = 1, and H-force and both moments are all within theirs. As a share of
+hover at s = 1, the error reaches:
+
+| Quantity | Not flagged | Flagged, α ≥ 0 | All, with descent |
+| --- | --- | --- | --- |
+| Thrust | 1.39 % | 5.31 % | 21.58 % |
+| Torque | 1.32 % | 7.74 % | 22.03 % |
+| H-force | 0.12 % | 0.76 % | 2.60 % |
+| Rolling moment | 0.36 % | 3.01 % | 8.94 % |
+| Pitching moment | 0.77 % | 1.36 % | 15.08 % |
+
+The table flies the fixture's quad on the same polar and inflow as the BET, on torque drive, for 3 s
+from the same start. Declared before that test's first run: speed within 2 %, climb rate within
+10 % or 0.1 m/s.
+
+| Throttle | Rotor speed, BET and table, rad/s | Vertical speed, BET and table, m/s (positive down) |
+| --- | --- | --- |
+| 0.3, sinking | 302.5, 302.1 | 6.724, 6.818 |
+| 0.55, near hover | 354.7, 356.0 | 0.478, 0.444 |
+| 0.8, climbing | 427.5, 428.1 | −5.417, −5.377 |
+
+**Bench data.** On all 14 UIUC propellers, a zero-airflow table reproduces the points it holds
+within 1e-12. The leave-out limit is **not met**: 9 of 111 left-out points lie more than 3 % from
+the table, the worst by 6.61 % of C_P and 5.50 % of C_T. The miss is the measurements' own
+scatter, not the interpolation. At 4253 rpm the three-blade 5x3.75 reads C_T 0.1963 between
+0.2120 and 0.2031, and at 9943 rpm the two-blade 5x1.58 reads C_P 0.03506 between 0.03626 and
+0.03831. A least-squares cubic through each propeller's own points leaves raw points up to
+6.08 % away from it, and the table's value is within 2.59 % of that cubic at all 111. That
+second comparison was added after the miss to find its cause, and it does not replace the limit:
+`tests/rotor-map.test.ts` keeps the nine points by name.
+
+**Cost.** A 16-rotor tick in scalar WASM takes 6.82 µs on average and 8.71 µs at p99 against the
+limit of 31.25 µs, and the BET with dynamic inflow takes 231 µs, 34 times as long, on the
+reference Mac (Apple M5, Node 24.22.1, load average 2.0 to 2.6, one thread, not a browser):
+`node scripts/bench-rotor-map.mjs`, which writes `test-results/bench/rotor-map.json`. That is 183
+times real time at 800 Hz for these rotors alone. The rest of the physics tick is not in it.
+
+**Allocation.** Zero allocator calls and bytes over one million native steps
+(`table_rotor_step_allocates_zero_over_one_million_steps`). Through the flight model, on the ESC
+drive in a gusty wind, four table rotors over one million steps in each WASM variant:
+zero GC events and 2048 bytes in all, the measurement's own, in both (graph `rotor-map-esc-drive-weather-pad-four-rotor` of
+`node scripts/check-bet-runtime.mjs --allocation`).
+
+**What it does not do yet.** The selection exists per rotor in `BoundRotorDefinition` and in
+`BetFlightConfiguration.rotorMaps`; the aircraft profile and the application do not offer it. The
+fixture is synthetic: no external solver's table exists, and no table has been compared with a
+flight log, which V2_PLAN B4 asks for. The wake model reads a momentum-theory estimate of the table
+rotor's induced velocity, and TASK-090's certification of Tier A against Tiers B and C is open.
 
 ### Allocation
 

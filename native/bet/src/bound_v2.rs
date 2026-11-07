@@ -101,8 +101,8 @@ fn step_with(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ke
     bound::commit(arena, &mut staged, &advanced);
     out.fill(0);
     out[0..128].copy_from_slice(&staged);
-    // The validity word at 116 stays zero unless a later-task output is available.
-    let validity = wake_validity | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    // The validity word at 116 stays zero unless a later-task output is available. A table rotor has no ground effect to apply.
+    let validity = wake_validity | if ground.is_some() && !bound::is_table(arena) { VALID_GROUND_EFFECT } else { 0 };
     if validity != 0 { put_word(out, 116, validity); }
     publish_harmonics(arena, out, validity);
     0
@@ -169,7 +169,7 @@ fn esc_step(arena: &mut [u8], input: &[u8], out: &mut [u8], dt: f64, kernel: Ker
         let flags = word(&staged, 112) | FLAG_CURRENT_LIMITED;
         put_word(&mut staged, 112, flags);
     }
-    let validity = VALID_ELECTRICAL | wake_validity | if ground.is_some() { VALID_GROUND_EFFECT } else { 0 };
+    let validity = VALID_ELECTRICAL | wake_validity | if ground.is_some() && !bound::is_table(arena) { VALID_GROUND_EFFECT } else { 0 };
     put_word(&mut staged, 116, validity);
     put(&mut staged, 144, electrical.current_a);
     put(&mut staged, 152, bus_current);

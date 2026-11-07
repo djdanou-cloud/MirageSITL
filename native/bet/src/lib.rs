@@ -32,6 +32,7 @@ pub mod body_abi;
 pub mod body_abi_v2;
 pub mod bound;
 pub mod bound_v2;
+pub mod rotor_map;
 pub mod bus_abi;
 pub mod bus_solve;
 pub mod inflow;

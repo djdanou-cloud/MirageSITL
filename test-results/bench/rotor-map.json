@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "status": "pass",
+  "limitUs": 31.25,
+  "limitOn": "mean over the untimed run",
+  "rotors": 16,
+  "hz": 800,
+  "realtimeFactorAtMean": 183.34225034257537,
+  "table": {
+    "name": "table",
+    "ticks": 200000,
+    "meanUs": 6.81785021,
+    "tickUs": {
+      "p50": 6.791999999904874,
+      "p95": 6.917000000157714,
+      "p99": 8.70800000006966,
+      "max": 53.58400000000074
+    },
+    "timerOverheadUs": {
+      "p50": 0.04100000001017179,
+      "p99": 0.04200000012133387
+    },
+    "memoryBytes": 34078720
+  },
+  "fullBet": {
+    "name": "full BET with dynamic inflow",
+    "ticks": 20000,
+    "meanUs": 231.1967146,
+    "tickUs": {
+      "p50": 228.62499999973807,
+      "p95": 246.16700000115088,
+      "p99": 261.54200000019046,
+      "max": 319.70799999908195
+    },
+    "timerOverheadUs": {
+      "p50": 0,
+      "p99": 0.04200000148557592
+    },
+    "memoryBytes": 12320768
+  },
+  "tableSpeedupOverBet": 33.91050074125932,
+  "host": {
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.22.1",
+    "loadAverageBefore": [
+      2.05,
+      2.57,
+      2.54
+    ],
+    "loadAverageAfter": [
+      2.34,
+      2.6,
+      2.55
+    ]
+  },
+  "artifactSha256": "6a6478fa666dda2db2e7bf1c65d3f1ecaad19a204be65c92e91f1cc75cfc76f6",
+  "fixtureSha256": "e64b96ec211ee1b577e5ab56c36281e044d3239b8c61351edfed62f27c274d6e",
+  "scope": "Node/V8 on this host; one thread; not browser or target-hardware evidence."
+}
