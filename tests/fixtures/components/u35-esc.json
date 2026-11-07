@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "esc",
+  "example": false,
+  "manufacturer": null,
+  "model": "ESC of the U35 (not stated)",
+  "sources": [
+    {
+      "id": "assumed",
+      "kind": "synthetic",
+      "description": "Assumed: typical of the class, chosen for MirageSITL's comparison with the stakeholder's log; no source we hold states it.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "maxCurrentA": 35,
+    "updateRateHz": null,
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "provenance": {
+    "maxCurrentA": "assumed",
+    "updateRateHz": null,
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "applicability": "Assumed: a 35 A 4-in-1 ESC; the stakeholder did not state it."
+}

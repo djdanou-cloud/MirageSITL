@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "battery",
+  "example": false,
+  "manufacturer": null,
+  "model": "4S 4800 mAh pack of the U35",
+  "sources": [
+    {
+      "id": "log-parameters",
+      "kind": "specification",
+      "description": "The aircraft's own parameters in stakeholder-00000167.BIN: BATT_CAPACITY 4800, MOT_BAT_VOLT_MAX 16.8 V and MOT_BAT_VOLT_MIN 10.08 V over four cells; the owner's settings, not a cell datasheet.",
+      "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8",
+      "date": "2026-11-07"
+    }
+  ],
+  "values": {
+    "cellsSeries": 4,
+    "capacityAh": 4.8,
+    "internalResistanceOhm": null,
+    "cellFullV": 4.2,
+    "cellEmptyV": 2.52,
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "provenance": {
+    "cellsSeries": "log-parameters",
+    "capacityAh": "log-parameters",
+    "internalResistanceOhm": null,
+    "cellFullV": "log-parameters",
+    "cellEmptyV": "log-parameters",
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "applicability": "Four cells and 4.8 Ah from the log's settings; chemistry and internal resistance not known."
+}

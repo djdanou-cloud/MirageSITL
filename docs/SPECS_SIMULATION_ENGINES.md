@@ -9850,6 +9850,28 @@ which the simulation follows; the real log reads less, so either its current
 sensor's scale (`BATT_AMP_PERVLT` 39.88) or the datasheet does not hold for
 this aircraft, and the logs cannot tell which.
 
+**The stakeholder's U35 (2026-11-08).** A second comparison, of the stakeholder's own aircraft
+against its own log `stakeholder-00000167.BIN`: a 0.68 kg quad X on a MatekH743, rotors 102 mm apart
+front to back and 144 mm left to right (arms of 88.2 mm at ±54.7° and ±125.3°), motor directions
+reversed as in its `FRAME_TYPE` 18, 2650 KV motors and HQProp Duct-T90MMX3 propellers (90 mm,
+pitch 3 inch, three blades and 2.35 g by retail listings), a 4S 4800 mAh pack
+(`tests/fixtures/aircraft/u35-quad.json` and the `u35-*` cards; inertia, the motor's other values
+and the ESC assumed, the ducts not modelled). The layout is not a stock frame's, so it flies on
+the scripting matrix. `tests/browser/fidelity-u35.spec.ts` (1 passed on the reference Mac) flies it
+in a preliminary calculation to a 1.2 m hover, as 00000167 hovered indoors at 1.1 to 1.5 m, and
+compares 52 s from 2 s before the motor start. Its first run, on ArduPilot's default gains,
+oscillated: roll rate spread 204 deg/s at 2.7 Hz against the real 2.6 deg/s. The aircraft's own
+tuning from its log (rate and angle gains, filters, acceleration limits under V4.7's names in
+deg/s², thrust expo, gyro filter) is now written on the Parameters tab before take-off. Means over
+the hover, real against simulated: roll 1.20 against 0.10 deg, pitch −0.81 against 0.10 deg, roll and
+pitch rate RMS 2.5 and 2.3 deg/s, current 13.4 against 10.2 A, voltage 15.16 against 16.69 V
+(the pack's internal resistance is not known), motor output 1440 against 1470 µs, energy 2.83 against
+2.37 Wh. The height differs by 2.7 m because the real aircraft's EKF reads 3.9 m where its rangefinder
+reads 1.2 m: its barometer took the 76 Pa take-off dip of TASK-116 as a 6 m drop, and EK3_SRC1_POSZ is
+the barometer. The simulated drive draws about 16 % less power for the same hover, the opposite sign
+of the forum quad's 1.8 times; with the motor's resistance and the ESC assumed and the ducts left
+out, the logs cannot say which part is off. The version became flight-checked in the regimes compared.
+
 ## Experiment from a log (TASK-182)
 
 **Create experiment from log**, on the Experiments tab, takes a DataFlash log and an
