@@ -145,7 +145,8 @@ implementation.
   SIM_BAROn_GLITCH, its ground-effect compensation was exercised in native SITL,
   and real forum logs (`data/flight-logs/inventory.json`, kept outside the
   repository, `node scripts/check-baro-dips.mjs --dir DIRECTORY`) reproduced three
-  of four held-out landing dips; the miss waits on the stakeholder. TASK-145 is
+  of four held-out landing dips; by the stakeholder's decision of 2026-11-07 the
+  task stays open for more landings rather than accept the miss. TASK-145 is
   DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
   Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
   atmosphere, terrain and jamming stream into SIM_GPS1_*, and the inductive motor,
