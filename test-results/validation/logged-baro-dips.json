@@ -9,7 +9,7 @@
     "topic-140620-12-11-47.BIN landing at 687.6 s: measured 36.03 Pa, predicted 18.12 Pa",
     "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa"
   ],
-  "inventorySha256": "01f7d8e4f002ef006e595c2383419833348ad49155261bdda607bebae176521e",
+  "inventorySha256": "e4bcb74c33c5ef81d383cd914580c26d4a9101da7ed56031c2fcf6d6377de065",
   "method": {
     "throttleOn": 0.05,
     "referenceBeforeS": [
@@ -1242,7 +1242,7 @@
       "heightSource": "rangefinder",
       "inducedPressurePa": null,
       "fit": null,
-      "fitError": "no stated mass",
+      "fitError": "no stated mass or rotor radius",
       "logs": [
         {
           "file": "topic-145352-1fltx_zp.BIN",
@@ -2088,6 +2088,138 @@
       "holdOuts": []
     },
     {
+      "id": "stakeholder-4s-quad-00000084",
+      "aircraft": {
+        "configuration": "stakeholder-4s-quad-00000084",
+        "massKg": null,
+        "rotorCount": 4,
+        "rotorRadiusM": null
+      },
+      "heightSource": "rangefinder",
+      "inducedPressurePa": null,
+      "fit": null,
+      "fitError": "no stated mass or rotor radius",
+      "logs": [
+        {
+          "file": "stakeholder-00000084.BIN",
+          "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e",
+          "role": "measured",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 67.97,
+              "referencePa": 99984,
+              "noisePa": 4,
+              "referenceSamples": 40,
+              "samples": 149,
+              "nearGroundPa": 76.71,
+              "nearGroundSamples": 27,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 85.24,
+                  "samples": 25
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -29.89,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -27.82,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -26.25,
+                  "samples": 42
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -26.33,
+                  "samples": 77
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 217.67,
+              "referencePa": 99979.9,
+              "noisePa": 0.15,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 39.11,
+              "nearGroundSamples": 32,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 45.35,
+                  "samples": 29
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -21.17,
+                  "samples": 3
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -17.87,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -18.52,
+                  "samples": 9
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -19.99,
+                  "samples": 84
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": -15.59,
+                  "samples": 21
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ]
+            }
+          ],
+          "skipped": []
+        }
+      ],
+      "holdOuts": []
+    },
+    {
       "id": "mn7005-kv115-24in-12s",
       "aircraft": {
         "configuration": "mn7005-kv115-24in-12s",
@@ -2098,7 +2230,7 @@
       "heightSource": "gnss",
       "inducedPressurePa": null,
       "fit": null,
-      "fitError": "no stated mass",
+      "fitError": "no stated mass or rotor radius",
       "logs": [
         {
           "file": "topic-145394-11-41-15.BIN",

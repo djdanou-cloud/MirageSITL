@@ -22,7 +22,7 @@ const MESSAGES: readonly SyntheticMessage[] = [
   { type: 72, name: 'GPS', format: 'QBf', columns: ['TimeUS', 'I', 'Alt'] },
   { type: 73, name: 'RFND', format: 'QBfB', columns: ['TimeUS', 'Instance', 'Dist', 'Stat'] },
 ];
-const AIRCRAFT: DipAircraft = { massKg: 7, rotorCount: 4, rotorRadiusM: 0.3048 };
+const RADIUS = 0.3048, AIRCRAFT: DipAircraft = { massKg: 7, rotorCount: 4, rotorRadiusM: RADIUS };
 const { min, max, count } = DIP_METHOD.decayGrid;
 const LAMBDA = min * (max / min) ** (80 / (count - 1)), GAIN = 2, WASH = -0.3;
 const P0 = 95000, H0 = 500, RHO_G = P0 / (287.05 * 288.15) * 9.80665;
@@ -37,7 +37,7 @@ function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: 
     const t = k * 0.01, us = Math.round(t * 1e6);
     if (k % 10 === 0) rows.push({ message: 'CTUN', values: [us, on(t) ? 0.35 : 0] });
     if (k % 5 === 0) {
-      const h = height(t), excess = on(t) && t > 1 ? q * (GAIN * Math.exp(-(h - ground) / (LAMBDA * AIRCRAFT.rotorRadiusM)) + WASH) : 0;
+      const h = height(t), excess = on(t) && t > 1 ? q * (GAIN * Math.exp(-(h - ground) / (LAMBDA * RADIUS)) + WASH) : 0;
       rows.push({ message: 'BARO', values: [us + 1, 0, P0 - RHO_G * h + excess] });
     }
     if (k % 20 === 0) rows.push({ message: 'GPS', values: [us + 2, 0, H0 + height(t)] });
@@ -61,7 +61,7 @@ describe('logged barometer dips', () => {
     expect(event!.noisePa).toBeLessThan(0.02);
     expect(event!.samples.length).toBeGreaterThan(250);
     for (const s of event!.samples) {
-      const expected = q * (GAIN * Math.exp(-Math.max(0, s.heightM) / (LAMBDA * AIRCRAFT.rotorRadiusM)) + WASH);
+      const expected = q * (GAIN * Math.exp(-Math.max(0, s.heightM) / (LAMBDA * RADIUS)) + WASH);
       expect(Math.abs(s.deltaPa - expected)).toBeLessThan(0.02);
     }
     const near = event!.samples.filter(s => s.heightM < 0.3);
@@ -117,6 +117,14 @@ describe('logged barometer dips', () => {
     expect(withinDipTolerance(40, 52)).toBe(true);
     expect(withinDipTolerance(40, 52.01)).toBe(false);
     expect(withinDipTolerance(-20, -26)).toBe(true);
+  });
+
+  it('measures an aircraft without a stated mass or rotor radius and refuses to fit it', () => {
+    const unstated: DipAircraft = { massKg: null, rotorCount: 4, rotorRadiusM: null };
+    const measured = measureBarometerDips(readDataFlash(landing()), unstated, 'rangefinder');
+    expect(measured.inducedPressurePa).toBeNull();
+    expect(measured.events).toHaveLength(1);
+    expect(() => fitGroundCushion(measured.events, unstated)).toThrow("A fit needs the aircraft's stated mass and rotor radius");
   });
 });
 

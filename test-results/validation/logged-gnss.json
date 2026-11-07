@@ -3,7 +3,7 @@
   "kind": "logged-gnss",
   "status": "REPORTED",
   "reasons": [],
-  "inventorySha256": "01f7d8e4f002ef006e595c2383419833348ad49155261bdda607bebae176521e",
+  "inventorySha256": "e4bcb74c33c5ef81d383cd914580c26d4a9101da7ed56031c2fcf6d6377de065",
   "model": {
     "constellation": "synthetic Walker 24/6/1",
     "maskDeg": 10,
@@ -1006,6 +1006,13 @@
         },
         "solutions": 39
       }
+    },
+    {
+      "file": "stakeholder-00000084.BIN",
+      "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e",
+      "aircraft": "stakeholder-4s-quad-00000084",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
     }
   ]
 }

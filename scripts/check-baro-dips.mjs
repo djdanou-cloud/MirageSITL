@@ -36,6 +36,8 @@ const CONFIGURATIONS = {
   // Second list (2026-11-07).
   "m1200-u8xl-32in-18kg": { massKg: 18, rotorCount: 4, rotorRadiusM: 16 * INCH },
   "5in-quad-mtf02p-145352": { massKg: null, rotorCount: 4, rotorRadiusM: 2.5 * INCH },
+  // The stakeholder's own flight (2026-11-07): mass and propellers not stated.
+  "stakeholder-4s-quad-00000084": { massKg: null, rotorCount: 4, rotorRadiusM: null },
 };
 /** Fit groups: one configuration each, with the logs fitted and the logs held out (declared in the specification). */
 const GROUPS = [
@@ -48,6 +50,8 @@ const GROUPS = [
   { id: "5in-quad-mtf02p-145352", configuration: "5in-quad-mtf02p-145352", heightSource: "rangefinder", fit: [], holdOut: [],
     measured: ["topic-145352-1fltx_zp.BIN", "topic-145352-1BRaKnj_.BIN", "topic-145352-1r0OAZFa.BIN", "topic-145352-1MrX9c7d.BIN",
       "topic-145352-1krgUV6Y.BIN", "topic-145352-1nreVudP.BIN", "topic-145352-1XC3hSDH.BIN"] },
+  { id: "stakeholder-4s-quad-00000084", configuration: "stakeholder-4s-quad-00000084", heightSource: "rangefinder", fit: [], holdOut: [],
+    measured: ["stakeholder-00000084.BIN"] },
   { id: "mn7005-kv115-24in-12s", configuration: "mn7005-kv115-24in-12s", fit: [], holdOut: [], measured: ["topic-145394-11-41-15.BIN"] },
   { id: "p80iii-kv100-30in-16kg-first-mount", configuration: "p80iii-kv100-32in-16kg-first-mount", fit: ["topic-134119-00000011.BIN"], holdOut: [] },
   { id: "p80iii-kv100-30in-16kg-remounted", configuration: "p80iii-kv100-30in-16kg",
@@ -117,7 +121,7 @@ for (const group of GROUPS) {
     id: group.id, aircraft: { configuration: group.configuration, ...aircraft }, heightSource: group.heightSource ?? "gnss",
     inducedPressurePa: round(logs[0]?.measurement.inducedPressurePa ?? null, 2),
     fit: fit ? { gain: round(fit.gain, 3), decayRadii: round(fit.decayRadii, 3), washCoefficient: round(fit.washCoefficient, 3), rmsPa: round(fit.rmsPa, 2), samples: fit.samples } : null,
-    fitError: fitError ?? (aircraft.massKg === null ? "no stated mass" : fit ? null : "no fitted log"),
+    fitError: fitError ?? (aircraft.massKg === null || aircraft.rotorRadiusM === null ? "no stated mass or rotor radius" : fit ? null : "no fitted log"),
     logs: logs.map(item => ({ file: item.file, sha256: item.sha256, role: item.role, events: item.measurement.events.map(summary), skipped: item.measurement.skipped.map(s => ({ ...s, motorTimeS: round(s.motorTimeS, 2) })) })),
     holdOuts,
   });

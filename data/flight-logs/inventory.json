@@ -113,6 +113,21 @@
       "unknown": ["arm length", "inertia", "propeller make and pitch", "barometer location"],
       "notes": "The U8XL table the owner posted (post 8) is for KV110, not the KV100 motors the aircraft has, so it is not adopted as this aircraft's bench data."
     }
+,
+    {
+      "id": "stakeholder-4s-quad-00000084",
+      "topic": null,
+      "owner": "the stakeholder",
+      "stated": {
+        "frame": { "value": "quad X with reversed motor directions (FRAME_CLASS 1, FRAME_TYPE 18, 'QUAD/X_REV')", "locator": "the log's parameters and MSG records" },
+        "battery": { "value": "4S, BATT_CAPACITY 4000 mAh", "locator": "the log's parameters" },
+        "rangefinder": { "value": "RNGFND1_TYPE 10 with optical flow (FLOW_TYPE 5)", "locator": "the log's parameters" },
+        "motorRpm": { "value": "bidirectional DShot600 (MOT_PWM_TYPE 6, SERVO_BLH_BDMASK 15), 14 poles", "locator": "the log's parameters" },
+        "flightController": { "value": "MatekH743-bdshot, board 00330029 30335119 38323836", "locator": "the log's MSG records" }
+      },
+      "unknown": ["mass", "motor and propeller models", "arm length", "inertia", "barometer location"],
+      "notes": "The stakeholder's own flight log, given on 2026-11-07 with the note that the drone was not configured in the best way. The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
+    }
   ],
   "logs": [
     { "file": "topic-144558-00000205.BIN", "aircraft": "mn7005-kv230-24in-7.2kg", "sha256": "54c8530d6ebcbe27dcefedfd27655dd7ff5a994adbffd6660dc28ce7e6083153", "bytes": 109277184, "post": 1, "posted": "2026-07-15", "link": "https://drive.google.com/file/d/1IHVtCa8-WGH9xp2Z-gHVAQuWq8X5kDlZ/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
@@ -136,7 +151,8 @@
     { "file": "topic-96944-1NN44LN2.BIN", "aircraft": "m1200-u8xl-32in-18kg", "sha256": "2deff34c55959b5a5c529ce6580d6cad0f81a1a197cbf4611dd91fe3efd26cbd", "bytes": 18307072, "post": 14, "posted": "2023-02-21", "link": "https://drive.google.com/file/d/1NN44LN2sLRsjS5Q3QlCcz7N8iAz9JZZO/view", "binding": "the post's only link", "firmware": "ArduCopter V4.3.3 (34e8e02c)" },
     { "file": "topic-96944-1aYxm5oh.BIN", "aircraft": "m1200-u8xl-32in-18kg", "sha256": "bb43b15b2f16c4eb7c20004c3d6a047942e97ce25a42f3c3c21886b0bdbc238f", "bytes": 11100160, "post": 18, "posted": "2023-02-28", "link": "https://drive.google.com/file/d/1aYxm5ohCpOT2gUoftzvV8i8fOCRhOgb1/view", "binding": "one of the post's two links, by its Drive ID", "firmware": "ArduCopter V4.3.3 (34e8e02c)" },
     { "file": "topic-140620-00000175.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "8d39966009f65198038390b0db0bb5bda5cd48ce5dff30d83fda698a67bb74de", "bytes": 122221202, "post": 1, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1sDDKhTxmbQ5H7v9UoFV228352ySNTOQL/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
-    { "file": "topic-140620-12-11-47.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03", "bytes": 14997374, "post": 3, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1mulpT1BdlQBfaEZ2JiMbL22sdSUAA-ZS/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
+    { "file": "topic-140620-12-11-47.BIN", "aircraft": "tmotor-7005-230kv-24in-7kg", "sha256": "fda7c09ac9db4aae5f31509cc112743f9162803b258e36f7b126f85b121f3c03", "bytes": 14997374, "post": 3, "posted": "2025-11-04", "link": "https://drive.google.com/file/d/1mulpT1BdlQBfaEZ2JiMbL22sdSUAA-ZS/view", "binding": "the post's only link", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
+    { "file": "stakeholder-00000084.BIN", "aircraft": "stakeholder-4s-quad-00000084", "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e", "bytes": 71102464, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" }
   ],
   "benchTables": [
     {

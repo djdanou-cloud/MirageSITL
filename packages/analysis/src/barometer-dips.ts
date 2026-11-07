@@ -40,7 +40,8 @@ export interface DipAircraft {
   /** The owner's stated mass, kg; null when not stated, and then nothing is fitted. */
   readonly massKg: number | null;
   readonly rotorCount: number;
-  readonly rotorRadiusM: number;
+  /** Null when not stated; then, as without a mass, nothing is fitted. */
+  readonly rotorRadiusM: number | null;
 }
 /** The height reference: the first GNSS receiver's altitude, or the first rangefinder's distance where its status is good (4). */
 export type DipHeightSource = "gnss" | "rangefinder";
@@ -127,16 +128,20 @@ function interpolate(s: Series, t: number): number {
   const f = (t - times[lo]!) / (times[hi]! - times[lo]!);
   return s.values[lo]! + f * (s.values[hi]! - s.values[lo]!);
 }
-const discAreaM2 = (aircraft: DipAircraft) => aircraft.rotorCount * Math.PI * aircraft.rotorRadiusM ** 2;
+/** The stated geometry and mass a fit needs, or null. */
+function fitted(aircraft: DipAircraft): { massKg: number; rotorRadiusM: number } | null {
+  return aircraft.massKg === null || aircraft.rotorRadiusM === null ? null : { massKg: aircraft.massKg, rotorRadiusM: aircraft.rotorRadiusM };
+}
+const discAreaM2 = (aircraft: DipAircraft, radiusM: number) => aircraft.rotorCount * Math.PI * radiusM ** 2;
 /** q_i = T/(4A) with T the weight. */
 export function inducedPressurePa(aircraft: DipAircraft): number | null {
-  if (aircraft.massKg === null) return null;
-  return aircraft.massKg * STANDARD_GRAVITY / (4 * discAreaM2(aircraft));
+  const stated = fitted(aircraft);
+  return stated ? stated.massKg * STANDARD_GRAVITY / (4 * discAreaM2(aircraft, stated.rotorRadiusM)) : null;
 }
 
 /** Every motor start and stop of a log with its measured excess pressure, or the reason it was skipped. */
 export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft, heightSource: DipHeightSource = "gnss"): DipMeasurement {
-  if (!(aircraft.rotorCount >= 1) || !(aircraft.rotorRadiusM > 0) || (aircraft.massKg !== null && !(aircraft.massKg > 0))) {
+  if (!(aircraft.rotorCount >= 1) || (aircraft.rotorRadiusM !== null && !(aircraft.rotorRadiusM > 0)) || (aircraft.massKg !== null && !(aircraft.massKg > 0))) {
     throw new Error("The aircraft needs a positive rotor count, rotor radius and, when stated, mass");
   }
   const throttle = series(log, "CTUN", "ThO"), pressure = series(log, "BARO", "Press");
@@ -224,8 +229,8 @@ function profileOf(samples: readonly DipSample[]): DipProfileBin[] {
 
 /** The ground cushion and prop wash fitted to landing samples within `fitMaxHeightM` of the landed position. */
 export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircraft): CushionFit {
-  const q = inducedPressurePa(aircraft);
-  if (q === null) throw new Error("A fit needs the aircraft's stated mass");
+  const q = inducedPressurePa(aircraft), stated = fitted(aircraft);
+  if (q === null || stated === null) throw new Error("A fit needs the aircraft's stated mass and rotor radius");
   const points: { h: number; y: number }[] = [];
   for (const event of events) {
     if (event.kind !== "landing") continue;
@@ -235,7 +240,7 @@ export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircr
   const { min, max, count } = DIP_METHOD.decayGrid;
   let best: CushionFit | null = null;
   for (let g = 0; g < count; g++) {
-    const decayRadii = min * (max / min) ** (g / (count - 1)), scale = decayRadii * aircraft.rotorRadiusM;
+    const decayRadii = min * (max / min) ** (g / (count - 1)), scale = decayRadii * stated.rotorRadiusM;
     // Least squares of y = k·e + c with e = exp(−h/scale): the 2×2 normal equations.
     let see = 0, se = 0, sy = 0, sey = 0;
     for (const p of points) { const e = Math.exp(-p.h / scale); see += e * e; se += e; sy += p.y; sey += e * p.y; }
@@ -253,15 +258,16 @@ export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircr
 
 /** The model's own near-ground excess for an event's measured heights: `BarometerErrors` with the fitted cushion and wash. */
 export function predictNearGroundPa(event: DipEvent, fit: CushionFit, aircraft: DipAircraft): number | null {
-  if (aircraft.massKg === null) throw new Error("A prediction needs the aircraft's stated mass");
+  const stated = fitted(aircraft);
+  if (stated === null) throw new Error("A prediction needs the aircraft's stated mass and rotor radius");
   const model = new BarometerErrors();
   model.set(BarometerEffect.GroundCushion, true, [fit.gain, fit.decayRadii]);
   model.set(BarometerEffect.PropWash, true, [fit.washCoefficient]);
   const x = model.input;
   x[BarometerInput.DensityKgM3] = 1.225;
-  x[BarometerInput.ThrustN] = aircraft.massKg * STANDARD_GRAVITY;
-  x[BarometerInput.DiscAreaM2] = discAreaM2(aircraft);
-  x[BarometerInput.MeanRadiusM] = aircraft.rotorRadiusM;
+  x[BarometerInput.ThrustN] = stated.massKg * STANDARD_GRAVITY;
+  x[BarometerInput.DiscAreaM2] = discAreaM2(aircraft, stated.rotorRadiusM);
+  x[BarometerInput.MeanRadiusM] = stated.rotorRadiusM;
   let sum = 0, n = 0;
   for (const s of event.samples) {
     if (s.heightM >= DIP_METHOD.nearGroundM) continue;

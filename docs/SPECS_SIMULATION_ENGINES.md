@@ -6392,6 +6392,16 @@ window 0.3 Pa), so its near-ground excesses of −56 to +14 Pa cannot be read at
 low flight shows a suction of −10 to −40 Pa. A dip constant per configuration fitted on one flight
 does not carry to that aircraft's other flights within the declared tolerance.
 
+The stakeholder's own flight (2026-11-07, `stakeholder-00000084.BIN` of the inventory: a 4S quad X
+on a MatekH743, one AltHold flight indoors with a rangefinder; the banner reads ArduCopter V4.6.2)
+is measured with the rangefinder and not fitted, since neither its mass nor its propellers are
+stated (`DipAircraft.rotorRadiusM` may now be null, and a fit or prediction then refuses;
+`tests/barometer-dips.test.ts` 5 passed). Its barometer reads the largest dips of all the logs: 85 Pa
+above static while the motors spin up on the ground and 45 Pa at the touchdown (near-ground means
+76.7 and 39.1 Pa), and a suction of 16 to 30 Pa from 0.15 m up in flight, with motors-off scatter of
+4.0 and 0.15 Pa. A mass and a propeller size would let it be fitted; a second flight of the same
+aircraft would let it be held out.
+
 ## GNSS v2 (TASK-117)
 
 GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the
