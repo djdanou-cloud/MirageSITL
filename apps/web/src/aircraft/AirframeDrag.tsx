@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { AircraftProfile } from "@mirage/aircraft/profile";
-import { standardHull } from "@mirage/aircraft/standard-hull";
+import { airframeHull } from "@mirage/aircraft/profile-body";
 import { standardHullDrag } from "@mirage/aircraft/standard-hull-drag";
 import { dragFormFromEstimate, type DragForm, type ProfileForm } from "./profile-form";
 
@@ -19,7 +19,7 @@ export function AirframeDrag({ form, profile, radii, onChange }: {
   const estimate = useMemo(() => {
     if (!profile || !radii) return null;
     try {
-      return standardHullDrag(standardHull(profile, motorId => radii.get(motorId) ?? Number.NaN));
+      return standardHullDrag(airframeHull(profile, motorId => radii.get(motorId) ?? Number.NaN), profile.arms.length);
     } catch {
       return null;
     }

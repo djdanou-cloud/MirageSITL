@@ -31,9 +31,10 @@ export const STANDARD_HULL_DRAG = Object.freeze({
  * C_D,across·A_side·(I − a·aᵀ) + C_D,along·A_end·(a·aᵀ). A cylinder's side area is its diameter times its height and its end
  * area πr²; an arm counts from the body cylinder's radius outward, its side area its diameter times that length and its end
  * area πr². The center of pressure is the shapes' centers (an arm's at the middle of its counted length) weighted by the
- * traces of their tensors. The airspeed range ends where the widest shape reaches the critical Reynolds number.
+ * traces of their tensors. The airspeed range ends where the widest shape reaches the critical Reynolds number. TASK-196: a
+ * capsule whose ID is above `armCount` is a body part, not an arm, and counts its whole length about its middle.
  */
-export function standardHullDrag(hull: readonly HullShape[]): Required<AirframeDrag> {
+export function standardHullDrag(hull: readonly HullShape[], armCount = Number.POSITIVE_INFINITY): Required<AirframeDrag> {
   const h = STANDARD_HULL_DRAG, body = hull.find(shape => shape.kind === 'cylinder');
   if (!body || body.kind !== 'cylinder') throw new Error('The standard hull has no body cylinder');
   const tensor = new Array<number>(9).fill(0), center = [0, 0, 0];
@@ -45,10 +46,10 @@ export function standardHullDrag(hull: readonly HullShape[]): Required<AirframeD
       middle = shape.centerBodyM;
     } else {
       const d = [0, 1, 2].map(i => shape.endBodyM[i]! - shape.startBodyM[i]!), length = Math.sqrt(d[0]! * d[0]! + d[1]! * d[1]! + d[2]! * d[2]!);
-      const counted = length - body.radiusM;
-      if (!(counted > 0)) throw new Error(`Arm shape ${shape.id} ends inside the body`);
+      const arm = shape.id <= armCount, counted = arm ? length - body.radiusM : length;
+      if (!(counted > 0)) throw new Error(arm ? `Arm shape ${shape.id} ends inside the body` : `Hull shape ${shape.id} has no length`);
       axis = d.map(value => value / length); sideM2 = 2 * shape.radiusM * counted; endM2 = Math.PI * shape.radiusM * shape.radiusM;
-      const along = length - counted / 2;
+      const along = arm ? length - counted / 2 : length / 2;
       middle = [0, 1, 2].map(i => shape.startBodyM[i]! + axis[i]! * along);
     }
     const across = h.crossFlowDragCoefficient * sideM2, end = h.endOnDragCoefficient * endM2;
@@ -73,10 +74,11 @@ function clean(value: number): number {
 }
 
 /** The manifest dataset text of the standard hull drag. */
-export function standardHullDragDerivation(): string {
+export function standardHullDragDerivation(hull: 'standard' | 'profile' = 'standard'): string {
   const h = STANDARD_HULL_DRAG;
-  return `Standard hull drag ${STANDARD_HULL_DRAG_VERSION} of @mirage/aircraft, a preliminary estimate from the synthetic standard ` +
-    `hull, not measured: each cylinder or capsule adds C_D times its area across its axis (C_D ${h.crossFlowDragCoefficient}, a ` +
+  // TASK-196: the same rules over the hull the aircraft profile describes, whose own dataset names its source.
+  const from = hull === 'standard' ? 'the synthetic standard hull' : 'the hull the aircraft profile describes';
+  return `Standard hull drag ${STANDARD_HULL_DRAG_VERSION} of @mirage/aircraft, a preliminary estimate from ${from}, not measured: each cylinder or capsule adds C_D times its area across its axis (C_D ${h.crossFlowDragCoefficient}, a ` +
     `subcritical circular cylinder of infinite span, an upper estimate) and along it (C_D ${h.endOnDragCoefficient}, a flat disk or ` +
     `blunt end, Hoerner 1965); arms count from the body radius outward; the center of pressure weights the shapes' centers by their ` +
     `drag areas; the airspeed range ends where the widest shape reaches Reynolds number ${h.criticalReynoldsNumber} in ISA sea-level ` +

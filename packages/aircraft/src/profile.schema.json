@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mirage-sitl.invalid/schemas/aircraft-profile.schema.json",
   "title": "MirageSITL aircraft profile schema 1 to 7",
-  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank; and, from schema 6 (TASK-145), propulsion calibrations, one or more in schema 6 and any number in schema 7, only in a calculation from measurements and each with its measurement set bound; and, from schema 7 (TASK-194), a landing gear exactly in schema 7, with each value known exactly with a source, three to eight supports (skids an even four to eight), a rolling coefficient for wheels only, no stated ground clearance, the CG inside the support polygon, a strut travel above zero, a rim inside its foot, a kinetic friction at most the static one and an unsprung mass below a support's share.",
+  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank; and, from schema 6 (TASK-145), propulsion calibrations, one or more in schema 6 and any number in schema 7, only in a calculation from measurements and each with its measurement set bound; and, from schema 7, a landing gear (TASK-194) or a body (TASK-196) or both exactly in schema 7; a landing gear with each value known exactly with a source, three to eight supports (skids an even four to eight), a rolling coefficient for wheels only, no stated ground clearance, the CG inside the support polygon, a strut travel above zero, a rim inside its foot, a kinetic friction at most the static one and an unsprung mass below a support's share; a body with a source, at most 15 less the arm count parts and part names that are not blank or repeated.",
   "definitions": {
     "cardReference": {
       "description": "SHA-256 address of a component-card version in the project store (TASK-136, TASK-139), or null while none is selected.",
@@ -260,6 +260,53 @@
             "rollingCoefficient": { "$ref": "#/definitions/gearSourceOrNull" }
           }
         }
+      }
+    },
+    "body": {
+      "description": "Schema 7 only (TASK-196): the body in place of the standard hull, body FRD metres from the reference point. The central body is a cylinder about the body z axis; parts are vertical cylinders or capsules.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["radiusM", "halfHeightM", "centerDownM", "armRadiusM", "parts", "source"],
+      "properties": {
+        "radiusM": { "type": "number", "exclusiveMinimum": 0 },
+        "halfHeightM": { "type": "number", "exclusiveMinimum": 0 },
+        "centerDownM": { "type": "number" },
+        "armRadiusM": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "parts": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "shape", "centerBodyM", "radiusM", "halfHeightM"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 48 },
+                  "shape": { "const": "cylinder" },
+                  "centerBodyM": { "$ref": "#/definitions/vector3" },
+                  "radiusM": { "type": "number", "exclusiveMinimum": 0 },
+                  "halfHeightM": { "type": "number", "exclusiveMinimum": 0 }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "shape", "startBodyM", "endBodyM", "radiusM"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 48 },
+                  "shape": { "const": "capsule" },
+                  "startBodyM": { "$ref": "#/definitions/vector3" },
+                  "endBodyM": { "$ref": "#/definitions/vector3" },
+                  "radiusM": { "type": "number", "exclusiveMinimum": 0 }
+                }
+              }
+            ]
+          }
+        },
+        "source": { "$ref": "#/definitions/gearSource" }
       }
     },
     "airframeDrag": {

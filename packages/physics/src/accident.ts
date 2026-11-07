@@ -227,9 +227,11 @@ export function accidentRows(event: AccidentEvent): number[][] {
  * IDs; its hull is the standard hull (TASK-095), whose shape 0 is the body and shape k the arm
  * `armIds[k - 1]`, the arms in ascending ID order.
  */
-export function describeAccident(event: AccidentEvent, armIds: readonly number[] = []): string {
+export function describeAccident(event: AccidentEvent, armIds: readonly number[] = [], partNames: readonly string[] = []): string {
   const part = event.part;
+  // The hull is the body (ID 0), the arms (1 to N) and, for a body the profile describes (TASK-196), its named parts after them.
+  const bodyPart = part.part === 'hull' && part.hullId > armIds.length ? partNames[part.hullId - 1 - armIds.length] : undefined;
   const what = part.part === 'propeller' ? `The propeller of motor ${part.rotorId}`
-    : part.hullId === 0 ? 'The body' : `Arm ${armIds[part.hullId - 1] ?? `shape ${part.hullId}`}`;
+    : part.hullId === 0 ? 'The body' : bodyPart !== undefined ? `The body part ${bodyPart}` : `Arm ${armIds[part.hullId - 1] ?? `shape ${part.hullId}`}`;
   return `${what} struck the ground at ${event.simTimeS.toFixed(2)} s: ${event.forceN.toFixed(1)} N, ${(event.penetrationM * 1000).toFixed(1)} mm deep`;
 }

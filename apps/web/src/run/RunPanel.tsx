@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentTerrain } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
-import { readAircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, readAircraftProfile } from "@mirage/aircraft/profile";
 import { describeAccident } from "@mirage/physics/accident";
 import type { LimitEvent } from "@mirage/physics/limit-monitor";
 import type { RunDriver } from "./session-link";
@@ -100,6 +100,12 @@ function layoutOf(stored: StoredVersion | undefined): AircraftLayout | null {
 function armIdsOf(stored: StoredVersion | undefined): readonly number[] {
   if (!stored) return [];
   try { return readAircraftProfile(stored).arms.map(arm => arm.id); } catch { return []; }
+}
+
+/** TASK-196: the names of a described body's parts, which follow the arms in the hull; empty for the standard hull. */
+function bodyPartNamesOf(stored: StoredVersion | undefined): readonly string[] {
+  if (!stored) return [];
+  try { return bodyOf(readAircraftProfile(stored))?.parts.map(part => part.name.trim()) ?? []; } catch { return []; }
 }
 
 /** The stage line for a run state; a connection says Connecting and Disconnecting. */
@@ -461,6 +467,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const route = useMemo((): readonly RoutePoint[] => (routePoints ?? []).map((point, index) => ({ northM: point.northM, eastM: point.eastM, downM: -point.altitudeM, label: `Route point ${index + 1}` })), [routePoints]);
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const armIds = useMemo(() => armIdsOf(chosen), [chosen]);
+  const partNames = useMemo(() => bodyPartNamesOf(chosen), [chosen]);
   const accidents = view?.accidents ?? [];
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
@@ -594,7 +601,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
       {accidents.length > 0 && (
         <div className="sitl-accidents">
           <h4>Accidents</h4>
-          <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, armIds)}</li>)}</ul>
+          <ul data-testid="sitl-accidents">{accidents.map((event, index) => <li key={index}>{describeAccident(event, armIds, partNames)}</li>)}</ul>
         </div>
       )}
       {state.name === "paused" && <p className="hint" role="status" data-testid="sitl-pause-hint">{PAUSE_HINT[state.reason]}</p>}

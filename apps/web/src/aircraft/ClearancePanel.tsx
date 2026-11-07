@@ -38,7 +38,7 @@ function TopView({ profile, radii, clashes, label }: {
 }) {
   const { layout, hull, discs } = clearanceShapes(profile, radiusOf(radii));
   const body = hull[0], clashing = clashingMotors(clashes);
-  const bodyClash = clashes.some(clash => clash.kind === "propeller-body" || (clash.kind === "ground" && clash.part.kind === "body"));
+  const bodyClash = clashes.some(clash => clash.kind === "propeller-body" || (clash.kind === "ground" && (clash.part.kind === "body" || clash.part.kind === "body-part")));
   // Body FRD x (forward) is drawn up and y (right) to the right.
   const at = (point: readonly number[]): [number, number] => [point[1] ?? 0, -(point[0] ?? 0)];
   const extent = 1.08 * Math.max(body?.radiusM ?? 0, ...discs.map(disc =>
@@ -48,7 +48,7 @@ function TopView({ profile, radii, clashes, label }: {
     <figure className="clearance-view">
       <svg viewBox={`${-extent} ${-extent} ${2 * extent} ${2 * extent}`} role="img" aria-label={`${label}: the aircraft seen from above, to scale`}>
         <title>{label}</title>
-        {hull.slice(1).map(arm => arm.kind === "capsule" && (
+        {hull.slice(1, 1 + profile.arms.length).map(arm => arm.kind === "capsule" && (
           <line key={`arm-${arm.id}`} className="clearance-arm" x1={at(arm.startBodyM)[0]} y1={at(arm.startBodyM)[1]}
             x2={at(arm.endBodyM)[0]} y2={at(arm.endBodyM)[1]} strokeWidth={Math.max(2 * arm.radiusM, extent / 150)} />
         ))}

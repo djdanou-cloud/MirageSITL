@@ -4,12 +4,13 @@ import {
 import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
 import { restingClearanceM, standardGearDerivation, standardLandingGear } from './standard-gear.ts';
-import { hullLowestDepthM, propellerDisc, standardHull, standardHullDerivation } from './standard-hull.ts';
+import { hullLowestDepthM, propellerDisc, standardHullDerivation } from './standard-hull.ts';
 import { standardHullDrag, standardHullDragDerivation } from './standard-hull-drag.ts';
 import type { EulerZyxRad } from './sensor-fields.ts';
 import { sinCos } from './trig.ts';
-import { airframeDragOf, landingGearOf, propulsionCalibrationsOf, validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
+import { airframeDragOf, bodyOf, landingGearOf, propulsionCalibrationsOf, validateAircraftProfile, type AircraftProfile, type ComponentReferences } from './profile.ts';
 import { profileGearDerivation, profileLandingGear } from './profile-gear.ts';
+import { airframeHull, profileHullDerivation } from './profile-body.ts';
 import { motorCombination } from './calculation-mode.ts';
 import { combinationKey } from './measurements.ts';
 
@@ -33,7 +34,9 @@ export const DERIVED_DATASET_ID = 'aircraft-profile-derivation';
 export const STANDARD_GEAR_DATASET_ID = 'standard-landing-gear';
 /** The dataset of a landing gear the profile describes (TASK-194), in place of the standard gear's. */
 export const PROFILE_GEAR_DATASET_ID = 'aircraft-profile-landing-gear';
-/** The synthetic dataset of the standard hull (derivation 4, TASK-095), until profiles describe their body (TASK-196). */
+/** The dataset of a body the profile describes (TASK-196), in place of the standard hull's. */
+export const PROFILE_HULL_DATASET_ID = 'aircraft-profile-hull';
+/** The synthetic dataset of the standard hull (derivation 4, TASK-095), for profiles that describe no body. */
 export const STANDARD_HULL_DATASET_ID = 'standard-hull';
 /** The synthetic dataset of the standard hull's preliminary drag (derivation 6, TASK-096), until profiles give drag areas. */
 export const STANDARD_HULL_DRAG_DATASET_ID = 'standard-hull-drag';
@@ -208,7 +211,8 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
     ({ upstreamRotorId: pair.upstreamMotorId, downstreamRotorId: pair.downstreamMotorId }));
   const dataset = DERIVED_DATASET_ID;
   const radius = (motorId: number): number => resolved.get(motorId)?.rotor.radiusM ?? Number.NaN;
-  const hull = standardHull(profile, radius);
+  // TASK-196: a body the profile describes stands in place of the standard hull.
+  const body = bodyOf(profile), hull = airframeHull(profile, radius);
   // The decision D-07 supports (F-07, F-08). A profile without a ground clearance stands on supports that leave the
   // lowest point of the hull and the propeller discs one static deflection above the ground at rest.
   const discs = layout.rotors.map(rotor => propellerDisc(rotor, radius(rotor.motorId)));
@@ -219,14 +223,17 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
   // Drag areas the profile states (TASK-096) are profile values; without them the standard hull's estimate has its own dataset.
   const stated = airframeDragOf(profile), [ax = 0, ay = 0, az = 0] = stated?.dragAreasM2 ?? [];
   const drag = stated ? { dragAreaBodyM2: [ax, 0, 0, 0, ay, 0, 0, 0, az], centerOfPressureBodyM: [...stated.centerOfPressureBodyM],
-    maxAirspeedMps: stated.maxAirspeedMps } : standardHullDrag(hull);
+    maxAirspeedMps: stated.maxAirspeedMps } : standardHullDrag(hull, profile.arms.length);
+  const hullDataset = body
+    ? { id: PROFILE_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: profileSha256, derivation: profileHullDerivation(profile, body, profileSha256) }
+    : { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDerivation() };
   const gearDataset = described
     ? { id: PROFILE_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: profileSha256, derivation: profileGearDerivation(profile, described, profileSha256) }
     : { id: STANDARD_GEAR_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardGearDerivation() };
   const contactDatasets = [
     gearDataset,
-    { id: STANDARD_HULL_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDerivation() },
-    ...(stated ? [] : [{ id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation() }]),
+    hullDataset,
+    ...(stated ? [] : [{ id: STANDARD_HULL_DRAG_DATASET_ID, kind: 'synthetic', sourceSha256: null, derivation: standardHullDragDerivation(body ? 'profile' : 'standard') }]),
   ];
   // TASK-145: a motor whose combination a bound calibration fitted flies its rotor calibrated, the bench data as a measured dataset.
   // A profile that binds none derives the same bytes as before.
@@ -254,7 +261,7 @@ export async function deriveVehicleManifest(input: unknown, components: Resolved
       massProperties: dataset, rotors: dataset, motors: motors.length > 0 ? dataset : null,
       escs: escs.length > 0 ? dataset : null, battery: battery ? dataset : null, airframeDrag: stated ? dataset : STANDARD_HULL_DRAG_DATASET_ID,
       controlSurfaces: null, landingGear: gearDataset.id, sensorMounts: sensorMounts.length > 0 ? dataset : null,
-      rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null, hull: STANDARD_HULL_DATASET_ID,
+      rotorWakePairs: rotorWakePairs.length > 0 ? dataset : null, hull: hullDataset.id,
     },
     massProperties,
     rotorCount: rotors.length, rotorCapacity: 32, rotors, motors, escs, battery,

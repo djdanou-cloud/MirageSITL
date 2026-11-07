@@ -2,8 +2,9 @@ import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import { deriveLayout, type AircraftLayout } from './layout.ts';
 import { landingGearOf, validateAircraftProfile, type AircraftProfile } from './profile.ts';
 import { gearRestingClearanceM } from './profile-gear.ts';
+import { airframeHull, hullPartNames } from './profile-body.ts';
 import { restingClearanceM, STANDARD_GEAR } from './standard-gear.ts';
-import { hullLowestDepthM, propellerDisc, standardHull } from './standard-hull.ts';
+import { hullLowestDepthM, propellerDisc } from './standard-hull.ts';
 
 // Propeller clearance (TASK-195, S03, S18): whether the propellers of an
 // aircraft profile clear each other, the body and the ground, and the
@@ -45,7 +46,9 @@ export const CLEARANCE_RULES = Object.freeze({
 export type ClearancePart =
   | { readonly kind: 'propeller'; readonly motorId: number }
   | { readonly kind: 'body' }
-  | { readonly kind: 'arm'; readonly armId: number };
+  | { readonly kind: 'arm'; readonly armId: number }
+  /** TASK-196: a named part of a described body. */
+  | { readonly kind: 'body-part'; readonly name: string };
 export type ClearanceClash =
   /** Two propeller discs overlap; `overlapM` is how far their tips overlap seen from above. */
   | { readonly kind: 'propellers'; readonly motorIds: readonly [number, number]; readonly overlapM: number }
@@ -63,7 +66,7 @@ export interface ClearanceReport {
 /** The parts of a profile as the checks see them, body FRD metres from the reference point. */
 export interface ClearanceShapes {
   readonly layout: AircraftLayout;
-  /** The standard hull: the body (ID 0), then one capsule per arm in ascending arm ID order. */
+  /** The hull the aircraft flies with (TASK-196: the described body's, or the standard hull): the body (ID 0), one capsule per arm in ascending arm ID order, then any body parts. */
   readonly hull: readonly HullShape[];
   /** One propeller disc per rotor in ascending motor ID order, the disc ID the motor ID. */
   readonly discs: readonly HullShape[];
@@ -214,7 +217,7 @@ export function clearanceShapes(profile: AircraftProfile, propellerRadiusM: (mot
     if (!(radius > 0) || !Number.isFinite(radius)) throw new Error(`Motor ${rotor.motorId} has no propeller radius`);
   }
   return {
-    layout, hull: standardHull(profile, propellerRadiusM),
+    layout, hull: airframeHull(profile, propellerRadiusM),
     discs: layout.rotors.map(rotor => propellerDisc(rotor, propellerRadiusM(rotor.motorId))),
   };
 }
@@ -255,10 +258,12 @@ export function propellerClearance(input: unknown, propellerRadiusM: (motorId: n
   // TASK-194: on a described gear the aircraft rests where its supports put it, so a part below that height is on the ground.
   const gear = landingGearOf(profile);
   const groundClearanceM = gear ? gearRestingClearanceM(profile, gear) : restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
+  const names = hullPartNames(profile);
   const parts: [ClearancePart, HullShape][] = [
     ...hull.map((shape, i): [ClearancePart, HullShape] => {
       const arm = profile.arms[i - 1];
-      return [i === 0 || arm === undefined ? { kind: 'body' } : { kind: 'arm', armId: arm.id }, shape];
+      if (i === 0) return [{ kind: 'body' }, shape];
+      return [arm === undefined ? { kind: 'body-part', name: names[i] ?? `shape ${i}` } : { kind: 'arm', armId: arm.id }, shape];
     }),
     ...discs.map((disc): [ClearancePart, HullShape] => [{ kind: 'propeller', motorId: disc.id }, disc]),
   ];
@@ -277,6 +282,7 @@ function partName(part: ClearancePart): string {
     case 'propeller': return `The propeller of motor ${part.motorId}`;
     case 'body': return 'The body';
     case 'arm': return `Arm ${part.armId}`;
+    case 'body-part': return `The body part ${part.name}`;
     default: return assertNever(part);
   }
 }

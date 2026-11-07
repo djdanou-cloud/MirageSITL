@@ -7,6 +7,7 @@ import type { Draft } from '@mirage/project/versions';
 import { addSensorSchemaKeywords, isDefaultSensorConfiguration, sensorConfigurationSchema, validateSensorConfiguration } from './sensor-config.ts';
 import type { SensorConfiguration } from './sensor-fields.ts';
 import { gearProblems } from './profile-gear.ts';
+import { bodyProblems } from './profile-body.ts';
 
 // Aircraft profile schema 1 (TASK-138, S03): the product-level description of
 // a multirotor with one to eight arms and up to 16 motors. Schema 2 (TASK-140,
@@ -14,8 +15,8 @@ import { gearProblems } from './profile-gear.ts';
 // S08) its sensor configuration, schema 4 (TASK-144, S05) the airfoil polar
 // of each propeller, schema 5 (TASK-096, S05) drag areas the user states
 // for the airframe, and schema 6 (TASK-145, S04) the propulsion calibrations it
-// binds, with or without stated drag, and schema 7 (TASK-194) the landing gear it describes in place of the standard supports
-// of decision D-07, with any of the earlier content. Each profile has one canonical schema: the lowest
+// binds, with or without stated drag, and schema 7 the landing gear (TASK-194) and the body (TASK-196) it describes in place of
+// the standard supports of decision D-07 and the standard hull, with any of the earlier content. Each profile has one canonical schema: the lowest
 // that holds its content. Configuration-time code only; never call it from a
 // physics step. Units are SI; positions are body FRD metres from the body
 // reference point.
@@ -107,6 +108,24 @@ export interface ProfileGear {
   /** The source of each value: text exactly when the value is known. */
   readonly provenance: { readonly [K in keyof GearValues]: string | null };
 }
+/** TASK-196: a named part of the body as a contact shape: a cylinder about the body z axis, or a capsule between two points. */
+export type BodyPart =
+  | { readonly name: string; readonly shape: 'cylinder'; readonly centerBodyM: readonly number[]; readonly radiusM: number; readonly halfHeightM: number }
+  | { readonly name: string; readonly shape: 'capsule'; readonly startBodyM: readonly number[]; readonly endBodyM: readonly number[]; readonly radiusM: number };
+/** TASK-196: the body the profile describes in place of the standard hull of TASK-095. Body FRD metres from the reference point. */
+export interface ProfileBody {
+  /** The central body: a cylinder about the body z axis. */
+  readonly radiusM: number;
+  readonly halfHeightM: number;
+  /** How far the body's centre lies below the reference point (body FRD z). */
+  readonly centerDownM: number;
+  /** The arm capsules' radius, or null for the standard rule: 0.05 times the largest propeller radius on the arm. */
+  readonly armRadiusM: number | null;
+  /** Parts such as a camera pod, at most 15 less the arm count: the hull holds 16 shapes. */
+  readonly parts: readonly BodyPart[];
+  /** Where the dimensions come from. */
+  readonly source: string;
+}
 export type CalculationMode = 'preliminary' | 'measured';
 /** The S04 input mode of a profile version and the measurement sets it binds. */
 export interface CalculationSettings {
@@ -174,8 +193,10 @@ export type AircraftProfile =
     readonly airframeDrag?: StatedAirframeDrag;
     /** Zero or more, in ascending combination-key order. */
     readonly propulsionCalibrations: readonly BoundCalibration[];
-    /** TASK-194: the landing gear in place of the standard supports; a schema 7 profile has it. */
-    readonly landingGear: ProfileGear;
+    /** TASK-194: the landing gear in place of the standard supports. A schema 7 profile has a gear, a body or both. */
+    readonly landingGear?: ProfileGear;
+    /** TASK-196: the body in place of the standard hull. */
+    readonly body?: ProfileBody;
   });
 
 // Union types express nullable fields, as in the vehicle manifest schema.
@@ -251,7 +272,9 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
   if ((profile.schemaVersion >= 4) !== ('propellerPolars' in profile)) fail('Propeller polars appear exactly in schemas 4 to 7');
   if (profile.schemaVersion === 5 ? !('airframeDrag' in profile) : profile.schemaVersion < 5 && 'airframeDrag' in profile) fail('Stated airframe drag appears exactly in schema 5, and optionally in schemas 6 and 7');
   if ((profile.schemaVersion >= 6) !== ('propulsionCalibrations' in profile)) fail('Propulsion calibrations appear exactly in schemas 6 and 7');
-  if ((profile.schemaVersion === 7) !== ('landingGear' in profile)) fail('A landing gear appears exactly in schema 7');
+  const ownAirframe = 'landingGear' in profile || 'body' in profile;
+  if (profile.schemaVersion !== 7 && ownAirframe) fail('A landing gear or a body appears only in schema 7');
+  if (profile.schemaVersion === 7 && !ownAirframe) fail('Schema 7 profiles describe their landing gear or their body');
   if (profile.schemaVersion === 6 && profile.propulsionCalibrations.length === 0) fail('Schema 6 profiles bind at least one propulsion calibration');
   if (profile.schemaVersion === 3 && profile.sensorConfiguration === null) fail('Schema 3 profiles need a sensor configuration');
   if (profile.sensorConfiguration !== null) {
@@ -281,7 +304,11 @@ export function validateAircraftProfile(input: unknown): AircraftProfile {
       fail('Measurement sets must be unique and in ascending order');
     }
   }
-  if (profile.schemaVersion === 7) checkGear(profile, profile.landingGear);
+  if (profile.schemaVersion === 7 && profile.landingGear) checkGear(profile, profile.landingGear);
+  if (profile.schemaVersion === 7 && profile.body) {
+    const [problem] = bodyProblems(profile, profile.body);
+    if (problem !== undefined) fail(problem);
+  }
   if (profile.schemaVersion >= 6 && 'propulsionCalibrations' in profile) {
     const bound = profile.propulsionCalibrations;
     if (bound.length > 0 && profile.calculation.mode !== 'measured') fail('Only a calculation from measurements binds propulsion calibrations');
@@ -378,7 +405,11 @@ export function propulsionCalibrationsOf(profile: AircraftProfile): readonly Bou
 }
 /** The landing gear a profile describes (TASK-194), or null: the standard supports of decision D-07. */
 export function landingGearOf(profile: AircraftProfile): ProfileGear | null {
-  return profile.schemaVersion === 7 ? profile.landingGear : null;
+  return profile.schemaVersion === 7 ? profile.landingGear ?? null : null;
+}
+/** The body a profile describes (TASK-196), or null: the standard hull of TASK-095. */
+export function bodyOf(profile: AircraftProfile): ProfileBody | null {
+  return profile.schemaVersion === 7 ? profile.body ?? null : null;
 }
 
 /**
@@ -392,7 +423,7 @@ export function landingGearOf(profile: AircraftProfile): ProfileGear | null {
 export function withProfileContent(profile: AircraftProfile, content: {
   readonly calculation?: CalculationSettings; readonly sensorConfiguration?: SensorConfiguration | null;
   readonly propellerPolars?: readonly PropellerPolar[]; readonly airframeDrag?: StatedAirframeDrag | null;
-  readonly propulsionCalibrations?: readonly BoundCalibration[]; readonly landingGear?: ProfileGear | null;
+  readonly propulsionCalibrations?: readonly BoundCalibration[]; readonly landingGear?: ProfileGear | null; readonly body?: ProfileBody | null;
 }): AircraftProfile {
   const config = content.sensorConfiguration === undefined ? profile.sensorConfiguration : content.sensorConfiguration;
   const sensors = config && isDefaultSensorConfiguration(config) ? null : config;
@@ -409,10 +440,12 @@ export function withProfileContent(profile: AircraftProfile, content: {
     .filter(entry => calculation.mode === 'measured' && calculation.measurementSets.includes(entry.measurementSet))
     .sort((a, b) => (a.combinationKey < b.combinationKey ? -1 : a.combinationKey > b.combinationKey ? 1 : 0));
   const gear = content.landingGear === undefined ? landingGearOf(profile) : content.landingGear;
-  if (gear) {
+  const body = content.body === undefined ? bodyOf(profile) : content.body;
+  if (gear || body) {
     // TASK-194: with a gear the resting height follows from it, so a ground clearance does not carry over.
-    return validateAircraftProfile({ ...fields, groundClearanceM: null, schemaVersion: 7, calculation, sensorConfiguration: sensors, propellerPolars: polars,
-      ...(drag ? { airframeDrag: drag } : {}), propulsionCalibrations: calibrations, landingGear: gear });
+    return validateAircraftProfile({ ...fields, ...(gear ? { groundClearanceM: null } : {}), schemaVersion: 7, calculation, sensorConfiguration: sensors,
+      propellerPolars: polars, ...(drag ? { airframeDrag: drag } : {}), propulsionCalibrations: calibrations,
+      ...(gear ? { landingGear: gear } : {}), ...(body ? { body } : {}) });
   }
   if (calibrations.length > 0) {
     return validateAircraftProfile({ ...fields, schemaVersion: 6, calculation, sensorConfiguration: sensors, propellerPolars: polars,
@@ -447,6 +480,11 @@ export function withPropulsionCalibrations(profile: AircraftProfile, calibration
 /** The profile with a described landing gear (TASK-194), or with null the standard supports again (schema 6 or lower). */
 export function withLandingGear(profile: AircraftProfile, gear: ProfileGear | null): AircraftProfile {
   return withProfileContent(profile, { landingGear: gear });
+}
+
+/** The profile with a described body (TASK-196), or with null the standard hull again. */
+export function withBody(profile: AircraftProfile, body: ProfileBody | null): AircraftProfile {
+  return withProfileContent(profile, { body });
 }
 
 /** The profile with stated airframe drag (TASK-096), or with null the standard hull's estimate again (schema 4 or lower). */
