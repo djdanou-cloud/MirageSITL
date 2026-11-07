@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./profile": "./src/profile.ts",
+    "./profile-gear": "./src/profile-gear.ts",
     "./layout": "./src/layout.ts",
     "./derive-manifest": "./src/derive-manifest.ts",
     "./resolve-components": "./src/resolve-components.ts",

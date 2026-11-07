@@ -47,8 +47,11 @@ export function MassProperties({ form, onChange }: { form: ProfileForm; onChange
       {form.payloadEnabled && <MassFields prefix="payload" title="Payload" value={form.payload} onChange={payload => onChange({ ...form, payload })} />}
       <div className="field">
         <label htmlFor="ground-clearance">Ground clearance (m, optional)</label>
-        <input id="ground-clearance" type="text" inputMode="decimal" value={form.groundClearanceM}
+        <input id="ground-clearance" type="text" inputMode="decimal" value={form.groundClearanceM} disabled={form.gearDescribed}
+          aria-describedby={form.gearDescribed ? "ground-clearance-gear" : undefined}
           onChange={event => onChange({ ...form, groundClearanceM: event.target.value })} />
+        {/* TASK-194: on a described landing gear the resting height follows from the gear. */}
+        {form.gearDescribed && <p className="hint" id="ground-clearance-gear">Follows from the described landing gear.</p>}
       </div>
     </section>
   );

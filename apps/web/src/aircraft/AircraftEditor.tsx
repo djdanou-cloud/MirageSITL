@@ -3,7 +3,7 @@ import { bindMeasurements, type MeasurementCandidate } from "@mirage/aircraft/ca
 import { readComponentCard, type ComponentType } from "@mirage/aircraft/components";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
-import { calculationSettings, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
+import { calculationSettings, landingGearOf, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
 import { nameLanguage } from "../shell/project-files";
@@ -13,6 +13,8 @@ import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
 import { AirframeDrag } from "./AirframeDrag";
+import { LandingGear } from "./LandingGear";
+import { gearDrawing } from "./scheme-geometry";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
 import { OutputMapping } from "./OutputMapping";
 import { choosePropellerPolar, emptyForm, formFromProfile, profileFromForm, propellerCardsOf, type ProfileForm } from "./profile-form";
@@ -60,6 +62,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   const [busy, setBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
   const [rendered, setRendered] = useState<readonly RenderedRotor[]>([]);
+  const [renderedGear, setRenderedGear] = useState<readonly (readonly number[])[]>([]);
   const [shared, setShared] = useState<{ motor: string | null; propeller: string | null; esc: string | null }>({ motor: null, propeller: null, esc: null });
 
   useEffect(() => {
@@ -118,6 +121,11 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   if (layout) lastLayout.current = layout;
   if (!editing) lastLayout.current = null;
   const shownLayout = layout ?? lastLayout.current;
+  // TASK-194: the described gear of the valid profile, as the scheme draws it.
+  const shownGear = useMemo(() => {
+    const gear = result?.ok ? landingGearOf(result.profile) : null;
+    return gear ? gearDrawing(gear) : null;
+  }, [result]);
   // Each motor's propeller radius from its card, or null while a motor has none.
   const radii = useMemo(() => {
     if (!result?.ok) return null;
@@ -264,9 +272,10 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
           <section className="project-section" aria-labelledby="scheme-heading">
             <h3 id="scheme-heading">Scheme</h3>
             {shownLayout ? (
-              <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-current={layout ? "true" : "false"}>
+              <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-rendered-gear={JSON.stringify(shownGear ? renderedGear : [])}
+                data-current={layout ? "true" : "false"}>
                 {!layout && <p className="hint">The form has problems, so the scheme shows the last valid layout.</p>}
-                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} onRendered={setRendered} />
+                <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} gear={shownGear} onRendered={setRendered} onRenderedGear={setRenderedGear} />
               </div>
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
@@ -313,6 +322,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             )}
           </section>
           <MassProperties form={editing.form} onChange={setForm} />
+          <LandingGear form={editing.form} profile={result?.ok ? result.profile : null} onChange={setForm} />
           <AirframeDrag form={editing.form} profile={result?.ok ? result.profile : null} radii={radii} onChange={setForm} />
         </>
       )}

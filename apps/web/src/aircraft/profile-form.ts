@@ -1,7 +1,9 @@
 import {
-  airframeDragOf, propellerPolarsOf, validateAircraftProfile, withAirframeDrag, withPropellerPolars, type AircraftProfile, type CalculationSettings,
-  type ProfileMotor, type PropellerPolar, type SpinDirection, type StatedAirframeDrag,
+  airframeDragOf, landingGearOf, propellerPolarsOf, propulsionCalibrationsOf, validateAircraftProfile, withProfileContent, type AircraftProfile,
+  type BoundCalibration, type CalculationSettings, type GearKind, type GearValues, type ProfileGear, type ProfileMotor, type PropellerPolar,
+  type SpinDirection, type StatedAirframeDrag,
 } from '@mirage/aircraft/profile';
+import { GEAR_VALUES, mapGearValues } from '@mirage/aircraft/profile-gear';
 import type { SensorConfiguration } from '@mirage/aircraft/sensor-fields';
 import type { AirframeDrag, MassProperties } from '@mirage/physics/vehicle-manifest';
 import { parseDecimal } from '../library/library-data';
@@ -58,6 +60,19 @@ export interface DragForm {
   readonly maxAirspeedMps: string;
   readonly source: string;
 }
+/** TASK-194: one gear value as typed and its source; both empty when the value is not known. */
+export interface GearValueForm {
+  readonly value: string;
+  readonly source: string;
+}
+/** TASK-194: a landing gear the user describes. Positions are the bottom of each foot or wheel with the struts fully extended. */
+export interface GearForm {
+  readonly kind: GearKind;
+  /** Body x, y and z of each foot, m (z down). */
+  readonly feet: readonly (readonly [string, string, string])[];
+  readonly positionSource: string;
+  readonly values: { readonly [K in keyof GearValues]: GearValueForm };
+}
 export interface ProfileForm {
   readonly arms: readonly ArmForm[];
   readonly mass: MassForm;
@@ -77,6 +92,12 @@ export interface ProfileForm {
   readonly dragStated: boolean;
   /** Kept while the drag is not stated, so stating it again restores the values. */
   readonly drag: DragForm;
+  /** TASK-194: whether the profile describes its landing gear; otherwise it stands on the standard supports. */
+  readonly gearDescribed: boolean;
+  /** Kept while the gear is not described, so describing it again restores the values. */
+  readonly gear: GearForm;
+  /** The propulsion calibrations (TASK-145), carried unchanged: the Components tab binds them. */
+  readonly propulsionCalibrations: readonly BoundCalibration[];
 }
 export type FormResult = { readonly ok: true; readonly profile: AircraftProfile } | { readonly ok: false; readonly errors: readonly string[] };
 
@@ -116,6 +137,24 @@ function dragForm(drag: StatedAirframeDrag): DragForm {
   return { areas: [a[0] ?? '', a[1] ?? '', a[2] ?? ''], cop: [c[0] ?? '', c[1] ?? '', c[2] ?? ''], maxAirspeedMps: String(drag.maxAirspeedMps),
     source: drag.source };
 }
+const NO_VALUE: GearValueForm = { value: '', source: '' };
+/** Four legs in a square under a 0.15 m stance, to edit; nothing about them is known yet. */
+export function emptyGear(): GearForm {
+  return {
+    kind: 'legs', feet: [['0.15', '0.15', '0.1'], ['0.15', '-0.15', '0.1'], ['-0.15', '-0.15', '0.1'], ['-0.15', '0.15', '0.1']], positionSource: '',
+    values: mapGearValues(() => NO_VALUE),
+  };
+}
+function gearForm(gear: ProfileGear): GearForm {
+  const entry = (key: keyof GearValues): GearValueForm => {
+    const value = gear.values[key];
+    return value === null ? NO_VALUE : { value: String(value), source: gear.provenance[key] ?? '' };
+  };
+  return {
+    kind: gear.kind, feet: gear.feetBodyM.map(foot => [String(foot[0]), String(foot[1]), String(foot[2])] as const), positionSource: gear.positionSource,
+    values: mapGearValues(entry),
+  };
+}
 export function emptyMass(): MassForm {
   return { massKg: '', cg: ['', '', ''], inertia: { xx: '', yy: '', zz: '', xy: '', xz: '', yz: '' } };
 }
@@ -124,6 +163,7 @@ export function emptyForm(): ProfileForm {
   return {
     arms: [], mass: emptyMass(), payloadEnabled: false, payload: emptyMass(), batteryCard: null, groundClearanceM: '',
     calculation: { mode: 'preliminary', measurementSets: [] }, sensorConfiguration: null, propellerPolars: [], dragStated: false, drag: emptyDrag(),
+    gearDescribed: false, gear: emptyGear(), propulsionCalibrations: [],
   };
 }
 
@@ -156,7 +196,12 @@ export function formFromProfile(profile: AircraftProfile): ProfileForm {
     groundClearanceM: profile.groundClearanceM === null ? '' : String(profile.groundClearanceM),
     calculation: profile.schemaVersion === 1 ? null : profile.calculation, sensorConfiguration: profile.sensorConfiguration,
     propellerPolars: propellerPolarsOf(profile), ...dragOf(profile),
+    gearDescribed: landingGearOf(profile) !== null, gear: gearOfProfile(profile), propulsionCalibrations: propulsionCalibrationsOf(profile),
   };
+}
+function gearOfProfile(profile: AircraftProfile): GearForm {
+  const gear = landingGearOf(profile);
+  return gear ? gearForm(gear) : emptyGear();
 }
 function dragOf(profile: AircraftProfile): { dragStated: boolean; drag: DragForm } {
   const stated = airframeDragOf(profile);
@@ -242,6 +287,8 @@ export function profileFromForm(form: ProfileForm): FormResult {
     if (d.source.trim() === '') read.errors.push('Say where the drag areas come from');
     drag = { dragAreasM2, centerOfPressureBodyM, maxAirspeedMps, source: d.source.trim() };
   }
+  const gear = form.gearDescribed ? readGear(read, form.gear) : null;
+  if (gear && groundClearanceM !== null) read.errors.push('With a described landing gear the resting height follows from it: leave the ground clearance empty');
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
   const candidate = {
     schemaVersion: form.sensorConfiguration ? 3 : form.calculation ? 2 : 1, units: 'SI', bodyFrame: 'FRD', arms,
@@ -250,14 +297,34 @@ export function profileFromForm(form: ProfileForm): FormResult {
   };
   try {
     const used = new Set(motors.map(motor => motor.components.propeller));
-    // Schema 4 exactly when a polar is chosen (TASK-144).
-    const polars = withPropellerPolars(validateAircraftProfile(candidate), form.propellerPolars.filter(entry => used.has(entry.card)));
-    // Schema 5 exactly when drag is stated (TASK-096).
-    const profile = drag ? withAirframeDrag(polars, drag) : polars;
+    // The lowest schema that holds the content: polars (TASK-144, schema 4), stated drag (TASK-096, schema 5), the propulsion
+    // calibrations carried from the stored version (TASK-145, schema 6) and a described gear (TASK-194, schema 7).
+    const profile = withProfileContent(validateAircraftProfile(candidate), {
+      propellerPolars: form.propellerPolars.filter(entry => used.has(entry.card)), airframeDrag: drag,
+      propulsionCalibrations: form.propulsionCalibrations, landingGear: gear,
+    });
     return { ok: true, profile };
   } catch (cause) {
     return { ok: false, errors: [cause instanceof Error ? cause.message.replace(/^Invalid aircraft profile: /, '') : String(cause)] };
   }
+}
+
+/** The gear a form describes; its rules (the support polygon, the values among themselves) are the profile's to check. */
+function readGear(read: Reader, form: GearForm): ProfileGear {
+  const feetBodyM = form.feet.map((foot, i) => foot.map((text, axis) => read.number(text, `Support ${i + 1} ${'xyz'[axis] ?? ''}`)));
+  if (form.positionSource.trim() === '') read.errors.push('Say where the landing gear positions come from');
+  const label = (key: keyof GearValues) => GEAR_VALUES.find(item => item.key === key)?.label ?? key;
+  const values = mapGearValues(key => {
+    const text = form.values[key].value.trim(), source = form.values[key].source.trim();
+    if (text === '') {
+      if (source !== '') read.errors.push(`${label(key)} has a source but no value`);
+      return null;
+    }
+    if (source === '') read.errors.push(`Say where the ${label(key).toLowerCase()} comes from`);
+    return read.number(text, label(key));
+  });
+  const provenance = mapGearValues(key => (form.values[key].value.trim() === '' ? null : form.values[key].source.trim()));
+  return { kind: form.kind, feetBodyM, positionSource: form.positionSource.trim(), values, provenance };
 }
 
 export interface EvenLayoutText {

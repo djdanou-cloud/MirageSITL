@@ -27,6 +27,16 @@ export const GEAR_VALUES: readonly { readonly key: keyof GearValues; readonly la
   { key: 'rollingCoefficient', label: 'Rolling coefficient', unit: '' },
 ]);
 
+/** A record over every gear value key, without a type assertion: the editor's form and the checks build one value per key. */
+export function mapGearValues<T>(make: (key: keyof GearValues) => T): { [K in keyof GearValues]: T } {
+  return {
+    strutTravelM: make('strutTravelM'), strutStiffnessNpm: make('strutStiffnessNpm'), strutDampingNspm: make('strutDampingNspm'),
+    footRadiusM: make('footRadiusM'), rimRadiusM: make('rimRadiusM'), footStiffnessNpm: make('footStiffnessNpm'),
+    unsprungMassKg: make('unsprungMassKg'), staticFriction: make('staticFriction'), kineticFriction: make('kineticFriction'),
+    rollingCoefficient: make('rollingCoefficient'),
+  };
+}
+
 /** The values the gear flies with: each stated one as stated, each other one from its standard rule. */
 export interface EffectiveGear {
   readonly values: { readonly [K in keyof GearValues]: number };

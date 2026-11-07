@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { CanvasTexture, Mesh, MeshStandardMaterial, Quaternion, Sprite, SpriteMaterial, Vector3, type Object3D } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { AircraftLayout, RotorLayout } from "@mirage/aircraft/layout";
-import { armMounts, frdToRender, rotorRenderPose, schemeDimensions } from "./scheme-geometry";
+import { armMounts, frdToRender, rotorRenderPose, schemeDimensions, type GearDrawing } from "./scheme-geometry";
 
 // The aircraft scheme (TASK-141, S03): every rotor drawn from the TASK-138
 // layout derivation, whose hub positions, hub orientations and spin signs are
@@ -106,6 +106,50 @@ export function Strut({ to, thickness }: { to: readonly number[]; thickness: num
   );
 }
 
+/** A thin box between two body FRD points. */
+export function Segment({ from, to, thickness, color = BODY_COLOR }: { from: readonly number[]; to: readonly number[]; thickness: number; color?: string }) {
+  const start = new Vector3(...frdToRender(from)), end = new Vector3(...frdToRender(to));
+  const along = end.clone().sub(start), length = along.length();
+  if (length === 0) return null;
+  const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), along.normalize());
+  return (
+    <mesh position={start.clone().add(end).multiplyScalar(0.5)} quaternion={quaternion}>
+      <boxGeometry args={[thickness, length, thickness]} />
+      <meshStandardMaterial color={color} />
+    </mesh>
+  );
+}
+
+const GEAR_COLOR = "#cfd8de";
+/**
+ * TASK-194: a described landing gear, its feet at their bottom points with the struts fully extended. Each foot is a group at that
+ * point (render space), named and tagged with its support index for the probe; wheels turn about body y.
+ */
+export function GearMeshes({ drawing, size }: { drawing: GearDrawing; size: number }) {
+  return (
+    <group name="landing-gear">
+      {drawing.struts.map((strut, index) => <Segment key={`strut-${index}`} from={strut.from} to={strut.to} thickness={size * 0.4} color={GEAR_COLOR} />)}
+      {drawing.runners.map((runner, index) => <Segment key={`runner-${index}`} from={runner.from} to={runner.to} thickness={size * 0.8} color={GEAR_COLOR} />)}
+      {drawing.feet.map((foot, index) => (
+        <group key={`foot-${index}`} name={`gear-foot-${index + 1}`} userData={{ gearSupport: index }} position={frdToRender(foot)}>
+          {drawing.kind === "wheels" ? (
+            // Render x is body y: the wheel's axle.
+            <mesh position={[0, size * 1.5, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[size * 1.5, size * 1.5, size * 0.9, 24]} />
+              <meshStandardMaterial color="#2b3a44" />
+            </mesh>
+          ) : (
+            <mesh position={[0, size, 0]}>
+              <sphereGeometry args={[size, 16, 12]} />
+              <meshStandardMaterial color="#2b3a44" />
+            </mesh>
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function Controls({ span }: { span: number }) {
   const { camera, gl, invalidate } = useThree();
   useEffect(() => {
@@ -123,10 +167,26 @@ function Controls({ span }: { span: number }) {
   return null;
 }
 
-function Probe({ onRendered }: { onRendered: (rotors: readonly RenderedRotor[]) => void }) {
+function Probe({ onRendered, onRenderedGear }: {
+  onRendered: (rotors: readonly RenderedRotor[]) => void; onRenderedGear?: ((feet: readonly (readonly number[])[]) => void) | undefined;
+}) {
   const scene = useThree(state => state.scene);
-  const last = useRef("");
+  const last = useRef(""), lastGear = useRef("");
   useFrame(() => {
+    // TASK-194: each drawn foot's render-space position, in support order.
+    if (onRenderedGear) {
+      const feet: { index: number; position: number[] }[] = [], at = new Vector3();
+      scene.traverse((object: Object3D) => {
+        const index: unknown = object.userData.gearSupport;
+        if (typeof index === "number") feet.push({ index, position: object.getWorldPosition(at).toArray() });
+      });
+      feet.sort((a, b) => a.index - b.index);
+      const json = JSON.stringify(feet);
+      if (json !== lastGear.current) {
+        lastGear.current = json;
+        onRenderedGear(feet.map(foot => foot.position));
+      }
+    }
     const rotors: RenderedRotor[] = [];
     const position = new Vector3(), rotation = new Quaternion();
     scene.traverse((object: Object3D) => {
@@ -156,10 +216,13 @@ function Probe({ onRendered }: { onRendered: (rotors: readonly RenderedRotor[]) 
 
 const format = (value: number) => (Math.abs(value) < 5e-4 ? "0" : value.toFixed(3));
 
-export function AircraftScheme3D({ layout, name, onRendered }: {
+export function AircraftScheme3D({ layout, name, gear = null, onRendered, onRenderedGear }: {
   layout: AircraftLayout;
   name: string;
+  /** TASK-194: the described landing gear, or null for the standard supports, which are not drawn. */
+  gear?: GearDrawing | null;
   onRendered?: (rotors: readonly RenderedRotor[]) => void;
+  onRenderedGear?: (feet: readonly (readonly number[])[]) => void;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
   const mounts = armMounts(layout);
@@ -180,8 +243,9 @@ export function AircraftScheme3D({ layout, name, onRendered }: {
           </mesh>
           {mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
           {layout.rotors.map(rotor => <Rotor key={rotor.motorId} rotor={rotor} discRadius={discRadius} />)}
+          {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
           <Controls span={span} />
-          {onRendered && <Probe onRendered={onRendered} />}
+          {onRendered && <Probe onRendered={onRendered} onRenderedGear={onRenderedGear} />}
         </Canvas>
       </div>
       <p className="hint">
@@ -209,6 +273,17 @@ export function AircraftScheme3D({ layout, name, onRendered }: {
           </tbody>
         </table>
       </div>
+      {gear && (
+        <div className="table-scroll" tabIndex={0} role="region" aria-label={`Landing gear table of ${name}`}>
+          <table className="scheme-table">
+            <caption>Landing gear of {name}: {gear.kind}</caption>
+            <thead><tr><th scope="col">Support</th><th scope="col">Foot bottom x, y, z (m)</th></tr></thead>
+            <tbody>
+              {gear.feet.map((foot, index) => <tr key={index}><th scope="row">{index + 1}</th><td>{foot.map(format).join(", ")}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
