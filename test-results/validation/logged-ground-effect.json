@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "kind": "logged-ground-effect",
+  "file": "stakeholder-speedybee35-19-10-2026-tune-120hz-frt-02.BIN",
+  "sha256": "2bfe29bc707968f47a00d6cb6fb60bb0bf31330a84d988515823b0825e4066b3",
+  "method": {
+    "binS": 0.1,
+    "motors": 4,
+    "minEscRows": 8,
+    "minMeanRpm": 8000,
+    "referenceMinM": 0.6,
+    "binsM": [
+      0.1,
+      0.15,
+      0.2,
+      0.3,
+      0.45,
+      0.6
+    ]
+  },
+  "assumptions": {
+    "armM": 0.0765,
+    "propellerDiameterM": 0.08889999999999999,
+    "pitchM": 0.0635,
+    "blades": [
+      2,
+      3
+    ],
+    "offsetsM": [
+      0.01,
+      0.03,
+      0.05
+    ],
+    "kvRpmPerV": 1950,
+    "duty": 0.6
+  },
+  "referenceSamples": 136,
+  "bins": [
+    {
+      "fromM": 0.1,
+      "toM": 0.15,
+      "measured": 1.0545078695011825,
+      "standardError": 0.007798576197177215,
+      "samples": 38,
+      "model": [
+        {
+          "offsetM": 0.01,
+          "blades": 2,
+          "rotorHeightM": 0.13415800107037382,
+          "ratio": 1.0114749478237006
+        },
+        {
+          "offsetM": 0.01,
+          "blades": 3,
+          "rotorHeightM": 0.13415800107037382,
+          "ratio": 1.0127947003867395
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 2,
+          "rotorHeightM": 0.1541580010703738,
+          "ratio": 1.0092095218873678
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 3,
+          "rotorHeightM": 0.1541580010703738,
+          "ratio": 1.0100805408490996
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 2,
+          "rotorHeightM": 0.17415800107037382,
+          "ratio": 1.0075227419760606
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 3,
+          "rotorHeightM": 0.17415800107037382,
+          "ratio": 1.0080649388296026
+        }
+      ],
+      "modelLow": 1.0075227419760606,
+      "modelHigh": 1.0127947003867395,
+      "reproduced": false
+    },
+    {
+      "fromM": 0.15,
+      "toM": 0.2,
+      "measured": 1.0004425941164439,
+      "standardError": 0.008398291932878797,
+      "samples": 17,
+      "model": [
+        {
+          "offsetM": 0.01,
+          "blades": 2,
+          "rotorHeightM": 0.1867980066419305,
+          "ratio": 1.0066719838028693
+        },
+        {
+          "offsetM": 0.01,
+          "blades": 3,
+          "rotorHeightM": 0.1867980066419305,
+          "ratio": 1.0071989452363468
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 2,
+          "rotorHeightM": 0.2067980066419305,
+          "ratio": 1.0056013200809442
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 3,
+          "rotorHeightM": 0.2067980066419305,
+          "ratio": 1.006068040484446
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 2,
+          "rotorHeightM": 0.2267980066419305,
+          "ratio": 1.0047739887185836
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 3,
+          "rotorHeightM": 0.2267980066419305,
+          "ratio": 1.0051805317024538
+        }
+      ],
+      "modelLow": 1.0047739887185836,
+      "modelHigh": 1.0071989452363468,
+      "reproduced": true
+    },
+    {
+      "fromM": 0.2,
+      "toM": 0.3,
+      "measured": 0.9814428582618555,
+      "standardError": 0.002440944963046645,
+      "samples": 31,
+      "model": [
+        {
+          "offsetM": 0.01,
+          "blades": 2,
+          "rotorHeightM": 0.2644109489998093,
+          "ratio": 1.0036346516377723
+        },
+        {
+          "offsetM": 0.01,
+          "blades": 3,
+          "rotorHeightM": 0.2644109489998093,
+          "ratio": 1.003957534807233
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 2,
+          "rotorHeightM": 0.28441094899980934,
+          "ratio": 1.0031840487613453
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 3,
+          "rotorHeightM": 0.28441094899980934,
+          "ratio": 1.0034647083345556
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 2,
+          "rotorHeightM": 0.3044109489998093,
+          "ratio": 1.0028091547842983
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 3,
+          "rotorHeightM": 0.3044109489998093,
+          "ratio": 1.0030561798653894
+        }
+      ],
+      "modelLow": 1.0028091547842983,
+      "modelHigh": 1.003957534807233,
+      "reproduced": true
+    },
+    {
+      "fromM": 0.3,
+      "toM": 0.45,
+      "measured": 0.9779631645720792,
+      "standardError": 0.0020686557957801436,
+      "samples": 39,
+      "model": [
+        {
+          "offsetM": 0.01,
+          "blades": 2,
+          "rotorHeightM": 0.37512887365896186,
+          "ratio": 1.00189493077358
+        },
+        {
+          "offsetM": 0.01,
+          "blades": 3,
+          "rotorHeightM": 0.37512887365896186,
+          "ratio": 1.0020587021768412
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 2,
+          "rotorHeightM": 0.3951288736589619,
+          "ratio": 1.0017129494562598
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 3,
+          "rotorHeightM": 0.3951288736589619,
+          "ratio": 1.0018617247066464
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 2,
+          "rotorHeightM": 0.41512887365896184,
+          "ratio": 1.001554486079228
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 3,
+          "rotorHeightM": 0.41512887365896184,
+          "ratio": 1.0016907380891404
+        }
+      ],
+      "modelLow": 1.001554486079228,
+      "modelHigh": 1.0020587021768412,
+      "reproduced": true
+    },
+    {
+      "fromM": 0.45,
+      "toM": 0.6,
+      "measured": 0.996098193262829,
+      "standardError": 0.0019901004584107294,
+      "samples": 67,
+      "model": [
+        {
+          "offsetM": 0.01,
+          "blades": 2,
+          "rotorHeightM": 0.5291505599329716,
+          "ratio": 1.0009579093574414
+        },
+        {
+          "offsetM": 0.01,
+          "blades": 3,
+          "rotorHeightM": 0.5291505599329716,
+          "ratio": 1.0010385300480042
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 2,
+          "rotorHeightM": 0.5491505599329716,
+          "ratio": 1.0008875842780607
+        },
+        {
+          "offsetM": 0.03,
+          "blades": 3,
+          "rotorHeightM": 0.5491505599329716,
+          "ratio": 1.0009619594339105
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 2,
+          "rotorHeightM": 0.5691505599329716,
+          "ratio": 1.000824198626013
+        },
+        {
+          "offsetM": 0.05,
+          "blades": 3,
+          "rotorHeightM": 0.5691505599329716,
+          "ratio": 1.000892929849859
+        }
+      ],
+      "modelLow": 1.000824198626013,
+      "modelHigh": 1.0010385300480042,
+      "reproduced": true
+    }
+  ],
+  "status": "NOT_REPRODUCED"
+}
