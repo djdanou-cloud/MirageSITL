@@ -880,3 +880,28 @@ layout coverage. It cannot judge the semantic quality of a translation;
 agents must review that explicitly. Root and docs sources are English;
 only `docs/ru/` contains Russian prose. Recheck package.json/HEAD before the
 next code task and update this baseline only from observed implementation.
+
+## 11. Communicating with the stakeholder
+
+By the stakeholder's instruction of 2026-11-07, everything an agent tells the
+stakeholder follows one protocol: every question, every report of a finished
+task or increment, every status update and every explanation of a result.
+Write as for a junior developer with little prior experience:
+
+* **Background first.** Say what the thing is, what it is for and why it
+  matters now, before any detail, number or option.
+* **All the information needed.** Give every fact the reader needs to follow
+  or decide, without assuming they remember earlier messages, tasks or
+  decision IDs; name what a TASK, decision or parameter is when you use it.
+* **Plain language.** Define each technical term the first time, use an
+  analogy where it helps, and say what each number means in practice (what a
+  0.39 m error or a 1 °/s limit means for the aircraft).
+* **Decisions.** For each question, list the options with what each means for
+  the user and the project, its cost and risk, and a recommendation with the
+  reason. Ask one decision at a time, in the question itself.
+* **Reports.** Say what now works and why it matters, then the evidence, then
+  what is not done or not verified, and why. Never report only test counts
+  and commit hashes.
+
+Keep the full technical detail in the specifications, the roadmap and the
+code; messages explain it, they do not replace it.
