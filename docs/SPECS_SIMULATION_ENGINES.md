@@ -6434,7 +6434,9 @@ flight to flight: 00000116's slow landing from a 0.6 m hover left 2 to 3 such sa
 take-off and landing 4 to 7. This explains the misses with the rangefinder, and very likely those
 with the GNSS height, which cannot resolve centimetres. A metric that separates the on-ground
 excess from the airborne offset would test the model's shape directly; it would be declared before
-a run on new logs, since these have been seen.
+a run on new logs, since these have been seen. The stakeholder added on 2026-11-08 that the aircraft
+has 3.5-inch propellers and flew some of these flights with a payload, which log not being known: the
+pressure-unit fit's premise of one mass across 00000116 and 00000167 may not hold either.
 
 ## GNSS v2 (TASK-117)
 

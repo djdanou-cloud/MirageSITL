@@ -121,11 +121,13 @@
       "stated": {
         "frame": { "value": "quad X with reversed motor directions (FRAME_CLASS 1, FRAME_TYPE 18, 'QUAD/X_REV')", "locator": "the log's parameters and MSG records" },
         "battery": { "value": "4S; BATT_CAPACITY 4000 mAh in 00000084, 4800 mAh in 00000116 and 00000167", "locator": "the logs' parameters" },
+        "propeller": { "value": "3.5 inch", "locator": "the stakeholder, 2026-11-08" },
+        "massKg": { "value": null, "locator": "the stakeholder, 2026-11-08: the mass changed between flights, some carrying a payload, and which log carried it is not known" },
         "rangefinder": { "value": "RNGFND1_TYPE 10 with optical flow (FLOW_TYPE 5)", "locator": "the log's parameters" },
         "motorRpm": { "value": "bidirectional DShot600 (MOT_PWM_TYPE 6, SERVO_BLH_BDMASK 15), 14 poles", "locator": "the log's parameters" },
         "flightController": { "value": "MatekH743-bdshot, board 00330029 30335119 38323836", "locator": "the log's MSG records" }
       },
-      "unknown": ["mass", "motor and propeller models", "arm length", "inertia", "barometer location"],
+      "unknown": ["mass of each flight", "motor model", "propeller model and pitch", "arm length", "inertia", "barometer location"],
       "notes": "The stakeholder's own flight logs, given on 2026-11-07 with the note that the drone was not configured in the best way; 00000116 and 00000167, given later that day as a bit better, have BATT_CAPACITY 4800 where 00000084 has 4000, so another battery. About 00000084: The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
     }
   ],
