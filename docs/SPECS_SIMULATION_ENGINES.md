@@ -7174,6 +7174,106 @@ isolated 540,800 rpm readings in the stakeholder's Pavo logs. The thread's resol
 slim ESCs needed far larger capacitors. A picture of one crash fixes no rate or condition, so a
 desynchronization model still has no data to be compared with.
 
+### Motor heat against wind-tunnel runs (TASK-105, declared 2026-11-08)
+
+Recorded before the network was run on any of these data, after a first look at their summary rows
+(power balance, temperatures at spool-up and at the end). The stakeholder has no thrust stand and chose
+on 2026-11-08, in place of the thrust-stand temperature runs, the public data of Saemi, Whitson and
+Benedict (Texas A&M University; Aerospace 11:401, 2024, doi:10.3390/aerospace11050401): the thermal data
+(figshare, doi:10.6084/m9.figshare.25658493, 2024-04-20) and the sizing data (doi:10.6084/m9.figshare.26107465,
+2024-06-26), CC BY 4.0, credited to the authors. The files are kept outside the repository (on the
+reference Mac under `~/Projects/MirageSITL-data/public-datasets/texas-am-motor-thermal/`);
+`data/motor-thermal/inventory.json` holds the SHA-256 and size of both archives and of each of their 73
+files, and the comparison refuses a file that differs. The paper itself was not read; what follows uses
+only the archives and their README.
+
+**What the data hold.** By the README, each `wtRaw_` file is a transient sampled at 1 Hz in a wind
+tunnel from the motor's start until its temperature changed by less than 1 K/min (time, speed, throttle,
+DC and AC power, voltage and rms current, two load-cell voltages, the stator temperature `Tstat`, the ESC
+temperature, a pitot voltage), and its name gives the target tunnel speed, target speed, supply voltage,
+propeller (diameter in inches and blades), date, ambient temperature, pressure and humidity. Each
+`wtSummary_` file gives two rows of the same run, at spool-up and at thermal steady state: speed, thrust
+in grams, torque, AC voltage, current and power, DC voltage and power, the motor temperature `Tmot`, the
+air temperature `Tamb` and the measured tunnel speed u; the first column is the transient's row (0-based)
+or −1 for its last row. Motor numbers in the files are one higher than in the paper. Motors 2, 3 and 5
+have ten transients each (15.5-inch three-blade, 21.5-inch three-blade and 15.5-inch two-blade
+propellers); motor 4 has summaries only, and its names do not give the propeller, so it has neither a
+transient nor an airspeed past the motor and is not compared.
+
+**Where the parameters come from.** The sizing data are not used: the thermal files name the motors by
+number only, and neither the catalogue (31 motors) nor the teardown table (7 motors) says which rows were
+tested; the measured torque per rms current, about 0.024, 0.033 and 0.029 N·m/A for motors 2, 3 and 5 at
+their higher currents, fits several catalogue rows each, so neither R₂₀ nor a mass for the heat
+capacities can be read from them. The electrical values come from the measured power balance of the fit
+runs' summary rows, not from temperatures: the motor's loss is the AC input less the shaft power,
+P_loss = P_ac − τ·Ω, and over the two rows of each fit run (ten rows per motor) the least-squares fit
+without intercept
+
+```text
+P_loss = R₂₀·(1 + 0.00393·(T_mot − 20 °C))·I_ac² + (k·I₀)₂₀·(1 − 0.0012·(T_mot − 20 °C))·Ω
+```
+
+gives R₂₀ and (k·I₀)₂₀, with T_mot standing in for both nodes. R₂₀ is then the resistance for which
+R·I_ac² is the copper loss at the measured rms current; it absorbs the phase count and the winding's
+connection, as the measured torque per I_ac follows the catalogue's convention k = 60/(2π·KV), so I_ac
+plays the DC-equivalent current of the drive. k₂₀ is the median of τ/I_ac over the fit rows with I_ac of
+at least 5 A, and I₀ = (k·I₀)₂₀/k₂₀; only their product enters the iron loss. A coefficient that is not
+positive stops that motor's comparison. The five thermal values, C_w, C_h, R_wh, R_ha and c, are fitted
+to the fit runs' transients: Nelder–Mead on their natural logarithms from (30 J/K, 100 J/K, 0.5 K/W,
+1 K/W, 0.1 s/m) with initial steps of ln 2, restarted from its best point until a restart improves the
+objective by less than 1e-9 of it, at most 20 restarts of at most 2000 evaluations each. The objective is
+the mean over the fit runs of each run's mean squared difference between the model's housing
+temperature and `Tstat` at every sample after the first.
+
+**The model.** The network is the repository's own: `BetMotorV2` (`packages/wasm-bet/src/motor-v2.ts`)
+over `bet_motor_thermal_step` of the scalar WASM build, one heated motor at 400 Hz, the same record the
+flight steps. Over each sample interval [t_k, t_k+1) the inputs of sample k are held, for
+round(400·t_k+1) − round(400·t_k) steps: the copper loss R·I_ac,k², R the record's own R(T_w) after the
+previous step (the flight path's one-step lag); the shaft speed 2π·N_k/60, from which the record forms
+its iron loss k(T_h)·I₀·|Ω|; the air temperature, the mean of the summary's two T_amb; and the airspeed
+past the motor by the flight path's rule, the tunnel speed plus the rotor's hover induced velocity, with
+the run's thrust scaled by the squared speed through spool-up and spool-down:
+
+```text
+V_k = u + √(|T_k| / (2·ρ·π·R_p²))      T_k = T_run·(N_k / N_run)²      ρ = p / (287.05 J/(kg·K) · (T_a + 273.15 K))
+```
+
+u, T_run and N_run the means of the summary's two tunnel speeds, thrusts and speeds, R_p half the
+propeller diameter of the file name, p and T_a the file name's pressure and ambient temperature. Both
+nodes start at the first sample's `Tstat`: the motor stands still for about five seconds before it
+starts, and several runs begin warm from the run before. `Tstat` is the stator temperature and is
+compared with the housing node, which this specification defines as the stator and housing; the winding
+node has no measurement and is reported only.
+
+**Fit and hold-out.** Within each motor the runs are sorted by the steady-state row's P_ac, largest
+first; the 1st, 3rd, 5th, 7th and 9th are fitted and the others held out (runs named by tunnel speed in
+dm/s and target speed in rev/min, as in the file names):
+
+| Motor | Fitted | Held out |
+| --- | --- | --- |
+| M02 | u070 RPM4829, u080 RPM4388, u110 RPM4071, u090 RPM3269, u100 RPM2718 | u070 RPM4683, u100 RPM3972, u080 RPM3526, u120 RPM3218, u120 RPM3003 |
+| M03 | u070 RPM3030, u060 RPM3170, u100 RPM2580, u080 RPM2160, u060 RPM1940 | u080 RPM2910, u050 RPM2630, u090 RPM2300, u070 RPM2060, u090 RPM1710 |
+| M05 | u090 RPM6044, u130 RPM6284, u130 RPM4956, u080 RPM4045, u090 RPM3618 | u100 RPM5877, u120 RPM5391, u110 RPM4644, u140 RPM4506, u100 RPM3508 |
+
+**Reported.** Per motor the fitted values and the fit's RMS; per run, fitted and held out, the RMS and
+the largest absolute difference between the housing node and `Tstat` over the samples after the first,
+the measured and model temperatures and rises above the air at the last sample, and the model's winding
+temperature there; per summary row, fitted and held out, the measured loss P_ac − τ·Ω and the fitted loss
+law's. Declared tolerance: a held-out run is reproduced when both its RMS and its last-sample difference
+are within max(2.5 K, 10 % of its measured last-sample rise above the air). 2.5 K is the standard
+tolerance of a class 2 type K thermocouple (IEC 60584-1), as the data do not name the sensor; 10 %
+covers the power balance, where 1 % of a 200 W input is 4 % of a 50 W loss, and the fit. Under SA-01 this
+labels the declared comparison for the user to judge; it is not a fidelity verdict.
+`tests/motor-thermal-runs.test.ts` runs it with `MIRAGE_MOTOR_THERMAL_DIR` set to the directory the
+archives unpack into (it skips without it), checks every file against the inventory and the split
+against the table above, and with `MIRAGE_MOTOR_THERMAL_OUT` set writes the report
+(`test-results/validation/motor-thermal-runs.json`), status `REPRODUCED` when every held-out run is
+reproduced and `NOT_REPRODUCED` otherwise. Its checks without the data, declared with the method: the loss
+law's fit returns R₂₀ and (k·I₀)₂₀ within 1e-9 relative from rows made with them; the driven network at
+held inputs ends within 1e-6 K of its steady state, found independently by fixed-point iteration of
+R(T_w); the fit returns the transient of a synthetic run made by the same network within 0.01 K RMS; and
+the file and name readers take a synthetic file in the archive's format.
+
 ### Notch tracking in the browser firmware (TASK-105, declared 2026-11-08)
 
 Recorded before the first run. The stakeholder approved the Emscripten SDK download on 2026-11-08; the
