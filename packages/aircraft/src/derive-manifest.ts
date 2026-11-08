@@ -1,5 +1,5 @@
 import {
-  validateVehicleManifest, type BatterySpec, type MassProperties, type SensorMount, type VehicleManifest,
+  validateVehicleManifest, type BatterySpec, type EscShapingSpec, type MassProperties, type MotorThermalSpec, type SensorMount, type VehicleManifest,
 } from '@mirage/physics/vehicle-manifest';
 import { canonicalBytes, decodeUtf8, sha256Hex } from '@mirage/project/schema';
 import { deriveLayout } from './layout.ts';
@@ -57,11 +57,15 @@ export interface MotorValues {
   readonly kvRpmPerV: number; readonly resistanceOhm: number; readonly currentLimitA: number;
   /** Optional (TASK-092, TASK-144): the no-load current of the ESC drive. */
   readonly noLoadCurrentA?: number;
+  /** Optional (TASK-105): the motor's heat, from a motor card that knows all five of its values. */
+  readonly thermal?: MotorThermalSpec;
 }
 export interface EscValues {
   readonly pwmMinUs: number; readonly pwmMaxUs: number; readonly commandTauS: number;
   /** Optional (TASK-092, TASK-144): the ESC drive's update rate and brake current limit. */
   readonly updateRateHz?: number; readonly brakeCurrentLimitA?: number;
+  /** Optional (TASK-105): the command path, from an ESC card that knows one of its four values. */
+  readonly shaping?: EscShapingSpec;
 }
 /** Propulsion values of one profile motor, resolved from the cards that the profile references. */
 export interface ResolvedMotor {

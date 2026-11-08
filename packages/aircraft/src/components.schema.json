@@ -537,7 +537,7 @@
       "oneOf": [
         {
           "type": "object",
-          "description": "Motor: KV, phase-to-phase winding resistance, no-load current at its test voltage, rated current and power, mass.",
+          "description": "Motor: KV, phase-to-phase winding resistance, no-load current at its test voltage, rated current and power, mass. Schema 2 (TASK-105) adds windingHeatCapacityJPerK, housingHeatCapacityJPerK, windingToHousingKPerW, housingToAirKPerW, airflowCoolingPerMps; a card that knows none of them is schema 1.",
           "additionalProperties": false,
           "required": [
             "schemaVersion",
@@ -553,7 +553,10 @@
           ],
           "properties": {
             "schemaVersion": {
-              "const": 1
+              "enum": [
+                1,
+                2
+              ]
             },
             "units": {
               "const": "SI"
@@ -574,13 +577,40 @@
               "$ref": "#/definitions/sources"
             },
             "values": {
-              "$ref": "#/definitions/motorValues"
+              "type": "object"
             },
             "provenance": {
-              "$ref": "#/definitions/motorProvenance"
+              "type": "object"
             },
             "applicability": {
               "$ref": "#/definitions/note"
+            }
+          },
+          "if": {
+            "properties": {
+              "schemaVersion": {
+                "const": 2
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/motorValuesV2"
+              },
+              "provenance": {
+                "$ref": "#/definitions/motorProvenanceV2"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/motorValues"
+              },
+              "provenance": {
+                "$ref": "#/definitions/motorProvenance"
+              }
             }
           }
         },
@@ -635,7 +665,7 @@
         },
         {
           "type": "object",
-          "description": "ESC: rated current, command update rate, rated voltage, mass.",
+          "description": "ESC: rated current, command update rate, rated voltage, mass. Schema 2 (TASK-105) adds latencyFrames, rampPerS, startDuty, throttleSteps; a card that knows none of them is schema 1.",
           "additionalProperties": false,
           "required": [
             "schemaVersion",
@@ -651,7 +681,10 @@
           ],
           "properties": {
             "schemaVersion": {
-              "const": 1
+              "enum": [
+                1,
+                2
+              ]
             },
             "units": {
               "const": "SI"
@@ -672,13 +705,40 @@
               "$ref": "#/definitions/sources"
             },
             "values": {
-              "$ref": "#/definitions/escValues"
+              "type": "object"
             },
             "provenance": {
-              "$ref": "#/definitions/escProvenance"
+              "type": "object"
             },
             "applicability": {
               "$ref": "#/definitions/note"
+            }
+          },
+          "if": {
+            "properties": {
+              "schemaVersion": {
+                "const": 2
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/escValuesV2"
+              },
+              "provenance": {
+                "$ref": "#/definitions/escProvenanceV2"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/escValues"
+              },
+              "provenance": {
+                "$ref": "#/definitions/escProvenance"
+              }
             }
           }
         },
@@ -783,6 +843,292 @@
               }
             }
           }
+        }
+      }
+    },
+    "motorValuesV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kvRpmPerV",
+        "resistanceOhm",
+        "noLoadCurrentA",
+        "noLoadVoltageV",
+        "maxCurrentA",
+        "maxPowerW",
+        "massKg",
+        "windingHeatCapacityJPerK",
+        "housingHeatCapacityJPerK",
+        "windingToHousingKPerW",
+        "housingToAirKPerW",
+        "airflowCoolingPerMps"
+      ],
+      "properties": {
+        "kvRpmPerV": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "resistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "noLoadCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "noLoadVoltageV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "maxCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "maxPowerW": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "windingHeatCapacityJPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        },
+        "housingHeatCapacityJPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        },
+        "windingToHousingKPerW": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "housingToAirKPerW": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "airflowCoolingPerMps": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "motorProvenanceV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kvRpmPerV",
+        "resistanceOhm",
+        "noLoadCurrentA",
+        "noLoadVoltageV",
+        "maxCurrentA",
+        "maxPowerW",
+        "massKg",
+        "windingHeatCapacityJPerK",
+        "housingHeatCapacityJPerK",
+        "windingToHousingKPerW",
+        "housingToAirKPerW",
+        "airflowCoolingPerMps"
+      ],
+      "properties": {
+        "kvRpmPerV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "resistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "noLoadCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "noLoadVoltageV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxPowerW": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "windingHeatCapacityJPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "housingHeatCapacityJPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "windingToHousingKPerW": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "housingToAirKPerW": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "airflowCoolingPerMps": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "escValuesV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCurrentA",
+        "updateRateHz",
+        "maxVoltageV",
+        "massKg",
+        "latencyFrames",
+        "rampPerS",
+        "startDuty",
+        "throttleSteps"
+      ],
+      "properties": {
+        "maxCurrentA": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000
+        },
+        "updateRateHz": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        },
+        "maxVoltageV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "latencyFrames": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 8
+        },
+        "rampPerS": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        },
+        "startDuty": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "throttleSteps": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "escProvenanceV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxCurrentA",
+        "updateRateHz",
+        "maxVoltageV",
+        "massKg",
+        "latencyFrames",
+        "rampPerS",
+        "startDuty",
+        "throttleSteps"
+      ],
+      "properties": {
+        "maxCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "updateRateHz": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxVoltageV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "latencyFrames": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "rampPerS": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "startDuty": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "throttleSteps": {
+          "$ref": "#/definitions/sourceReference"
         }
       }
     }

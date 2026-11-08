@@ -6930,6 +6930,160 @@ counter (the probe's `--wrap=malloc` needs GNU ld). Not yet: the models in the b
 the flight, a rebuilt WASM firmware and the notch-tracking check with it, and thrust-stand
 temperature runs (BLOCKED_EXTERNAL).
 
+### The ESC and the motor's heat in the flight (second increment, design of 2026-11-08)
+
+Recorded before the implementation. Two of the first increment's models enter the ESC drive of
+TASK-092 as two native batch steps around the rotor step, each over one record per motor; the
+inductive current does not, for a reason given below.
+
+**ESC shaping.** Each tick, before the bus is solved, `bet_esc_shaper_step(records, count, dt)` takes
+every rotor's target duty (the duty after the motor fault's fraction) through `EscShaper`: the target
+is first quantized to round(target·N)/N for an ESC with N throttle steps (none for N = 0), then enters
+the frame ring at the ESC's frame period, reaches the ESC `latency_frames` frames later, is followed at
+most `ramp_per_s`·dt per step (no limit for 0), and starts a stopped motor only from `start_duty`. Its
+output is the drive record's `esc_duty`. The frame period is the ESC's update period, so with a shaper
+the drive record's own sampling period T_esc is 0 and only its command lag τ_cmd stays; a power cut
+still unpowers the bridge at once through the drive flag.
+
+**Motor heat.** Each tick, after the rotors step, `bet_motor_thermal_step(records, count, dt)` advances
+every motor's two-node network (`MotorThermal`) with the step's copper loss (output `copper_loss`), the
+iron loss k(T_h)·I₀·|Ω| at the step's shaft speed, the air temperature and the airspeed past the motor,
+and writes R(T_w), k(T_h) and the no-load torque k(T_h)·I₀ into that rotor's drive record for the next
+tick. The magnets sit in the housing node. The air temperature is the atmosphere's, a²/(1.4·287.05) K
+from its speed of sound a; the airspeed past the motor is the magnitude of the air's velocity at the
+hub plus the hover induced velocity √(|T|/(2ρπR²)) of the rotor's thrust T this step, an engineering
+choice under F-03 since the motor sits in its own rotor's wash. The temperatures start at the air
+temperature and return to it on reset. The heat changes over seconds, while a tick is about a
+millisecond, so the one-tick lag of R and k behind the temperatures is not a numerical concern.
+
+**The inductive current stays in the kernel.** The winding's time constant L/R is about 0.1 ms on
+small motors (for example 10 µH and 0.1 Ω), against 0.83 to 2.5 ms per tick at 1200 to 400 Hz. Over one
+tick the current settles to within e^(−dt·R/L) ≈ e^(−8) or less of its quasi-static value, which is the
+current the TASK-092 drive already takes, with the back-EMF implicit in the shaft step. `InductiveMotor`
+holds Ω over a step; in the flight it would trade that implicit coupling for a lagged one to resolve a
+transient shorter than the step. Its mean current over a tick differs from the quasi-static one by
+(i₀ − i∞)·τ/dt, 8 to 12 % of the change of the quasi-static current within that one tick at 800 to
+1200 Hz, and by nothing once the current has settled. Desynchronization stays not modelled.
+
+**Where the values come from.** Component card schema 2 adds to the ESC card `latencyFrames` (0 to 8),
+`rampPerS` (above 0), `startDuty` ([0, 1)) and `throttleSteps` (1 to 65535), and to the motor card
+`windingHeatCapacityJPerK`, `housingHeatCapacityJPerK`, `windingToHousingKPerW`, `housingToAirKPerW`
+(above 0) and `airflowCoolingPerMps` (0 or above), each known with its source or null; a card with none
+of them keeps schema 1 and its bytes and SHA-256. The ESC is shaped when any of its four is known, the
+unknown ones neutral (no latency, no ramp limit, no start duty, no quantization) and listed as
+assumptions; the motor heats only when all five are known, and is listed as not heating otherwise.
+The vehicle manifest v2 takes them as an optional `shaping` on an ESC and an optional `thermal` on a
+motor; without them a manifest keeps its bytes, and a profile without them derives the bytes it did.
+
+### ESC shaper record v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | frames | latency_frames |
+| 8 | f64 | s | frame_period |
+| 16 | f64 | 1/s | ramp_per_s |
+| 24 | f64 | 1 | start_duty |
+| 32 | u32 | steps | throttle_steps |
+| 36 | u32 | 0 or 1 | running |
+| 40 | f64 | 1 | command |
+| 48 | f64 | 1 | duty |
+| 56 | f64 | s | countdown |
+| 64 | f64[8] | 1 | frames |
+| 128 | f64 | 1 | target |
+| 136..191 | u32[14] | — | reserved_zero |
+
+`running`, `command`, `duty`, `countdown` and `frames` are the shaper's state, zero at reset; `target`
+is the tick's input and `duty` its output. Valid: a frame period above 0 and at most 0.1 s, at most 8
+latency frames, a ramp of 0 or above, a start duty in [0, 1), at most 65535 steps, a target, command,
+duty and frames in [0, 1], a countdown in [0, frame period] and `running` 0 or 1.
+
+### Motor thermal record v1
+
+| Byte Offset | Data Type | Units | Field Name |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version |
+| 4 | u32 | — | reserved_zero |
+| 8 | f64 | J/K | winding_capacity |
+| 16 | f64 | J/K | housing_capacity |
+| 24 | f64 | K/W | winding_to_housing |
+| 32 | f64 | K/W | housing_to_air |
+| 40 | f64 | s/m | airflow_per_mps |
+| 48 | f64 | Ω | resistance_20c |
+| 56 | f64 | N·m/A | torque_constant_20c |
+| 64 | f64 | A | no_load_current |
+| 72 | f64 | °C | winding_temperature |
+| 80 | f64 | °C | housing_temperature |
+| 88 | f64 | W | copper_loss |
+| 96 | f64 | rad/s | shaft_speed |
+| 104 | f64 | °C | air_temperature |
+| 112 | f64 | m/s | airspeed |
+| 120 | f64 | Ω | resistance |
+| 128 | f64 | N·m/A | torque_constant |
+| 136 | f64 | N·m | no_load_torque |
+| 144 | f64 | W | iron_loss |
+| 152..191 | u32[10] | — | reserved_zero |
+
+The temperatures are the state, the losses, speed, air temperature and airspeed the tick's input, and
+bytes 120 to 151 its output: R and k at the new temperatures, the no-load torque k·I₀, and the iron
+loss the step applied. Valid: the capacities, resistances, R₂₀ and k₂₀ above 0, the airflow
+coefficient, I₀, the copper loss, the shaft speed and the airspeed 0 or above, and temperatures from
+−60 to 250 °C before and after the step.
+
+Both batch steps take 1 to 32 records laid end to end, check every record before writing any, and
+change nothing on a negative status: −2 record region, −3 invalid record or result, −7 version.
+`bet_esc_shaper_version` and `bet_motor_thermal_version` return 1.
+
+**Checks, declared before the implementation.** Native: the shaper record equals `EscShaper::step` on
+the quantized target bit for bit over 10,000 random steps; a target of 0.5004 with 2000 steps gives
+0.5005, the nearest of steps 0.0005 apart (first written as 0.5, an arithmetic slip found by the test's first run); a step at a frame boundary reaches the duty after exactly `latency_frames` frames; the thermal
+record equals `MotorThermal::step` with the iron loss k(T_h)·I₀·|Ω| bit for bit, with R and k by
+`winding_resistance_ohm` and `torque_constant_at`; one invalid record of a batch, a wrong version or a
+short region leaves every record unchanged; 1,000,000 steps of each allocate nothing. Flight
+(`BetFlightDynamics` on a body too heavy to move, with the ESC drive): without shaping or heat the
+trajectory digest is unchanged; with 2000 throttle steps every `esc_duty` is a multiple of 1/2000;
+with 3 latency frames at 400 Hz a command step first moves `esc_duty` 3 frames, 7.5 ms, plus at most one
+frame later; with a start duty of 0.1 a command of 0.05 leaves the rotor at rest; with heat at a held
+duty the winding temperature rises monotonically, every tick's drive record holds R₂₀·(1 + α·(T_w −
+20)), and after 60 time constants of the network the temperatures are within 0.01 K of the network's
+steady state at the final losses. `scripts/check-bet-runtime.mjs --allocation` adds the graph
+`shaped-heated-esc-four-rotor`: 1,000,000 steps with no collection.
+
+**Result (2026-11-08), as designed.** Native: `cargo test -p mirage-bet --release --test esc_abi --test thermal_abi`,
+7 passed: the shaper record equals `EscShaper` bit for bit over 10,000 random steps in three configurations,
+and the thermal record equals `MotorThermal` with its iron loss bit for bit over 20,000 steps of a varying
+load; bad records, versions and regions change nothing; 1,000,000 steps of each allocate nothing. WASM:
+`tests/wasm-motor-v2.test.ts`, 3 passed: the TypeScript offsets and the C header's constants equal the two
+tables above, the scalar and SIMD builds agree bit for bit over 6,000 steps, the shaper equals an
+independent transcription exactly and the network an independent eigen-decomposition within 1e-12. Flight:
+`tests/motor-v2-flight.test.ts`, 7 passed: an ESC with neutral shaping flies bit for bit as one without over
+2,400 steps of a varying command; every `esc_duty` is a multiple of 1/2000; a command step entered on tick
+200 acts on tick 203; a 0.05 command below a 0.1 start duty leaves every rotor at rest, and 0.15 then runs
+them within 1 % of an unshaped ESC; the heated network is within 0.01 K of its steady state after 36 s, and
+every tick's drive record holds R₂₀·(1 + 0.00393·(T_w − 20)) and k₂₀·(1 − 0.0012·(T_h − 20)) within 1e-15;
+cards that know two command-path values and all five thermal values shape and heat every rotor through
+`resolveComponents`, the manifest and `buildProfileDynamics`, an incomplete network does not heat and says
+so, and cards without schema-2 values derive neither section. Cards: `tests/component-cards.test.ts` and
+`tests/card-editor.test.ts`, 25 passed, and `tests/browser/card-editor.spec.ts`, 3 passed, where an ESC card
+given a latency and throttle steps in the Components tab is stored as schema 2. G1: the declared graph `shaped-heated-esc-four-rotor` did not pass, and it is not in the check. In the check's process, after its twenty other vehicles, the first vehicle with ESC shaping and motor heat allocated 0.28 B a step net with 15 collections over 1,000,000 steps (about 16 B a step by a sampling heap profile), also with a 500,000-step warm-up and with a harness that stores no double; an identical vehicle measured right after it in the same process, the shaping alone, the heat alone, and the first such vehicle in a fresh process allocated nothing (0 collections, 0.002 B a step). V8's traces show no deoptimization of the step after the warm-up and no megamorphic access in it, so the site that boxes in that first optimized code is not found. The native records allocate nothing over 1,000,000 steps each, which `scripts/check-bet-runtime.mjs --allocation` now runs. G1 of the flight path with them stays open. The
+motor temperatures are in `motorV2.thermalOutput` for cold readers and not yet in the telemetry or the
+recording; a step that would take a winding beyond 250 °C faults the session (`Motor thermal step failed`).
+
+Corrections made after the first runs, each recorded here: (1) 0.5004 at 2000 steps is 0.5005, not 0.5, an
+arithmetic slip; (2) the declared monotonic warm-up ignored the pack's discharge: at a held duty the bus
+voltage falls (16.43 to 16.33 V over 36 s), the copper loss with it, and the winding, at its steady state of
+22.35 °C after about 6 s, follows it down by about 1.3 mK every 3 s, so the check became that it never cools
+while more than 0.01 K below the steady state of its losses; (3) the neutral-shaping comparison compares the
+rotor speeds, since `esc_duty` holds the raw target without a shaper and the sampled one with it; (4) a 0.15
+command was first expected to give more than 100 rad/s within 1 s, a number with no basis, and is now
+compared with an unshaped ESC; (5) a heated motor was expected to turn slower, but the parity motor turns
+0.2 % faster: the magnets' lower k raises the speed a duty gives more than the winding's higher R lowers it,
+so the check is only that the heat reaches the rotor.
+
+Not yet: G1 of the flight path, as above; desynchronization; a rebuilt WASM firmware and the notch-tracking check with it, which need an
+Emscripten SDK on the reference Mac, where none is installed; and thrust-stand temperature runs
+(BLOCKED_EXTERNAL).
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of

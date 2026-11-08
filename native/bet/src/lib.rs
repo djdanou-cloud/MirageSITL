@@ -8,7 +8,8 @@
 //! `bound_v2` and `body_abi_v2` (TASK-088) are the step interfaces v2 with
 //! fail-closed fields for later tasks; neutral records run the v1 steps.
 //! `bound_v2` drive mode 1 and `bus_abi` (TASK-092) are the production ESC,
-//! motor and shared battery bus.
+//! motor and shared battery bus. `esc_abi` and `thermal_abi` (TASK-105) shape
+//! the ESC command and heat the motors around the rotor step.
 //!
 //! On wasm32 the global allocator traps: any heap allocation aborts the module,
 //! so the kernels provably run allocation-free (a no_std build is not used
@@ -24,6 +25,8 @@ pub mod blade;
 pub mod coaxial;
 pub mod motor;
 pub mod esc;
+pub mod esc_abi;
+pub mod thermal_abi;
 pub mod battery;
 pub mod math;
 pub mod frame;
@@ -314,6 +317,34 @@ mod wasm_exports {
         // SAFETY: both records are in caller memory and disjoint from each other.
         let (input,out)=unsafe{(bytes(bus,il),bytes_mut(op,ol))};
         crate::bus_abi::solve(input,&loads[..count as usize],out,dt)
+    }
+
+    /// ESC shaper record version (TASK-105).
+    #[no_mangle]
+    pub extern "C" fn bet_esc_shaper_version() -> u32 { crate::esc_abi::VERSION }
+
+    /// Steps `count` ESC shaper records laid end to end in caller memory (TASK-105).
+    #[no_mangle]
+    pub extern "C" fn bet_esc_shaper_step(records: u32, count: u32, dt: f64) -> i32 {
+        if count == 0 || count as usize > crate::esc_abi::MAX_RECORDS { return -2; }
+        let len = count * crate::esc_abi::RECORD_BYTES as u32;
+        if !caller_region(records, len) { return abi::STATUS_BAD_POINTER; }
+        // SAFETY: the region is in caller memory and aligned.
+        crate::esc_abi::step(unsafe { bytes_mut(records, len) }, dt)
+    }
+
+    /// Motor thermal record version (TASK-105).
+    #[no_mangle]
+    pub extern "C" fn bet_motor_thermal_version() -> u32 { crate::thermal_abi::VERSION }
+
+    /// Steps `count` motor thermal records laid end to end in caller memory (TASK-105).
+    #[no_mangle]
+    pub extern "C" fn bet_motor_thermal_step(records: u32, count: u32, dt: f64) -> i32 {
+        if count == 0 || count as usize > crate::thermal_abi::MAX_RECORDS { return -2; }
+        let len = count * crate::thermal_abi::RECORD_BYTES as u32;
+        if !caller_region(records, len) { return abi::STATUS_BAD_POINTER; }
+        // SAFETY: the region is in caller memory and aligned.
+        crate::thermal_abi::step(unsafe { bytes_mut(records, len) }, dt)
     }
 
     /// Invalidates a bound rotor without affecting another handle.

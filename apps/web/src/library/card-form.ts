@@ -5,7 +5,8 @@ import { angleField } from '../aircraft/profile-form';
 import { parseDecimal } from './library-data';
 
 // The component-card editor's form (TASK-192, S04): the text a user types,
-// turned into a card of schema 1 (TASK-139) only through
+// turned into a card of schema 1 (TASK-139), or 2 for a motor or ESC that
+// knows one of the TASK-105 values, only through
 // validateComponentCard. A value is either known, with its text and the
 // source it comes from, or not known and stored as null; nothing is filled
 // in. Twist angles are typed in degrees and stored in radians; an angle whose
@@ -20,14 +21,21 @@ export interface FieldSpec {
   readonly kind: FieldKind;
   /** A card of this type must know the value. */
   readonly required: boolean;
+  /** A schema-2 value (TASK-105): a card knowing none of them is saved as schema 1, without them. */
+  readonly schema2?: true;
 }
 const number = (key: string, label: string, required = false): FieldSpec => ({ key, label, kind: 'number', required });
+const schema2 = (spec: FieldSpec): FieldSpec => ({ ...spec, schema2: true });
 /** The values of each card type, in schema order. */
 export const CARD_FIELDS: { readonly [T in ComponentType]: readonly FieldSpec[] } = {
   motor: [
     number('kvRpmPerV', 'KV (rpm/V)', true), number('resistanceOhm', 'Winding resistance (Ω)'),
     number('noLoadCurrentA', 'No-load current (A)'), number('noLoadVoltageV', 'No-load test voltage (V)'),
     number('maxCurrentA', 'Maximum current (A)'), number('maxPowerW', 'Maximum power (W)'), number('massKg', 'Mass (kg)'),
+    schema2(number('windingHeatCapacityJPerK', 'Winding heat capacity (J/K)')), schema2(number('housingHeatCapacityJPerK', 'Housing heat capacity (J/K)')),
+    schema2(number('windingToHousingKPerW', 'Winding to housing thermal resistance (K/W)')),
+    schema2(number('housingToAirKPerW', 'Housing to still air thermal resistance (K/W)')),
+    schema2(number('airflowCoolingPerMps', 'Airflow cooling coefficient (s/m)')),
   ],
   propeller: [
     number('diameterM', 'Diameter (m)', true), number('pitchM', 'Pitch (m)', true),
@@ -40,6 +48,9 @@ export const CARD_FIELDS: { readonly [T in ComponentType]: readonly FieldSpec[] 
   esc: [
     number('maxCurrentA', 'Maximum current (A)', true), number('updateRateHz', 'Update rate (Hz)'),
     number('maxVoltageV', 'Maximum voltage (V)'), number('massKg', 'Mass (kg)'),
+    schema2({ key: 'latencyFrames', label: 'Command latency (frames)', kind: 'integer', required: false }),
+    schema2(number('rampPerS', 'Output ramp limit (1/s)')), schema2(number('startDuty', 'Start duty')),
+    schema2({ key: 'throttleSteps', label: 'Throttle steps', kind: 'integer', required: false }),
   ],
   battery: [
     { key: 'cellsSeries', label: 'Cells in series', kind: 'integer', required: true }, number('capacityAh', 'Capacity (Ah)', true),
@@ -252,8 +263,12 @@ export function cardFromForm(form: CardForm): CardFormResult {
     provenance[spec.key] = source?.id ?? null;
   }
   if (read.errors.length > 0) return { ok: false, errors: read.errors };
+  // TASK-105: schema 2 only when a schema-2 value is known; otherwise the card keeps schema 1 and its bytes.
+  const later = CARD_FIELDS[form.type].filter(spec => spec.schema2 === true);
+  const schemaVersion = later.some(spec => values[spec.key] !== null) ? 2 : 1;
+  if (schemaVersion === 1) for (const spec of later) { Reflect.deleteProperty(values, spec.key); Reflect.deleteProperty(provenance, spec.key); }
   const candidate = {
-    schemaVersion: 1, units: 'SI', type: form.type, example: form.example,
+    schemaVersion, units: 'SI', type: form.type, example: form.example,
     manufacturer: nullIfEmpty(form.manufacturer), model: nullIfEmpty(form.model), sources, values, provenance,
     applicability: nullIfEmpty(form.applicability),
   };

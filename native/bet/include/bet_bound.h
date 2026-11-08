@@ -96,4 +96,13 @@ int32_t bet_bus_step(uint32_t input, uint32_t output, double dt);
 #define BET_BUS_SOLUTION_BYTES 64
 uint32_t bet_bus_solve_version(void);
 int32_t bet_bound_bus_solve_v2(uint32_t table, uint32_t count, uint32_t bus, uint32_t output, double dt);
+/* TASK-105: ESC shaper and motor thermal records, 1 to 32 records end to end; statuses -2 region, -3 invalid, -7 version. */
+#define BET_ESC_SHAPER_VERSION 1
+#define BET_ESC_SHAPER_RECORD_BYTES 192
+#define BET_MOTOR_THERMAL_VERSION 1
+#define BET_MOTOR_THERMAL_RECORD_BYTES 192
+uint32_t bet_esc_shaper_version(void);
+int32_t bet_esc_shaper_step(uint32_t records, uint32_t count, double dt);
+uint32_t bet_motor_thermal_version(void);
+int32_t bet_motor_thermal_step(uint32_t records, uint32_t count, double dt);
 #endif

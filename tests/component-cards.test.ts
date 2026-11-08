@@ -14,7 +14,7 @@ import { profileDraft, validateAircraftProfile } from '../packages/aircraft/src/
 import { atan } from '../packages/aircraft/src/trig.ts';
 import { GEOMETRY_STRIPS, RECORDED_PROPELLER_GEOMETRY_SHA256 } from './support/aircraft-derivation.ts';
 import {
-  checkProfileCards, decodeComponentCards, exportComponentCards, importComponentCards, missingValues, readComponentCard,
+  CARD_V2_VALUE_KEYS, checkProfileCards, decodeComponentCards, exportComponentCards, importComponentCards, missingValues, readComponentCard,
   validateComponentCard, type ComponentCard,
 } from '../packages/aircraft/src/components.ts';
 import {
@@ -154,6 +154,44 @@ describe('card schema', () => {
       ['an empty cell above a full one', edit('battery-example', c => { setValue(c, 'cellEmptyV', 4.3); }), 'full cell voltage must be above the empty'],
     ];
     for (const [label, input, message] of invalid) expect(() => validateComponentCard(input), label).toThrow(message);
+  });
+});
+
+// TASK-105, declared before the implementation: a schema-2 motor or ESC card holds every schema-2 value, known or null, and knows at
+// least one; schema 1 holds none of them; each schema-2 value obeys its range and names its source; a schema-1 card keeps its bytes.
+describe('card schema 2 (TASK-105)', () => {
+  const v2 = (name: 'esc-example' | 'motor-example', known: Record<string, number>): CardData => {
+    const card = fixture(name);
+    card.schemaVersion = 2;
+    for (const key of CARD_V2_VALUE_KEYS[card.type]) setValue(card, key, known[key] ?? null);
+    return card;
+  };
+  test('a motor or ESC card that knows a schema-2 value is schema 2 and lists the ones it does not know', () => {
+    const esc = validateComponentCard(v2('esc-example', { latencyFrames: 2, throttleSteps: 2000 }));
+    expect(esc.schemaVersion).toBe(2);
+    expect(missingValues(esc).filter(key => CARD_V2_VALUE_KEYS.esc.includes(key))).toEqual(['rampPerS', 'startDuty']);
+    const motor = validateComponentCard(v2('motor-example', { windingHeatCapacityJPerK: 8, housingHeatCapacityJPerK: 25, windingToHousingKPerW: 1.5,
+      housingToAirKPerW: 6, airflowCoolingPerMps: 0 }));
+    expect(missingValues(motor).filter(key => CARD_V2_VALUE_KEYS.motor.includes(key))).toEqual([]);
+    expect(CARD_V2_VALUE_KEYS.propeller).toEqual([]);
+    expect(CARD_V2_VALUE_KEYS.battery).toEqual([]);
+  });
+  test('one form per card, the ranges, and the sources', () => {
+    expect(() => validateComponentCard(v2('esc-example', {}))).toThrow('A schema 2 card knows at least one of its schema 2 values');
+    // Schema 1 holds no schema-2 key, and schema 2 holds them all.
+    expect(() => validateComponentCard(edit('esc-example', card => setValue(card, 'latencyFrames', 2)))).toThrow(/must NOT have additional properties/);
+    expect(() => validateComponentCard(edit('esc-example', card => { card.schemaVersion = 2; setValue(card, 'latencyFrames', 2); }))).toThrow(/must have required property/);
+    for (const [key, value] of [['latencyFrames', 9], ['latencyFrames', 1.5], ['throttleSteps', 0], ['startDuty', 1], ['rampPerS', 0]] as const) {
+      expect(() => validateComponentCard(v2('esc-example', { [key]: value })), `${key} ${value}`).toThrow();
+    }
+    for (const [key, value] of [['housingToAirKPerW', 0], ['airflowCoolingPerMps', -0.1], ['windingHeatCapacityJPerK', 0]] as const) {
+      expect(() => validateComponentCard(v2('motor-example', { [key]: value })), `${key} ${value}`).toThrow();
+    }
+    const unsourced = v2('esc-example', { startDuty: 0.05 });
+    setSource(unsourced, 'startDuty', null);
+    expect(() => validateComponentCard(unsourced)).toThrow('startDuty has a value but no source');
+    // A propeller or battery card has no schema 2.
+    expect(() => validateComponentCard(edit('battery-example', card => { card.schemaVersion = 2; }))).toThrow();
   });
 });
 

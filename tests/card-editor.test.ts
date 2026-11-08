@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { canonicalBytes } from '../packages/project/src/schema.ts';
 import schema from '../packages/aircraft/src/components.schema.json';
-import { CARD_VALUE_KEYS, COMPONENT_TYPES, missingValues, validateComponentCard, type ComponentCard } from '../packages/aircraft/src/components.ts';
+import { CARD_V2_VALUE_KEYS, CARD_VALUE_KEYS, COMPONENT_TYPES, missingValues, validateComponentCard, type ComponentCard } from '../packages/aircraft/src/components.ts';
 import {
   CARD_FIELDS, addSource, cardFromForm, formFromCard, newCardForm, removeSource, setKnown, type CardForm, type FieldForm,
 } from '../apps/web/src/library/card-form.ts';
@@ -56,7 +56,8 @@ describe('card form', () => {
   test('the form lists every value of each card type in schema order, required exactly when the schema forbids null', () => {
     const valueSchemas = { motor: schema.definitions.motorValues, propeller: schema.definitions.propellerValues, esc: schema.definitions.escValues, battery: schema.definitions.batteryValues };
     for (const type of COMPONENT_TYPES) {
-      expect(CARD_FIELDS[type].map(spec => spec.key), type).toEqual([...CARD_VALUE_KEYS[type]]);
+      expect(CARD_FIELDS[type].map(spec => spec.key), type).toEqual([...CARD_VALUE_KEYS[type], ...CARD_V2_VALUE_KEYS[type]]);
+      expect(CARD_FIELDS[type].filter(spec => spec.schema2).map(spec => spec.key), type).toEqual([...CARD_V2_VALUE_KEYS[type]]);
       const notNull = CARD_VALUE_KEYS[type].filter(key => {
         const property: unknown = Reflect.get(valueSchemas[type].properties, key);
         return typeof property === 'object' && property !== null && 'type' in property && typeof property.type === 'string';
@@ -71,6 +72,21 @@ describe('card form', () => {
     // The twist is shown in degrees; untouched, it keeps its radians.
     const twist = formFromCard(MEASURED_PROPELLER).fields.twist!;
     expect(twist.rows.map(row => [row.ratio, row.value])).toEqual([['0.15', '34.3774677078'], ['0.5', '17.7616916491'], ['1', '2.86478897565']]);
+  });
+
+  // TASK-105, declared before the implementation: a schema-2 value typed in makes the card schema 2 with every schema-2 key; the
+  // card opens and saves to the same bytes; clearing those values saves it as schema 1 again, with the bytes of the original.
+  test('saves schema 2 only while a schema-2 value is known', () => {
+    const original = example('esc-example');
+    const typed = edit(formFromCard(original), f => { field(f, 'latencyFrames').known = true; field(f, 'latencyFrames').text = '2'; field(f, 'latencyFrames').source = 0; });
+    const card = built(typed);
+    expect(card.schemaVersion).toBe(2);
+    expect(Object.keys(card.values)).toEqual(['maxCurrentA', 'updateRateHz', 'maxVoltageV', 'massKg', 'latencyFrames', 'rampPerS', 'startDuty', 'throttleSteps']);
+    expect(Reflect.get(card.values, 'latencyFrames')).toBe(2);
+    expect(same(built(formFromCard(card)), card)).toBe(true);
+    const cleared = built(edit(formFromCard(card), f => { field(f, 'latencyFrames').known = false; }));
+    expect(cleared.schemaVersion).toBe(1);
+    expect(same(cleared, original)).toBe(true);
   });
 
   test('a new card starts with its required values to fill, and unknown values are stored as null', () => {

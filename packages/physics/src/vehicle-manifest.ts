@@ -30,6 +30,17 @@ export interface MotorSpec {
   readonly resistanceOhm: number; readonly currentLimitA: number;
   /** Optional (TASK-092): no-load current I₀; the Coulomb drag torque is k_t·I₀. */
   readonly noLoadCurrentA?: number;
+  /** Optional (TASK-105): the motor's heat; its R, k_t and I₀ are their 20 °C values. */
+  readonly thermal?: MotorThermalSpec;
+}
+/** TASK-105: a motor's two-node thermal network (SPECS_SIMULATION_ENGINES "Motor thermal record v1"). */
+export interface MotorThermalSpec {
+  readonly windingHeatCapacityJPerK: number; readonly housingHeatCapacityJPerK: number;
+  readonly windingToHousingKPerW: number; readonly housingToAirKPerW: number; readonly airflowCoolingPerMps: number;
+}
+/** TASK-105: an ESC's command path at its update rate; a ramp of 0 is no limit, 0 throttle steps no quantization. */
+export interface EscShapingSpec {
+  readonly latencyFrames: number; readonly rampPerS: number; readonly startDuty: number; readonly throttleSteps: number;
 }
 export interface EscSpec {
   readonly id: number; readonly motorId: number; readonly pwmMinUs: number; readonly pwmMaxUs: number;
@@ -38,6 +49,8 @@ export interface EscSpec {
   readonly updateRateHz?: number;
   /** Optional (TASK-092): the magnitude of the regenerative (braking) current limit. */
   readonly brakeCurrentLimitA?: number;
+  /** Optional (TASK-105): the command path, which needs `updateRateHz`. */
+  readonly shaping?: EscShapingSpec;
 }
 export interface BatterySpec {
   readonly openCircuitFullV: number; readonly openCircuitEmptyV: number; readonly internalResistanceOhm: number;

@@ -350,3 +350,18 @@ test("the example cards open and save to their exact bytes; a copy leaves the or
   const result = await new AxeBuilder({ page }).analyze();
   expect(result.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
 });
+
+// TASK-105: an ESC's command-path values typed in the Components tab store the card as schema 2, every schema-2 value present.
+test("an ESC card with a command latency and throttle steps is stored as schema 2", async ({ page }) => {
+  await page.goto("/");
+  await createProject(page, "ESC shaping");
+  const panel = tabPanel(page, "Components");
+  await newCard(panel, "ESC", "Shaped ESC", "Manufacturer datasheet.");
+  await label(panel, "Maximum current (A)").fill("35");
+  await known(panel, "Command latency (frames)", "2");
+  await known(panel, "Throttle steps", "2000");
+  await save(panel, "Created Shaped ESC.");
+  const card = (await stored(page, "component-card"))["Shaped ESC"]?.[0]?.payload;
+  expect(card).toMatchObject({ schemaVersion: 2, values: { maxCurrentA: 35, latencyFrames: 2, rampPerS: null, startDuty: null, throttleSteps: 2000 },
+    provenance: { latencyFrames: "datasheet", rampPerS: null, throttleSteps: "datasheet" } });
+});

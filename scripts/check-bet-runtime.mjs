@@ -53,7 +53,7 @@ const modules=['scalar','simd128'].map(v=>new WebAssembly.Module(read(`packages/
 const sourceFiles=Object.keys(bundled.metafile.inputs).filter(p=>p!=='bet-runtime-entry.ts').map(p=>p.replaceAll('\\','/'));
 sourceFiles.push('scripts/check-bet-runtime.mjs','scripts/bet-runtime-graphs.ts','native/bet/src/bound.rs','native/bet/src/polar.rs','native/bet/src/lib.rs',
   'native/bet/src/blade.rs','native/bet/src/shaft.rs','native/bet/src/inflow.rs','native/bet/src/rigid_body.rs',
-  'native/bet/src/body_abi.rs','native/Cargo.lock','native/rust-toolchain.toml',
+  'native/bet/src/body_abi.rs','native/bet/src/esc_abi.rs','native/bet/src/thermal_abi.rs','native/bet/src/esc.rs','native/bet/src/motor.rs','native/Cargo.lock','native/rust-toolchain.toml',
   'packages/physics/package.json','packages/wasm-bet/package.json',
   'native/bet/Cargo.toml','tests/fixtures/rotors/rotor-map-synthetic.json','native/bet/tests/allocation.rs','native/bet/tests/bound_v2.rs','native/bet/tests/support/bound_fixture.rs');
 for (const entry of readdirSync(resolve(root,'native/bet/src')))
@@ -116,6 +116,9 @@ if(!allocation){
   for(const name of ['v2_step_allocates_zero_over_one_million_steps','esc_steps_allocate_zero_over_one_million_steps','bus_steps_allocate_zero_over_one_million_steps',
     'opt_in_kernel_modes_allocate_zero_over_one_million_steps'])
     if(!drive.includes(`${name} ... ok`))throw Error(`Native ${name} did not execute`);
+  // TASK-105: the ESC shaper and motor thermal records under their own counting allocators.
+  const motorV2=execFileSync('cargo',['test','--release','-p','mirage-bet','--test','esc_abi','--test','thermal_abi','--locked','allocate'],{cwd:resolve(root,'native'),encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
+  if((motorV2.match(/a_million_steps_allocate_nothing \.\.\. ok/g)??[]).length!==2)throw Error('Native ESC shaper and motor thermal allocator checks did not execute');
   const events=[],observer=new PerformanceObserver(list=>{for(const e of list.getEntries())events.push(e.startTime);});observer.observe({entryTypes:['gc']});
   const settle=()=>new Promise(r=>setTimeout(r,30));
   const young=()=>v8.getHeapSpaceStatistics().find(s=>s.space_name==='new_space').space_used_size;
@@ -366,8 +369,8 @@ if(!allocation){
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
-    nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step); native counted allocator checks (bound v1, v2, ESC drive, bus) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000,escShaper:1000000,motorThermal:1000000}},
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step); native counted allocator checks (bound v1, v2, ESC drive, bus, ESC shaper, motor thermal) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }

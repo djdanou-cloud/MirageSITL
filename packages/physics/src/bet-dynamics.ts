@@ -7,6 +7,7 @@ import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR
 import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
 import type { RotorMapTable } from '../../wasm-bet/src/rotor-map.ts';
 import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
+import { BetMotorV2, ThermalInput, ThermalOutput, type EscShaping, type MotorHeat } from '../../wasm-bet/src/motor-v2.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
@@ -26,7 +27,20 @@ export interface EscDriveMotor {
   readonly brakeCurrentLimitA: number; readonly noLoadTorqueNm: number; readonly commandTauS: number;
   /** ESC update period; 0 updates every physics step. */
   readonly updatePeriodS: number;
+  /**
+   * TASK-105: the ESC's command path, with `updatePeriodS` (above 0) as its frame period; the drive record then samples every
+   * step. Absent, the ESC is the TASK-092 one, bit for bit.
+   */
+  readonly shaping?: EscShapingValues;
+  /** TASK-105: the motor's heat, scaling this motor's R, k_t and no-load torque, taken as their 20 °C values. Absent, it does not heat. */
+  readonly heat?: MotorHeatValues;
 }
+/** TASK-105: what an ESC does to its command beyond sampling it (SPECS_SIMULATION_ENGINES "ESC shaper record v1"). */
+export type EscShapingValues = Omit<EscShaping, 'framePeriodS'>;
+/** TASK-105: a motor's two-node thermal network (SPECS_SIMULATION_ENGINES "Motor thermal record v1"). */
+export type MotorHeatValues = Omit<MotorHeat, 'resistance20cOhm' | 'torqueConstant20cNmPerA' | 'noLoadCurrentA'>;
+/** The specific gas constant of dry air J/(kg K) and its ratio of specific heats, which give the air temperature a²/(γR) from the speed of sound. */
+const AIR_GAS_CONSTANT = 287.05, AIR_GAMMA = 1.4;
 /**
  * Airframe drag (TASK-096): the airframe without its rotors, whose momentum drag the BET rotors produce themselves.
  * F = −½·ρ·|v_a|·(C_D·A)·v_a in body FRD, v_a the velocity relative to the air, and the moment r_cp × F about the CG.
@@ -328,6 +342,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   /** TASK-149 accident monitor over the contact's shape reports; null without contact shapes. */
   readonly accidents:AccidentMonitor|null;
   private readonly capacityAh:number;
+  /**
+   * TASK-105: the shaped ESCs and heated motors, or null with neither. Its `thermalOutput` holds each heated motor's
+   * temperatures, R, k and no-load torque after the last step, in the order of `heatedIndex`.
+   */
+  readonly motorV2:BetMotorV2|null;
+  /** TASK-105: per rotor, its record in `motorV2`'s shapers and networks, or −1. */
+  readonly shapedIndex:Int32Array;
+  readonly heatedIndex:Int32Array;
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
@@ -394,6 +416,21 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         if(!values.every(Number.isFinite))throw Error('Invalid ESC drive motor');
         esc.drive.set(values,i*BOUND_V2_DRIVE_DOUBLES);esc.driveMode[i]=BOUND_V2.driveEscDuty;
       });
+      // TASK-105: the ESC shaper samples the frames, so a shaped rotor's drive record samples every step.
+      const shaping:EscShaping[]=[],heat:MotorHeat[]=[];
+      this.shapedIndex=new Int32Array(n).fill(-1);this.heatedIndex=new Int32Array(n).fill(-1);
+      drive.motors.forEach((m,i)=>{
+        if(m.shaping){
+          if(!(m.updatePeriodS>0))throw Error('ESC shaping needs an ESC update period');
+          this.shapedIndex[i]=shaping.length;shaping.push({framePeriodS:m.updatePeriodS,...m.shaping});
+          esc.drive[i*BOUND_V2_DRIVE_DOUBLES+6]=0;
+        }
+        if(m.heat){
+          this.heatedIndex[i]=heat.length;
+          heat.push({...m.heat,resistance20cOhm:m.resistanceOhm,torqueConstant20cNmPerA:m.torqueConstantNmPerA,noLoadCurrentA:m.noLoadTorqueNm/m.torqueConstantNmPerA});
+        }
+      });
+      this.motorV2=shaping.length+heat.length>0?new BetMotorV2(module,shaping,heat,hz):null;
       this.escEngine=esc;this.engine=null;
       this.bus=new BetBus(module,drive.battery,hz);esc.attachBattery(drive.battery);this.initialSoc=soc;this.housePowerW=house;
       this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
@@ -402,6 +439,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.input=this.escEngine.input;this.output=this.escEngine.output;this.inputStride=BOUND_V2_INPUT_DOUBLES;this.outputStride=BOUND_V2_OUTPUT_SLOTS;
     } else {
       if(configuration.limitRatings)throw Error('Limit ratings need the ESC drive');
+      this.motorV2=null;this.shapedIndex=new Int32Array(n).fill(-1);this.heatedIndex=new Int32Array(n).fill(-1);
       this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.bus=null;this.initialSoc=1;this.housePowerW=0;
       this.power=null;this.limits=null;this.capacityAh=0;
       this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
@@ -549,6 +587,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
     this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
     this.dragWrenchBody.fill(0);
+    this.resetMotorV2();
     const t=this.power;
     if(t) {
       t.clear();
@@ -557,6 +596,45 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       t.battery[BatteryColumn.RemainingAh]=e[0]*this.capacityAh;t.battery[BatteryColumn.CapacityAh]=this.capacityAh;
     }
     this.copyTruth();
+  }
+  /** TASK-105: the motors at the air's temperature and their drive records at it; the shapers at rest. Cold. */
+  private resetMotorV2():void {
+    const mv=this.motorV2,esc=this.escEngine;
+    if(!mv||!esc)return;
+    const a=this.atmosphere[2]!;
+    mv.reset(a*a/(AIR_GAMMA*AIR_GAS_CONSTANT)-273.15);
+    this.applyHeat();
+  }
+  /** TASK-105: each heated motor's R, k_t and no-load torque from its network into its drive record, for the next step. */
+  private applyHeat():void {
+    const mv=this.motorV2!,drive=this.escEngine!.drive,out=mv.thermalOutput,index=this.heatedIndex;
+    for(let i=0;i<this.rotorCount;i++){
+      const k=index[i]!;
+      if(k<0)continue;
+      const o=k*ThermalOutput.Stride,d=i*BOUND_V2_DRIVE_DOUBLES;
+      drive[d]=out[o+ThermalOutput.ResistanceOhm]!;drive[d+1]=out[o+ThermalOutput.TorqueConstantNmPerA]!;drive[d+4]=out[o+ThermalOutput.NoLoadTorqueNm]!;
+    }
+  }
+  /**
+   * TASK-105: each heated motor's network over the step just taken: its copper loss, its shaft speed, the air's temperature from its
+   * speed of sound, and the air past it, the hub's air plus the hover induced velocity of the rotor's thrust.
+   */
+  private heatMotors():boolean {
+    const mv=this.motorV2!,ti=mv.thermalInput,output=this.output,input=this.input,index=this.heatedIndex,stride=this.outputStride;
+    const a=this.atmosphere[2]!,rho=this.atmosphere[0]!,airC=a*a/(AIR_GAMMA*AIR_GAS_CONSTANT)-273.15,radius=this.groundRadius;
+    for(let i=0;i<this.rotorCount;i++){
+      const k=index[i]!;
+      if(k<0)continue;
+      const o=i*stride,b=i*this.inputStride,t=k*ThermalInput.Stride,r=radius[i]!;
+      const ax=input[b+3]!,ay=input[b+4]!,az=input[b+5]!,thrust=Math.abs(output[o+2]!);
+      ti[t+ThermalInput.CopperLossW]=output[o+22]!; // copper_loss (record byte 168)
+      ti[t+ThermalInput.ShaftSpeedRadS]=Math.abs(output[o+9]!);
+      ti[t+ThermalInput.AirC]=airC;
+      ti[t+ThermalInput.AirspeedMps]=Math.sqrt(ax*ax+ay*ay+az*az)+Math.sqrt(thrust/(2*rho*Math.PI*r*r));
+    }
+    if(!mv.heatFromInput())return false;
+    this.applyHeat();
+    return true;
   }
   /**
    * Motor faults on the physical path (cold). A power cut with remaining
@@ -695,6 +773,14 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         esc.driveFlags[i]=fraction===0?BOUND_V2.drivePowerCut:0;
       } else input[b+12]=faults?duty*this.torque[i]!*fraction:duty*this.torque[i]!;
     }
+    // TASK-105: the shaped ESCs' commands through their quantization, frames, latency, ramp and start duty.
+    const mv=this.motorV2;
+    if(mv&&mv.shaped>0){
+      const shaped=this.shapedIndex,targets=mv.targets,duties=mv.duties;
+      for(let i=0;i<this.rotorCount;i++){const k=shaped[i]!;if(k>=0)targets[k]=input[i*this.inputStride+13]!;}
+      if(!mv.shapeFromInput()){this.fault='ESC shaper step failed';return;}
+      for(let i=0;i<this.rotorCount;i++){const k=shaped[i]!;if(k>=0)input[i*this.inputStride+13]=duties[k]!;}
+    }
     if(wake){
       // TASK-101: each rotor's last thrust and this step's air give what it blows onto the others on this step.
       const air=wake.airHubMps,density=wake.densityKgM3,blown=wake.wakeHubMps;
@@ -733,6 +819,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       // TASK-101: the next step's wake is what this rotor gave; its download leaves the wrench at its hub.
       if(wake){const thrust=this.hub[b+2]!;wake.thrustN[i]=thrust;this.hub[b+2]=thrust-wake.downloadN[i]!;}
     }
+    if(mv&&mv.heated>0&&!this.heatMotors()){this.fault='Motor thermal step failed';return;}
     if(this.bus) {
       // The bus delivers the summed terminal power of these motors, which ran on the voltage solved above.
       const e=this.electrical,o=this.bus.output;

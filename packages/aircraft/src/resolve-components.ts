@@ -27,7 +27,9 @@ export const ROTOR_STRIPS = 16;
 export type ComponentAssumptionId =
   | 'esc-pwm-range' | 'esc-update-rate' | 'esc-command-lag' | 'esc-brake-current' | 'motor-no-load-current'
   | 'motor-current-limit' | 'motor-rotor-inertia' | 'bearing-drag' | 'pack-resistance' | 'pack-current-limit'
-  | 'polar-from-card-airfoil' | 'rotor-numerics' | GeometryFlagId;
+  | 'polar-from-card-airfoil' | 'rotor-numerics'
+  // TASK-105: the ESC command path's neutral values, and the motor heat's.
+  | 'esc-latency' | 'esc-ramp' | 'esc-start-duty' | 'esc-throttle-steps' | 'motor-heat-incomplete' | 'motor-heat-20c' | GeometryFlagId;
 export interface ComponentAssumption {
   readonly id: ComponentAssumptionId;
   /** What it applies to, such as "ESC card 1a2b3c4d5e6f" or "battery". */
@@ -109,8 +111,18 @@ export function resolveComponents(input: unknown, cards: ReadonlyMap<string, Com
       }
       assume('esc-command-lag', subject, 'The ESC follows a new command with a first-order lag of one update period; its own filtering is unknown.');
       assume('esc-brake-current', subject, `Braking current limited to the ESC rating, ${v.maxCurrentA} A; the card states no brake limit.`);
+      // TASK-105: an ESC card that knows one of its command-path values shapes the command; the unknown ones are neutral.
+      const shaping = [v.latencyFrames, v.rampPerS, v.startDuty, v.throttleSteps].some(x => x !== undefined && x !== null) ? {
+        latencyFrames: v.latencyFrames ?? 0, rampPerS: v.rampPerS ?? 0, startDuty: v.startDuty ?? 0, throttleSteps: v.throttleSteps ?? 0,
+      } : null;
+      if (shaping) {
+        if (v.latencyFrames === null || v.latencyFrames === undefined) assume('esc-latency', subject, 'The ESC acts on each command frame as it arrives; the card states no latency.');
+        if (v.rampPerS === null || v.rampPerS === undefined) assume('esc-ramp', subject, 'The ESC output follows its command without a ramp limit; the card states none.');
+        if (v.startDuty === null || v.startDuty === undefined) assume('esc-start-duty', subject, 'The ESC starts a stopped motor at any command above 0; the card states no start duty.');
+        if (v.throttleSteps === null || v.throttleSteps === undefined) assume('esc-throttle-steps', subject, 'The ESC resolves its command without quantization; the card states no throttle steps.');
+      }
       escValues = { pwmMinUs: ASSUMED_PWM_RANGE_US.min, pwmMaxUs: ASSUMED_PWM_RANGE_US.max, commandTauS: 1 / rate,
-        updateRateHz: rate, brakeCurrentLimitA: v.maxCurrentA };
+        updateRateHz: rate, brakeCurrentLimitA: v.maxCurrentA, ...(shaping ? { shaping } : {}) };
     }
     if (motorCard && refs.motor) {
       const subject = `motor card ${short(refs.motor)}`, v = motorCard.values;
@@ -122,8 +134,18 @@ export function resolveComponents(input: unknown, cards: ReadonlyMap<string, Com
         assume('motor-current-limit', subject, `Current limit ${limit} A from the ESC rating; the card states no maximum current.`);
       }
       if (limit === null) missing.push(`${subject}: maximum current`);
+      // TASK-105: a motor heats only when its card knows all five thermal values.
+      const heat = [v.windingHeatCapacityJPerK, v.housingHeatCapacityJPerK, v.windingToHousingKPerW, v.housingToAirKPerW, v.airflowCoolingPerMps];
+      const known = heat.filter((x): x is number => x !== undefined && x !== null);
+      const thermal = known.length === 5 ? { windingHeatCapacityJPerK: known[0]!, housingHeatCapacityJPerK: known[1]!, windingToHousingKPerW: known[2]!,
+        housingToAirKPerW: known[3]!, airflowCoolingPerMps: known[4]! } : null;
+      if (known.length > 0 && !thermal) {
+        assume('motor-heat-incomplete', subject, `The motor does not heat: its card states ${known.length} of the five thermal values, and the network needs all five.`);
+      }
+      if (thermal) assume('motor-heat-20c', subject, 'The card\'s winding resistance, KV and no-load current are taken as their values at 20 °C, which the heat then scales.');
       if (v.resistanceOhm !== null && limit !== null) {
-        motorValues = { kvRpmPerV: v.kvRpmPerV, resistanceOhm: v.resistanceOhm, currentLimitA: limit, noLoadCurrentA: v.noLoadCurrentA ?? 0 };
+        motorValues = { kvRpmPerV: v.kvRpmPerV, resistanceOhm: v.resistanceOhm, currentLimitA: limit, noLoadCurrentA: v.noLoadCurrentA ?? 0,
+          ...(thermal ? { thermal } : {}) };
       }
     }
     if (rotor && motorValues && escValues) motors.push({ motorId: motor.id, cards: { ...refs }, rotor, motor: motorValues, esc: escValues });

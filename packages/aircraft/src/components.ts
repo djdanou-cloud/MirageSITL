@@ -35,6 +35,14 @@ export interface MotorCardValues {
   readonly maxCurrentA: number | null;
   readonly maxPowerW: number | null;
   readonly massKg: number | null;
+  /** Schema 2 (TASK-105): the two-node thermal network of the winding and the housing with its magnets. Absent in schema 1. */
+  readonly windingHeatCapacityJPerK?: number | null;
+  readonly housingHeatCapacityJPerK?: number | null;
+  readonly windingToHousingKPerW?: number | null;
+  /** In still air; the airflow past the motor divides it by 1 + c·V. */
+  readonly housingToAirKPerW?: number | null;
+  /** c of 1 + c·V, s/m. */
+  readonly airflowCoolingPerMps?: number | null;
 }
 export interface ChordDistribution { readonly radiusRatio: readonly number[]; readonly chordRatio: readonly number[] }
 export interface TwistDistribution { readonly radiusRatio: readonly number[]; readonly angleRad: readonly number[] }
@@ -57,6 +65,14 @@ export interface EscCardValues {
   readonly updateRateHz: number | null;
   readonly maxVoltageV: number | null;
   readonly massKg: number | null;
+  /** Schema 2 (TASK-105): how many command frames late the ESC acts. Absent in schema 1. */
+  readonly latencyFrames?: number | null;
+  /** The fastest its output duty moves, per second. */
+  readonly rampPerS?: number | null;
+  /** The duty below which it does not start a stopped motor. */
+  readonly startDuty?: number | null;
+  /** The throttle steps it resolves its command to (2000 for DShot). */
+  readonly throttleSteps?: number | null;
 }
 export interface BatteryCardValues {
   readonly cellsSeries: number;
@@ -70,7 +86,8 @@ export interface BatteryCardValues {
 }
 type Provenance<V> = { readonly [K in keyof V]: string | null };
 interface CardOf<T extends ComponentType, V> {
-  readonly schemaVersion: 1;
+  /** 2 only for a motor or ESC card that knows one of its schema-2 values (TASK-105). */
+  readonly schemaVersion: 1 | 2;
   readonly units: 'SI';
   readonly type: T;
   /** An illustration shipped with MirageSITL; it never holds measured data. */
@@ -97,6 +114,17 @@ export const CARD_VALUE_KEYS: { readonly [T in ComponentType]: readonly string[]
   esc: schema.definitions.escValues.required,
   battery: schema.definitions.batteryValues.required,
 };
+/** The value fields schema 2 adds (TASK-105), in schema order; a card holds them all, or none in schema 1. */
+export const CARD_V2_VALUE_KEYS: { readonly [T in ComponentType]: readonly string[] } = {
+  motor: schema.definitions.motorValuesV2.required.slice(schema.definitions.motorValues.required.length),
+  propeller: [],
+  esc: schema.definitions.escValuesV2.required.slice(schema.definitions.escValues.required.length),
+  battery: [],
+};
+/** Every value field a card holds: its type's, and schema 2's when the card is schema 2. */
+export function cardValueKeys(card: ComponentCard): readonly string[] {
+  return card.schemaVersion === 2 ? [...CARD_VALUE_KEYS[card.type], ...CARD_V2_VALUE_KEYS[card.type]] : CARD_VALUE_KEYS[card.type];
+}
 export const CARD_FILE_FORMAT = 'mirage-component-cards';
 export const CARD_FILE_EXTENSION = '.miragecards';
 export const MAX_CARD_FILE_BYTES = 16 * 1024 * 1024;
@@ -206,7 +234,11 @@ export function validateComponentCard(input: unknown): ComponentCard {
   }
   if (card.example && card.sources.some(source => source.kind === 'measured')) fail('An example card may not hold measured data');
   const used = new Set<string>();
-  for (const key of CARD_VALUE_KEYS[card.type]) {
+  // One form per card: a schema-2 card knows one of the values only schema 2 holds.
+  if (card.schemaVersion === 2 && CARD_V2_VALUE_KEYS[card.type].every(key => Reflect.get(card.values, key) === null)) {
+    fail('A schema 2 card knows at least one of its schema 2 values; without them it is schema 1');
+  }
+  for (const key of cardValueKeys(card)) {
     const value: unknown = Reflect.get(card.values, key), source: unknown = Reflect.get(card.provenance, key);
     if (value !== null && source === null) fail(`${key} has a value but no source`);
     if (value === null && source !== null) fail(`${key} has no value but names a source`);
@@ -222,7 +254,7 @@ export function validateComponentCard(input: unknown): ComponentCard {
 
 /** The value fields a card does not know, in schema order: what a user still has to supply. */
 export function missingValues(card: ComponentCard): string[] {
-  return CARD_VALUE_KEYS[card.type].filter(key => Reflect.get(card.values, key) === null);
+  return cardValueKeys(card).filter(key => Reflect.get(card.values, key) === null);
 }
 
 /** The card of a stored component-card version. */

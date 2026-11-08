@@ -34,10 +34,13 @@ export function escDriveFromManifest(input: VehicleManifest, initialStateOfCharg
     if (esc.updateRateHz === undefined) throw new Error(`ESC ${esc.id} lacks updateRateHz`);
     if (esc.brakeCurrentLimitA === undefined) throw new Error(`ESC ${esc.id} lacks brakeCurrentLimitA`);
     const kt = motorTorqueConstantNmPerA(motor.kvRpmPerV);
+    // TASK-105: the ESC's command path and the motor's heat, when the manifest has them.
     return Object.freeze({
       resistanceOhm: motor.resistanceOhm, torqueConstantNmPerA: kt, currentLimitA: motor.currentLimitA,
       brakeCurrentLimitA: esc.brakeCurrentLimitA, noLoadTorqueNm: kt * motor.noLoadCurrentA,
       commandTauS: esc.commandTauS, updatePeriodS: 1 / esc.updateRateHz,
+      ...(esc.shaping ? { shaping: Object.freeze({ ...esc.shaping }) } : {}),
+      ...(motor.thermal ? { heat: Object.freeze({ ...motor.thermal }) } : {}),
     });
   });
   return Object.freeze({ motors: Object.freeze(motors), battery: manifest.battery, initialStateOfCharge, housePowerW });

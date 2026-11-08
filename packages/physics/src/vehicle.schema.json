@@ -421,6 +421,19 @@
           "noLoadCurrentA": {
             "type": "number",
             "minimum": 0
+          },
+          "thermal": {
+            "description": "Optional (TASK-105): the two-node thermal network of the winding and the housing with its magnets; the motor's R, k_t and no-load current are their 20 degree C values.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["windingHeatCapacityJPerK", "housingHeatCapacityJPerK", "windingToHousingKPerW", "housingToAirKPerW", "airflowCoolingPerMps"],
+            "properties": {
+              "windingHeatCapacityJPerK": { "type": "number", "exclusiveMinimum": 0 },
+              "housingHeatCapacityJPerK": { "type": "number", "exclusiveMinimum": 0 },
+              "windingToHousingKPerW": { "type": "number", "exclusiveMinimum": 0 },
+              "housingToAirKPerW": { "type": "number", "exclusiveMinimum": 0 },
+              "airflowCoolingPerMps": { "type": "number", "minimum": 0 }
+            }
           }
         }
       }
@@ -471,6 +484,18 @@
           "brakeCurrentLimitA": {
             "type": "number",
             "minimum": 0
+          },
+          "shaping": {
+            "description": "Optional (TASK-105): the ESC's command path at its update rate, which it then needs; a ramp of 0 is no limit and 0 throttle steps no quantization.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["latencyFrames", "rampPerS", "startDuty", "throttleSteps"],
+            "properties": {
+              "latencyFrames": { "type": "integer", "minimum": 0, "maximum": 8 },
+              "rampPerS": { "type": "number", "minimum": 0 },
+              "startDuty": { "type": "number", "minimum": 0, "exclusiveMaximum": 1 },
+              "throttleSteps": { "type": "integer", "minimum": 0, "maximum": 65535 }
+            }
           }
         }
       }
