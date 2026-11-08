@@ -3,7 +3,7 @@
   "kind": "logged-gnss",
   "status": "REPORTED",
   "reasons": [],
-  "inventorySha256": "056ab6a70ee87fbfe4bafc77fc6b029c969ed5810d5c2b158397712873b83a26",
+  "inventorySha256": "f07a0cd9c614dc02b1e8c6f1142c046bb4bc2824d1f0f745f9a0768eeddc2616",
   "model": {
     "constellation": "GPS almanac of week 2444 (data/gnss/yuma-2444.alm, SHA-256 bfccba398921419d328093fecf7ca7f280e018187d0938b8037f752526bd8263)",
     "maskDeg": 10,
@@ -1093,6 +1093,153 @@
       "sha256": "2bfe29bc707968f47a00d6cb6fb60bb0bf31330a84d988515823b0825e4066b3",
       "aircraft": "stakeholder-speedybee35",
       "receiver": "GEPRC GEP-M1025-MI with compass and barometer",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-00000332.BIN",
+      "sha256": "76f8fbbdb986c9a67974a663239e207357b12b3fe26980f2ceee2938297bb0a3",
+      "aircraft": "stakeholder-4s-quad",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-log_173_UnknownDate.bin",
+      "sha256": "2493f57515b13cf422fdddaec43c2957eec62ccc4ce3600f48da293277fcd047",
+      "aircraft": "stakeholder-4s-quad",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_0_UnknownDate.bin",
+      "sha256": "a9395ad98adf0b211972cc97fcee54915d7e3df4236e1980d0d97c9eefce0d5e",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_12_UnknownDate.bin",
+      "sha256": "0113ab869461cf3c8515eafbf2b89ff01d61074584e2701a58b97018998bba9c",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_13_UnknownDate.bin",
+      "sha256": "fe2ce1e0b1aac28f1d54d80f1aaeb55c4f9e26ea8b998c7c37a0623be2eb7ed4",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_14_UnknownDate.bin",
+      "sha256": "0eb4a87bdc72e077b2b1939efbafa1ed3d410e3c2208db7e7916bd1a050a1f6e",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_15_UnknownDate.bin",
+      "sha256": "3a952234a170314e30e0eab37e4e36b6e8bd27e329017b977490083d1b497db0",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_22_UnknownDate.bin",
+      "sha256": "59da21a893db9681633c95d931b6d84587309f9f055e85e67cf8531ba62fbbda",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_23_UnknownDate.bin",
+      "sha256": "6288bee018c3555906fab8c787037b63b0577dd2405721d5628306534d9f3e03",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_24_UnknownDate.bin",
+      "sha256": "43f344c8232548a6fa3afb912f9d339a8bf65ba535a216533ad14c14b821e5ed",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_26_UnknownDate.bin",
+      "sha256": "875721929e8fbe69f5169d79d90e657c1a5f04d0011546d36fd5e0a0e48ccb4d",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_29_UnknownDate.bin",
+      "sha256": "717cd3d68597b5a512ae87b73ea2f7e04290328fea53f8c7a6c494e02b16b396",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_30_UnknownDate.bin",
+      "sha256": "b334b38d4b40ebc2f6b65caea72ea94f7ea83b6282b8d355b6d9f73054aef586",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_31_UnknownDate.bin",
+      "sha256": "85d656b7e0c16571c27809c40e8960a695ec0d003c13dfad501c9a4bbcb31e79",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_32_UnknownDate.bin",
+      "sha256": "16553acbe7692687b4812c2b3e23a9ec5db79a18b4b0c927d3707d05966b41ce",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_33_UnknownDate.bin",
+      "sha256": "922b36fe68d2e08c78298019f1db938063394addc1c1ca9461c0bdb49aab63ac",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_34_UnknownDate.bin",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_35_UnknownDate.bin",
+      "sha256": "9c78c2eac10a911ca79613d06845d92628872165fbc50bf2d5bd2f8c4841f7dd",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_36_UnknownDate.bin",
+      "sha256": "012137bb6197fdb8ea00401e0926c05dba997178aec747d0f4f1b75d2feae2c3",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_37_UnknownDate.bin",
+      "sha256": "64e0b6bbf3ffbd77d1a20bd9c7fde47b92fbc52c2a2d925cfacfe4b222a2b9e9",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
+      "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "stakeholder-pavo-log_63_UnknownDate.bin",
+      "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2",
+      "aircraft": "stakeholder-pavo20pro2",
+      "receiver": "not stated",
       "missing": "The log has no GPS messages"
     }
   ]

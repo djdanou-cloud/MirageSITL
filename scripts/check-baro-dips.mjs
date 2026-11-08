@@ -43,7 +43,8 @@ const CONFIGURATIONS = {
 };
 /**
  * Fit groups: one configuration each, with the logs fitted and the logs held out (declared in the specification). `twoLevelHoldOut`
- * lists held-out logs judged by the two-level metric; every log here was seen before it was declared, so each list is empty.
+ * lists held-out logs judged by the two-level metric; only logs added to the inventory after it was declared may join it: the two
+ * U35 logs the stakeholder gave on 2026-11-08 after the declaration (00000332, and log_173 after its flight controller was replaced).
  */
 const GROUPS = [
   { id: "mn7005-kv230-24in-7.2kg", configuration: "mn7005-kv230-24in-7.2kg", fit: ["topic-144558-00000205.BIN"], holdOut: [] },
@@ -57,7 +58,8 @@ const GROUPS = [
       "topic-145352-1krgUV6Y.BIN", "topic-145352-1nreVudP.BIN", "topic-145352-1XC3hSDH.BIN"] },
   // One battery (BATT_CAPACITY 4800) fitted and held out; 00000084 flew another battery and is measured only.
   { id: "stakeholder-4s-quad", configuration: "stakeholder-4s-quad", heightSource: "rangefinder", pressureUnits: true,
-    fit: ["stakeholder-00000116.BIN"], holdOut: ["stakeholder-00000167.BIN"], measured: ["stakeholder-00000084.BIN"] },
+    fit: ["stakeholder-00000116.BIN"], holdOut: ["stakeholder-00000167.BIN"], measured: ["stakeholder-00000084.BIN"],
+    twoLevelHoldOut: ["stakeholder-00000332.BIN", "stakeholder-log_173_UnknownDate.bin"] },
   { id: "mn7005-kv115-24in-12s", configuration: "mn7005-kv115-24in-12s", fit: [], holdOut: [], measured: ["topic-145394-11-41-15.BIN"] },
   { id: "p80iii-kv100-30in-16kg-first-mount", configuration: "p80iii-kv100-32in-16kg-first-mount", fit: ["topic-134119-00000011.BIN"], holdOut: [] },
   { id: "p80iii-kv100-30in-16kg-remounted", configuration: "p80iii-kv100-30in-16kg",

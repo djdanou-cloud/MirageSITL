@@ -6553,6 +6553,18 @@ stakeholder's other flights show the same pattern: on-ground excesses of 19 to 1
 offsets of −14 to −26 Pa. The 5-inch quad of topic 145352 scatters −40 to +67 Pa on the ground, as its
 motors-off scatter of 10 to 25 Pa allows, with airborne offsets of −5 to −57 Pa.
 
+Judged (2026-11-08): the first logs added after the declaration, two U35 logs the stakeholder gave
+that day, join the U35 group's `twoLevelHoldOut` (00000332, and log_173, recorded on another
+MatekH743 board unit than the group's other logs: the U35 with its flight controller replaced, the stakeholder said). Both
+landings are not reproduced. The airborne offset is within the tolerance on both, −11.38 Pa measured
+against −14.76 Pa predicted over 146 samples and −10.51 against −14.76 Pa over 102; the on-ground excess
+fails on both, 73.18 Pa against 11.31 Pa over 3 samples and 66.83 Pa against −14.42 Pa over 2. The
+ground level rests on few samples, since the barometer logs at about 10 Hz and the aircraft spends
+little time below 0.06 m, but both miss by far more than their own scatter could explain: the
+declared test confirms on unseen landings what the logs seen before only showed, that the model's
+cushion does not give the step the barometer reads on the ground. `node scripts/check-baro-dips.mjs`
+exits 1 as before, now with 8 landings not reproduced: the 6 earlier near-ground ones and these 2.
+
 ## GNSS v2 (TASK-117)
 
 GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the

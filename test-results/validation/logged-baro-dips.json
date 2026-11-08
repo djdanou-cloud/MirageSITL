@@ -8,9 +8,11 @@
     "topic-140620-12-11-47.BIN landing at 261.3 s: measured 37.54 Pa, predicted 11.19 Pa",
     "topic-140620-12-11-47.BIN landing at 687.6 s: measured 36.03 Pa, predicted 18.12 Pa",
     "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa",
-    "stakeholder-00000167.BIN landing at 260.8 s: measured 34.82 Pa, predicted 2.99 Pa"
+    "stakeholder-00000167.BIN landing at 260.8 s: measured 34.82 Pa, predicted 2.99 Pa",
+    "stakeholder-00000332.BIN landing at 175.1 s: two levels measured {\"groundPa\":73.18,\"groundSamples\":3,\"airbornePa\":-11.38,\"airborneSamples\":146}, predicted {\"groundPa\":11.31,\"groundSamples\":3,\"airbornePa\":-14.76,\"airborneSamples\":146}",
+    "stakeholder-log_173_UnknownDate.bin landing at 883.9 s: two levels measured {\"groundPa\":66.83,\"groundSamples\":2,\"airbornePa\":-10.51,\"airborneSamples\":102}, predicted {\"groundPa\":-14.42,\"groundSamples\":2,\"airbornePa\":-14.76,\"airborneSamples\":102}"
   ],
-  "inventorySha256": "056ab6a70ee87fbfe4bafc77fc6b029c969ed5810d5c2b158397712873b83a26",
+  "inventorySha256": "f07a0cd9c614dc02b1e8c6f1142c046bb4bc2824d1f0f745f9a0768eeddc2616",
   "method": {
     "throttleOn": 0.05,
     "referenceBeforeS": [
@@ -2586,6 +2588,262 @@
           "skipped": []
         },
         {
+          "file": "stakeholder-00000332.BIN",
+          "sha256": "76f8fbbdb986c9a67974a663239e207357b12b3fe26980f2ceee2938297bb0a3",
+          "role": "two-level hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 54.58,
+              "referencePa": 101034.7,
+              "noisePa": 11.59,
+              "referenceSamples": 40,
+              "samples": 149,
+              "nearGroundPa": 40.93,
+              "nearGroundSamples": 13,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 82.23,
+                  "samples": 8
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -25.16,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -23.2,
+                  "samples": 76
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -21.65,
+                  "samples": 60
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ],
+              "twoLevels": {
+                "groundPa": 107.4,
+                "groundSamples": 6,
+                "airbornePa": -22.61,
+                "airborneSamples": 141
+              }
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 175.08,
+              "referencePa": 101025.3,
+              "noisePa": 0.21,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 2.34,
+              "nearGroundSamples": 16,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 52.88,
+                  "samples": 4
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -14.51,
+                  "samples": 12
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -11.92,
+                  "samples": 21
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -11.24,
+                  "samples": 60
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -10.62,
+                  "samples": 53
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ],
+              "twoLevels": {
+                "groundPa": 73.18,
+                "groundSamples": 3,
+                "airbornePa": -11.38,
+                "airborneSamples": 146
+              }
+            }
+          ],
+          "skipped": []
+        },
+        {
+          "file": "stakeholder-log_173_UnknownDate.bin",
+          "sha256": "2493f57515b13cf422fdddaec43c2957eec62ccc4ce3600f48da293277fcd047",
+          "role": "two-level hold-out",
+          "events": [
+            {
+              "kind": "takeoff",
+              "motorTimeS": 87.59,
+              "referencePa": 100325.6,
+              "noisePa": 9.33,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 71.94,
+              "nearGroundSamples": 7,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 105.09,
+                  "samples": 5
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -10.91,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -18.23,
+                  "samples": 2
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -18.19,
+                  "samples": 14
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -19.14,
+                  "samples": 127
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ],
+              "twoLevels": {
+                "groundPa": 118.95,
+                "groundSamples": 4,
+                "airbornePa": -18.55,
+                "airborneSamples": 128
+              }
+            },
+            {
+              "kind": "landing",
+              "motorTimeS": 883.89,
+              "referencePa": 100318.4,
+              "noisePa": 0.22,
+              "referenceSamples": 40,
+              "samples": 150,
+              "nearGroundPa": 0.09,
+              "nearGroundSamples": 29,
+              "profile": [
+                {
+                  "fromM": 0,
+                  "toM": 0.15,
+                  "meanPa": 18.22,
+                  "samples": 11
+                },
+                {
+                  "fromM": 0.15,
+                  "toM": 0.3,
+                  "meanPa": -10.99,
+                  "samples": 18
+                },
+                {
+                  "fromM": 0.3,
+                  "toM": 0.6,
+                  "meanPa": -8.32,
+                  "samples": 32
+                },
+                {
+                  "fromM": 0.6,
+                  "toM": 1.2,
+                  "meanPa": -11.76,
+                  "samples": 30
+                },
+                {
+                  "fromM": 1.2,
+                  "toM": 2.4,
+                  "meanPa": -11.68,
+                  "samples": 59
+                },
+                {
+                  "fromM": 2.4,
+                  "toM": 4.8,
+                  "meanPa": null,
+                  "samples": 0
+                },
+                {
+                  "fromM": 4.8,
+                  "toM": null,
+                  "meanPa": null,
+                  "samples": 0
+                }
+              ],
+              "twoLevels": {
+                "groundPa": 66.83,
+                "groundSamples": 2,
+                "airbornePa": -10.51,
+                "airborneSamples": 102
+              }
+            }
+          ],
+          "skipped": []
+        },
+        {
           "file": "stakeholder-00000084.BIN",
           "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e",
           "role": "measured",
@@ -2739,7 +2997,44 @@
           }
         }
       ],
-      "twoLevelHoldOuts": []
+      "twoLevelHoldOuts": [
+        {
+          "file": "stakeholder-00000332.BIN",
+          "motorTimeS": 175.08,
+          "measured": {
+            "groundPa": 73.18,
+            "groundSamples": 3,
+            "airbornePa": -11.38,
+            "airborneSamples": 146
+          },
+          "predicted": {
+            "groundPa": 11.31,
+            "groundSamples": 3,
+            "airbornePa": -14.76,
+            "airborneSamples": 146
+          },
+          "within": false,
+          "judged": true
+        },
+        {
+          "file": "stakeholder-log_173_UnknownDate.bin",
+          "motorTimeS": 883.89,
+          "measured": {
+            "groundPa": 66.83,
+            "groundSamples": 2,
+            "airbornePa": -10.51,
+            "airborneSamples": 102
+          },
+          "predicted": {
+            "groundPa": -14.42,
+            "groundSamples": 2,
+            "airbornePa": -14.76,
+            "airborneSamples": 102
+          },
+          "within": false,
+          "judged": true
+        }
+      ]
     },
     {
       "id": "mn7005-kv115-24in-12s",

@@ -129,7 +129,7 @@
         "flightController": { "value": "MatekH743-bdshot, board 00330029 30335119 38323836", "locator": "the log's MSG records" }
       },
       "unknown": ["00000084's mass, propellers and motors", "motor model", "propeller model and pitch", "arm length", "inertia", "barometer location"],
-      "notes": "The stakeholder's own flight logs, given on 2026-11-07 with the note that the drone was not configured in the best way; 00000116 and 00000167, given later that day as a bit better, have BATT_CAPACITY 4800 where 00000084 has 4000, so another battery. About 00000084: The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
+      "notes": "Two more logs given on 2026-11-08 as the U35's: 00000332 (V4.6.2, the same board as 00000084, 00000116 and 00000167) and log_173 (V4.6.3, 92b0cd78), whose MatekH743-bdshot board reads 0028003B 30315109 33333535, another unit than the others' 00330029 30335119 38323836: the U35 with its flight controller replaced (the stakeholder, 2026-11-08). The stakeholder's own flight logs, given on 2026-11-07 with the note that the drone was not configured in the best way; 00000116 and 00000167, given later that day as a bit better, have BATT_CAPACITY 4800 where 00000084 has 4000, so another battery. About 00000084: The stakeholder named ArduPilot 4.6.3; the log's banner reads ArduCopter V4.6.2 (1ebd4d99). One AltHold flight indoors without GNSS (the rangefinder is the height reference); the attitude reads a steady pitch of about −20° while the height holds, which points at the configuration rather than the flight; the aircraft was picked up after the landing (from 228 s)."
     },
     {
       "id": "stakeholder-speedybee35",
@@ -148,6 +148,56 @@
       },
       "unknown": ["mass", "propeller size and pitch (the file name says SpeedyBee 3.5)", "arm length", "rangefinder height below the rotors", "inertia"],
       "notes": "The stakeholder's log 19-10-2026-tune-120hz-frt-02.bin with a hardware note, given on 2026-11-08: ArduCopter V4.8.0-dev (ca435933), one 34 s flight hovering 0.1 to 0.9 m above the ground indoors without a GNSS fix; logging was paused before 82.9 s, so no barometer reference before the take-off."
+    },
+    {
+      "id": "stakeholder-pavo20pro2",
+      "topic": null,
+      "owner": "the stakeholder",
+      "stated": {
+        "frame": {
+          "value": "BetaFPV Pavo20 Pro II, 2.2-inch quad, 93.9 mm wheelbase; the logs read FRAME_CLASS 1, FRAME_TYPE 18 ('QUAD/X_REV')",
+          "locator": "the stakeholder, 2026-11-08 (sources/stakeholder-pavo.txt); the wheelbase from BetaFPV's frame page (betafpv.com, Pavo20 Pro II Brushless Whoop Frame, read 2026-11-08); the logs' parameters"
+        },
+        "esc": {
+          "value": "all-in-one flight controller and ESC board (model not stated)",
+          "locator": "the stakeholder, 2026-11-08"
+        },
+        "propellerGuards": {
+          "value": "open rings around the propellers, not ducts; BetaFPV's frame page calls the same part 'PA12 thickened whoop ducts' with an 8 to 11 % thrust boost, which the stakeholder's description is taken over",
+          "locator": "the stakeholder, 2026-11-08; BetaFPV's frame page, read 2026-11-08"
+        },
+        "massKg": {
+          "value": 0.169,
+          "locator": "the stakeholder, 2026-11-08: 169 g"
+        },
+        "motor": {
+          "value": "RCinPower 1303 V3 8000KV",
+          "locator": "the stakeholder, 2026-11-08"
+        },
+        "propeller": {
+          "value": "Gemfan GP2219-3: 2.2 inch, three blades; pitch 1.9 inch by Gemfan's naming, not confirmed",
+          "locator": "the stakeholder, 2026-11-08 (2.2 inch)"
+        },
+        "battery": {
+          "value": "3S 850 mAh (the logs' BATT_CAPACITY is 720 mAh)",
+          "locator": "the stakeholder, 2026-11-08, and the logs' parameters"
+        },
+        "motorRpm": {
+          "value": "bidirectional DShot600 (MOT_PWM_TYPE 6), SERVO_BLH_POLES 14",
+          "locator": "the logs' parameters"
+        },
+        "flightController": {
+          "value": "MicoAir743v2, board 002C002D 3333510C 36323932",
+          "locator": "the logs' MSG records"
+        }
+      },
+      "unknown": [
+        "propeller pitch and blade geometry",
+        "arm length (93.9 mm / 2 = 46.95 mm on a square X, assumed)",
+        "inertia",
+        "ESC model"
+      ],
+      "notes": "19 logs given by the stakeholder on 2026-11-08 (ArduCopter V4.6.3, 3fc7011a), flown indoors or without GNSS and without a rangefinder: AltHold, Stabilize, AutoTune (logs 12, 13, 15, 22, 24, 26) and four SystemId flights (33 and 34 recovery roll, 35 recovery pitch, 36 recovery yaw). log_0 never spun its motors. Bidirectional-DShot speeds hold a few NaN rows and isolated readings of 540,800 rpm, which an analysis must reject."
     }
   ],
   "logs": [
@@ -176,7 +226,28 @@
     { "file": "stakeholder-00000084.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "235b8b5c44807af23c40c70be564b91fa86072173527af0146323631700f4a8e", "bytes": 71102464, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
     { "file": "stakeholder-00000116.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "6fe9e769c7353d8e93f0f28bf87ec4ef2df8d99bd4911e5a9114610b2f16652e", "bytes": 162226176, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
     { "file": "stakeholder-00000167.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "020bf8aaafae8fc8f0b24b7870b2572bc19c41401a5d2092c6c0bfa2882129b8", "bytes": 121294848, "post": null, "posted": "2026-11-07", "link": null, "binding": "given by the stakeholder in MirageSITL-data", "firmware": "ArduCopter V4.6.2 (1ebd4d99)" },
-    { "file": "stakeholder-speedybee35-19-10-2026-tune-120hz-frt-02.BIN", "aircraft": "stakeholder-speedybee35", "sha256": "2bfe29bc707968f47a00d6cb6fb60bb0bf31330a84d988515823b0825e4066b3", "bytes": 4892746, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.8.0-dev (ca435933)" }
+    { "file": "stakeholder-speedybee35-19-10-2026-tune-120hz-frt-02.BIN", "aircraft": "stakeholder-speedybee35", "sha256": "2bfe29bc707968f47a00d6cb6fb60bb0bf31330a84d988515823b0825e4066b3", "bytes": 4892746, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.8.0-dev (ca435933)" },
+    {"file": "stakeholder-00000332.BIN", "aircraft": "stakeholder-4s-quad", "sha256": "76f8fbbdb986c9a67974a663239e207357b12b3fe26980f2ceee2938297bb0a3", "bytes": 30650368, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder", "firmware": "ArduCopter V4.6.2 (1ebd4d99)", "notes": "starts after arming (no ARM record), motors spinning throughout; modes AltHold; rangefinder 0.02 to 1.42 m; IMU batch sampler (ISBD); loop 400 Hz"},
+    {"file": "stakeholder-log_173_UnknownDate.bin", "aircraft": "stakeholder-4s-quad", "sha256": "2493f57515b13cf422fdddaec43c2957eec62ccc4ce3600f48da293277fcd047", "bytes": 280711168, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder", "firmware": "ArduCopter V4.6.3 (92b0cd78)", "notes": "armed 802 s; modes AltHold; rangefinder 0.02 to 7.99 m; ESC.RPM has 175 NaN rows; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_0_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "a9395ad98adf0b211972cc97fcee54915d7e3df4236e1980d0d97c9eefce0d5e", "bytes": 7421864, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "never armed (motors at 0 rpm throughout); modes Stabilize; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_12_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "0113ab869461cf3c8515eafbf2b89ff01d61074584e2701a58b97018998bba9c", "bytes": 127623168, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 331 s; modes AltHold, AutoTune, Land, Stabilize; ESC.RPM has 20 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_13_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "fe2ce1e0b1aac28f1d54d80f1aaeb55c4f9e26ea8b998c7c37a0623be2eb7ed4", "bytes": 149000192, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 341 s; modes AltHold, AutoTune, Land, Stabilize; ESC.RPM has 32 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_14_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "0eb4a87bdc72e077b2b1939efbafa1ed3d410e3c2208db7e7916bd1a050a1f6e", "bytes": 140005376, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 436 s; modes AltHold, Land; ESC.RPM has 40 NaN rows; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_15_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "3a952234a170314e30e0eab37e4e36b6e8bd27e329017b977490083d1b497db0", "bytes": 92594176, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 268 s; modes AltHold, AutoTune; ESC.RPM has 36 NaN rows; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_22_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "59da21a893db9681633c95d931b6d84587309f9f055e85e67cf8531ba62fbbda", "bytes": 138784768, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 438 s; modes AltHold, AutoTune, Land; ESC.RPM has 45 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_23_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "6288bee018c3555906fab8c787037b63b0577dd2405721d5628306534d9f3e03", "bytes": 38535168, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 104 s; modes AltHold, Stabilize; ESC.RPM has 14 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_24_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "43f344c8232548a6fa3afb912f9d339a8bf65ba535a216533ad14c14b821e5ed", "bytes": 119209984, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 394 s; modes AltHold, AutoTune, Stabilize; ESC.RPM has 50 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_26_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "875721929e8fbe69f5169d79d90e657c1a5f04d0011546d36fd5e0a0e48ccb4d", "bytes": 154284032, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 508 s; modes AltHold, AutoTune, Land, Stabilize; ESC.RPM has 48 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_29_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "717cd3d68597b5a512ae87b73ea2f7e04290328fea53f8c7a6c494e02b16b396", "bytes": 26804224, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 53 s; modes AltHold; ESC.RPM has 4 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_30_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "b334b38d4b40ebc2f6b65caea72ea94f7ea83b6282b8d355b6d9f73054aef586", "bytes": 88592384, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 232 s; modes AltHold; ESC.RPM has 20 NaN rows; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_31_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "85d656b7e0c16571c27809c40e8960a695ec0d003c13dfad501c9a4bbcb31e79", "bytes": 68038656, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 171 s; modes AltHold; ESC.RPM has 27 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_32_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "16553acbe7692687b4812c2b3e23a9ec5db79a18b4b0c927d3707d05966b41ce", "bytes": 54775808, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 130 s; modes AltHold; ESC.RPM has 11 NaN rows; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_33_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "922b36fe68d2e08c78298019f1db938063394addc1c1ca9461c0bdb49aab63ac", "bytes": 53891072, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 135 s; modes Stabilize, SystemId; SystemId with SID_AXIS 4 (recovery roll); ESC.RPM has 20 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_34_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548", "bytes": 55050240, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 141 s; modes AltHold, Stabilize, SystemId; SystemId with SID_AXIS 4 (recovery roll); ESC.RPM has 23 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_35_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "9c78c2eac10a911ca79613d06845d92628872165fbc50bf2d5bd2f8c4841f7dd", "bytes": 54665216, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 141 s; modes Stabilize, SystemId; SystemId with SID_AXIS 5 (recovery pitch); ESC.RPM has 12 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_36_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "012137bb6197fdb8ea00401e0926c05dba997178aec747d0f4f1b75d2feae2c3", "bytes": 55087104, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 146 s; modes Stabilize, SystemId; SystemId with SID_AXIS 6 (recovery yaw); ESC.RPM has 16 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_37_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "64e0b6bbf3ffbd77d1a20bd9c7fde47b92fbc52c2a2d925cfacfe4b222a2b9e9", "bytes": 43782144, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 130 s; modes AltHold; ESC.RPM has 13 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
+    {"file": "stakeholder-pavo-log_63_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2", "bytes": 166502400, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 362 s; modes AltHold; ESC.RPM has 47 NaN rows and glitch values of 540,800 rpm; loop 800 Hz"}
   ],
   "benchTables": [
     {
