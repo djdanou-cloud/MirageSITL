@@ -17,7 +17,9 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     # The job took 6-10 min from 2026-10-30 to 2026-11-02 and a 10 min limit cancelled it twice.
-    timeout-minutes: 20
+    # By 2026-11-08 a 20 min limit cancelled it on consecutive pushes with no failing test, the
+    # allocation and rotor-map files unfinished; the stakeholder raised it to 40 min that day.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
         with:
