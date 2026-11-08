@@ -4732,6 +4732,9 @@ Exit codes:
   synthetic data compare MirageSITL with no aircraft.
 * `flight-test` provenance with non-zero firmware and model hashes gives
   REPORTED (0): the metrics, for the user to judge.
+* `bench-test` provenance (capture schema 3 only, see "Capture schema 3 and
+  the bench-test captures" below) gives REPORTED (0); in schema 2 it gives
+  FAIL (1).
 
 The report `test-results/validation/fidelity.json` (schema 1, kind `fidelity`)
 records the input hash, the git revision and the validator hash. The analytic
@@ -4740,12 +4743,13 @@ schema 1 fixture's series without its limits) reports J = 19.950 = 20·W_γ(1)
 for its +1 dB model error and exits 2; the schema 1 fixture is kept for the
 refusal.
 
-Open items:
+Open items, all closed on 2026-11-08 (see below):
 
 * Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
-  file (G4).
-* Convert DataFlash logs to capture schema 2.
-* Build the simulation replay that produces the simulated series.
+  file (G4): the Pavo SystemId flights and the two bench-test captures.
+* Convert DataFlash logs to capture schema 2: `scripts/fidelity-capture.mjs`.
+* Build the simulation replay that produces the simulated series: the SITL
+  flight of each real sweep.
 
 SystemId flights of the Pavo20 Pro II (2026-11-08), declared before the simulated flight was flown.
 The real flights are the stakeholder's Pavo SystemId logs of `data/flight-logs/inventory.json`: 33 and
@@ -4814,6 +4818,143 @@ assumed blade geometry, with which the rotor hovers 17 % faster than the aircraf
 left out of the SITL would add lag to the real loop, not remove it. With these four flights the
 SystemId item of the G4 criterion has its real captures, scored; the SITL logs and captures stay in
 the run's directory, named by SHA-256 in the reports, and are not committed.
+
+Capture schema 3 and the bench-test captures (2026-11-08), declared before either capture was written.
+An exploratory run of the two prediction paths came first: it showed the T-Motor predictions with and
+without dynamic inflow (below). No choice here follows its numbers, and nothing here is a limit.
+
+Capture schema 3 is schema 2 with three changes. Schema 2 captures are accepted and reported exactly as
+before.
+
+* `provenance.source` may also be `bench-test`: a static thrust stand beside the propulsion model alone.
+  A bench-test capture has empty `timeDomain` and `frequencyResponse`, at least one bench section, no
+  `logs`, a `firmwareSha256` of 64 zeros (no firmware takes part) and a non-zero `modelSha256`, the
+  SHA-256 of its model description (below). A schema 2 capture with source `bench-test` is refused,
+  FAIL (1), with the reason "Provenance source bench-test needs capture schema 3".
+* `bench` is an array of at most 32 sections with unique identifiers, each `{ id, csv, csvSha256,
+  predicted }`: a bench CSV v1 holds one diameter, and one stand campaign may test several propellers.
+  An empty array means no bench data.
+* Every predicted row is `{ rpm, ct, cp, modelFlags }`. `modelFlags` lists, without repeats, the
+  validity bits the model raised for that prediction: `outside-polar` (a blade section outside its polar
+  table, bit 2 of the rotor's flags word), `low-confidence-polar` (a section on polar data below the
+  confidence floor, bit 4) and `outside-inflow-validity` (the inflow model outside its validity, bit 8,
+  or the steady runner's momentum-validity bit). Any other name is refused.
+
+For each schema 3 bench section `scripts/check-fidelity.mjs` reports what it reports for a schema 2
+bench file, and also the predictions with model flags (`modelFlaggedRows`, and `modelFlagged` with each
+row's flags) and `withinModelValidity`: the compared rows without a model flag, with their largest CT
+and CP relative errors. Model-flagged rows stay in the main errors, since they are what the model
+predicts there. A bench-test capture is REPORTED (exit 0) with the reasons "The metrics are reported
+without a limit or a verdict (SA-01); the user judges them" and "Bench-test capture: no firmware takes
+part; the propulsion model alone is compared with a static thrust stand", and per section the count of
+flagged measured rows and of predictions with model flags.
+
+```json
+{
+  "schemaVersion": 3, "kind": "mirage-fidelity-capture",
+  "provenance": { "source": "bench-test", "operator": "<name>", "recordedAt": "2026-07-28T00:00:00Z",
+    "firmwareSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "modelSha256": "<64 hex>" },
+  "timeDomain": [], "frequencyResponse": [],
+  "bench": [{ "id": "mn7005-kv230-p24x72", "csv": "<bench CSV v1 text>", "csvSha256": "<64 hex>",
+    "predicted": [{ "rpm": 2023, "ct": 0.1053, "cp": 0.03578, "modelFlags": [] }] }]
+}
+```
+
+`node scripts/bench-capture.mjs [--out DIR]` writes the two bench-test captures below, each with its
+model description `<name>-model.json` (kind `mirage-bench-model`), into `test-results/validation/` or
+DIR. A model description names what produced the predictions, and the capture's `modelSha256` is the
+SHA-256 of the description file's bytes. TypeScript that is neither compiled into a named module nor
+hashed in a description (the profile derivation, the static solve, the request builder) is identified
+by the git revision of the commit that holds the capture.
+
+T-Motor MN7005 KV230 with the P24*7.2" CF propeller, `bench-tmotor-mn7005-p24x72-capture.json`, one
+section `mn7005-kv230-p24x72`:
+
+* Measured: T-Motor's datasheet table as transcribed in bench CSV v2,
+  `tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv`: manufacturer static-stand data whose stand
+  and air are not stated. The bench CSV v1 copies, as text and in file order, the diameter (0.6096 m),
+  each row's rpm, thrustN and torqueNm, and the v2 file's air density, 1.225 kg/m³, in every row. That
+  density is an assumption, since the datasheet states none; the voltage and current columns are not
+  compared. Operator "T-Motor (manufacturer datasheet)"; recordedAt 2026-07-28T00:00:00Z, the day the
+  table was posted (the propeller card's source date), not the unknown day of the test.
+* Predicted: the repository's own model, uncalibrated. The forum quad profile
+  `tests/fixtures/aircraft/tmotor-mn7005-quad.json` with the T-Motor motor, propeller and ESC cards, the
+  forum battery card and the polar `naca6409-neuralfoil-v1`, built as `tests/tmotor-bench-fit.test.ts`
+  builds it (`deriveVehicleManifest` with model ID 145, then `buildProfileDynamics`), gives rotor 0: the
+  card's derived BET geometry (`derivePropellerGeometry`, whose flags are root-cutout-assumed,
+  chord-assumed, twist-from-pitch and airfoil-unspecified) on its catalog polar, unscaled. Not the
+  TASK-145 calibration, which is fitted on this same table. The rotor is bound as `BetFlightDynamics`
+  binds it in flight: `profileRotorDefinition` with the configuration's dynamic inflow (Pitt-Peters with
+  annular tip and hub losses, TASK-098) and its vortex ring seed for rotor 0. `staticLoads` of
+  `packages/physics/src/propulsion-calibration.ts`, the TASK-145 static solve (400 steps at 800 Hz on a
+  1e6 kg·m² shaft), gives the thrust, the torque and the rotor's flags word at each measured rpm, in air
+  of density 1.225 kg/m³ with the ISA sea-level viscosity and speed of sound, on the scalar BET module
+  that `node scripts/build-wasm.mjs` builds; then CT = T/(ρn²D⁴) and CP = 2πQ/(ρn²D⁵) with that ρ and
+  D = 0.6096 m. The model description holds the BET module's SHA-256, the vehicle manifest's SHA-256,
+  the SHA-256 of the bound rotor definition's JSON, the air, the derived geometry's assumptions and
+  flags, and the SHA-256 of every input file.
+* The TASK-145 static solve binds the rotor without dynamic inflow (`profileRotorDefinition` passes
+  none), while flight binds it with; the exploratory run computed both. The capture takes flight's
+  binding, and its description says so.
+
+UIUC DA4002 and DA4022 static tests, `bench-uiuc-da4002-da4022-static-capture.json`:
+
+* Measured: the static tables of the 14 propellers in `tests/fixtures/rotors/uiuc-propellers.json`
+  (UIUC propeller database volume 2, laboratory static-stand measurements, rows of rpm, CT and CP as
+  printed), one bench section each, whose identifier is the propeller's with `.` written as `p`. Bench
+  CSV v1 holds thrust and torque, so each row is converted with a stated density ρ = 1.225 kg/m³ (the
+  fixture's comparison density) and the fixture's diameter D: T = CT·ρn²D⁴ and Q = CP/(2π)·ρn²D⁵ with
+  n = rpm/60, each printed as the shortest decimal that reads back to the same float64 (JavaScript's
+  `String`; an exponent stops the script), and the rpm as UIUC printed it. `importBenchCsv` turns them
+  back into CT and CP with the same ρ and D, so the density cancels and the measured CT and CP equal the
+  printed ones within float64 rounding (about 1e-15 relative); UIUC's own air density, which their
+  reduction to coefficients used, does not enter. Operator "UIUC Applied Aerodynamics Group (Brandt,
+  Deters, Ananda, Dantsker, Selig)"; recordedAt 2022-06-27T00:00:00Z, the date of the archive's README
+  (the tests are older, and their dates are not in the fixture).
+* Predicted: adapter `uiuc-propeller-bet-inflow-v1` of `scripts/validate-models.mjs`, the same BET path:
+  the blade from r/R 0.3 (28 strips of the measured chord and twist, 8 azimuth samples), the extended
+  SDA1075 polar `tests/fixtures/polars/sda1075-extended.json` with its rotational augmentation, and the
+  flight model's dynamic inflow marched to a steady state by
+  `cargo run -q --release --locked -p mirage-bet --example propeller_points -- --dynamic-inflow` in
+  `native/`, at each static rpm with J = 0 in the fixture's air (1.225 kg/m³, 1.789e-5 Pa·s,
+  340.294 m/s). The runner's polar flags and momentum-validity bit become the model flags, and a point
+  it cannot solve stops the script. The model description holds the SHA-256 of the runner's request text
+  (polar table, blades, points and air), of the extended polar and its XFOIL source, of the fixture and
+  of the UIUC inventory, the runner command, and a digest of the native sources it builds: the SHA-256 of
+  the sorted "path TAB sha256 LF" lines of the git-tracked files under `native/bet/` and of
+  `native/Cargo.toml`, `native/Cargo.lock` and `native/rust-toolchain.toml`.
+
+`tests/bench-capture.test.ts` runs the script into a temporary directory and requires the committed
+descriptions to equal its output byte for byte, and the committed captures to equal it except that a
+predicted CT or CP may differ by 1e-9 relative: the native runner's floating point may differ between
+hosts (on the Mac that writes them they are byte-identical). A change to the BET code, a polar or an
+input file changes a description and fails the test until the captures are written again, because a
+committed capture describes the model of its commit. The test also holds the schema 3 rules above: the
+refusals, schema 2 unchanged, and an analytic bench section whose model-flagged row moves the main
+errors but not those within model validity.
+
+Result (2026-11-08, on the M5 with Node 24.22.1 and rustc 1.97.0; `node scripts/bench-capture.mjs` exit 0, twice
+with identical bytes). The captures were written as declared, and `node scripts/check-fidelity.mjs --input
+CAPTURE --sha256 HEX` reports each REPORTED, exit 0, with no limit and no verdict:
+
+| Capture | SHA-256 | Model description | Sections | Rows compared | Measured rows flagged | Predictions with model flags | Largest CT error | Largest CP error | Within model validity: rows, CT, CP |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-Motor MN7005 KV230 + P24*7.2 | `8bd8e644…737e817e` | `4b02e651…d03b223e` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
+| UIUC DA4002/DA4022 static | `df6e4490…34ae67d9` | `1dbab472…81009e3e` | 14 | 242 | 0 | 180 (outside-polar) | 0.270 | 0.385 | 62, 0.247, 0.271 |
+
+The uncalibrated T-Motor rotor predicts too much: CT 47 to 65 % and CP 71 to 100 % above the datasheet,
+the error growing with rpm (CT 0.1053 to 0.1068 against the table's 0.0718 to 0.0647). The derived
+geometry assumes a constant chord of c/R 0.181 and blade angles from the nominal pitch; the table's
+torque has two significant digits. The exploratory run's TASK-145 binding, without dynamic inflow, gave
+CT 59 to 78 % and CP 67 to 96 % above it. On the UIUC propellers the errors are 27 % or less in CT and
+39 % or less in CP, of both signs: the four 5-inch DA4002 propellers mostly under-predicted (to −27 % CT
+and −39 % CP), the three 9-inch DA4022 mostly over-predicted (to +25 % CT and +28 % CP), the others either
+way. At every 5-inch point, and at the 9-inch points below about 2700 to 5200 rpm, part of the blade lies
+outside the extended polar's Reynolds range (20 000 to 200 000):
+180 of the 242 predictions carry `outside-polar`, and the 62 within model validity, all on 9-inch
+propellers, err by at most 25 % in CT and 27 % in CP. The SHA-256 above are of the committed files in
+`test-results/validation/`, with their model descriptions beside them.
 
 ## Sensor-error ownership (TASK-089)
 

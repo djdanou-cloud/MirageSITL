@@ -1,0 +1,69 @@
+{
+ "schemaVersion": 1,
+ "kind": "mirage-bench-model",
+ "capture": "bench-tmotor-mn7005-p24x72-capture.json",
+ "task": "TASK-090",
+ "method": "The forum quad profile's rotor 0, uncalibrated, bound as BetFlightDynamics binds it in flight, solved statically by staticLoads (packages/physics/src/propulsion-calibration.ts: 400 steps at 800 Hz on a 1e6 kg·m² shaft) at each measured rpm; CT = T/(ρn²D⁴), CP = 2πQ/(ρn²D⁵). Not the TASK-145 calibration, which is fitted on this same table.",
+ "betModule": {
+  "file": "packages/wasm-bet/dist/mirage_bet.scalar.wasm",
+  "sha256": "e97fec79bd79ba4ee435c7b2ce25bc5cd474092a80f3039c6673f2e307cf972f",
+  "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+ },
+ "vehicleManifestSha256": "f9fd359a35ee7c7d27988a62a03d3f504166fea9a4b389ab00d5ce220a401454",
+ "modelId": 145,
+ "rotorIndex": 0,
+ "polar": "naca6409-neuralfoil-v1",
+ "rotor": {
+  "dynamicInflow": true,
+  "vortexRingSeed": 145,
+  "minimumConfidence": 0.9,
+  "definitionSha256": "f4b1e23f9ac8af6077ff872773a68966cc342c0b860b777adb53d1a55f1a8a12"
+ },
+ "air": {
+  "densityKgM3": 1.225,
+  "viscosityPaS": 0.000017892976260350732,
+  "soundMps": 340.293988026089
+ },
+ "diameterM": 0.6096,
+ "geometryAssumptions": [
+  "rigid-identical-blades",
+  "midpoint-strips",
+  "root-cutout",
+  "chord",
+  "twist",
+  "inertia"
+ ],
+ "geometryFlags": [
+  "root-cutout-assumed",
+  "chord-assumed",
+  "twist-from-pitch",
+  "airfoil-unspecified"
+ ],
+ "inflowNote": "TASK-145's static solve binds this rotor without dynamic inflow (profileRotorDefinition passes none); flight binds it with, and so does this capture.",
+ "inputs": {
+  "benchCsv": {
+   "path": "tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv",
+   "sha256": "1ac6e031113a3c3aaaf7fa569c323e06410d4ffdd2ccc8d30653bc0024a29b73"
+  },
+  "profile": {
+   "path": "tests/fixtures/aircraft/tmotor-mn7005-quad.json",
+   "sha256": "a3ebee54fb3e1ab0d54c92af1f31982aa34490d7c467fd4fcadd60050fc46503"
+  },
+  "motor": {
+   "path": "tests/fixtures/components/tmotor-mn7005-kv230.json",
+   "sha256": "2110dd8fb5d25821ab15b639981ce3a9e19f212d35e7681e3003924c01dd5d23"
+  },
+  "propeller": {
+   "path": "tests/fixtures/components/tmotor-p24x72.json",
+   "sha256": "c1ae868cfeee9873c7bf7a9fe4b13eb05115d8a5caad2a1dd92917dd5c18573a"
+  },
+  "esc": {
+   "path": "tests/fixtures/components/tmotor-alpha-40a.json",
+   "sha256": "a0233179861e5473e69c3fb7096708089e05d624cc389d8c651da00994333eee"
+  },
+  "battery": {
+   "path": "tests/fixtures/components/battery-6s-42ah-forum-144558.json",
+   "sha256": "5e04eceb4d61d112195c06a080086210382d6342329975d8d158339d59982aa8"
+  }
+ }
+}

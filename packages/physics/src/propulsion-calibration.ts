@@ -1,4 +1,4 @@
-import { BetRotorEngineV2, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS } from '../../wasm-bet/src/rotor-v2.ts';
+import { BetRotorEngineV2, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_FLAGS_SLOT, BOUND_V2_OUTPUT_SLOTS } from '../../wasm-bet/src/rotor-v2.ts';
 import type { BoundPolar, BoundRotorDefinition } from '../../wasm-bet/src/rotor.ts';
 import { atmosphereFromState, isaTroposphere } from './atmosphere.ts';
 import type { BenchMeasurements } from './bench-import.ts';
@@ -100,9 +100,10 @@ function benchAir(bench: BenchMeasurements): Air {
 
 /**
  * Static thrust and torque of the rotor at each speed in still air: each speed is a rotor of its own with a shaft so heavy that it
- * keeps its speed while the inflow settles. Thrust is the axial hub force (+z_h), torque the magnitude of the aerodynamic shaft torque.
+ * keeps its speed while the inflow settles. Thrust is the axial hub force (+z_h), torque the magnitude of the aerodynamic shaft torque,
+ * and flags the rotor's output flags word of the last step (TASK-090 lists the validity bits beside its bench predictions).
  */
-export function staticLoads(module: WebAssembly.Module, rotor: BoundRotorDefinition, air: Air, rpms: readonly number[]): { thrustN: number[]; torqueNm: number[] } {
+export function staticLoads(module: WebAssembly.Module, rotor: BoundRotorDefinition, air: Air, rpms: readonly number[]): { thrustN: number[]; torqueNm: number[]; flags: number[] } {
   if (rpms.length < 1 || rpms.length > 32) throw new Error('A static solve takes 1 to 32 speeds');
   const definitions = rpms.map(rpm => ({
     ...rotor, initialOmegaRadS: rpm * Math.PI / 30, inflowTauS: SOLVE_INFLOW_TAU_S,
@@ -119,15 +120,16 @@ export function staticLoads(module: WebAssembly.Module, rotor: BoundRotorDefinit
       for (let i = 0; i < rpms.length; i++) before[i] = engine.output[i * BOUND_V2_OUTPUT_SLOTS + 2] ?? 0;
       if (!engine.stepInto()) throw new Error(`Rotor step failed with status ${engine.lastStatus}`);
     }
-    const thrustN: number[] = [], torqueNm: number[] = [];
+    const thrustN: number[] = [], torqueNm: number[] = [], flags: number[] = [];
     for (let i = 0; i < rpms.length; i++) {
       const out = i * BOUND_V2_OUTPUT_SLOTS, thrust = engine.output[out + 2] ?? NaN;
       if (Math.abs(thrust - (before[i] ?? NaN)) > 1e-9 * Math.max(1, Math.abs(thrust))) throw new Error(`The static solve at ${rpms[i]} rpm did not settle`);
       const omega = engine.output[out + 9] ?? NaN, wanted = (rpms[i] ?? NaN) * Math.PI / 30;
       if (Math.abs(Math.abs(omega) - wanted) > 1e-6 * wanted) throw new Error(`The static solve at ${rpms[i]} rpm did not hold its speed`);
       thrustN.push(thrust); torqueNm.push(Math.abs(engine.output[out + 10] ?? NaN));
+      flags.push(engine.output[out + BOUND_V2_OUTPUT_FLAGS_SLOT] ?? NaN);
     }
-    return { thrustN, torqueNm };
+    return { thrustN, torqueNm, flags };
   } finally {
     engine.dispose();
   }
