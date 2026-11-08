@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "motor",
+  "example": false,
+  "manufacturer": "RCinPower",
+  "model": "RCinPower 1303 V3 8000KV",
+  "sources": [
+    {
+      "id": "stakeholder",
+      "kind": "specification",
+      "description": "The stakeholder's note of 2026-11-08 about the BetaFPV Pavo20 Pro II (sources/stakeholder-pavo.txt of the forum-log directory; aircraft stakeholder-pavo20pro2 of data/flight-logs/inventory.json): motors RCinPower 1303 V3 8000KV; not a datasheet.",
+      "sha256": null,
+      "date": "2026-11-08"
+    },
+    {
+      "id": "assumed",
+      "kind": "synthetic",
+      "description": "Assumed: typical of a 13xx-size 8000 KV whoop motor, chosen for MirageSITL's comparison with the stakeholder's logs; no datasheet we hold states it, and the logs' ESC voltage and current telemetry (15.75 V and 148 A at hover in log 34) is not usable for a fit.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "kvRpmPerV": 8000,
+    "resistanceOhm": 0.25,
+    "noLoadCurrentA": 0.5,
+    "noLoadVoltageV": 10,
+    "maxCurrentA": 12,
+    "maxPowerW": 130,
+    "massKg": 0.0045
+  },
+  "provenance": {
+    "kvRpmPerV": "stakeholder",
+    "resistanceOhm": "assumed",
+    "noLoadCurrentA": "assumed",
+    "noLoadVoltageV": "assumed",
+    "maxCurrentA": "assumed",
+    "maxPowerW": "assumed",
+    "massKg": "assumed"
+  },
+  "applicability": "KV from the stakeholder; every other value assumed for a 1303-size motor of that KV."
+}

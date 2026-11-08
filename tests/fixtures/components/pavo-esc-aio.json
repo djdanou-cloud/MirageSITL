@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "esc",
+  "example": false,
+  "manufacturer": null,
+  "model": "All-in-one flight controller and ESC board of the Pavo20 Pro II (model not stated)",
+  "sources": [
+    {
+      "id": "log-parameters",
+      "kind": "specification",
+      "description": "The aircraft's own parameters in stakeholder-pavo-log_34_UnknownDate.bin: MOT_PWM_TYPE 6 (DShot600) sent once per 400 Hz loop (SCHED_LOOP_RATE 400); the owner's settings, not an ESC datasheet. Log 63 runs its loop at 800 Hz.",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "date": "2026-11-08"
+    },
+    {
+      "id": "assumed",
+      "kind": "synthetic",
+      "description": "Assumed: typical of a whoop all-in-one ESC, chosen for MirageSITL's comparison with the stakeholder's logs; no source we hold states it.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "maxCurrentA": 12,
+    "updateRateHz": 400,
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "provenance": {
+    "maxCurrentA": "assumed",
+    "updateRateHz": "log-parameters",
+    "maxVoltageV": null,
+    "massKg": null
+  },
+  "applicability": "Assumed: a 12 A all-in-one ESC; the stakeholder did not state the model. The command rate is the logs' DShot output rate, not a measured ESC response."
+}

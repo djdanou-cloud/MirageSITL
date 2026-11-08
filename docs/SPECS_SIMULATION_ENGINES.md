@@ -1151,6 +1151,49 @@ to +3.7 % at 4 to 5 radii and +1.6 to +2.0 % at 6 to 7, where the log has 1.000 
 the −2 % dip between 6 and 9 radii, which neither speed nor climb rate explains, becomes a gap of
 3 to 4 points. The log cannot settle K_b without the propellers' height above the rangefinder.
 
+The Pavo20 Pro II profile (TASK-099, 2026-11-08). The stakeholder's BetaFPV Pavo20 Pro II
+(`stakeholder-pavo20pro2` of `data/flight-logs/inventory.json`) is built from four component cards,
+`tests/fixtures/components/pavo-motor-1303-8000kv.json`, `pavo-gemfan-2219-3.json`, `pavo-esc-aio.json`
+and `pavo-battery-3s-850.json`, and the profile `tests/fixtures/aircraft/pavo-quad.json`, as the U35 is
+(`tests/support/pavo.ts`; the propellers fly the NACA6409 catalog polar, the card naming no airfoil).
+Stated: 169 g all-up, the RCinPower 1303 V3 8000KV motors, 2.2-inch Gemfan GP2219-3 propellers and a
+3S 850 mAh battery (the stakeholder); a 93.9 mm wheelbase (BetaFPV's frame page); three blades and a
+1.9-inch pitch read from the name GP2219-3 by Gemfan's naming, the pitch not confirmed; the outputs
+SERVO1 to SERVO4 on motors 2, 3, 4 and 1, QUAD/X_REV (FRAME_CLASS 1, FRAME_TYPE 18), DShot600 once per
+400 Hz loop, the cell voltages 4.35 and 3.3 V (MOT_BAT_VOLT_MAX 13.05 V and MOT_BAT_VOLT_MIN 9.9 V over
+three cells) and a pack resistance of 0.0771 ohm (ArduPilot's own BAT.Res estimate, its median over
+log 34), all from the logs. The logs set BATT_CAPACITY 720 mAh; the card keeps the stakeholder's
+850 mAh. The propeller guards are open rings, not ducts, as the stakeholder said; BetaFPV's page calls
+them ducts with an 8 to 11 % thrust gain. The model represents neither. Assumed, each with its basis:
+
+| Value | Assumed | Basis |
+| --- | --- | --- |
+| Arm length and azimuths | 46.95 mm at ±45° and ±135° | half the 93.9 mm wheelbase on a square X; no drawing gives the arms |
+| Rotor height, tilt | 0, 0 | flat frame; not measured |
+| CG offset | 0 | not measured |
+| Inertia about the CG | diag(9.5e-5, 1.2e-4, 1.9e-4) kg m² | a sum of parts: four 5.5 g motors with propellers at the hubs, 30 g of frame and guards as four 30 mm rings around the hubs, and the other 117 g as a 60 by 30 by 40 mm box at the CG |
+| Ground clearance | 25 mm | a whoop resting on its guards; not measured |
+| Motor resistance, no-load current and voltage, current and power limits, mass | 0.25 ohm, 0.5 A at 10 V, 12 A, 130 W, 4.5 g | typical of a 1303-size 8000 KV whoop motor; the logs' ESC voltage and current telemetry (15.75 V and 148 A at hover) is not usable for a fit |
+| Propeller mass | 1.0 g | typical of a 2-inch three-blade whoop propeller |
+| Propeller hub, chord, twist, airfoil | none on the card | the TASK-139 derivation's assumptions: a root at 0.15 R, a chord of 0.1812 R, the blade angle from the nominal pitch, the NACA6409 polar |
+| ESC current limit | 12 A | typical of a whoop all-in-one ESC; its model is not stated |
+
+`tests/pavo-profile.test.ts` holds, declared before its run: every card value is known with a named
+source or not known, and the assumed ones are exactly those of the table; the cards resolve with nothing
+missing; the derived rotors stand 46.95 mm from the axis and opposite ones 93.9 mm apart; the outputs are
+the logs' SERVO1..4_FUNCTION 34, 35, 36 and 33; the propellers clear; the manifest's bytes repeat; and,
+held level with equal commands, the model carries its weight within 0.1 % at zero climb with no vortex
+ring fluctuation. The TASK-128 frame catalog holds stock QUAD X (FRAME_TYPE 1) and not X_REV, whose spins
+differ, so the profile flies on the scripting matrix (FRAME_CLASS 15) with X_REV's spins, as the U35 does.
+Result (2026-11-08, 4 passed): the model hovers at 26,235 rpm on a command of 0.316, where the logs hover
+at a median of 22,400 to 23,100 rpm per flight: it needs 17 % more rotor speed, or its thrust per squared
+speed is 0.73 times the aircraft's. That is reported, not judged; the assumed blade geometry, the guards
+and the 14 poles the logs assume for the speed reading (SERVO_BLH_POLES) are what it rests on. The
+six-axis trim of `tests/support/hover-trim.ts` does not apply to this rotor: its sweep needs a settled
+speed at every command up to the full 13.05 V, and above about 5.4 V this 28 mm rotor holds a period-two
+alternation of about 3e-6 of its speed at 800 Hz, whatever the ESC's update period; a held hover at
+zero climb replaces it.
+
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
 each rotor's last thrust T and its air, with V >= 0 down through the disk and V_t across
