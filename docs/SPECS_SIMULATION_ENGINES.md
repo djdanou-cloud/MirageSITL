@@ -4743,12 +4743,13 @@ schema 1 fixture's series without its limits) reports J = 19.950 = 20·W_γ(1)
 for its +1 dB model error and exits 2; the schema 1 fixture is kept for the
 refusal.
 
-Open items:
+Open items, all closed on 2026-11-08 (see below):
 
 * Score a real ArduCopter SYSTEMID flight capture and a real thrust-stand
-  file (G4).
-* Convert DataFlash logs to capture schema 2.
-* Build the simulation replay that produces the simulated series.
+  file (G4): the Pavo SystemId flights and the two bench-test captures.
+* Convert DataFlash logs to capture schema 2: `scripts/fidelity-capture.mjs`.
+* Build the simulation replay that produces the simulated series: the SITL
+  flight of each real sweep.
 
 SystemId flights of the Pavo20 Pro II (2026-11-08), declared before the simulated flight was flown.
 The real flights are the stakeholder's Pavo SystemId logs of `data/flight-logs/inventory.json`: 33 and
@@ -4932,6 +4933,28 @@ input file changes a description and fails the test until the captures are writt
 committed capture describes the model of its commit. The test also holds the schema 3 rules above: the
 refusals, schema 2 unchanged, and an analytic bench section whose model-flagged row moves the main
 errors but not those within model validity.
+
+Result (2026-11-08, on the M5 with Node 24.22.1 and rustc 1.97.0; `node scripts/bench-capture.mjs` exit 0, twice
+with identical bytes). The captures were written as declared, and `node scripts/check-fidelity.mjs --input
+CAPTURE --sha256 HEX` reports each REPORTED, exit 0, with no limit and no verdict:
+
+| Capture | SHA-256 | Model description | Sections | Rows compared | Measured rows flagged | Predictions with model flags | Largest CT error | Largest CP error | Within model validity: rows, CT, CP |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-Motor MN7005 KV230 + P24*7.2 | `8bd8e644…737e817e` | `4b02e651…d03b223e` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
+| UIUC DA4002/DA4022 static | `df6e4490…34ae67d9` | `1dbab472…81009e3e` | 14 | 242 | 0 | 180 (outside-polar) | 0.270 | 0.385 | 62, 0.247, 0.271 |
+
+The uncalibrated T-Motor rotor predicts too much: CT 47 to 65 % and CP 71 to 100 % above the datasheet,
+the error growing with rpm (CT 0.1053 to 0.1068 against the table's 0.0718 to 0.0647). The derived
+geometry assumes a constant chord of c/R 0.181 and blade angles from the nominal pitch; the table's
+torque has two significant digits. The exploratory run's TASK-145 binding, without dynamic inflow, gave
+CT 59 to 78 % and CP 67 to 96 % above it. On the UIUC propellers the errors are 27 % or less in CT and
+39 % or less in CP, of both signs: the four 5-inch DA4002 propellers mostly under-predicted (to −27 % CT
+and −39 % CP), the three 9-inch DA4022 mostly over-predicted (to +25 % CT and +28 % CP), the others either
+way. At every 5-inch point, and at the 9-inch points below about 2700 to 5200 rpm, part of the blade lies
+outside the extended polar's Reynolds range (20 000 to 200 000):
+180 of the 242 predictions carry `outside-polar`, and the 62 within model validity, all on 9-inch
+propellers, err by at most 25 % in CT and 27 % in CP. The SHA-256 above are of the committed files in
+`test-results/validation/`, with their model descriptions beside them.
 
 ## Sensor-error ownership (TASK-089)
 

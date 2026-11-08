@@ -1,0 +1,160 @@
+{
+ "schemaVersion": 1,
+ "kind": "mirage-bench-model",
+ "capture": "bench-uiuc-da4002-da4022-static-capture.json",
+ "task": "TASK-090",
+ "method": "Adapter uiuc-propeller-bet-inflow-v1 of scripts/validate-models.mjs on the static tables only: the blade from r/R 0.3 (28 strips of the measured chord and twist, 8 azimuth samples), the extended SDA1075 polar with rotational augmentation, and the flight model's dynamic inflow marched to a steady state at J = 0.",
+ "runner": {
+  "cwd": "native",
+  "command": "cargo run -q --release --locked -p mirage-bet --example propeller_points -- --dynamic-inflow",
+  "sources": {
+   "files": 74,
+   "sha256": "37fa15d7ecefe56982d1a2301e0b35a92b2371bea69a274694d3b5bbcc17ea8c"
+  }
+ },
+ "requestSha256": "4ecf8d604b1b204717c3bb4fa5b0b03fd6c840f3f1e0b5c25749546a73ca1954",
+ "points": 242,
+ "polar": {
+  "kind": "extended-xfoil",
+  "airfoil": "SDA1075",
+  "sourceSha256": "96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b",
+  "tableSha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3",
+  "rotational": {
+   "liftSlopePerRad": 6.283185307179586,
+   "zeroLiftAlphaRad": -0.02565974
+  },
+  "inflowModel": "pitt-peters-annular",
+  "alphaRangeRad": [
+   -3.141592653589793,
+   3.141592653589793
+  ],
+  "reynoldsRange": [
+   20000,
+   200000
+  ]
+ },
+ "air": {
+  "densityKgM3": 1.225,
+  "viscosityPaS": 0.00001789,
+  "soundMps": 340.294
+ },
+ "csvConversion": "T = CT·ρn²D⁴ and Q = CP/(2π)·ρn²D⁵ with ρ = 1.225 kg/m³ and the fixture's D; importBenchCsv divides by the same ρ and D, so the density cancels.",
+ "sections": [
+  {
+   "id": "da4002-5x1p58-2b",
+   "propeller": "da4002-5x1.58-2b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4002_5x1.58_static_1137ga.txt",
+   "sha256": "6650eda37b1b403a8e9f2cf3baa9f9cfc678cecc095114c436d7905b0b3e22c2"
+  },
+  {
+   "id": "da4002-5x2p65-2b",
+   "propeller": "da4002-5x2.65-2b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4002_5x2.65_static_1126rd.txt",
+   "sha256": "b21317caa2fb207384599d0dc4752c3352b8e4c192250338d65f4006e4e4128f"
+  },
+  {
+   "id": "da4002-5x3p75-2b",
+   "propeller": "da4002-5x3.75-2b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4002_5x3.75_static_1121md.txt",
+   "sha256": "a53408f8c30183823b0680dd3c4bd009578c93930df9d03ff300457f95e2d549"
+  },
+  {
+   "id": "da4002-5x4p92-2b",
+   "propeller": "da4002-5x4.92-2b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4002_5x4.92_static_1190ga.txt",
+   "sha256": "e973234a186b0f3808331f91f61f7b40013474b87c772b335ce366970c64ece1"
+  },
+  {
+   "id": "da4002-9x2p85-2b",
+   "propeller": "da4002-9x2.85-2b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4002_9x2.85_static_1115ga.txt",
+   "sha256": "636b0b6819d1737dc6c2403db1349bf40acf9e2c57440f598b06ef48c776d9b6"
+  },
+  {
+   "id": "da4002-9x4p76-2b",
+   "propeller": "da4002-9x4.76-2b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4002_9x4.76_static_1120ga.txt",
+   "sha256": "e2a4a6976e83d4bb23061db83f1824d3f77d1cbb240a039d29c6a7c0f270d66f"
+  },
+  {
+   "id": "da4002-9x6p75-2b",
+   "propeller": "da4002-9x6.75-2b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4002_9x6.75_static_1107rd.txt",
+   "sha256": "342dd9c3dc330a9094aaf9c77e147d2d6a3707142e26d4f65fe6cd0bbe669d10"
+  },
+  {
+   "id": "da4002-9x8p95-2b",
+   "propeller": "da4002-9x8.95-2b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4002_9x8.95_static_1092rd.txt",
+   "sha256": "8aee45cf2674b47262572ad322efc5f02ff2c37f3f84a11f2eb60efb2b1c912f"
+  },
+  {
+   "id": "da4022-5x3p75-2b",
+   "propeller": "da4022-5x3.75-2b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4022_5x3.75_static_0642rb.txt",
+   "sha256": "5d95355e399e84430fada67ac49d794c3085c367e15c12546eecea3d41867e0e"
+  },
+  {
+   "id": "da4022-5x3p75-3b",
+   "propeller": "da4022-5x3.75-3b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4022_5x3.75_3b_static_0690md.txt",
+   "sha256": "1962c98df5f4dc2042cabac72d6a1c41f2752e3c134f44e9e19f9ae55e95a464"
+  },
+  {
+   "id": "da4022-5x3p75-4b",
+   "propeller": "da4022-5x3.75-4b",
+   "diameterM": 0.127,
+   "source": "volume-2/data/da4022_5x3.75_4b_static_0684rd.txt",
+   "sha256": "7b0c5ddcbfade08287d5101a192928fa83fb41941812344eb8a76026d72c5cce"
+  },
+  {
+   "id": "da4022-9x6p75-2b",
+   "propeller": "da4022-9x6.75-2b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4022_9x6.75_static_0767rd.txt",
+   "sha256": "f604839dca1fdce1d35014e58e24bd0af3bc95bc14462354802b2c73d80d6f6e"
+  },
+  {
+   "id": "da4022-9x6p75-3b",
+   "propeller": "da4022-9x6.75-3b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4022_9x6.75_3b_static_0749md.txt",
+   "sha256": "e56e234c688eefb0e03f5bbd6a0b8806376523fa644ef3dec67e8508ceddff7f"
+  },
+  {
+   "id": "da4022-9x6p75-4b",
+   "propeller": "da4022-9x6.75-4b",
+   "diameterM": 0.2286,
+   "source": "volume-2/data/da4022_9x6.75_4b_static_1086ga.txt",
+   "sha256": "e0c92e850e3160455c3c13b2664e48d074841f9237fd5051853bb0f2d4e9b0c2"
+  }
+ ],
+ "inputs": {
+  "fixture": {
+   "path": "tests/fixtures/rotors/uiuc-propellers.json",
+   "sha256": "ae1a73416210aaf64d51e3f2ff76e971d9c95995a976fcdcdfb7bc27dee46af3"
+  },
+  "inventory": {
+   "path": "data/uiuc-propdb/inventory.json",
+   "sha256": "61b65ba5c71634a63bfcc4ace60997755c9f99ea55924e2880768648678fa998"
+  },
+  "extendedPolar": {
+   "path": "tests/fixtures/polars/sda1075-extended.json",
+   "sha256": "6e6e15c81fee8e95c54c8437616148de902e162a15e498af88e143e5034ba1f3"
+  },
+  "xfoilPolar": {
+   "path": "tests/fixtures/polars/sda1075-xfoil.json",
+   "sha256": "96878564e362ec18184bf09167c87546d665c34b64c88c009598ab8943f6393b"
+  }
+ }
+}
