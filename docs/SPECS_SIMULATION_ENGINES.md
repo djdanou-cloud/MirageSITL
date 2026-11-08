@@ -6577,9 +6577,12 @@ without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own r
 * Orbits: the almanac propagation of IS-GPS-200 Table 20-VI (μ = 3.986005e14 m³/s², Ω̇e =
   7.2921151467e-5 rad/s). Since 2026-11-08 the run's constellation is the real GPS almanac of week
   2444 ("Real GPS almanac" below); until then it was synthetic, the Walker 24/6/1 pattern at 55° on
-  circular orbits of half a sidereal day, which stays for tests.
+  circular orbits of half a sidereal day, which stays for tests. Later on 2026-11-08 Galileo, GLONASS
+  and BeiDou joined it from the IGS broadcast records of 2026-11-07 ("Multi-GNSS broadcast sky"
+  below).
 * Geometry: elevation and azimuth of each satellite above the mask, and Q = (GᵀG)⁻¹ of the rows
-  [−e_E, −e_N, −e_U, 1] for the dilutions.
+  [−e_E, −e_N, −e_U, 1] for the dilutions; since the multi-GNSS sky one clock column per system
+  tracked, [−e_E, −e_N, −e_U, c₁ … c_k].
 * Ionosphere: the Klobuchar model of IS-GPS-200 20.3.3.5.2.5 with RTKLIB's default broadcast set;
   the receiver removes it with the same model, so a stated fraction remains. Troposphere: the
   Saastamoinen delays of a standard atmosphere at 70 % humidity, mapped by 1/cos z; likewise.
@@ -6794,6 +6797,59 @@ Checks, limits set now (`tests/gnss-broadcast.test.ts`; the DOP in `tests/gnss-e
 
 The run's GNSS stream test and the logged statistics are recomputed on this sky; the comparison with
 the receivers is shown, not judged (SA-01).
+
+Result (2026-11-08). The generator selected 28 Galileo, 24 GLONASS and 37 BeiDou satellites (4 of
+them GEO, PRN 1 to 4) and 995 check records; the file's header gives 18 leap seconds. The data file
+is 171,708 bytes; `--check` reproduces both outputs (exit 0, EQUAL), and without `--input` the
+generator exits 2. `tests/gnss-broadcast.test.ts` 5 passed on the first run, `tests/gnss-errors.test.ts`
+15 (two new), `tests/gps-almanac.test.ts` 3, `tests/gnss-log-statistics.test.ts` 2,
+`tests/run-controller.test.ts` 136 and `tests/offline-inventory.test.ts` 11, with 9 hashed files.
+
+1. The module equals the data file, and the data file the inventory.
+2. GLONASS at tb: largest difference 1.8e-8 m.
+3. Largest errors against the file's own records, and their largest share of the 0.3° bound: Galileo
+   0.84 km (0.7 %; 221 checks), GLONASS 7.4 km (7.4 %; 190), BeiDou MEO 0.96 km (0.8 %; 224), IGSO
+   1.85 km (1.0 %; 40) and GEO 2.2 km (1.2 %; 32), each at 9 to 12 h from the selected record; the GPS
+   almanac 6.9 km (6.5 %; 288) at 3.2 to 3.7 days before its time of applicability.
+4. BeiDou GEO: at most 2.78° from the equator and 0.05 % from 42,164 km.
+5. At the default home through the day: GPS 7 to 11 (median 9), Galileo 5 to 12 (9), GLONASS 5 to 9
+   (7), BeiDou 8 to 14 (11), all 30 to 41 (35); HDOP 0.39 to 0.56, median 0.46.
+6. The hand case passes within 1e-9, but its GDOP is √(31/12), not the √(8/3) the declaration wrote:
+   1/2 + 1/2 + 3/4 + 5/12 + 5/12 is 31/12, an addition error in the declared value, not in the
+   implementation. The other declared values (HDOP 1, VDOP √(3/4), PDOP √(7/4), each clock √(5/12))
+   pass as written; so do the one-satellite second system, the bias moved into its own clock, and one
+   clock equal bit for bit to the four-unknown arithmetic.
+
+Every system takes the GPS L1 ionosphere and the C/A chip rate. BeiDou B1I and GLONASS G1 lie within
+2 % of L1 in frequency, so their ionospheric delays differ by up to 4 %; their chip rates, 2.046 and
+0.511 Mchip/s, put their jamming margins 3 dB above and below the C/A one, which the jamming budget
+does not yet model.
+
+The run's GNSS stream test changed with the sky: at ArduPilot's Canberra test home, 50 s into the
+run, 36 satellites are tracked (GPS 8, Galileo 10, GLONASS 5, BeiDou 13, whose IGSO and GEO
+satellites serve the Asia-Pacific) instead of the 10 the receiver holds, so `SIM_GPS1_NUMSATS` is
+written as well as `SIM_GPS1_ACC` (σ·HDOP 0.73 m; the GPS almanac alone gives HDOP 1.16 at that
+moment, 0.94 at the former epoch). `node scripts/check-gnss-stats.mjs` (exit 0; 16 logs with a fix,
+48 listed): the model's medians become 31 to 46 satellites and HDOP 0.39 to 0.53 (σ·HDOP 0.58 to
+0.79 m), against the GPS-only sky's 7 to 12 and 0.73 to 1.68 and the receivers' 15 to 32 and 0.46 to
+0.68. Each log's GPS median is unchanged; per log the report adds the medians per system and the
+weeks from the sky's epoch (9 to 193 before it).
+
+| Receiver (logs) | Satellites | HDOP | Model satellites (GPS, Galileo, GLONASS, BeiDou) | Model HDOP |
+| --- | --- | --- | --- | --- |
+| CubePilot Here4 (6 logs) | 31 to 32 | 0.46 to 0.50 | 31 to 35 (7–10, 8–11, 6–8, 7–9) | 0.46 to 0.53 |
+| CUAV Neo 3 Pro (2 logs) | 24, 29 | 0.56, 0.48 | 43, 40 | 0.40, 0.40 |
+| Holybro M9N (amc-tarot-x4) | 27 | 0.54 | 37 (10, 11, 9, 7) | 0.44 |
+| not stated (6 logs) | 15 to 30 | 0.47 to 0.68 | 36 to 46 | 0.39 to 0.44 |
+| not stated (00000205) | 28 | 0.60 | 41 | 0.41 |
+
+The model now holds more satellites than most receivers report. It counts every healthy satellite of
+four systems above 10°, while a receiver reports those it uses, from the systems it is set to track
+(a u-blox M8 tracks three at once) and up to its own limits; the Here4's 31 to 32 at every epoch
+look like such a limit. Its HDOP comes within 0.05 of the Here4's and lies below the others'. Far
+from the sky's epoch IDOT turns the Galileo and BeiDou inclinations by up to 7.6° at the farthest log
+(193 weeks; `inclinationDriftDeg` in the report), 3.1° at the Here4 logs: their planes then differ
+from the real ones by that much.
 
 ## Electromechanical drive (TASK-092)
 

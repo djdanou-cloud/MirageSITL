@@ -1,5 +1,5 @@
 // TASK-117: what the first GNSS receiver of each real ArduCopter log in data/flight-logs/inventory.json reported (fix type,
-// satellites, HDOP, its own accuracy estimates), beside the GNSS v2 model's satellite geometry at the same place and GPS time
+// satellites, HDOP, its own accuracy estimates), beside the GNSS v2 model's multi-GNSS satellite geometry at the same place and GPS time
 // (SPECS_SIMULATION_ENGINES "Logged receiver statistics"). The logs are kept outside the repository and checked by SHA-256. No
 // position is written out. No limit applies: the logs hold the receivers' reports, not their position errors.
 //
@@ -20,6 +20,11 @@ if (!process.execArgv.includes(TRANSFORM)) {
 }
 const { gnssLogStatistics, MODEL_SETTINGS } = await import("../packages/analysis/src/gnss-statistics.ts");
 const { GPS_ALMANAC_SOURCE } = await import("../packages/sensors/src/gps-almanac.ts");
+const { GNSS_BROADCAST, GNSS_BROADCAST_SOURCE } = await import("../packages/sensors/src/gnss-broadcast.ts");
+// The largest inclination change IDOT·Δt among the Galileo and BeiDou records over a time span, degrees: the broadcast elements
+// extrapolated weeks or years from their epoch (SPECS_SIMULATION_ENGINES "Multi-GNSS broadcast sky").
+const MAX_IDOT = Math.max(...GNSS_BROADCAST.filter(s => s.system !== "R").map(s => Math.abs(s.inclinationRateRadS)));
+const inclinationDriftDeg = weeks => (MAX_IDOT * Math.max(...weeks.map(Math.abs)) * 604800 * 180) / Math.PI;
 const { readDataFlash } = await import("../packages/dataflash/src/reader.ts");
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -59,13 +64,18 @@ for (const entry of inventory.logs) {
     epochs: s.epochs, durationS: round(s.durationS, 1), rateHz: round(s.rateHz, 2), status: s.status,
     satellites: pct(s.satellites, 1), hdop: pct(s.hdop), horizontalAccuracyM: pct(s.horizontalAccuracyM), verticalAccuracyM: pct(s.verticalAccuracyM),
     speedAccuracyMps: pct(s.speedAccuracyMps, 3),
-    model: { visible: pct(s.model.visible, 1), hdop: pct(s.model.hdop), accuracyM: pct(s.model.accuracyM), solutions: s.model.solutions,
-      weeksFromAlmanac: s.model.weeksFromAlmanac },
+    model: { visible: pct(s.model.visible, 1),
+      visibleBySystem: Object.fromEntries(Object.entries(s.model.visibleBySystem).map(([system, p]) => [system, pct(p, 1)])),
+      hdop: pct(s.model.hdop), accuracyM: pct(s.model.accuracyM), solutions: s.model.solutions,
+      weeksFromAlmanac: s.model.weeksFromAlmanac, weeksFromSky: s.model.weeksFromSky, inclinationDriftDeg: round(inclinationDriftDeg(s.model.weeksFromSky), 2) },
   });
 }
 const status = reasons.length ? "FAIL" : "REPORTED";
 write({
   schemaVersion: 1, kind: "logged-gnss", status, reasons, inventorySha256: createHash("sha256").update(inventoryBytes).digest("hex"),
-  model: { constellation: `GPS almanac of week ${GPS_ALMANAC_SOURCE.week} (${GPS_ALMANAC_SOURCE.file}, SHA-256 ${GPS_ALMANAC_SOURCE.sha256})`, ...MODEL_SETTINGS }, logs,
+  model: {
+    constellation: `GPS almanac of week ${GPS_ALMANAC_SOURCE.week} (${GPS_ALMANAC_SOURCE.file}, SHA-256 ${GPS_ALMANAC_SOURCE.sha256}) with the Galileo, GLONASS and BeiDou broadcast records nearest week ${GNSS_BROADCAST_SOURCE.referenceWeek}, ${GNSS_BROADCAST_SOURCE.referenceSecondsOfWeek} s (${GNSS_BROADCAST_SOURCE.dataFile} from ${GNSS_BROADCAST_SOURCE.file}, SHA-256 ${GNSS_BROADCAST_SOURCE.sha256}); one receiver clock per system`,
+    ...MODEL_SETTINGS,
+  }, logs,
 });
 process.exit(reasons.length ? 1 : 0);

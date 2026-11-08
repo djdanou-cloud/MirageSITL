@@ -48,7 +48,7 @@ import { barometerAltitudePerPascal } from '@mirage/aircraft/sensor-parameters';
 import { barometerGlitchM } from '@mirage/physics/barometer';
 import { WGS84_E2, primeVerticalRadiusM } from '@mirage/sensors/geodesy';
 import { gnssSolution } from '@mirage/sensors/gnss';
-import { GPS_ALMANAC } from '@mirage/sensors/gps-almanac';
+import { GNSS_SKY } from '@mirage/sensors/gnss-sky';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
@@ -1554,11 +1554,15 @@ describe('effect controls in a run (TASK-168)', () => {
     const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(DEFAULT_HOME[0] * deg) ** 2) ** 1.5;
     const receiver = { latRad: DEFAULT_HOME[0] * deg + truth.northM / meridional, lonRad: DEFAULT_HOME[1] * deg + truth.eastM / (primeVerticalRadiusM(DEFAULT_HOME[0] * deg) * Math.cos(DEFAULT_HOME[0] * deg)),
       heightM: DEFAULT_HOME[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
-    const expected = gnssSolution(GPS_ALMANAC, receiver, 2444, 233472 + simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
-    // Without an error the offsets stay, so only the count and the accuracy can change, and only a changed value is written: under
-    // the real almanac's sky (since 2026-11-08) this home tracks 10 satellites, the count the receiver already holds.
-    expect(expected.tracked).toBe(10);
-    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
+    const expected = gnssSolution(GNSS_SKY, receiver, 2443, 561600 + simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
+    // Without an error the offsets stay, so only the count and the accuracy can change, and only a changed value is written. Under
+    // the multi-GNSS sky (since 2026-11-08; simulated time 0 at 2026-11-07 12:00 GPS time) this home, ArduPilot's Canberra test
+    // site, tracks 36 satellites 50 s into the run: GPS 8, Galileo 10, GLONASS 5 and BeiDou 13, whose IGSO and GEO satellites serve
+    // the Asia-Pacific. That is not the 10 the receiver holds, so the count is written as well as the accuracy, σ·HDOP 0.73 m: four
+    // systems give an HDOP of 0.49 where the GPS almanac alone gives 1.16 at this moment (0.94 at the former epoch).
+    expect(expected.tracked).toBe(36);
+    expect(expected.visibleBySystem).toEqual({ G: 8, E: 10, R: 5, C: 13 });
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: 36 }, { name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
     expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'gnss.constellation', status: 'applied' });
     // GNSS jamming writes the same parameters: refused while the stream runs.
     expect(h.controller.setEffect({ schemaVersion: 1, id: 'jam', effect: 'ew.gnss-jamming', enabled: true, intensity: 1, parameters: { severity: 1 } })).toContain('writes the same receiver parameters');
