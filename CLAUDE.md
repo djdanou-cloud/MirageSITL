@@ -154,8 +154,10 @@ implementation.
   flight does not carry to the same aircraft's other flights, and the task stays
   open by the stakeholder's decision of 2026-11-07. TASK-145 is
   DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
-  Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry,
-  atmosphere, terrain and jamming stream into SIM_GPS1_*, and the inductive motor,
+  Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry
+  of a four-system sky (the GPS almanac with IGS broadcast Galileo, GLONASS and
+  BeiDou records, one receiver clock per system), atmosphere, terrain and jamming
+  stream into SIM_GPS1_*, and the inductive motor,
   its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**

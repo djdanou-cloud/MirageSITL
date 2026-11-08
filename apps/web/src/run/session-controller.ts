@@ -86,7 +86,7 @@ import { EFFECT_CATALOG, parseEffectControl, type EffectControl, type EffectId, 
 import { barometerGlitchM } from "@mirage/physics/barometer";
 import { WGS84_E2, primeVerticalRadiusM } from "@mirage/sensors/geodesy";
 import { HorizontalWander, gnssSolution, type GnssEffects, type TerrainHeight } from "@mirage/sensors/gnss";
-import { GPS_ALMANAC, GPS_ALMANAC_SOURCE } from "@mirage/sensors/gps-almanac";
+import { GNSS_SKY, GNSS_SKY_EPOCH } from "@mirage/sensors/gnss-sky";
 import { barometerAltitudePerPascal } from "@mirage/aircraft/sensor-parameters";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
 import { ParameterReadback, type AbsentRule, type ParameterDifference } from "@mirage/autopilot/parameter-readback";
@@ -452,11 +452,12 @@ function horizontalWanderOf(prepared: PreparedRun): HorizontalWander | null {
 }
 /**
  * TASK-117: the receiver parameters the GNSS stream writes, the period of its solutions in simulated time, and its sky: the real GPS
- * almanac of week 2444, simulated time 0 at its time of applicability (SPECS_SIMULATION_ENGINES "Real GPS almanac").
+ * almanac of week 2444 with the Galileo, GLONASS and BeiDou broadcast records of 2026-11-07, simulated time 0 at the sky's epoch,
+ * 2026-11-07 12:00:00 GPS time (SPECS_SIMULATION_ENGINES "Multi-GNSS broadcast sky").
  */
 const GNSS_PARAMETERS: readonly string[] = ["SIM_GPS1_GLTCH_X", "SIM_GPS1_GLTCH_Y", "SIM_GPS1_GLTCH_Z", SITL_GPS_NUMSATS, SITL_GPS_ACC, SITL_GPS_LOCK];
-const GNSS_PERIOD_S = 0.2, GNSS_WEEK = GPS_ALMANAC_SOURCE.week, GNSS_START_S = GPS_ALMANAC_SOURCE.toaS;
-const GNSS_CONSTELLATION = GPS_ALMANAC;
+const GNSS_PERIOD_S = 0.2, GNSS_WEEK = GNSS_SKY_EPOCH.week, GNSS_START_S = GNSS_SKY_EPOCH.secondsOfWeek;
+const GNSS_CONSTELLATION = GNSS_SKY;
 /** Its GPS fix within these distances of the session's home (declared before the first connection): metres. */
 export const HOME_HORIZONTAL_M = 10, HOME_VERTICAL_M = 5;
 /** EKF_STATUS_REPORT, GPS_RAW_INT and GLOBAL_POSITION_INT at 10 Hz: LiveEkfWarmup needs GPS within 0.3 s of the IMU. */
@@ -1442,7 +1443,7 @@ export class SessionController {
       const truth = this.physics.flightTruth(), latRad = (home[0] * Math.PI) / 180, lonRad = (home[1] * Math.PI) / 180;
       const s2 = Math.sin(latRad) ** 2, meridional = (6378137 * (1 - WGS84_E2)) / (1 - WGS84_E2 * s2) ** 1.5, normal = primeVerticalRadiusM(latRad);
       const receiver = { latRad: latRad + truth.northM / meridional, lonRad: lonRad + truth.eastM / (normal * Math.cos(latRad)), heightM: home[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
-      // GPS time of the simulated moment: the synthetic constellation repeats each sidereal day, so the run's clock start is enough.
+      // GPS time of the simulated moment: the sky's epoch plus the run's simulated time.
       const gpsS = GNSS_START_S + simTimeS;
       const solution = gnssSolution(GNSS_CONSTELLATION, receiver, GNSS_WEEK + Math.floor(gpsS / 604800), gpsS % 604800, e);
       const [solvedEast, solvedNorth, up] = solution.errorEnuM, deg = 180 / Math.PI;

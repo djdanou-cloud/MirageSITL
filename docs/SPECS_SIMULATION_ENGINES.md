@@ -6639,9 +6639,12 @@ without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own r
 * Orbits: the almanac propagation of IS-GPS-200 Table 20-VI (μ = 3.986005e14 m³/s², Ω̇e =
   7.2921151467e-5 rad/s). Since 2026-11-08 the run's constellation is the real GPS almanac of week
   2444 ("Real GPS almanac" below); until then it was synthetic, the Walker 24/6/1 pattern at 55° on
-  circular orbits of half a sidereal day, which stays for tests.
+  circular orbits of half a sidereal day, which stays for tests. Later on 2026-11-08 Galileo, GLONASS
+  and BeiDou joined it from the IGS broadcast records of 2026-11-07 ("Multi-GNSS broadcast sky"
+  below).
 * Geometry: elevation and azimuth of each satellite above the mask, and Q = (GᵀG)⁻¹ of the rows
-  [−e_E, −e_N, −e_U, 1] for the dilutions.
+  [−e_E, −e_N, −e_U, 1] for the dilutions; since the multi-GNSS sky one clock column per system
+  tracked, [−e_E, −e_N, −e_U, c₁ … c_k].
 * Ionosphere: the Klobuchar model of IS-GPS-200 20.3.3.5.2.5 with RTKLIB's default broadcast set;
   the receiver removes it with the same model, so a stated fraction remains. Troposphere: the
   Saastamoinen delays of a standard atmosphere at 70 % humidity, mapped by 1/cos z; likewise.
@@ -6727,7 +6730,8 @@ BLOCKED_EXTERNAL.
 
 Recorded before the implementation. The approved download from navcen.uscg.gov succeeded on its
 retry of 2026-11-08 (the address now redirects to the host without `www`): `current_yuma.alm`, GPS
-week 396 modulo 1024, so week 2444 (2026-11-01 to 11-07), time of applicability 233,472 s, 32
+week 396 modulo 1024, so week 2444 (2026-11-08 to 11-14; corrected in "Multi-GNSS broadcast sky"
+below), time of applicability 233,472 s, 32
 satellites, 19,008 bytes. It is stored unchanged as `data/gnss/yuma-2444.alm` (a United States
 Government work, public domain) and registered in `config/offline-inventory.json` with its SHA-256.
 `packages/sensors/src/gps-almanac.ts` holds its elements as a module, so the browser, the tests and the
@@ -6765,6 +6769,149 @@ log (GPL-3.0; `amc-tarot-x4` in the inventory, Holybro M9N, 709 epochs over 141.
 27 satellites, HDOP 0.54 and HAcc 0.31 m, against the model's 10 satellites, HDOP 0.87 and σ·HDOP 1.3 m
 at the same place and time, 118 weeks before the almanac. The 21 logs the stakeholder gave that day have no
 GNSS and are listed with that reason.
+
+### Multi-GNSS broadcast sky (TASK-117, declared 2026-11-08)
+
+Recorded before the implementation. On 2026-11-08 the stakeholder approved the download of one daily
+multi-GNSS broadcast navigation file: `BRDC00IGS_R_20263110000_01D_MN.rnx.gz` from the IGS data centre
+of BKG (igs.bkg.bund.de, directory `IGS/BRDC/2026/311/`), 1,246,410 bytes, SHA-256
+`3d67b94184459700c2b969e7f791b769d925fb3eefbb1f9d78f4f3d2586b8fa3`: the IGS merged RINEX 3.04 mixed
+navigation file of 2026-11-07, day 311, the Saturday of GPS week 2443. Correction: GPS week 2444 runs
+from 2026-11-08 to 11-14, not from 11-01 to 11-07 as "Real GPS almanac" said; the almanac's time of
+applicability, 233,472 s, is Tuesday 2026-11-10 16:51:12 GPS time, a future epoch, as almanacs are
+issued. The file stays outside the repository (10.8 MB unpacked). IGS products are freely available,
+and IGS asks users to cite them.
+
+* Generator: `node scripts/gnss-broadcast-elements.mjs --input FILE` (cold) checks the file's SHA-256,
+  unpacks it, parses its GPS, Galileo, GLONASS and BeiDou records and writes
+  `data/gnss/broadcast-2026-311.json` and the module `packages/sensors/src/gnss-broadcast.ts`, both from
+  the same values. `--check` regenerates both and compares them byte for byte with the stored files:
+  exit 0 equal, 1 different, 2 (BLOCKED_EXTERNAL) without the file. The data file names the source
+  file, its size, SHA-256 and address, the reference epoch and the selection rule, and is registered in
+  `config/offline-inventory.json` with its own SHA-256. QZSS, NavIC and SBAS records are not used.
+* Reference epoch and selection: T_ref = 2026-11-07 12:00:00 GPS time (week 2443, 561,600 s), the
+  middle of the file's day. For each Galileo, GLONASS and BeiDou satellite the healthy record (Galileo:
+  SV health 0 in an I/NAV record, data source bit 0 or 2; GLONASS: health Bn 0; BeiDou: SatH1 0)
+  whose reference time (toe, or tb, in GPS time) is nearest T_ref, the earlier on a tie. A satellite
+  without a healthy record is left out. GPS stays the YUMA almanac; the file's GPS records serve only
+  as a check.
+* Time: Galileo system time and week equal GPS time (their offset of nanoseconds is ignored); BeiDou
+  time is GPS time − 14 s and its week the GPS week − 1356; GLONASS epochs are UTC(SU), and GPS time =
+  UTC + 18 s (the file header's LEAP SECONDS). Frames: GTRF, CGCS2000 and PZ-90.11 are taken as WGS 84;
+  they differ by centimetres to decimetres.
+* Galileo, and BeiDou MEO and IGSO: the broadcast Keplerian algorithm with Δn, IDOT and the harmonic
+  corrections Cuc to Cis, with the constants of the Galileo OS SIS ICD (issue 2.1, section 5.1.1:
+  μ = 3.986004418e14 m³/s², Ω̇e = 7.2921151467e-5 rad/s) and of the BeiDou B1I ICD
+  (BDS-SIS-ICD-B1I-3.0, its user algorithm for the ephemeris, CGCS2000: μ = 3.986004418e14 m³/s²,
+  Ω̇e = 7.2921150e-5 rad/s).
+  BeiDou GEO (PRN 1 to 5 and 59 to 63): that ICD's GEO algorithm, the node without the Earth's
+  rotation, the orbit turned by −5° about x and by Ω̇e·tk about z.
+* GLONASS: the broadcast PZ-90 state vector at tb (GLONASS ICD, edition 5.1) holds ±15 min by
+  integration. For a day's sky, and for logs years away, it becomes osculating Keplerian elements in
+  the inertial frame aligned with PZ-90 at tb (velocity plus ω₃ × r), propagated with the first-order
+  J2 secular rates Ω̇ = −(3/2)·n̄·J2·(a_e/p)²·cos i, ω̇ = (3/4)·n̄·J2·(a_e/p)²·(5 cos²i − 1) and
+  Ṁ = n̄·[1 + (3/4)·J2·(a_e/p)²·√(1 − e²)·(3 cos²i − 1)], with the ICD's constants (GM =
+  398600.4418e9 m³/s², a_e = 6,378,136 m, J2 = 1082625.75e-9, ω₃ = 7.292115e-5 rad/s). The mean
+  motion n̄ comes from the mean semi-major axis ā = a − (3/2)·(J2·a_e²/a)·sin²i·cos 2u, the
+  short-period term a near-circular orbit's energy gives; the position itself keeps the osculating
+  elements, so at tb it is the broadcast one. The broadcast luni-solar accelerations hold only ±15 min
+  and are dropped. Expected error over a day: kilometres to a few tens of kilometres, from the
+  short-period and luni-solar terms left out; at the nearest range of 19,100 km that is about a tenth
+  of a degree, which changes visibility only at the mask and the DOP not visibly.
+* Far from T_ref, as for the GPS almanac, the elements give real orbital planes and slot spacing but
+  not that day's positions; IDOT turns the Galileo and BeiDou inclinations linearly, which the logged
+  statistics state at the farthest log.
+* Position solution: one receiver clock per system among the tracked satellites. The rows of G are
+  [−e_E, −e_N, −e_U, c₁ … c_k] with c_j = 1 for the satellite's own system, Q = (GᵀG)⁻¹, and a fix
+  needs at least 3 + k satellites. HDOP, VDOP and PDOP as before; GDOP from the whole trace; TDOP is
+  the clock of the first system present in the order GPS, Galileo, GLONASS, BeiDou. With one system
+  the arithmetic is the four-unknown one, unchanged bit for bit.
+* The run's sky becomes the GPS almanac plus the three systems, simulated time 0 at T_ref instead of
+  the almanac's time of applicability, so that every system is used within a day of its data (the
+  almanac then 3.2 days before its time of applicability). `gnssLogStatistics` uses the same sky at
+  each log's GPS time and also reports the visible satellites per system. ArduPilot V4.7.2 keeps
+  `SIM_GPS1_NUMSATS` as an AP_Int8 (`libraries/SITL/SITL.h`), so counts up to 127 pass unchanged.
+
+Checks, limits set now (`tests/gnss-broadcast.test.ts`; the DOP in `tests/gnss-errors.test.ts`):
+
+1. The module equals the data file field for field, the data file's SHA-256 equals the inventory's,
+   and `--check` reproduces both files from the RINEX file.
+2. GLONASS: the model at tb returns the broadcast position within 1e-3 m (the element conversion and
+   its inverse).
+3. Against truth from the file itself: for each satellite, its records nearest T_ref ± 3, 6, 9 and
+   12 h (within 1 h of the mark and at least 1 h from the selected record), each evaluated at its own
+   reference time (Keplerian at tk = 0 by the generator's separate implementation; GLONASS, the state
+   vector itself). The propagated position lies within 0.3° of it seen from the nearest point of the
+   Earth: an error of at most (|r| − 6,378 km)·0.3·π/180, about 100 km for GLONASS, 120 km for Galileo,
+   110 km for BeiDou MEO and 190 km for BeiDou IGSO and GEO. The same bound holds for the GPS almanac
+   against the file's GPS records, 3.2 to 3.7 days before its time of applicability.
+4. Every BeiDou GEO stays through the file's day within 3° of the equator and within 1 % of the
+   geostationary radius, 42,164 km.
+5. At the default home (32° N, 35° E, 100 m) over T_ref ± 12 h at 10-minute steps with the 10° mask:
+   GPS 6 to 14, Galileo 4 to 13, GLONASS 4 to 12, BeiDou 6 to 20 and all systems 25 to 50 satellites at
+   every step, and the multi-system HDOP below 1.0 throughout (plausibility bounds from the published
+   mid-latitude counts, not fidelity limits).
+6. The multi-system DOP against a case computed by hand, within 1e-9: GPS at the zenith and on the
+   north and south horizons, and Galileo at the zenith and on the east and west horizons, give HDOP 1,
+   VDOP √(3/4), PDOP √(7/4), each clock √(5/12) and GDOP √(8/3); a second system with one satellite
+   leaves a one-system case's position DOPs unchanged; and a bias common to one system's satellites
+   moves only its clock, the position error within 1e-9 m of zero.
+
+The run's GNSS stream test and the logged statistics are recomputed on this sky; the comparison with
+the receivers is shown, not judged (SA-01).
+
+Result (2026-11-08). The generator selected 28 Galileo, 24 GLONASS and 37 BeiDou satellites (4 of
+them GEO, PRN 1 to 4) and 995 check records; the file's header gives 18 leap seconds. The data file
+is 171,708 bytes; `--check` reproduces both outputs (exit 0, EQUAL), and without `--input` the
+generator exits 2. `tests/gnss-broadcast.test.ts` 5 passed on the first run, `tests/gnss-errors.test.ts`
+15 (two new), `tests/gps-almanac.test.ts` 3, `tests/gnss-log-statistics.test.ts` 2,
+`tests/run-controller.test.ts` 136 and `tests/offline-inventory.test.ts` 11, with 9 hashed files.
+
+1. The module equals the data file, and the data file the inventory.
+2. GLONASS at tb: largest difference 1.8e-8 m.
+3. Largest errors against the file's own records, and their largest share of the 0.3° bound: Galileo
+   0.84 km (0.7 %; 221 checks), GLONASS 7.4 km (7.4 %; 190), BeiDou MEO 0.96 km (0.8 %; 224), IGSO
+   1.85 km (1.0 %; 40) and GEO 2.2 km (1.2 %; 32), each at 9 to 12 h from the selected record; the GPS
+   almanac 6.9 km (6.5 %; 288) at 3.2 to 3.7 days before its time of applicability.
+4. BeiDou GEO: at most 2.78° from the equator and 0.05 % from 42,164 km.
+5. At the default home through the day: GPS 7 to 11 (median 9), Galileo 5 to 12 (9), GLONASS 5 to 9
+   (7), BeiDou 8 to 14 (11), all 30 to 41 (35); HDOP 0.39 to 0.56, median 0.46.
+6. The hand case passes within 1e-9, but its GDOP is √(31/12), not the √(8/3) the declaration wrote:
+   1/2 + 1/2 + 3/4 + 5/12 + 5/12 is 31/12, an addition error in the declared value, not in the
+   implementation. The other declared values (HDOP 1, VDOP √(3/4), PDOP √(7/4), each clock √(5/12))
+   pass as written; so do the one-satellite second system, the bias moved into its own clock, and one
+   clock equal bit for bit to the four-unknown arithmetic.
+
+Every system takes the GPS L1 ionosphere and the C/A chip rate. BeiDou B1I and GLONASS G1 lie within
+2 % of L1 in frequency, so their ionospheric delays differ by up to 4 %; their chip rates, 2.046 and
+0.511 Mchip/s, put their jamming margins 3 dB above and below the C/A one, which the jamming budget
+does not yet model.
+
+The run's GNSS stream test changed with the sky: at ArduPilot's Canberra test home, 50 s into the
+run, 36 satellites are tracked (GPS 8, Galileo 10, GLONASS 5, BeiDou 13, whose IGSO and GEO
+satellites serve the Asia-Pacific) instead of the 10 the receiver holds, so `SIM_GPS1_NUMSATS` is
+written as well as `SIM_GPS1_ACC` (σ·HDOP 0.73 m; the GPS almanac alone gives HDOP 1.16 at that
+moment, 0.94 at the former epoch). `node scripts/check-gnss-stats.mjs` (exit 0; 16 logs with a fix,
+48 listed): the model's medians become 31 to 46 satellites and HDOP 0.39 to 0.53 (σ·HDOP 0.58 to
+0.79 m), against the GPS-only sky's 7 to 12 and 0.73 to 1.68 and the receivers' 15 to 32 and 0.46 to
+0.68. Each log's GPS median is unchanged; per log the report adds the medians per system and the
+weeks from the sky's epoch (9 to 193 before it).
+
+| Receiver (logs) | Satellites | HDOP | Model satellites (GPS, Galileo, GLONASS, BeiDou) | Model HDOP |
+| --- | --- | --- | --- | --- |
+| CubePilot Here4 (6 logs) | 31 to 32 | 0.46 to 0.50 | 31 to 35 (7–10, 8–11, 6–8, 7–9) | 0.46 to 0.53 |
+| CUAV Neo 3 Pro (2 logs) | 24, 29 | 0.56, 0.48 | 43, 40 | 0.40, 0.40 |
+| Holybro M9N (amc-tarot-x4) | 27 | 0.54 | 37 (10, 11, 9, 7) | 0.44 |
+| not stated (6 logs) | 15 to 30 | 0.47 to 0.68 | 36 to 46 | 0.39 to 0.44 |
+| not stated (00000205) | 28 | 0.60 | 41 | 0.41 |
+
+The model now holds more satellites than most receivers report. It counts every healthy satellite of
+four systems above 10°, while a receiver reports those it uses, from the systems it is set to track
+(a u-blox M8 tracks three at once) and up to its own limits; the Here4's 31 to 32 at every epoch
+look like such a limit. Its HDOP comes within 0.05 of the Here4's and lies below the others'. Far
+from the sky's epoch IDOT turns the Galileo and BeiDou inclinations by up to 7.6° at the farthest log
+(193 weeks; `inclinationDriftDeg` in the report), 3.1° at the Here4 logs: their planes then differ
+from the real ones by that much.
 
 ## Electromechanical drive (TASK-092)
 

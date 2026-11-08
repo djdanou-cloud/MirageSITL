@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readDataFlash } from '../packages/dataflash/src/reader.ts';
 import { gnssLogStatistics, MODEL_SETTINGS, percentiles } from '../packages/analysis/src/gnss-statistics.ts';
 import { gnssSolution } from '../packages/sensors/src/gnss.ts';
-import { GPS_ALMANAC } from '../packages/sensors/src/gps-almanac.ts';
+import { GNSS_SKY } from '../packages/sensors/src/gnss-sky.ts';
 import { syntheticLog, type SyntheticMessage, type SyntheticValue } from './support/synthetic-log.ts';
 
 // TASK-117: the logged receiver statistics against a log built here. Declared before the implementation:
@@ -10,7 +10,8 @@ import { syntheticLog, type SyntheticMessage, type SyntheticValue } from './supp
 //  - satellites, HDOP and GPA's accuracies are nearest-rank 5th, 50th and 95th percentiles of the logged values (float32 storage);
 //  - the model's geometry is gnssSolution on the constellation effect's defaults (mask 10°, σ 1.5 m) at the logged position and GPS
 //    time, one solution per 10 s, equal to calling it directly; since 2026-11-08 on the real GPS almanac of week 2444, and the report
-//    gives the weeks between it and the log.
+//    gives the weeks between it and the log; later that day on the multi-GNSS sky (the almanac with the Galileo, GLONASS and BeiDou
+//    broadcast records of week 2443), with the visible satellites per system and the weeks from the sky's epoch.
 const MESSAGES: readonly SyntheticMessage[] = [
   { type: 72, name: 'GPS', format: 'QBBBffffff', columns: ['TimeUS', 'I', 'Status', 'NSats', 'HDop', 'GWk', 'GMS', 'Lat', 'Lng', 'Alt'] },
   { type: 73, name: 'GPA', format: 'QBfff', columns: ['TimeUS', 'I', 'HAcc', 'VAcc', 'SAcc'] },
@@ -43,13 +44,17 @@ describe('logged GNSS receiver statistics', () => {
     expect(stats.verticalAccuracyM?.p5).toBeCloseTo(0.2 * 5, 5);
     expect(stats.speedAccuracyMps?.p50).toBeCloseTo(0.01 * 50, 6);
     const effects = { constellation: { maskRad: MODEL_SETTINGS.maskDeg * Math.PI / 180, uereM: MODEL_SETTINGS.uereM }, atmosphere: null, terrain: null, jamming: null };
-    const direct = [1, 51].map(i => gnssSolution(GPS_ALMANAC, { latRad: Math.fround(LAT) * Math.PI / 180, lonRad: Math.fround(LON) * Math.PI / 180, heightM: 0, eastM: 0, northM: 0 },
+    const direct = [1, 51].map(i => gnssSolution(GNSS_SKY, { latRad: Math.fround(LAT) * Math.PI / 180, lonRad: Math.fround(LON) * Math.PI / 180, heightM: 0, eastM: 0, northM: 0 },
       WEEK, Math.fround(1_000_000 + i * 200) / 1000, effects));
     expect(stats.model.solutions).toBe(2);
     expect(stats.model.visible).toEqual(percentiles(direct.map(s => s.visible)));
     expect(stats.model.hdop).toEqual(percentiles(direct.map(s => s.dilution!.hdop)));
     expect(stats.model.almanacWeek).toBe(2444);
     expect(stats.model.weeksFromAlmanac).toEqual([WEEK - 2444, WEEK - 2444]);
+    expect(stats.model.visibleBySystem.E).toEqual(percentiles(direct.map(s => s.visibleBySystem.E)));
+    expect(stats.model.visibleBySystem.C).toEqual(percentiles(direct.map(s => s.visibleBySystem.C)));
+    expect(stats.model.visibleBySystem.G.p50 + stats.model.visibleBySystem.R.p50).toBeGreaterThan(0);
+    expect([stats.model.skyWeek, stats.model.weeksFromSky]).toEqual([2443, [WEEK - 2443, WEEK - 2443]]);
   });
 
   it('refuses a log without a fixed receiver', () => {

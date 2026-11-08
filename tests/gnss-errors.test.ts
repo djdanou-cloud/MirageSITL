@@ -33,8 +33,38 @@ describe('geometry', () => {
     expect(positionError(STAR, [1, 2])).toBeNull();
   });
 
+  // SPECS_SIMULATION_ENGINES "Multi-GNSS broadcast sky", check 6, declared before the implementation.
+  it('one clock per system: GPS at the zenith, north and south, Galileo at the zenith, east and west, by hand', () => {
+    // GᵀG: east and north 2 each, apart; the block (up, clock G, clock E) [[2, −1, −1], [−1, 3, 0], [−1, 0, 3]], determinant 12, so
+    // up 9/12, each clock 5/12. HDOP 1, VDOP √(3/4), PDOP √(7/4), GDOP √(1/2 + 1/2 + 3/4 + 5/12 + 5/12) = √(31/12). (The declaration
+    // wrote √(8/3), an addition error in the hand case; the sum is 31/12.)
+    const lines = [los(90 * deg, 0), los(0, 0), los(0, 180 * deg), los(90 * deg, 0), los(0, 90 * deg), los(0, 270 * deg)];
+    const d = dilution(lines, [0, 0, 0, 1, 1, 1]);
+    if (!d) throw new Error('No solution');
+    near(d.hdop, 1); near(d.vdop, Math.sqrt(3 / 4)); near(d.pdop, Math.sqrt(7 / 4)); near(d.gdop, Math.sqrt(31 / 12));
+    expect(d.clocks).toHaveLength(2);
+    near(d.clocks[0]!, Math.sqrt(5 / 12)); near(d.clocks[1]!, Math.sqrt(5 / 12)); near(d.tdop, Math.sqrt(5 / 12));
+    // Two clocks make five unknowns: four satellites give none.
+    expect(dilution(lines.slice(0, 4), [0, 0, 0, 1])).toBeNull();
+    // A clock index without a satellite leaves its column empty: singular.
+    expect(dilution(STAR, [0, 0, 0, 2])).toBeNull();
+  });
+
+  it('a second system with one satellite leaves the position dilutions unchanged, and its own bias moves only its clock', () => {
+    const one = dilution(STAR), two = dilution([...STAR, los(40 * deg, 75 * deg)], [0, 0, 0, 0, 1]);
+    if (!one || !two) throw new Error('No solution');
+    near(two.hdop, one.hdop); near(two.vdop, one.vdop); near(two.pdop, one.pdop); near(two.tdop, one.tdop);
+    // One clock is the four-unknown arithmetic, bit for bit.
+    expect(dilution(STAR, [0, 0, 0, 0])).toEqual(one);
+    expect(positionError(STAR, [2.5, 0, 0, 0], [0, 0, 0, 0])).toEqual(positionError(STAR, [2.5, 0, 0, 0]));
+    // A bias common to the Galileo satellites of the hand case goes into the Galileo clock alone.
+    const lines = [los(90 * deg, 0), los(0, 0), los(0, 180 * deg), los(90 * deg, 0), los(0, 90 * deg), los(0, 270 * deg)];
+    const error = positionError(lines, [0, 0, 0, 4.2, 4.2, 4.2], [0, 0, 0, 1, 1, 1]);
+    for (const value of error ?? [NaN]) expect(Math.abs(value)).toBeLessThan(1e-9);
+  });
+
   it('propagates an almanac orbit: a circular orbit stays at its radius, turning at its mean motion in an Earth-fixed frame', () => {
-    const satellite: AlmanacSatellite = { prn: 1, health: 0, eccentricity: 0, toaS: 0, inclinationRad: 55 * deg, rateOfRightAscensionRadS: 0,
+    const satellite: AlmanacSatellite = { system: 'G', prn: 1, health: 0, eccentricity: 0, toaS: 0, inclinationRad: 55 * deg, rateOfRightAscensionRadS: 0,
       sqrtA: 5153.795, rightAscensionRad: 0.3, argumentOfPerigeeRad: 0, meanAnomalyRad: 0.2, week: 2400 };
     const a = 5153.795 ** 2, n = Math.sqrt(GPS_MU / a ** 3), out = new Float64Array(3);
     for (const t of [0, 3600, 43082]) {
@@ -86,7 +116,7 @@ describe('atmosphere and jamming', () => {
 describe('terrain', () => {
   // A ridge 50 m high from 100 m to 110 m east of the receiver, which stands on flat ground at height 0.
   const ridge = (east: number): number => (east >= 100 && east <= 110 ? 50 : 0);
-  const view = (elevationDeg: number, azimuthDeg = 90): SatelliteView => ({ prn: 1, elevationRad: elevationDeg * deg, azimuthRad: azimuthDeg * deg, lineOfSight: los(elevationDeg * deg, azimuthDeg * deg) });
+  const view = (elevationDeg: number, azimuthDeg = 90): SatelliteView => ({ system: 'G', prn: 1, elevationRad: elevationDeg * deg, azimuthRad: azimuthDeg * deg, lineOfSight: los(elevationDeg * deg, azimuthDeg * deg) });
   it('hides a satellite at 20° behind it (36.4 m at 100 m) and not one at 30° (57.7 m), nor one in another direction', () => {
     expect(lineOfSightClear(ridge, 0, 0, 0, view(20))).toBe(false);
     expect(lineOfSightClear(ridge, 0, 0, 0, view(30))).toBe(true);

@@ -84,8 +84,8 @@ describe("offline inventory (TASK-131)", () => {
     expect(origins.filter(origin => origin.use === "UNLISTED")).toEqual([]);
     expect(report.fields.npmRuntimePackages).toBeGreaterThan(0);
     // The three WorldCover tiles, the TASK-159 parameter metadata, the TASK-172 declination table, the TASK-148
-    // WMM2025 coefficients and EGM96 geoid grid, and the TASK-117 GPS almanac are hashed on every run.
-    expect(report.fields.hashedFiles).toBe(8);
+    // WMM2025 coefficients and EGM96 geoid grid, and the TASK-117 GPS almanac and multi-GNSS broadcast records are hashed on every run.
+    expect(report.fields.hashedFiles).toBe(9);
     // Unresolved items stay pending on their decisions rather than being marked ready; the metadata TASK-159 generated is ready.
     const pending = report.fields.pendingItems;
     expect(isStrings(pending) ? pending : []).toEqual(expect.arrayContaining(["ardupilot-build-toolchain", "chrome-macos"]));
