@@ -7689,7 +7689,7 @@ cards that know two command-path values and all five thermal values shape and he
 `resolveComponents`, the manifest and `buildProfileDynamics`, an incomplete network does not heat and says
 so, and cards without schema-2 values derive neither section. Cards: `tests/component-cards.test.ts` and
 `tests/card-editor.test.ts`, 25 passed, and `tests/browser/card-editor.spec.ts`, 3 passed, where an ESC card
-given a latency and throttle steps in the Components tab is stored as schema 2. G1: the declared graph `shaped-heated-esc-four-rotor` did not pass, and it is not in the check. In the check's process, after its twenty other vehicles, the first vehicle with ESC shaping and motor heat allocated 0.28 B a step net with 15 collections over 1,000,000 steps (about 16 B a step by a sampling heap profile), also with a 500,000-step warm-up and with a harness that stores no double; an identical vehicle measured right after it in the same process, the shaping alone, the heat alone, and the first such vehicle in a fresh process allocated nothing (0 collections, 0.002 B a step). V8's traces show no deoptimization of the step after the warm-up and no megamorphic access in it, so the site that boxes in that first optimized code is not found. The native records allocate nothing over 1,000,000 steps each, which `scripts/check-bet-runtime.mjs --allocation` now runs. G1 of the flight path with them stays open. The
+given a latency and throttle steps in the Components tab is stored as schema 2. G1: the declared graph `shaped-heated-esc-four-rotor` did not pass, and it is not in the check. In the check's process, after its twenty other vehicles, the first vehicle with ESC shaping and motor heat allocated 0.28 B a step net with 15 collections over 1,000,000 steps (about 16 B a step by a sampling heap profile), also with a 500,000-step warm-up and with a harness that stores no double; an identical vehicle measured right after it in the same process, the shaping alone, the heat alone, and the first such vehicle in a fresh process allocated nothing (0 collections, 0.002 B a step). V8's traces show no deoptimization of the step after the warm-up and no megamorphic access in it, so the site that boxes in that first optimized code is not found. The native records allocate nothing over 1,000,000 steps each, which `scripts/check-bet-runtime.mjs --allocation` now runs. G1 of the flight path with them stays open. A second look (2026-11-08, baseline 1bff607) did not reproduce it: a copy of the check's allocation part, outside the repository, ran its 21 samples and then four-rotor vehicles on the ESC drive with shaping and heat on every motor on the synthetic pad, two identical ones per process at 0.3 duty after 100,000 warm-up steps, in two processes: shaping (2, 40/s, 0.05, 2000) with the network of `tests/wasm-motor-v2.test.ts`, without and with a weather, and the shaping and network of `tests/motor-v2-flight.test.ts`; all six allocated 2,048 B over 1,000,000 steps (0.002 B a step, the measurement's own) with no collection. The first run's graph is not in the repository, so whether its configuration differed is not known; G1 stays open until the declared graph is in the check and passes there. The
 motor temperatures are in `motorV2.thermalOutput` for cold readers and not yet in the telemetry or the
 recording; a step that would take a winding beyond 250 °C faults the session (`Motor thermal step failed`).
 
@@ -7716,6 +7716,165 @@ crash check; the ESCs' `RawRPM` jumps to impossible values (571,428 rpm), the sa
 isolated 540,800 rpm readings in the stakeholder's Pavo logs. The thread's resolution was electrical: the
 slim ESCs needed far larger capacitors. A picture of one crash fixes no rate or condition, so a
 desynchronization model still has no data to be compared with.
+
+### Motor heat against wind-tunnel runs (TASK-105, declared 2026-11-08)
+
+Recorded before the network was run on any of these data, after a first look at their summary rows
+(power balance, temperatures at spool-up and at the end). The stakeholder has no thrust stand and chose
+on 2026-11-08, in place of the thrust-stand temperature runs, the public data of Saemi, Whitson and
+Benedict (Texas A&M University; Aerospace 11:401, 2024, doi:10.3390/aerospace11050401): the thermal data
+(figshare, doi:10.6084/m9.figshare.25658493, 2024-04-20) and the sizing data (doi:10.6084/m9.figshare.26107465,
+2024-06-26), CC BY 4.0, credited to the authors. The files are kept outside the repository (on the
+reference Mac under `~/Projects/MirageSITL-data/public-datasets/texas-am-motor-thermal/`);
+`data/motor-thermal/inventory.json` holds the SHA-256 and size of both archives and of each of their 73
+files, and the comparison refuses a file that differs. The paper itself was not read; what follows uses
+only the archives and their README.
+
+**What the data hold.** By the README, each `wtRaw_` file is a transient sampled at 1 Hz in a wind
+tunnel from the motor's start until its temperature changed by less than 1 K/min (time, speed, throttle,
+DC and AC power, voltage and rms current, two load-cell voltages, the stator temperature `Tstat`, the ESC
+temperature, a pitot voltage), and its name gives the target tunnel speed, target speed, supply voltage,
+propeller (diameter in inches and blades), date, ambient temperature, pressure and humidity. Each
+`wtSummary_` file gives two rows of the same run, at spool-up and at thermal steady state: speed, thrust
+in grams, torque, AC voltage, current and power, DC voltage and power, the motor temperature `Tmot`, the
+air temperature `Tamb` and the measured tunnel speed u; the first column is the transient's row (0-based)
+or −1 for its last row. Motor numbers in the files are one higher than in the paper. Motors 2, 3 and 5
+have ten transients each (15.5-inch three-blade, 21.5-inch three-blade and 15.5-inch two-blade
+propellers); motor 4 has summaries only, and its names do not give the propeller, so it has neither a
+transient nor an airspeed past the motor and is not compared.
+
+**Where the parameters come from.** The sizing data are not used: the thermal files name the motors by
+number only, and neither the catalogue (31 motors) nor the teardown table (7 motors) says which rows were
+tested; the measured torque per rms current, about 0.024, 0.033 and 0.029 N·m/A for motors 2, 3 and 5 at
+their higher currents, fits several catalogue rows each, so neither R₂₀ nor a mass for the heat
+capacities can be read from them. The electrical values come from the measured power balance of the fit
+runs' summary rows, not from temperatures: the motor's loss is the AC input less the shaft power,
+P_loss = P_ac − τ·Ω, and over the two rows of each fit run (ten rows per motor) the least-squares fit
+without intercept
+
+```text
+P_loss = R₂₀·(1 + 0.00393·(T_mot − 20 °C))·I_ac² + (k·I₀)₂₀·(1 − 0.0012·(T_mot − 20 °C))·Ω
+```
+
+gives R₂₀ and (k·I₀)₂₀, with T_mot standing in for both nodes. R₂₀ is then the resistance for which
+R·I_ac² is the copper loss at the measured rms current; it absorbs the phase count and the winding's
+connection, as the measured torque per I_ac follows the catalogue's convention k = 60/(2π·KV), so I_ac
+plays the DC-equivalent current of the drive. k₂₀ is the median of τ/I_ac over the fit rows with I_ac of
+at least 5 A, and I₀ = (k·I₀)₂₀/k₂₀; only their product enters the iron loss. A coefficient that is not
+positive stops that motor's comparison. The five thermal values, C_w, C_h, R_wh, R_ha and c, are fitted
+to the fit runs' transients: Nelder–Mead on their natural logarithms from (30 J/K, 100 J/K, 0.5 K/W,
+1 K/W, 0.1 s/m) with initial steps of ln 2, restarted from its best point until a restart improves the
+objective by less than 1e-9 of it, at most 20 restarts of at most 2000 evaluations each. The objective is
+the mean over the fit runs of each run's mean squared difference between the model's housing
+temperature and `Tstat` at every sample after the first.
+
+**The model.** The network is the repository's own: `BetMotorV2` (`packages/wasm-bet/src/motor-v2.ts`)
+over `bet_motor_thermal_step` of the scalar WASM build, one heated motor at 400 Hz, the same record the
+flight steps. Over each sample interval [t_k, t_k+1) the inputs of sample k are held, for
+round(400·t_k+1) − round(400·t_k) steps: the copper loss R·I_ac,k², R the record's own R(T_w) after the
+previous step (the flight path's one-step lag); the shaft speed 2π·N_k/60, from which the record forms
+its iron loss k(T_h)·I₀·|Ω|; the air temperature, the mean of the summary's two T_amb; and the airspeed
+past the motor by the flight path's rule, the tunnel speed plus the rotor's hover induced velocity, with
+the run's thrust scaled by the squared speed through spool-up and spool-down:
+
+```text
+V_k = u + √(|T_k| / (2·ρ·π·R_p²))      T_k = T_run·(N_k / N_run)²      ρ = p / (287.05 J/(kg·K) · (T_a + 273.15 K))
+```
+
+u, T_run and N_run the means of the summary's two tunnel speeds, thrusts and speeds, R_p half the
+propeller diameter of the file name, p and T_a the file name's pressure and ambient temperature. Both
+nodes start at the first sample's `Tstat`: the motor stands still for about five seconds before it
+starts, and several runs begin warm from the run before. `Tstat` is the stator temperature and is
+compared with the housing node, which this specification defines as the stator and housing; the winding
+node has no measurement and is reported only.
+
+**Fit and hold-out.** Within each motor the runs are sorted by the steady-state row's P_ac, largest
+first; the 1st, 3rd, 5th, 7th and 9th are fitted and the others held out (runs named by tunnel speed in
+dm/s and target speed in rev/min, as in the file names):
+
+| Motor | Fitted | Held out |
+| --- | --- | --- |
+| M02 | u070 RPM4829, u080 RPM4388, u110 RPM4071, u090 RPM3269, u100 RPM2718 | u070 RPM4683, u100 RPM3972, u080 RPM3526, u120 RPM3218, u120 RPM3003 |
+| M03 | u070 RPM3030, u060 RPM3170, u100 RPM2580, u080 RPM2160, u060 RPM1940 | u080 RPM2910, u050 RPM2630, u090 RPM2300, u070 RPM2060, u090 RPM1710 |
+| M05 | u090 RPM6044, u130 RPM6284, u130 RPM4956, u080 RPM4045, u090 RPM3618 | u100 RPM5877, u120 RPM5391, u110 RPM4644, u140 RPM4506, u100 RPM3508 |
+
+**Reported.** Per motor the fitted values and the fit's RMS; per run, fitted and held out, the RMS and
+the largest absolute difference between the housing node and `Tstat` over the samples after the first,
+the measured and model temperatures and rises above the air at the last sample, and the model's winding
+temperature there; per summary row, fitted and held out, the measured loss P_ac − τ·Ω and the fitted loss
+law's. Declared tolerance: a held-out run is reproduced when both its RMS and its last-sample difference
+are within max(2.5 K, 10 % of its measured last-sample rise above the air). 2.5 K is the standard
+tolerance of a class 2 type K thermocouple (IEC 60584-1), as the data do not name the sensor; 10 %
+covers the power balance, where 1 % of a 200 W input is 4 % of a 50 W loss, and the fit. Under SA-01 this
+labels the declared comparison for the user to judge; it is not a fidelity verdict.
+`tests/motor-thermal-runs.test.ts` runs it with `MIRAGE_MOTOR_THERMAL_DIR` set to the directory the
+archives unpack into (it skips without it), checks every file against the inventory and the split
+against the table above, and with `MIRAGE_MOTOR_THERMAL_OUT` set writes the report
+(`test-results/validation/motor-thermal-runs.json`), status `REPRODUCED` when every held-out run is
+reproduced and `NOT_REPRODUCED` otherwise. Its checks without the data, declared with the method: the loss
+law's fit returns R₂₀ and (k·I₀)₂₀ within 1e-9 relative from rows made with them; the driven network at
+held inputs ends within 1e-6 K of its steady state, found independently by fixed-point iteration of
+R(T_w); the fit returns the transient of a synthetic run made by the same network within 0.01 K RMS; and
+the file and name readers take a synthetic file in the archive's format.
+
+**Result (2026-11-08), as declared, no correction after the first run.** Without the data
+`tests/motor-thermal-runs.test.ts`, 4 passed and 1 skipped (41 s); with
+`MIRAGE_MOTOR_THERMAL_DIR` set to the reference Mac's `extracted/` directory, the comparison passed its
+checks (every file equal to the inventory, the split equal to the table) in 1,435 s and wrote
+`test-results/validation/motor-thermal-runs.json` (inventory SHA-256 `fa53fb64…`, scalar WASM
+`e97fec79…`): status `REPRODUCED`, 15 of 15 held-out runs. The fitted values, and the housing's
+conductance to the air (1 + 12·c)/R_ha at 12 m/s past the motor:
+
+| Motor | R₂₀, Ω | (k·I₀)₂₀, N·m | k₂₀, N·m/A | I₀, A | C_w, J/K | C_h, J/K | R_wh, K/W | R_ha, K/W | c, s/m | Conductance at 12 m/s, W/K | Fit RMS, K | Evaluations |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| M02 | 0.185 | 0.0219 | 0.0221 | 0.99 | 9.5e-7 | 127.5 | 7.4e-8 | 9.33 | 1.127 | 1.56 | 0.56 | 4010 |
+| M03 | 0.169 | 0.0399 | 0.0308 | 1.30 | 1.1e-9 | 301.5 | 0.421 | 150.2 | 33.8 | 2.70 | 0.47 | 1895 |
+| M05 | 0.248 | 0.0127 | 0.0284 | 0.45 | 8.0e-6 | 95.9 | 0.0195 | 5.28 | 0.363 | 1.01 | 0.82 | 7218 |
+
+The held-out runs (mean airspeed past the motor by the declared rule; RMS and largest difference over
+the transient; `Tstat` and the housing node at the last sample):
+
+| Motor | Run | Airspeed, m/s | RMS, K | Largest, K | Measured, °C | Model, °C | Difference, K | Tolerance, K |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| M02 | u070 RPM4683 | 11.7 | 0.68 | 1.36 | 57.9 | 57.7 | −0.14 | 3.40 |
+| M02 | u100 RPM3972 | 13.1 | 0.52 | 1.51 | 35.5 | 35.8 | +0.30 | 2.50 |
+| M02 | u080 RPM3526 | 10.9 | 0.44 | 0.83 | 36.1 | 36.0 | −0.13 | 2.50 |
+| M02 | u120 RPM3218 | 15.2 | 0.73 | 1.23 | 28.5 | 27.8 | −0.72 | 2.50 |
+| M02 | u120 RPM3003 | 15.5 | 0.66 | 1.00 | 27.8 | 27.0 | −0.76 | 2.50 |
+| M03 | u080 RPM2910 | 12.5 | 0.76 | 1.98 | 48.5 | 49.7 | +1.22 | 2.50 |
+| M03 | u050 RPM2630 | 8.9 | 0.96 | 2.40 | 56.3 | 57.5 | +1.22 | 3.27 |
+| M03 | u090 RPM2300 | 10.8 | 0.39 | 1.35 | 31.2 | 31.2 | −0.05 | 2.50 |
+| M03 | u070 RPM2060 | 9.3 | 0.48 | 1.01 | 30.9 | 31.9 | +1.01 | 2.50 |
+| M03 | u090 RPM1710 | 10.8 | 0.19 | 0.68 | 26.7 | 26.5 | −0.19 | 2.50 |
+| M05 | u100 RPM5877 | 16.3 | 1.10 | 3.93 | 63.4 | 65.2 | +1.87 | 4.02 |
+| M05 | u120 RPM5391 | 16.9 | 0.58 | 2.66 | 43.6 | 44.3 | +0.72 | 2.50 |
+| M05 | u110 RPM4644 | 14.9 | 0.61 | 2.47 | 37.6 | 37.6 | +0.02 | 2.50 |
+| M05 | u140 RPM4506 | 14.8 | 0.69 | 2.01 | 30.6 | 31.3 | +0.71 | 2.50 |
+| M05 | u100 RPM3508 | 11.9 | 0.20 | 0.87 | 31.0 | 31.2 | +0.24 | 2.50 |
+
+What the numbers do and do not show. (1) Only the stator node is tested. In all three fits the winding's
+capacity went to its lower end (C_w 1e-9 to 1e-5 J/K) and for M02 R_wh too (7e-8 K/W), so the network
+the data determine is one node, the housing, with its capacity and its airflow-dependent conductance: one
+measured temperature cannot separate a winding node. M02's two Nelder–Mead passes each ran to the cap of
+about 2000 evaluations along that flat direction, M05 took five passes, and each fit's last restart
+improved the objective by less than 1e-9 of it. The model's winding temperatures are therefore not evidence: for M03 its massless winding sits
+R_wh·P_cu above the housing, 101 °C at the end of u070 RPM3030 where `Tstat` read 61.7 °C, and through
+R(T_w) it raises that run's copper loss by about 13 % over R at the measured stator temperature. The fitted five values are a parameterization of
+these motors in this rig, not card values with a physical meaning. (2) The residual has one shape: in
+every high-power run `Tstat` rises faster than the housing node in the first 30 to 60 s after the start
+(the model lags by up to 5.6 K, M05 u090 RPM6044, fitted) and then the model ends slightly warm. A sensor
+that sees the winding's faster rise would do this; the declared mapping compares `Tstat` with the housing
+node, and comparing it with the winding node instead would be a new declaration. (3) The loss law: R₂₀ of
+0.17 to 0.25 Ω is about two to nine times the catalogue's resistances of motors of similar KV (0.018 to
+0.08 Ω), because R·I_ac² takes every loss that grows with the current squared (the winding's AC and PWM losses
+as well as its DC resistance, and the per-phase convention of I_ac), and the no-load law k·I₀·|Ω|
+over-predicts the low-current rows by up to 4 W (M02 u120 RPM3003: 7.5 W against 4.2 W measured). On the
+held-out rows the law's RMS difference is 2.1 W (M02), 5.4 W (M03, with 9.7 W too much at u050 RPM2630,
+the lowest tunnel speed) and 0.8 W (M05). (4) The airflow term is needed: the fitted conductance grows
+with airspeed by c = 0.36 to 34 s/m, which, at c·V ≫ 1 as for M03, means a conductance almost
+proportional to the airspeed past the motor; the c and R_ha of M03 are determined only as their ratio.
+(5) The tolerance's floor decided most verdicts: 12 of the 15 held-out runs have a measured rise below 25
+K, where 2.5 K is above 10 % of the rise. Under SA-01 the user judges these numbers.
 
 ### Notch tracking in the browser firmware (TASK-105, declared 2026-11-08)
 
