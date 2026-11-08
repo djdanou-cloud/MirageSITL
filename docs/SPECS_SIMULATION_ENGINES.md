@@ -7274,6 +7274,65 @@ held inputs ends within 1e-6 K of its steady state, found independently by fixed
 R(T_w); the fit returns the transient of a synthetic run made by the same network within 0.01 K RMS; and
 the file and name readers take a synthetic file in the archive's format.
 
+**Result (2026-11-08), as declared, no correction after the first run.** Without the data
+`tests/motor-thermal-runs.test.ts`, 4 passed and 1 skipped (41 s); with
+`MIRAGE_MOTOR_THERMAL_DIR` set to the reference Mac's `extracted/` directory, the comparison passed its
+checks (every file equal to the inventory, the split equal to the table) in 1,435 s and wrote
+`test-results/validation/motor-thermal-runs.json` (inventory SHA-256 `fa53fb64…`, scalar WASM
+`e97fec79…`): status `REPRODUCED`, 15 of 15 held-out runs. The fitted values, and the housing's
+conductance to the air (1 + 12·c)/R_ha at 12 m/s past the motor:
+
+| Motor | R₂₀, Ω | (k·I₀)₂₀, N·m | k₂₀, N·m/A | I₀, A | C_w, J/K | C_h, J/K | R_wh, K/W | R_ha, K/W | c, s/m | Conductance at 12 m/s, W/K | Fit RMS, K | Evaluations |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| M02 | 0.185 | 0.0219 | 0.0221 | 0.99 | 9.5e-7 | 127.5 | 7.4e-8 | 9.33 | 1.127 | 1.56 | 0.56 | 4010 |
+| M03 | 0.169 | 0.0399 | 0.0308 | 1.30 | 1.1e-9 | 301.5 | 0.421 | 150.2 | 33.8 | 2.70 | 0.47 | 1895 |
+| M05 | 0.248 | 0.0127 | 0.0284 | 0.45 | 8.0e-6 | 95.9 | 0.0195 | 5.28 | 0.363 | 1.01 | 0.82 | 7218 |
+
+The held-out runs (mean airspeed past the motor by the declared rule; RMS and largest difference over
+the transient; `Tstat` and the housing node at the last sample):
+
+| Motor | Run | Airspeed, m/s | RMS, K | Largest, K | Measured, °C | Model, °C | Difference, K | Tolerance, K |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| M02 | u070 RPM4683 | 11.7 | 0.68 | 1.36 | 57.9 | 57.7 | −0.14 | 3.40 |
+| M02 | u100 RPM3972 | 13.1 | 0.52 | 1.51 | 35.5 | 35.8 | +0.30 | 2.50 |
+| M02 | u080 RPM3526 | 10.9 | 0.44 | 0.83 | 36.1 | 36.0 | −0.13 | 2.50 |
+| M02 | u120 RPM3218 | 15.2 | 0.73 | 1.23 | 28.5 | 27.8 | −0.72 | 2.50 |
+| M02 | u120 RPM3003 | 15.5 | 0.66 | 1.00 | 27.8 | 27.0 | −0.76 | 2.50 |
+| M03 | u080 RPM2910 | 12.5 | 0.76 | 1.98 | 48.5 | 49.7 | +1.22 | 2.50 |
+| M03 | u050 RPM2630 | 8.9 | 0.96 | 2.40 | 56.3 | 57.5 | +1.22 | 3.27 |
+| M03 | u090 RPM2300 | 10.8 | 0.39 | 1.35 | 31.2 | 31.2 | −0.05 | 2.50 |
+| M03 | u070 RPM2060 | 9.3 | 0.48 | 1.01 | 30.9 | 31.9 | +1.01 | 2.50 |
+| M03 | u090 RPM1710 | 10.8 | 0.19 | 0.68 | 26.7 | 26.5 | −0.19 | 2.50 |
+| M05 | u100 RPM5877 | 16.3 | 1.10 | 3.93 | 63.4 | 65.2 | +1.87 | 4.02 |
+| M05 | u120 RPM5391 | 16.9 | 0.58 | 2.66 | 43.6 | 44.3 | +0.72 | 2.50 |
+| M05 | u110 RPM4644 | 14.9 | 0.61 | 2.47 | 37.6 | 37.6 | +0.02 | 2.50 |
+| M05 | u140 RPM4506 | 14.8 | 0.69 | 2.01 | 30.6 | 31.3 | +0.71 | 2.50 |
+| M05 | u100 RPM3508 | 11.9 | 0.20 | 0.87 | 31.0 | 31.2 | +0.24 | 2.50 |
+
+What the numbers do and do not show. (1) Only the stator node is tested. In all three fits the winding's
+capacity went to its lower end (C_w 1e-9 to 1e-5 J/K) and for M02 R_wh too (7e-8 K/W), so the network
+the data determine is one node, the housing, with its capacity and its airflow-dependent conductance: one
+measured temperature cannot separate a winding node. M02's two Nelder–Mead passes each ran to the cap of
+about 2000 evaluations along that flat direction, M05 took five passes, and each fit's last restart
+improved the objective by less than 1e-9 of it. The model's winding temperatures are therefore not evidence: for M03 its massless winding sits
+R_wh·P_cu above the housing, 101 °C at the end of u070 RPM3030 where `Tstat` read 61.7 °C, and through
+R(T_w) it raises that run's copper loss by about 13 % over R at the measured stator temperature. The fitted five values are a parameterization of
+these motors in this rig, not card values with a physical meaning. (2) The residual has one shape: in
+every high-power run `Tstat` rises faster than the housing node in the first 30 to 60 s after the start
+(the model lags by up to 5.6 K, M05 u090 RPM6044, fitted) and then the model ends slightly warm. A sensor
+that sees the winding's faster rise would do this; the declared mapping compares `Tstat` with the housing
+node, and comparing it with the winding node instead would be a new declaration. (3) The loss law: R₂₀ of
+0.17 to 0.25 Ω is about two to nine times the catalogue's resistances of motors of similar KV (0.018 to
+0.08 Ω), because R·I_ac² takes every loss that grows with the current squared (the winding's AC and PWM losses
+as well as its DC resistance, and the per-phase convention of I_ac), and the no-load law k·I₀·|Ω|
+over-predicts the low-current rows by up to 4 W (M02 u120 RPM3003: 7.5 W against 4.2 W measured). On the
+held-out rows the law's RMS difference is 2.1 W (M02), 5.4 W (M03, with 9.7 W too much at u050 RPM2630,
+the lowest tunnel speed) and 0.8 W (M05). (4) The airflow term is needed: the fitted conductance grows
+with airspeed by c = 0.36 to 34 s/m, which, at c·V ≫ 1 as for M03, means a conductance almost
+proportional to the airspeed past the motor; the c and R_ha of M03 are determined only as their ratio.
+(5) The tolerance's floor decided most verdicts: 12 of the 15 held-out runs have a measured rise below 25
+K, where 2.5 K is above 10 % of the rise. Under SA-01 the user judges these numbers.
+
 ### Notch tracking in the browser firmware (TASK-105, declared 2026-11-08)
 
 Recorded before the first run. The stakeholder approved the Emscripten SDK download on 2026-11-08; the
