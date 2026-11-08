@@ -1248,6 +1248,44 @@ and the status `REPRODUCED` or `NOT_REPRODUCED`. That status is the declared com
 verdict (SA-01): the effect stays labeled as not validated (D-11) until the stakeholder judges it. If the
 logs do not reach the vortex ring region, the report says so with these numbers.
 
+Result (2026-11-08; `tests/descent-logged.test.ts` 3 passed in 20 s, report
+`test-results/validation/logged-descent.json`, status `NOT_REPRODUCED`). All 18 flights count: 42,527
+bins, 32,861 of them reference bins, densities 1.214 to 1.220 kg/m³. The hover inflow is 8.31 m/s at
+hover (the median over the reference bins; the model's is 8.30 m/s), so the 4.4 m/s descent of log 34 at
+94.4 s, the deepest counted, is only −0.57 v_h: the logs reach just past Johnson's N, with 10 bins below
+−0.45 v_h, all in that one 0.6 s pass at low throttle, and nowhere near the region's centre (−0.975 v_h, about
+8.1 m/s down) or X (−1.5 v_h, about 12.5 m/s). The vortex ring state is therefore touched only at its edge;
+the comparison tests mainly the descent between D and N, where Johnson's curve lowers the inflow, and the
+climbs. Model columns: V_x 0 and 2 m/s; the level column is the bins of at most 5° tilt.
+
+| x = V_z/v_h | Bins | Measured | Mean x | Tilt, ° | Level (bins) | Model | Reproduced |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| −0.7 to −0.45 | 10 | 0.9855 ± 0.0163 | −0.530 | 11.2 | — (0) | 1.1244–1.1401 | no |
+| −0.45 to −0.3 | 42 | 0.9802 ± 0.0046 | −0.332 | 7.4 | 0.9847 (18) | 1.1130–1.1252 | no |
+| −0.3 to −0.2 | 163 | 0.9808 ± 0.0033 | −0.238 | 7.4 | 0.9818 (65) | 1.0982–1.1071 | no |
+| −0.2 to −0.1 | 891 | 0.9921 ± 0.0012 | −0.135 | 8.4 | 0.9862 (288) | 1.0528–1.0570 | no |
+| −0.1 to −0.03 | 5414 | 0.9865 ± 0.0005 | −0.055 | 7.3 | 0.9862 (2370) | 1.0180–1.0208 | no |
+| 0.03 to 0.1 | 2541 | 0.9749 ± 0.0006 | 0.055 | 4.9 | 0.9802 (1332) | 0.9885–0.9888 | yes |
+| 0.1 to 0.2 | 496 | 0.9468 ± 0.0015 | 0.134 | 5.9 | 0.9605 (226) | 0.9716–0.9726 | no |
+| 0.2 to 0.3 | 70 | 0.9151 ± 0.0029 | 0.234 | 7.3 | 0.9451 (18) | 0.9490–0.9506 | no |
+| 0.3 to 0.7 | 38 | 0.7899 ± 0.0074 | 0.541 | 9.9 | — (0) | 0.8736–0.8758 | no |
+
+In descent the model gains 2 to 14 % of thrust at equal rotor speed, as momentum theory and Johnson's
+curve between D and N have it, and the aircraft loses 1 to 2 %: the sign differs in every descending class.
+In climb both lose thrust, the aircraft about twice as fast (0.947 against 0.972 at 0.13 v_h, 0.79 against
+0.875 at 0.54 v_h). The deepest class carries the model's fluctuation on every step (the region's edge at
+x −0.50) and has a measured spread of 0.05 per bin. Checked after the run with the first look's script,
+not causes: the bins whose rotor speed and climb rate are steady to 1 % and 0.1 m/s between their neighbours keep the
+descent ratios at 0.980 to 1.002, so throttle transients and the ESC speed's lag do not make the fall, and
+the level bins keep it, so lean does not either; the airframe's vertical drag would raise a descending
+bin's ratio, not lower it. What the model leaves out and this aircraft has: the open propeller rings,
+whose lip thrust a duct gains in hover from the inflow and loses as the descent slows the flow through it
+(BetaFPV's page claims 8 to 11 % for them), and a blade geometry the model assumes: at hover it needs 17 %
+more speed than the aircraft, so the real rotor is more heavily loaded at a given speed and its thrust is
+more sensitive to inflow, which is the direction of the steeper climbs. Neither is established by these
+logs. The effect stays labeled as not validated (D-11); whether the model needs a guard term, or this
+comparison is enough for Phase 1, is the stakeholder's to judge.
+
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
 each rotor's last thrust T and its air, with V >= 0 down through the disk and V_t across

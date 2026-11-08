@@ -7,7 +7,8 @@ import { resolveComponents, type ResolvedProfileComponents } from '../../package
 import { BetFlightDynamics, type BetFlightConfiguration } from '../../packages/physics/src/bet-dynamics.ts';
 import { validateModelManifest } from '../../packages/physics/src/model-manifest.ts';
 import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '../../packages/protocol/src/index.ts';
-import { BOUND_V2, BOUND_V2_OUTPUT_SLOTS } from '../../packages/wasm-bet/src/rotor-v2.ts';
+import { ROTOR_FLAG_VORTEX_RING } from '../../packages/wasm-bet/src/rotor.ts';
+import { BOUND_V2, BOUND_V2_OUTPUT_FLAGS_SLOT, BOUND_V2_OUTPUT_SLOTS } from '../../packages/wasm-bet/src/rotor-v2.ts';
 
 // The stakeholder's BetaFPV Pavo20 Pro II (data/flight-logs/inventory.json, aircraft stakeholder-pavo20pro2) built from its
 // component cards and tests/fixtures/aircraft/pavo-quad.json, as the U35 of tests/browser/fidelity-u35.spec.ts is built: each
@@ -83,7 +84,6 @@ export function heldAt(module: WebAssembly.Module, configuration: BetFlightConfi
     const settle = Math.round((options.settleS ?? 0.5) * hz), measure = Math.round((options.measureS ?? 1) * hz);
     const out = () => { const o = d.escEngine?.output; if (!o) throw new Error('The ESC drive is required'); return o; };
     let start = 0, omega2 = 0, fluctuating = 0;
-    const flags = new Uint32Array(out().buffer, out().byteOffset, out().length * 2);
     for (let tick = 0; tick < settle + measure; tick++) {
       d.useActuators(frame); d.nowMs = (tick + 1) * 1000 / hz; d.stepNow(pilot);
       if (d.fault !== '') throw new Error(d.fault);
@@ -93,7 +93,7 @@ export function heldAt(module: WebAssembly.Module, configuration: BetFlightConfi
         let sum = 0, any = false;
         for (let r = 0; r < manifest.rotors.length; r++) {
           sum += o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2.output.omega / 8]! ** 2;
-          if ((flags[(r * BOUND_V2_OUTPUT_SLOTS * 8 + BOUND_V2.output.flags) / 4]! & 256) !== 0) any = true;
+          if ((o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2_OUTPUT_FLAGS_SLOT]! & ROTOR_FLAG_VORTEX_RING) !== 0) any = true;
         }
         omega2 += sum / manifest.rotors.length;
         if (any) fluctuating++;
