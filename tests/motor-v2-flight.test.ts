@@ -131,7 +131,7 @@ describe('ESC shaping and motor heat in the flight', () => {
     d.reset();
     expect(out[ThermalOutput.WindingC]).toBe(air);
     expect(drive[0]).toBe(PARITY_ESC_MOTOR.resistanceOhm * (1 + 0.00393 * (air - 20)));
-  });
+  }, 60_000); // 60 simulated time constants: 9.6 s on a GitHub runner on 2026-11-08, past Vitest's default 5 s.
 });
 
 // From the cards to the flight, declared before the implementation: an ESC card knowing two of its four command-path values shapes
