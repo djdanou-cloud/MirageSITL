@@ -17,8 +17,10 @@ export const DIP_METHOD = Object.freeze({
   groundToleranceM: 0.5,
   /** Measured samples: motors on within this after a start or before a stop, s. */
   windowS: 15,
-  /** A start or stop counts only when the vehicle flew: a measured sample at least this high, m (added after the first run). */
+  /** A start or stop counts only when the vehicle flew: a measured sample at least this high, m (added after the first run), */
   minFlightHeightM: 1,
+  /** or samples at or above `nearGroundM` spanning at least this long, s (added for a low hover, 2026-11-07). */
+  lowHoverS: 5,
   /** The near-ground excess is the mean of the samples within this of the reference height, m. */
   nearGroundM: 0.3,
   /** Air temperature of the hydrostatic correction, not logged, K. */
@@ -26,6 +28,8 @@ export const DIP_METHOD = Object.freeze({
   /** Landing samples fitted, m above the landed position. */
   fitMaxHeightM: 2,
   decayGrid: Object.freeze({ min: 0.1, max: 10, count: 200 }),
+  /** A rangefinder height is used only within this of a good reading, s. */
+  rangefinderGapS: 0.25,
   /** Height bins of the reported profile, m. */
   profileBinsM: Object.freeze([0, 0.15, 0.3, 0.6, 1.2, 2.4, 4.8]),
 });
@@ -38,8 +42,11 @@ export interface DipAircraft {
   /** The owner's stated mass, kg; null when not stated, and then nothing is fitted. */
   readonly massKg: number | null;
   readonly rotorCount: number;
-  readonly rotorRadiusM: number;
+  /** Null when not stated; then, as without a mass, nothing is fitted. */
+  readonly rotorRadiusM: number | null;
 }
+/** The height reference: the first GNSS receiver's altitude, or the first rangefinder's distance where its status is good (4). */
+export type DipHeightSource = "gnss" | "rangefinder";
 export interface DipSample { readonly timeS: number; readonly heightM: number; readonly deltaPa: number }
 export interface DipProfileBin { readonly fromM: number; readonly toM: number | null; readonly meanPa: number | null; readonly samples: number }
 export interface DipEvent {
@@ -93,6 +100,26 @@ function series(log: DataFlashLog, groupName: string, columnName: string): Serie
   if (times.length < 2) throw new Error(`The log has fewer than two ${groupName}.${columnName} rows`);
   return { timeS: Float64Array.from(times), values: Float64Array.from(values) };
 }
+/** The first rangefinder's good readings (RFND.Stat 4), m. */
+function rangefinderSeries(log: DataFlashLog): Series {
+  const group = groupOf(log, "RFND");
+  if (!group) throw new Error("The log has no RFND messages");
+  const time = columnOf(group, "TimeUS"), distance = columnOf(group, "Dist"), status = columnOf(group, "Stat"), instance = columnOf(group, "Instance") ?? columnOf(group, "I");
+  if (!time || !distance || !status) throw new Error("The log has no RFND.Dist and RFND.Stat");
+  const times: number[] = [], values: number[] = [];
+  for (let row = 0; row < group.count; row++) {
+    if ((instance && valueAt(instance, row) !== 0) || valueAt(status, row) !== 4) continue;
+    const t = Number(time.values[row]) * 1e-6, v = valueAt(distance, row);
+    if (Number.isFinite(t) && Number.isFinite(v)) { times.push(t); values.push(v); }
+  }
+  if (times.length < 2) throw new Error("The log has fewer than two good RFND readings");
+  return { timeS: Float64Array.from(times), values: Float64Array.from(values) };
+}
+/** Time from t to the nearest row of a series, s. */
+function nearestGapS(s: Series, t: number): number {
+  const i = upperIndex(s, t), a = Math.abs(t - s.timeS[i]!), next = s.timeS[i + 1];
+  return next === undefined ? a : Math.min(a, Math.abs(next - t));
+}
 /** The series at time t, straight between its neighbours and held beyond its ends. */
 function interpolate(s: Series, t: number): number {
   const times = s.timeS, last = times.length - 1;
@@ -103,19 +130,36 @@ function interpolate(s: Series, t: number): number {
   const f = (t - times[lo]!) / (times[hi]! - times[lo]!);
   return s.values[lo]! + f * (s.values[hi]! - s.values[lo]!);
 }
-const discAreaM2 = (aircraft: DipAircraft) => aircraft.rotorCount * Math.PI * aircraft.rotorRadiusM ** 2;
+/**
+ * The aircraft for a fit in pressure units (declared 2026-11-07): q_i 1 Pa and R 0.1 m, which only set the units of k_e (Pa) and
+ * λ (0.1 m). For one aircraft and battery only, whose true q_i and R do not change between its flights.
+ */
+export function pressureUnitAircraft(rotorCount: number): DipAircraft {
+  const rotorRadiusM = 0.1;
+  return { massKg: 4 * rotorCount * Math.PI * rotorRadiusM ** 2 / STANDARD_GRAVITY, rotorCount, rotorRadiusM };
+}
+/** The stated geometry and mass a fit needs, or null. */
+function fitted(aircraft: DipAircraft): { massKg: number; rotorRadiusM: number } | null {
+  return aircraft.massKg === null || aircraft.rotorRadiusM === null ? null : { massKg: aircraft.massKg, rotorRadiusM: aircraft.rotorRadiusM };
+}
+const discAreaM2 = (aircraft: DipAircraft, radiusM: number) => aircraft.rotorCount * Math.PI * radiusM ** 2;
 /** q_i = T/(4A) with T the weight. */
 export function inducedPressurePa(aircraft: DipAircraft): number | null {
-  if (aircraft.massKg === null) return null;
-  return aircraft.massKg * STANDARD_GRAVITY / (4 * discAreaM2(aircraft));
+  const stated = fitted(aircraft);
+  return stated ? stated.massKg * STANDARD_GRAVITY / (4 * discAreaM2(aircraft, stated.rotorRadiusM)) : null;
 }
 
 /** Every motor start and stop of a log with its measured excess pressure, or the reason it was skipped. */
-export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): DipMeasurement {
-  if (!(aircraft.rotorCount >= 1) || !(aircraft.rotorRadiusM > 0) || (aircraft.massKg !== null && !(aircraft.massKg > 0))) {
+export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft, heightSource: DipHeightSource = "gnss"): DipMeasurement {
+  if (!(aircraft.rotorCount >= 1) || (aircraft.rotorRadiusM !== null && !(aircraft.rotorRadiusM > 0)) || (aircraft.massKg !== null && !(aircraft.massKg > 0))) {
     throw new Error("The aircraft needs a positive rotor count, rotor radius and, when stated, mass");
   }
-  const throttle = series(log, "CTUN", "ThO"), pressure = series(log, "BARO", "Press"), altitude = series(log, "GPS", "Alt");
+  const throttle = series(log, "CTUN", "ThO"), pressure = series(log, "BARO", "Press");
+  const altitude = heightSource === "gnss" ? series(log, "GPS", "Alt") : rangefinderSeries(log);
+  const label = heightSource === "gnss" ? "GNSS" : "rangefinder";
+  // The height at t, or null for a rangefinder without a good reading within rangefinderGapS.
+  const heightAt = (t: number): number | null =>
+    heightSource === "rangefinder" && nearestGapS(altitude, t) > DIP_METHOD.rangefinderGapS ? null : interpolate(altitude, t);
   const on = DIP_METHOD.throttleOn, events: DipEvent[] = [], skipped: SkippedDipEvent[] = [];
   const isOn = (t: number) => throttle.values[upperIndex(throttle, t)]! > on;
   for (let i = 1; i < throttle.timeS.length; i++) {
@@ -135,18 +179,21 @@ export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): 
     for (let k = 0; k < pressure.timeS.length; k++) {
       const t = pressure.timeS[k]!;
       if (t < from || t > to) continue;
-      const p = pressure.values[k]!;
-      sum += p; sumSquares += p * p; heightSum += interpolate(altitude, t); n++;
+      const p = pressure.values[k]!, h = heightAt(t);
+      if (h === null) continue;
+      sum += p; sumSquares += p * p; heightSum += h; n++;
     }
     if (n < DIP_METHOD.minReferenceSamples) {
-      skipped.push({ kind, motorTimeS, reason: `${n} barometer samples in the motors-off window, fewer than ${DIP_METHOD.minReferenceSamples}` });
+      skipped.push({ kind, motorTimeS, reason: `${n} barometer samples with a ${label} height in the motors-off window, fewer than ${DIP_METHOD.minReferenceSamples}` });
       continue;
     }
     const referencePa = sum / n, referenceHeightM = heightSum / n;
     const noisePa = Math.sqrt(Math.max(0, (sumSquares - n * referencePa * referencePa) / (n - 1)));
-    const atMotor = interpolate(altitude, motorTimeS) - referenceHeightM;
+    const motorHeight = heightAt(motorTimeS), moment = kind === "takeoff" ? "start" : "stop";
+    if (motorHeight === null) { skipped.push({ kind, motorTimeS, reason: `no good ${label} reading at the motor ${moment}` }); continue; }
+    const atMotor = motorHeight - referenceHeightM;
     if (Math.abs(atMotor) > DIP_METHOD.groundToleranceM) {
-      skipped.push({ kind, motorTimeS, reason: `the GNSS height at the motor ${kind === "takeoff" ? "start" : "stop"} is ${atMotor.toFixed(2)} m from the motors-off reference, not on the ground` });
+      skipped.push({ kind, motorTimeS, reason: `the ${label} height at the motor ${moment} is ${atMotor.toFixed(2)} m from the motors-off reference, not on the ground` });
       continue;
     }
     const rhoG = referencePa / (GAS_CONSTANT_DRY_AIR * DIP_METHOD.airTemperatureK) * STANDARD_GRAVITY;
@@ -156,11 +203,15 @@ export function measureBarometerDips(log: DataFlashLog, aircraft: DipAircraft): 
     for (let k = 0; k < pressure.timeS.length; k++) {
       const t = pressure.timeS[k]!;
       if (t < w0 || t > w1 || !isOn(t)) continue;
-      const heightM = interpolate(altitude, t) - referenceHeightM;
+      const h = heightAt(t);
+      if (h === null) continue;
+      const heightM = h - referenceHeightM;
       samples.push({ timeS: t, heightM, deltaPa: pressure.values[k]! - (referencePa - rhoG * heightM) });
     }
-    if (!samples.some(sample => sample.heightM >= DIP_METHOD.minFlightHeightM)) {
-      skipped.push({ kind, motorTimeS, reason: `the vehicle stayed below ${DIP_METHOD.minFlightHeightM} m within ${DIP_METHOD.windowS} s of the motor ${kind === "takeoff" ? "start" : "stop"}: a spin-up on the ground, not a flight` });
+    const aloft = samples.filter(sample => sample.heightM >= DIP_METHOD.nearGroundM);
+    const lowHover = aloft.length > 1 && aloft[aloft.length - 1]!.timeS - aloft[0]!.timeS >= DIP_METHOD.lowHoverS;
+    if (!lowHover && !samples.some(sample => sample.heightM >= DIP_METHOD.minFlightHeightM)) {
+      skipped.push({ kind, motorTimeS, reason: `the vehicle stayed below ${DIP_METHOD.minFlightHeightM} m within ${DIP_METHOD.windowS} s of the motor ${kind === "takeoff" ? "start" : "stop"}, nor ${DIP_METHOD.lowHoverS} s at ${DIP_METHOD.nearGroundM} m or more: a spin-up on the ground, not a flight` });
       continue;
     }
     const near = samples.filter(sample => sample.heightM < DIP_METHOD.nearGroundM);
@@ -190,8 +241,8 @@ function profileOf(samples: readonly DipSample[]): DipProfileBin[] {
 
 /** The ground cushion and prop wash fitted to landing samples within `fitMaxHeightM` of the landed position. */
 export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircraft): CushionFit {
-  const q = inducedPressurePa(aircraft);
-  if (q === null) throw new Error("A fit needs the aircraft's stated mass");
+  const q = inducedPressurePa(aircraft), stated = fitted(aircraft);
+  if (q === null || stated === null) throw new Error("A fit needs the aircraft's stated mass and rotor radius");
   const points: { h: number; y: number }[] = [];
   for (const event of events) {
     if (event.kind !== "landing") continue;
@@ -201,7 +252,7 @@ export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircr
   const { min, max, count } = DIP_METHOD.decayGrid;
   let best: CushionFit | null = null;
   for (let g = 0; g < count; g++) {
-    const decayRadii = min * (max / min) ** (g / (count - 1)), scale = decayRadii * aircraft.rotorRadiusM;
+    const decayRadii = min * (max / min) ** (g / (count - 1)), scale = decayRadii * stated.rotorRadiusM;
     // Least squares of y = k·e + c with e = exp(−h/scale): the 2×2 normal equations.
     let see = 0, se = 0, sy = 0, sey = 0;
     for (const p of points) { const e = Math.exp(-p.h / scale); see += e * e; se += e; sy += p.y; sey += e * p.y; }
@@ -219,15 +270,16 @@ export function fitGroundCushion(events: readonly DipEvent[], aircraft: DipAircr
 
 /** The model's own near-ground excess for an event's measured heights: `BarometerErrors` with the fitted cushion and wash. */
 export function predictNearGroundPa(event: DipEvent, fit: CushionFit, aircraft: DipAircraft): number | null {
-  if (aircraft.massKg === null) throw new Error("A prediction needs the aircraft's stated mass");
+  const stated = fitted(aircraft);
+  if (stated === null) throw new Error("A prediction needs the aircraft's stated mass and rotor radius");
   const model = new BarometerErrors();
   model.set(BarometerEffect.GroundCushion, true, [fit.gain, fit.decayRadii]);
   model.set(BarometerEffect.PropWash, true, [fit.washCoefficient]);
   const x = model.input;
   x[BarometerInput.DensityKgM3] = 1.225;
-  x[BarometerInput.ThrustN] = aircraft.massKg * STANDARD_GRAVITY;
-  x[BarometerInput.DiscAreaM2] = discAreaM2(aircraft);
-  x[BarometerInput.MeanRadiusM] = aircraft.rotorRadiusM;
+  x[BarometerInput.ThrustN] = stated.massKg * STANDARD_GRAVITY;
+  x[BarometerInput.DiscAreaM2] = discAreaM2(aircraft, stated.rotorRadiusM);
+  x[BarometerInput.MeanRadiusM] = stated.rotorRadiusM;
   let sum = 0, n = 0;
   for (const s of event.samples) {
     if (s.heightM >= DIP_METHOD.nearGroundM) continue;

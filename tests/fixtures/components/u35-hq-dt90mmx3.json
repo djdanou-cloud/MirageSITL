@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "propeller",
+  "example": false,
+  "manufacturer": "HQProp",
+  "model": "HQProp Duct-T90MMX3",
+  "sources": [
+    {
+      "id": "retail-listing",
+      "kind": "specification",
+      "description": "Retail listings of the HQProp Duct-T90MMX3 read on 2026-11-08 (for example getfpv.com and flyingtech.co.uk): 90 mm, pitch 3 inch, 3 blades, 2.35 g, hub 11 mm; the stakeholder named the propeller HQ DT90, whose blade count is assumed to be three.",
+      "sha256": null,
+      "date": "2026-11-08"
+    }
+  ],
+  "values": {
+    "diameterM": 0.09,
+    "pitchM": 0.0762,
+    "bladeCount": 3,
+    "hubDiameterM": 0.011,
+    "massKg": 0.00235,
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "provenance": {
+    "diameterM": "retail-listing",
+    "pitchM": "retail-listing",
+    "bladeCount": "retail-listing",
+    "hubDiameterM": "retail-listing",
+    "massKg": "retail-listing",
+    "chord": null,
+    "twist": null,
+    "airfoil": null
+  },
+  "applicability": "No blade geometry: a derived BET geometry rests on its listed assumptions; ducted in the aircraft, which the model does not represent."
+}

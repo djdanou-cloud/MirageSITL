@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "motor",
+  "example": false,
+  "manufacturer": null,
+  "model": "2650 KV motor of the U35 (model not stated)",
+  "sources": [
+    {
+      "id": "stakeholder",
+      "kind": "specification",
+      "description": "The stakeholder's statements of 2026-11-08 about the U35 (MatekH743, logs stakeholder-00000116 and 00000167 of data/flight-logs/inventory.json); not a datasheet.",
+      "sha256": null,
+      "date": "2026-11-08"
+    },
+    {
+      "id": "assumed",
+      "kind": "synthetic",
+      "description": "Assumed: typical of the class, chosen for MirageSITL's comparison with the stakeholder's log; no source we hold states it.",
+      "sha256": null,
+      "date": null
+    }
+  ],
+  "values": {
+    "kvRpmPerV": 2650,
+    "resistanceOhm": 0.09,
+    "noLoadCurrentA": 0.6,
+    "noLoadVoltageV": 10,
+    "maxCurrentA": 30,
+    "maxPowerW": 400,
+    "massKg": 0.02
+  },
+  "provenance": {
+    "kvRpmPerV": "stakeholder",
+    "resistanceOhm": "assumed",
+    "noLoadCurrentA": "assumed",
+    "noLoadVoltageV": "assumed",
+    "maxCurrentA": "assumed",
+    "maxPowerW": "assumed",
+    "massKg": "assumed"
+  },
+  "applicability": "KV from the stakeholder; every other value assumed for a 20-size motor of that KV."
+}
