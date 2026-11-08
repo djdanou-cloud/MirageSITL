@@ -10,7 +10,7 @@
     "topic-96944-1aYxm5oh.BIN landing at 605.4 s: measured 3.29 Pa, predicted -9.35 Pa",
     "stakeholder-00000167.BIN landing at 260.8 s: measured 34.82 Pa, predicted 2.99 Pa"
   ],
-  "inventorySha256": "4ad33767954e11172908afb07a02079cb601e60326d85028bffe3422d1c39b91",
+  "inventorySha256": "056ab6a70ee87fbfe4bafc77fc6b029c969ed5810d5c2b158397712873b83a26",
   "method": {
     "throttleOn": 0.05,
     "referenceBeforeS": [
@@ -48,6 +48,12 @@
   "tolerance": {
     "absolutePa": 5,
     "relative": 0.3
+  },
+  "twoLevel": {
+    "groundBandM": 0.06,
+    "airborneFromM": 0.15,
+    "airborneToM": 2,
+    "minSamples": 2
   },
   "groups": [
     {
@@ -187,7 +193,8 @@
           "skipped": []
         }
       ],
-      "holdOuts": []
+      "holdOuts": [],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "tmotor-230kv-24in-6kg",
@@ -471,7 +478,8 @@
           "predictedPa": 52.35,
           "within": false
         }
-      ]
+      ],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "tmotor-7005-230kv-24in-7kg",
@@ -972,7 +980,8 @@
           "predictedPa": 18.12,
           "within": false
         }
-      ]
+      ],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "m1200-u8xl-32in-18kg",
@@ -1235,7 +1244,8 @@
           "predictedPa": -9.35,
           "within": false
         }
-      ]
+      ],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "5in-quad-mtf02p-145352",
@@ -1308,7 +1318,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 22.03,
+                "groundSamples": 4,
+                "airbornePa": -14.03,
+                "airborneSamples": 131
+              }
             },
             {
               "kind": "landing",
@@ -1362,7 +1378,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": -3.05,
+                "groundSamples": 3,
+                "airbornePa": -29.95,
+                "airborneSamples": 139
+              }
             }
           ],
           "skipped": [
@@ -1435,7 +1457,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 67.25,
+                "groundSamples": 2,
+                "airbornePa": -18.62,
+                "airborneSamples": 147
+              }
             }
           ],
           "skipped": []
@@ -1497,7 +1525,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": -28.98,
+                "groundSamples": 3,
+                "airbornePa": -57.42,
+                "airborneSamples": 144
+              }
             },
             {
               "kind": "landing",
@@ -1551,7 +1585,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": -7.49,
+                "groundSamples": 4,
+                "airbornePa": -24.8,
+                "airborneSamples": 146
+              }
             }
           ],
           "skipped": []
@@ -1613,7 +1653,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 29.79,
+                "groundSamples": 2,
+                "airbornePa": -31.31,
+                "airborneSamples": 147
+              }
             },
             {
               "kind": "landing",
@@ -1667,7 +1713,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": -4.78,
+                "groundSamples": 4,
+                "airbornePa": -24.44,
+                "airborneSamples": 145
+              }
             },
             {
               "kind": "takeoff",
@@ -1721,7 +1773,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 5.37,
+                "groundSamples": 21,
+                "airbornePa": -36.53,
+                "airborneSamples": 61
+              }
             },
             {
               "kind": "landing",
@@ -1775,7 +1833,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 34.69,
+                "groundSamples": 20,
+                "airbornePa": -4.55,
+                "airborneSamples": 61
+              }
             },
             {
               "kind": "takeoff",
@@ -1829,7 +1893,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 44.84,
+                "groundSamples": 2,
+                "airbornePa": -39.92,
+                "airborneSamples": 146
+              }
             }
           ],
           "skipped": [
@@ -1902,7 +1972,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 28.98,
+                "groundSamples": 4,
+                "airbornePa": -11.35,
+                "airborneSamples": 145
+              }
             },
             {
               "kind": "landing",
@@ -1956,7 +2032,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 5.32,
+                "groundSamples": 3,
+                "airbornePa": -18.37,
+                "airborneSamples": 146
+              }
             }
           ],
           "skipped": []
@@ -2018,7 +2100,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 31.81,
+                "groundSamples": 4,
+                "airbornePa": -12.19,
+                "airborneSamples": 143
+              }
             }
           ],
           "skipped": []
@@ -2080,7 +2168,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 36.63,
+                "groundSamples": 3,
+                "airbornePa": -15.45,
+                "airborneSamples": 144
+              }
             },
             {
               "kind": "landing",
@@ -2134,13 +2228,20 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": -40.21,
+                "groundSamples": 2,
+                "airbornePa": -33.31,
+                "airborneSamples": 147
+              }
             }
           ],
           "skipped": []
         }
       ],
-      "holdOuts": []
+      "holdOuts": [],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "stakeholder-4s-quad",
@@ -2219,7 +2320,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 119.96,
+                "groundSamples": 5,
+                "airbornePa": -23.39,
+                "airborneSamples": 141
+              }
             },
             {
               "kind": "landing",
@@ -2273,7 +2380,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 18.61,
+                "groundSamples": 3,
+                "airbornePa": -14.69,
+                "airborneSamples": 144
+              }
             },
             {
               "kind": "landing",
@@ -2327,7 +2440,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 54.44,
+                "groundSamples": 4,
+                "airbornePa": -14.66,
+                "airborneSamples": 142
+              }
             }
           ],
           "skipped": [
@@ -2395,7 +2514,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 130.87,
+                "groundSamples": 5,
+                "airbornePa": -17.96,
+                "airborneSamples": 143
+              }
             },
             {
               "kind": "landing",
@@ -2449,7 +2574,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 121.33,
+                "groundSamples": 6,
+                "airbornePa": -14.15,
+                "airborneSamples": 142
+              }
             }
           ],
           "skipped": []
@@ -2511,7 +2642,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 93.97,
+                "groundSamples": 23,
+                "airbornePa": -26.4,
+                "airborneSamples": 124
+              }
             },
             {
               "kind": "landing",
@@ -2565,7 +2702,13 @@
                   "meanPa": null,
                   "samples": 0
                 }
-              ]
+              ],
+              "twoLevels": {
+                "groundPa": 75.69,
+                "groundSamples": 19,
+                "airbornePa": -19.86,
+                "airborneSamples": 75
+              }
             }
           ],
           "skipped": []
@@ -2577,9 +2720,26 @@
           "motorTimeS": 260.76,
           "measuredPa": 34.82,
           "predictedPa": 2.99,
-          "within": false
+          "within": false,
+          "twoLevels": {
+            "measured": {
+              "groundPa": 121.33,
+              "groundSamples": 6,
+              "airbornePa": -14.15,
+              "airborneSamples": 142
+            },
+            "predicted": {
+              "groundPa": 35.52,
+              "groundSamples": 6,
+              "airbornePa": -14.76,
+              "airborneSamples": 142
+            },
+            "within": false,
+            "judged": false
+          }
         }
-      ]
+      ],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "mn7005-kv115-24in-12s",
@@ -2712,7 +2872,8 @@
           "skipped": []
         }
       ],
-      "holdOuts": []
+      "holdOuts": [],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "p80iii-kv100-30in-16kg-first-mount",
@@ -3049,7 +3210,8 @@
           ]
         }
       ],
-      "holdOuts": []
+      "holdOuts": [],
+      "twoLevelHoldOuts": []
     },
     {
       "id": "p80iii-kv100-30in-16kg-remounted",
@@ -3834,7 +3996,8 @@
           "predictedPa": -0.56,
           "within": true
         }
-      ]
+      ],
+      "twoLevelHoldOuts": []
     }
   ]
 }

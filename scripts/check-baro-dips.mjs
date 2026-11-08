@@ -5,7 +5,9 @@
 //   node scripts/check-baro-dips.mjs --dir DIRECTORY [--out DIR]
 //
 // Writes logged-baro-dips.json to test-results/validation/ (or --out). Exit 0 when every held-out landing is reproduced within the
-// declared tolerance, 1 when one is not or a file is missing or differs, 2 (BLOCKED_EXTERNAL) without the directory.
+// declared tolerance, 1 when one is not or a file is missing or differs, 2 (BLOCKED_EXTERNAL) without the directory. With the
+// rangefinder as the height source every event also gets its two levels (DIP_TWO_LEVEL, declared 2026-11-08): reported only on the
+// logs seen before that date, and judged for the logs of a group's `twoLevelHoldOut`, which only a log added afterwards may join.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,8 +20,8 @@ if (!process.execArgv.includes(TRANSFORM)) {
   const child = spawnSync(process.execPath, [TRANSFORM, "--no-warnings", "--max-old-space-size=8192", fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: "inherit" });
   process.exit(child.status ?? 1);
 }
-const { DIP_METHOD, DIP_TOLERANCE, fitGroundCushion, measureBarometerDips, predictNearGroundPa, pressureUnitAircraft, withinDipTolerance } =
-  await import("../packages/analysis/src/barometer-dips.ts");
+const { DIP_METHOD, DIP_TOLERANCE, DIP_TWO_LEVEL, fitGroundCushion, measureBarometerDips, measureTwoLevels, predictNearGroundPa, predictTwoLevels,
+  pressureUnitAircraft, twoLevelsWithin, withinDipTolerance } = await import("../packages/analysis/src/barometer-dips.ts");
 const { readDataFlash } = await import("../packages/dataflash/src/reader.ts");
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -39,7 +41,10 @@ const CONFIGURATIONS = {
   // The stakeholder's own flights (2026-11-07): mass and propellers not stated, so fitted in pressure units (q_i 1 Pa, R 0.1 m).
   "stakeholder-4s-quad": pressureUnitAircraft(4),
 };
-/** Fit groups: one configuration each, with the logs fitted and the logs held out (declared in the specification). */
+/**
+ * Fit groups: one configuration each, with the logs fitted and the logs held out (declared in the specification). `twoLevelHoldOut`
+ * lists held-out logs judged by the two-level metric; every log here was seen before it was declared, so each list is empty.
+ */
 const GROUPS = [
   { id: "mn7005-kv230-24in-7.2kg", configuration: "mn7005-kv230-24in-7.2kg", fit: ["topic-144558-00000205.BIN"], holdOut: [] },
   { id: "tmotor-230kv-24in-6kg", configuration: "tmotor-230kv-24in-6kg", fit: ["topic-131210-00000148.BIN"], holdOut: ["topic-131210-00000280.BIN"] },
@@ -85,11 +90,13 @@ function load(file) {
   if (sha256 !== entry.sha256) { reasons.push(`${file} has SHA-256 ${sha256}, not the inventory's ${entry.sha256}`); return null; }
   return { entry, log: readDataFlash(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)) };
 }
-const summary = event => ({
+const levelsOf = l => ({ groundPa: round(l.groundPa, 2), groundSamples: l.groundSamples, airbornePa: round(l.airbornePa, 2), airborneSamples: l.airborneSamples });
+const summary = (event, heightSource) => ({
   kind: event.kind, motorTimeS: round(event.motorTimeS, 2), referencePa: round(event.referencePa, 1), noisePa: round(event.noisePa, 2),
   referenceSamples: event.referenceSamples, samples: event.samples.length, nearGroundPa: round(event.nearGroundPa, 2),
   nearGroundSamples: event.nearGroundSamples,
   profile: event.profile.map(bin => ({ fromM: bin.fromM, toM: bin.toM, meanPa: round(bin.meanPa, 2), samples: bin.samples })),
+  ...(heightSource === "rangefinder" ? { twoLevels: levelsOf(measureTwoLevels(event)) } : {}),
 });
 
 const groups = [];
@@ -103,6 +110,8 @@ for (const group of GROUPS) {
     return { file, sha256: loaded.entry.sha256, measurement: m };
   };
   const fitted = group.fit.map(measure).filter(Boolean), held = group.holdOut.map(measure).filter(Boolean), other = (group.measured ?? []).map(measure).filter(Boolean);
+  const heightSource = group.heightSource ?? "gnss", twoLevelHeld = (group.twoLevelHoldOut ?? []).map(measure).filter(Boolean);
+  if (heightSource !== "rangefinder" && (group.twoLevelHoldOut ?? []).length) throw new Error(`${group.id}: the two-level metric needs rangefinder heights`);
   let fit = null, fitError = null;
   if (aircraft.massKg !== null && fitted.length) {
     try { fit = fitGroundCushion(fitted.flatMap(item => item.measurement.events), aircraft); } catch (error) { fitError = error.message; }
@@ -114,22 +123,38 @@ for (const group of GROUPS) {
       const predictedPa = predictNearGroundPa(event, fit, aircraft);
       const within = predictedPa !== null && withinDipTolerance(event.nearGroundPa, predictedPa);
       if (!within) { missed++; reasons.push(`${item.file} landing at ${event.motorTimeS.toFixed(1)} s: measured ${event.nearGroundPa.toFixed(2)} Pa, predicted ${predictedPa?.toFixed(2)} Pa`); }
-      holdOuts.push({ file: item.file, motorTimeS: round(event.motorTimeS, 2), measuredPa: round(event.nearGroundPa, 2), predictedPa: round(predictedPa, 2), within });
+      // On these logs, seen before the two-level metric was declared, its result is reported and never judged.
+      const twoLevels = heightSource === "rangefinder" ? (() => {
+        const m = measureTwoLevels(event), p = predictTwoLevels(event, fit, aircraft);
+        return { measured: levelsOf(m), predicted: levelsOf(p), within: twoLevelsWithin(m, p), judged: false };
+      })() : undefined;
+      holdOuts.push({ file: item.file, motorTimeS: round(event.motorTimeS, 2), measuredPa: round(event.nearGroundPa, 2), predictedPa: round(predictedPa, 2), within, twoLevels });
     }
   }
-  const logs = [...fitted.map(x => ({ ...x, role: "fit" })), ...held.map(x => ({ ...x, role: "hold-out" })), ...other.map(x => ({ ...x, role: "measured" }))];
+  const twoLevelHoldOuts = [];
+  for (const item of twoLevelHeld) {
+    for (const event of item.measurement.events) {
+      if (event.kind !== "landing") continue;
+      if (!fit) { missed++; reasons.push(`${item.file}: no fit to predict its two levels from`); continue; }
+      const m = measureTwoLevels(event), p = predictTwoLevels(event, fit, aircraft), within = twoLevelsWithin(m, p);
+      if (!within) { missed++; reasons.push(`${item.file} landing at ${event.motorTimeS.toFixed(1)} s: two levels measured ${JSON.stringify(levelsOf(m))}, predicted ${JSON.stringify(levelsOf(p))}`); }
+      twoLevelHoldOuts.push({ file: item.file, motorTimeS: round(event.motorTimeS, 2), measured: levelsOf(m), predicted: levelsOf(p), within, judged: true });
+    }
+  }
+  const logs = [...fitted.map(x => ({ ...x, role: "fit" })), ...held.map(x => ({ ...x, role: "hold-out" })), ...twoLevelHeld.map(x => ({ ...x, role: "two-level hold-out" })),
+    ...other.map(x => ({ ...x, role: "measured" }))];
   groups.push({
-    id: group.id, aircraft: { configuration: group.configuration, ...aircraft }, heightSource: group.heightSource ?? "gnss", pressureUnits: group.pressureUnits === true,
+    id: group.id, aircraft: { configuration: group.configuration, ...aircraft }, heightSource, pressureUnits: group.pressureUnits === true,
     inducedPressurePa: round(logs[0]?.measurement.inducedPressurePa ?? null, 2),
     fit: fit ? { gain: round(fit.gain, 3), decayRadii: round(fit.decayRadii, 3), washCoefficient: round(fit.washCoefficient, 3), rmsPa: round(fit.rmsPa, 2), samples: fit.samples } : null,
     fitError: fitError ?? (aircraft.massKg === null || aircraft.rotorRadiusM === null ? "no stated mass or rotor radius" : fit ? null : "no fitted log"),
-    logs: logs.map(item => ({ file: item.file, sha256: item.sha256, role: item.role, events: item.measurement.events.map(summary), skipped: item.measurement.skipped.map(s => ({ ...s, motorTimeS: round(s.motorTimeS, 2) })) })),
-    holdOuts,
+    logs: logs.map(item => ({ file: item.file, sha256: item.sha256, role: item.role, events: item.measurement.events.map(event => summary(event, heightSource)), skipped: item.measurement.skipped.map(s => ({ ...s, motorTimeS: round(s.motorTimeS, 2) })) })),
+    holdOuts, twoLevelHoldOuts,
   });
 }
-const failedFiles = reasons.some(reason => !reason.includes(" landing at "));
+const failedFiles = reasons.some(reason => !reason.includes(" landing at ") && !reason.includes(": no fit to predict"));
 write({
   schemaVersion: 1, kind: "logged-baro-dips", status: failedFiles || missed ? "FAIL" : "REPORTED", reasons,
-  inventorySha256: inventoryHash, method: DIP_METHOD, tolerance: DIP_TOLERANCE, groups,
+  inventorySha256: inventoryHash, method: DIP_METHOD, tolerance: DIP_TOLERANCE, twoLevel: DIP_TWO_LEVEL, groups,
 });
 process.exit(failedFiles || missed ? 1 : 0);

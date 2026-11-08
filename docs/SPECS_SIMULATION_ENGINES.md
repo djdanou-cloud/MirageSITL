@@ -6498,6 +6498,35 @@ propellers 1.58 times the thrust would need about twice the power, so it most li
 propellers, and stays out of any fit with the other two. In real units the fit on 00000116 is
 k_e 1.11 and λ 0.22 rotor radii (q_i 67.1 Pa); the hold-out's outcome does not depend on the units.
 
+**The two-level metric (declared 2026-11-08, before any run on a log not yet seen).** The model gives
+Δp = q_i·(k_e·exp(−h/(λR)) + c): q_i·(k_e + c) on the ground and the flat q_i·c a few decay heights up,
+the two levels every rangefinder log above shows. `DIP_TWO_LEVEL`
+(`packages/analysis/src/barometer-dips.ts`) measures them apart, with rangefinder heights only, since a
+GNSS height cannot resolve the ground band: the on-ground excess is the mean of the motors-on samples
+below 0.06 m above the motors-off reference (the step seen at 0.03 to 0.06 m), the airborne offset the
+mean of those from 0.15 m to 2 m (the fit's own upper bound), and the samples between count in neither; a
+level with fewer than 2 samples is null. `predictTwoLevels` is the fitted model's mean over the same
+samples, as `predictNearGroundPa` computes its excess. A held-out landing is reproduced when both levels
+are measured and predicted and each is within `DIP_TOLERANCE`. `scripts/check-baro-dips.mjs` judges by it
+only the logs of a group's `twoLevelHoldOut`, which only a log added to the inventory after this date may
+join; every list is empty now. On the logs seen before, each rangefinder event's two levels and each
+held-out landing's predicted two levels are reported with `judged: false`, and the exit status stays the
+near-ground mean's. `tests/barometer-dips.test.ts` (8 passed) holds it, declared before the
+implementation: on the synthetic landing with 2 s on the ground, each level equals the mean closed-form
+excess of its band within 0.02 Pa, the samples between the bands count in neither, the fit's prediction
+of each level agrees within 0.02 Pa and passes, and a missing level or a ground level beyond the
+tolerance does not pass.
+
+Reported, not judged (2026-11-08, `test-results/validation/logged-baro-dips.json`): on the stakeholder's
+held-out landing of 00000167 the airborne offset is reproduced, −14.15 Pa measured against −14.76 Pa
+predicted over 142 samples, and the on-ground excess is not, 121.3 Pa against 35.5 Pa over 6 samples. The
+fit on 00000116 puts the decay height at its grid's floor, 0.01 m, so over a 6 cm band its exponential
+averages to a third of the step the barometer reads on the ground: the measured jump behaves as a step
+that the ground contact switches on, not as a cushion that grows with closeness to the ground. The
+stakeholder's other flights show the same pattern: on-ground excesses of 19 to 131 Pa and airborne
+offsets of −14 to −26 Pa. The 5-inch quad of topic 145352 scatters −40 to +67 Pa on the ground, as its
+motors-off scatter of 10 to 25 Pa allows, with airborne offsets of −5 to −57 Pa.
+
 ## GNSS v2 (TASK-117)
 
 GNSS errors and outages tied to satellite geometry, the terrain that hides satellites, the

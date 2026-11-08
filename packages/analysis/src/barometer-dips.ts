@@ -35,6 +35,21 @@ export const DIP_METHOD = Object.freeze({
 });
 /** The declared reproduction tolerance of a held-out near-ground excess: within 5 Pa or 30 %, whichever is larger. */
 export const DIP_TOLERANCE = Object.freeze({ absolutePa: 5, relative: 0.3 });
+/**
+ * The two-level metric (declared 2026-11-08, before any run on a log not yet seen): the on-ground excess and the airborne offset
+ * apart, each judged by `DIP_TOLERANCE`, in place of one near-ground mean that weighs the step by how many samples fall in its
+ * first centimetres. Rangefinder heights only: a GNSS height cannot resolve the ground band.
+ */
+export const DIP_TWO_LEVEL = Object.freeze({
+  /** On-ground samples: within this of the motors-off reference height, m (the step seen at 0.03 to 0.06 m). */
+  groundBandM: 0.06,
+  /** Airborne samples: from this height, above the step, m. */
+  airborneFromM: 0.15,
+  /** to this one, the fit's own upper bound, m. */
+  airborneToM: 2,
+  /** A level needs at least this many samples, else it is null. */
+  minSamples: 2,
+});
 
 const GAS_CONSTANT_DRY_AIR = 287.05, STANDARD_GRAVITY = 9.80665;
 
@@ -289,6 +304,53 @@ export function predictNearGroundPa(event: DipEvent, fit: CushionFit, aircraft: 
     sum += model.errorPa; n++;
   }
   return n ? sum / n : null;
+}
+
+/** One event's two levels, Pa, null where a level has fewer than `minSamples` samples. */
+export interface TwoLevels {
+  readonly groundPa: number | null;
+  readonly groundSamples: number;
+  readonly airbornePa: number | null;
+  readonly airborneSamples: number;
+}
+const inBand = (heightM: number, band: "ground" | "airborne") => band === "ground"
+  ? heightM < DIP_TWO_LEVEL.groundBandM
+  : heightM >= DIP_TWO_LEVEL.airborneFromM && heightM <= DIP_TWO_LEVEL.airborneToM;
+function levels(event: DipEvent, value: (sample: DipSample) => number): TwoLevels {
+  let g = 0, gn = 0, a = 0, an = 0;
+  for (const s of event.samples) {
+    if (inBand(s.heightM, "ground")) { g += value(s); gn++; } else if (inBand(s.heightM, "airborne")) { a += value(s); an++; }
+  }
+  const min = DIP_TWO_LEVEL.minSamples;
+  return { groundPa: gn >= min ? g / gn : null, groundSamples: gn, airbornePa: an >= min ? a / an : null, airborneSamples: an };
+}
+/** The measured two levels of an event (rangefinder heights only; the caller knows its height source). */
+export function measureTwoLevels(event: DipEvent): TwoLevels {
+  return levels(event, s => s.deltaPa);
+}
+/** The model's two levels over the same samples, as `predictNearGroundPa` computes its excess. */
+export function predictTwoLevels(event: DipEvent, fit: CushionFit, aircraft: DipAircraft): TwoLevels {
+  const stated = fitted(aircraft);
+  if (stated === null) throw new Error("A prediction needs the aircraft's stated mass and rotor radius");
+  const model = new BarometerErrors();
+  model.set(BarometerEffect.GroundCushion, true, [fit.gain, fit.decayRadii]);
+  model.set(BarometerEffect.PropWash, true, [fit.washCoefficient]);
+  const x = model.input;
+  x[BarometerInput.DensityKgM3] = 1.225;
+  x[BarometerInput.ThrustN] = stated.massKg * STANDARD_GRAVITY;
+  x[BarometerInput.DiscAreaM2] = discAreaM2(aircraft, stated.rotorRadiusM);
+  x[BarometerInput.MeanRadiusM] = stated.rotorRadiusM;
+  return levels(event, s => {
+    x[BarometerInput.HeightM] = Math.max(0, s.heightM);
+    x[BarometerInput.TimeS] = s.timeS;
+    model.step();
+    return model.errorPa;
+  });
+}
+/** Both levels measured and predicted, and each within `DIP_TOLERANCE`; false when a level is missing on either side. */
+export function twoLevelsWithin(measured: TwoLevels, predicted: TwoLevels): boolean {
+  const pair = (m: number | null, p: number | null) => m !== null && p !== null && withinDipTolerance(m, p);
+  return pair(measured.groundPa, predicted.groundPa) && pair(measured.airbornePa, predicted.airbornePa);
 }
 
 /** Whether a predicted near-ground excess reproduces the measured one under the declared tolerance. */

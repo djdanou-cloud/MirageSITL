@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readDataFlash } from '../packages/dataflash/src/reader.ts';
-import { DIP_METHOD, fitGroundCushion, inducedPressurePa, measureBarometerDips, predictNearGroundPa, pressureUnitAircraft, withinDipTolerance,
-  type DipAircraft } from '../packages/analysis/src/barometer-dips.ts';
+import { DIP_METHOD, DIP_TWO_LEVEL, fitGroundCushion, inducedPressurePa, measureBarometerDips, measureTwoLevels, predictNearGroundPa,
+  predictTwoLevels, pressureUnitAircraft, twoLevelsWithin, withinDipTolerance, type DipAircraft } from '../packages/analysis/src/barometer-dips.ts';
 import { syntheticLog, type SyntheticMessage, type SyntheticValue } from './support/synthetic-log.ts';
 
 // TASK-116: the logged-dip measurement against flights built here, whose excess pressure is known in closed form. Declared before the
@@ -28,12 +28,14 @@ const LAMBDA = min * (max / min) ** (80 / (count - 1)), GAIN = 2, WASH = -0.3;
 const P0 = 95000, H0 = 500, RHO_G = P0 / (287.05 * 288.15) * 9.80665;
 
 /** A descent from 5 m to the ground at 0.5 m/s ending at t = 30 s, motors stopping at 30 s, then 10 s on the ground. */
-function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean; lowHover?: boolean; rangefinderOutS?: readonly [number, number] } = {}): Uint8Array {
+function landing(options: { restartAtS?: number; groundM?: number; groundOnly?: boolean; lowHover?: boolean; rangefinderOutS?: readonly [number, number];
+  /** Seconds the motors keep running on the ground after the touchdown at 30 s. */
+  dwellS?: number } = {}): Uint8Array {
   const rows: { message: string; values: SyntheticValue[] }[] = [];
   const q = inducedPressurePa(AIRCRAFT)!, ground = options.groundM ?? 0;
   const top = options.lowHover ? 0.6 : 5;
   const height = (t: number) => (options.groundOnly ? 0 : t < 20 ? top : t < 30 ? top - (top / 10) * (t - 20) : 0) + ground;
-  const on = (t: number) => t < 30 || (options.restartAtS !== undefined && t >= options.restartAtS);
+  const on = (t: number) => t < 30 + (options.dwellS ?? 0) || (options.restartAtS !== undefined && t >= options.restartAtS);
   for (let k = 0; k <= 4000; k++) {
     const t = k * 0.01, us = Math.round(t * 1e6);
     if (k % 10 === 0) rows.push({ message: 'CTUN', values: [us, on(t) ? 0.35 : 0] });
@@ -110,6 +112,41 @@ describe('logged barometer dips', () => {
     expect(dropped).toBe(11);
     expect(gap.samples.length).toBe(gnss.samples.length - dropped);
     expect(gap.samples.some(s => s.timeS > 25.24 && s.timeS < 25.76)).toBe(false);
+  });
+
+  // Declared 2026-11-08 before the implementation: the two levels of the synthetic landing against the rangefinder are the mean
+  // closed-form excess of its samples below 0.06 m and of those from 0.15 m to 2 m, within 0.02 Pa as above; samples between the
+  // bands count in neither; the fit's own prediction of each level agrees within 0.02 Pa and passes; a level with fewer than two
+  // samples is null and then nothing passes.
+  it('measures the on-ground excess and the airborne offset apart, and the model predicts each (declared 2026-11-08)', () => {
+    // Two seconds on the ground with the motors running, as the real landings sit before the motors stop.
+    const measured = measureBarometerDips(readDataFlash(landing({ dwellS: 2 })), AIRCRAFT, 'rangefinder');
+    const event = measured.events[0]!, q = measured.inducedPressurePa!;
+    const closed = (h: number) => q * (GAIN * Math.exp(-Math.max(0, h) / (LAMBDA * RADIUS)) + WASH);
+    const ground = event.samples.filter(s => s.heightM < DIP_TWO_LEVEL.groundBandM);
+    const aloft = event.samples.filter(s => s.heightM >= DIP_TWO_LEVEL.airborneFromM && s.heightM <= DIP_TWO_LEVEL.airborneToM);
+    const between = event.samples.filter(s => s.heightM >= DIP_TWO_LEVEL.groundBandM && s.heightM < DIP_TWO_LEVEL.airborneFromM);
+    expect(ground.length).toBeGreaterThanOrEqual(2);
+    expect(between.length).toBeGreaterThan(0);
+    const levels = measureTwoLevels(event);
+    expect(levels.groundSamples).toBe(ground.length);
+    expect(levels.airborneSamples).toBe(aloft.length);
+    const mean = (xs: readonly { heightM: number }[]) => xs.reduce((sum, s) => sum + closed(s.heightM), 0) / xs.length;
+    expect(Math.abs(levels.groundPa! - mean(ground))).toBeLessThan(0.02);
+    expect(Math.abs(levels.airbornePa! - mean(aloft))).toBeLessThan(0.02);
+    const fit = fitGroundCushion(measured.events, AIRCRAFT), predicted = predictTwoLevels(event, fit, AIRCRAFT);
+    expect(predicted.groundSamples).toBe(ground.length);
+    expect(Math.abs(predicted.groundPa! - levels.groundPa!)).toBeLessThan(0.02);
+    expect(Math.abs(predicted.airbornePa! - levels.airbornePa!)).toBeLessThan(0.02);
+    expect(twoLevelsWithin(levels, predicted)).toBe(true);
+    // An event without ground samples: the level is null and the pair does not pass.
+    const noGround = { ...event, samples: event.samples.filter(s => s.heightM >= DIP_TWO_LEVEL.groundBandM) };
+    expect(measureTwoLevels(noGround).groundPa).toBeNull();
+    expect(twoLevelsWithin(measureTwoLevels(noGround), predicted)).toBe(false);
+    // A ground level off by more than the tolerance fails even with the airborne one right.
+    // Measured 3p + 20 against a predicted p > 0 differs by 2p + 20, beyond the tolerance of 0.3·(3p + 20) = 0.9p + 6.
+    expect(predicted.groundPa!).toBeGreaterThan(0);
+    expect(twoLevelsWithin({ ...levels, groundPa: 3 * predicted.groundPa! + 20 }, predicted)).toBe(false);
   });
 
   it('applies the declared tolerance: 5 Pa or 30 %, whichever is larger', () => {
