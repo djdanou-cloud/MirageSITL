@@ -1,0 +1,52 @@
+import type { AlmanacSatellite } from "./gnss.ts";
+
+// TASK-117 (SPECS_SIMULATION_ENGINES "Real GPS almanac"): the YUMA almanac of GPS week 2444 (396 modulo 1024), downloaded from
+// navcen.uscg.gov on 2026-11-08 and stored unchanged as data/gnss/yuma-2444.alm, its numbers copied here as the file writes them.
+// tests/gps-almanac.test.ts parses the file and requires this module equal to it, and the file's SHA-256 equal to the inventory's.
+
+/** Where the almanac came from. */
+export const GPS_ALMANAC_SOURCE = Object.freeze({
+  file: "data/gnss/yuma-2444.alm",
+  url: "https://www.navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm",
+  retrieved: "2026-11-08",
+  sha256: "bfccba398921419d328093fecf7ca7f280e018187d0938b8037f752526bd8263",
+  bytes: 19008,
+  week: 2444,
+  toaS: 233472,
+});
+
+/** Its 32 satellites, angles in radians as YUMA states them. */
+export const GPS_ALMANAC: readonly AlmanacSatellite[] = Object.freeze([
+  { prn: 1, health: 0, eccentricity: 0.2202510834E-002, toaS: 233472.0000, inclinationRad: 0.9556724277, rateOfRightAscensionRadS: -0.8320346576E-008, sqrtA: 5153.678711, rightAscensionRad: -0.1376823782E+001, argumentOfPerigeeRad: 0.147686098, meanAnomalyRad: -0.2912897690E+001, week: 2444 },
+  { prn: 2, health: 0, eccentricity: 0.1730108261E-001, toaS: 233472.0000, inclinationRad: 0.9603103227, rateOfRightAscensionRadS: -0.8217485148E-008, sqrtA: 5153.634277, rightAscensionRad: -0.1538378998E+001, argumentOfPerigeeRad: -0.680042595, meanAnomalyRad: -0.1650764064E+001, week: 2444 },
+  { prn: 3, health: 0, eccentricity: 0.6835460663E-002, toaS: 233472.0000, inclinationRad: 0.9964367687, rateOfRightAscensionRadS: -0.7486026109E-008, sqrtA: 5153.671875, rightAscensionRad: -0.3802283722E+000, argumentOfPerigeeRad: 1.296604002, meanAnomalyRad: 0.1135725520E+001, week: 2444 },
+  { prn: 4, health: 0, eccentricity: 0.4096031189E-002, toaS: 233472.0000, inclinationRad: 0.9735648755, rateOfRightAscensionRadS: -0.7531742299E-008, sqrtA: 5153.600586, rightAscensionRad: 0.6853579735E+000, argumentOfPerigeeRad: -2.897309209, meanAnomalyRad: -0.2071540686E+001, week: 2444 },
+  { prn: 5, health: 0, eccentricity: 0.5170345306E-002, toaS: 233472.0000, inclinationRad: 0.9826609022, rateOfRightAscensionRadS: -0.7657461821E-008, sqrtA: 5153.552246, rightAscensionRad: -0.4433035949E+000, argumentOfPerigeeRad: 1.512974689, meanAnomalyRad: -0.1521154671E+001, week: 2444 },
+  { prn: 6, health: 0, eccentricity: 0.4000663757E-002, toaS: 233472.0000, inclinationRad: 0.9843027410, rateOfRightAscensionRadS: -0.8023191341E-008, sqrtA: 5153.741699, rightAscensionRad: -0.1419228464E+001, argumentOfPerigeeRad: -0.569841281, meanAnomalyRad: 0.2468222650E+001, week: 2444 },
+  { prn: 7, health: 0, eccentricity: 0.2104902267E-001, toaS: 233472.0000, inclinationRad: 0.9509446510, rateOfRightAscensionRadS: -0.8011762293E-008, sqrtA: 5153.677246, rightAscensionRad: 0.1691928004E+001, argumentOfPerigeeRad: -1.940371847, meanAnomalyRad: 0.1646992029E+001, week: 2444 },
+  { prn: 8, health: 0, eccentricity: 0.1224517822E-001, toaS: 233472.0000, inclinationRad: 0.9406202412, rateOfRightAscensionRadS: -0.7931758961E-008, sqrtA: 5153.531250, rightAscensionRad: -0.2550069289E+001, argumentOfPerigeeRad: 0.563665660, meanAnomalyRad: -0.1891947713E+001, week: 2444 },
+  { prn: 9, health: 0, eccentricity: 0.3842830658E-002, toaS: 233472.0000, inclinationRad: 0.9679982030, rateOfRightAscensionRadS: -0.7577458489E-008, sqrtA: 5153.592285, rightAscensionRad: 0.6194421149E+000, argumentOfPerigeeRad: 2.102530768, meanAnomalyRad: -0.1267853847E+001, week: 2444 },
+  { prn: 10, health: 0, eccentricity: 0.1171207428E-001, toaS: 233472.0000, inclinationRad: 0.9959214470, rateOfRightAscensionRadS: -0.7474597061E-008, sqrtA: 5153.615723, rightAscensionRad: -0.3827435614E+000, argumentOfPerigeeRad: -2.245983438, meanAnomalyRad: 0.2567137072E+000, week: 2444 },
+  { prn: 11, health: 0, eccentricity: 0.2767562866E-002, toaS: 233472.0000, inclinationRad: 0.9612271159, rateOfRightAscensionRadS: -0.8251772291E-008, sqrtA: 5153.647949, rightAscensionRad: -0.1406028215E+001, argumentOfPerigeeRad: -2.249748732, meanAnomalyRad: -0.2640029996E+001, week: 2444 },
+  { prn: 12, health: 0, eccentricity: 0.9019374847E-002, toaS: 233472.0000, inclinationRad: 0.9587164208, rateOfRightAscensionRadS: -0.7668890869E-008, sqrtA: 5152.879883, rightAscensionRad: 0.2811430254E+001, argumentOfPerigeeRad: 1.624469176, meanAnomalyRad: 0.1074077169E+001, week: 2444 },
+  { prn: 13, health: 0, eccentricity: 0.2537250519E-002, toaS: 233472.0000, inclinationRad: 0.9592377346, rateOfRightAscensionRadS: -0.7691748964E-008, sqrtA: 5153.714844, rightAscensionRad: 0.2703211205E+001, argumentOfPerigeeRad: 1.777887853, meanAnomalyRad: 0.8453904443E+000, week: 2444 },
+  { prn: 14, health: 0, eccentricity: 0.7641792297E-002, toaS: 233472.0000, inclinationRad: 0.9420044192, rateOfRightAscensionRadS: -0.7806039439E-008, sqrtA: 5153.606445, rightAscensionRad: 0.2752800804E+001, argumentOfPerigeeRad: -2.671314066, meanAnomalyRad: 0.8345450952E+000, week: 2444 },
+  { prn: 15, health: 0, eccentricity: 0.1697349548E-001, toaS: 233472.0000, inclinationRad: 0.9463367165, rateOfRightAscensionRadS: -0.7748894201E-008, sqrtA: 5153.536133, rightAscensionRad: 0.4694142249E+000, argumentOfPerigeeRad: 1.580380711, meanAnomalyRad: -0.2898380299E+001, week: 2444 },
+  { prn: 16, health: 0, eccentricity: 0.1551628113E-001, toaS: 233472.0000, inclinationRad: 0.9577456986, rateOfRightAscensionRadS: -0.7657461821E-008, sqrtA: 5153.716797, rightAscensionRad: 0.2828010803E+001, argumentOfPerigeeRad: 0.957165437, meanAnomalyRad: -0.8246442529E+000, week: 2444 },
+  { prn: 17, health: 0, eccentricity: 0.1263618469E-001, toaS: 233472.0000, inclinationRad: 0.9560679071, rateOfRightAscensionRadS: -0.7840326581E-008, sqrtA: 5153.696777, rightAscensionRad: -0.2441579097E+001, argumentOfPerigeeRad: -1.051418370, meanAnomalyRad: -0.1890131354E+001, week: 2444 },
+  { prn: 18, health: 0, eccentricity: 0.6635189056E-002, toaS: 233472.0000, inclinationRad: 0.9692805151, rateOfRightAscensionRadS: -0.8171768958E-008, sqrtA: 5153.688965, rightAscensionRad: -0.1427867217E+001, argumentOfPerigeeRad: -2.799561002, meanAnomalyRad: 0.2474572417E+001, week: 2444 },
+  { prn: 19, health: 0, eccentricity: 0.1188278198E-001, toaS: 233472.0000, inclinationRad: 0.9551451218, rateOfRightAscensionRadS: -0.7874613724E-008, sqrtA: 5153.561035, rightAscensionRad: -0.2397915322E+001, argumentOfPerigeeRad: 3.083990102, meanAnomalyRad: -0.2077424192E+000, week: 2444 },
+  { prn: 20, health: 0, eccentricity: 0.1921653748E-002, toaS: 233472.0000, inclinationRad: 0.9633423316, rateOfRightAscensionRadS: -0.7600316584E-008, sqrtA: 5153.594727, rightAscensionRad: 0.6237575594E+000, argumentOfPerigeeRad: -1.614643235, meanAnomalyRad: 0.6855384859E+000, week: 2444 },
+  { prn: 21, health: 0, eccentricity: 0.1001834869E-002, toaS: 233472.0000, inclinationRad: 0.9658230662, rateOfRightAscensionRadS: -0.7794610391E-008, sqrtA: 5153.617188, rightAscensionRad: -0.3815664858E+000, argumentOfPerigeeRad: -0.302749235, meanAnomalyRad: 0.7629910334E+000, week: 2444 },
+  { prn: 22, health: 0, eccentricity: 0.1131296158E-001, toaS: 233472.0000, inclinationRad: 0.9572423612, rateOfRightAscensionRadS: -0.7611745631E-008, sqrtA: 5153.663086, rightAscensionRad: 0.2831416196E+001, argumentOfPerigeeRad: -0.945611521, meanAnomalyRad: -0.1280434287E+001, week: 2444 },
+  { prn: 23, health: 0, eccentricity: 0.6926536560E-002, toaS: 233472.0000, inclinationRad: 0.9907742224, rateOfRightAscensionRadS: -0.7543171346E-008, sqrtA: 5153.567383, rightAscensionRad: -0.4160454753E+000, argumentOfPerigeeRad: -2.686529164, meanAnomalyRad: 0.1224580683E+001, week: 2444 },
+  { prn: 24, health: 0, eccentricity: 0.1906394958E-001, toaS: 233472.0000, inclinationRad: 0.9351614268, rateOfRightAscensionRadS: -0.8171768958E-008, sqrtA: 5153.648926, rightAscensionRad: 0.1578819391E+001, argumentOfPerigeeRad: 1.202299013, meanAnomalyRad: 0.2630130652E+001, week: 2444 },
+  { prn: 25, health: 0, eccentricity: 0.1191425323E-001, toaS: 233472.0000, inclinationRad: 0.9470857306, rateOfRightAscensionRadS: -0.7771752296E-008, sqrtA: 5153.709961, rightAscensionRad: 0.2714805942E+001, argumentOfPerigeeRad: 0.992611404, meanAnomalyRad: 0.1105924872E+001, week: 2444 },
+  { prn: 26, health: 0, eccentricity: 0.1178216934E-001, toaS: 233472.0000, inclinationRad: 0.9277911285, rateOfRightAscensionRadS: -0.7988904198E-008, sqrtA: 5153.576172, rightAscensionRad: 0.2635563251E+001, argumentOfPerigeeRad: 0.757500386, meanAnomalyRad: 0.2299136097E-001, week: 2444 },
+  { prn: 27, health: 0, eccentricity: 0.1467704773E-001, toaS: 233472.0000, inclinationRad: 0.9496982916, rateOfRightAscensionRadS: -0.7874613724E-008, sqrtA: 5153.631836, rightAscensionRad: -0.2515884662E+001, argumentOfPerigeeRad: 0.906753421, meanAnomalyRad: -0.1681798712E+001, week: 2444 },
+  { prn: 28, health: 0, eccentricity: 0.4878044128E-003, toaS: 233472.0000, inclinationRad: 0.9618143430, rateOfRightAscensionRadS: -0.7897471819E-008, sqrtA: 5153.632324, rightAscensionRad: 0.1669005177E+001, argumentOfPerigeeRad: 0.012732864, meanAnomalyRad: 0.2074718004E+001, week: 2444 },
+  { prn: 29, health: 0, eccentricity: 0.3593444824E-002, toaS: 233472.0000, inclinationRad: 0.9587763419, rateOfRightAscensionRadS: -0.7851755629E-008, sqrtA: 5153.591797, rightAscensionRad: -0.2424155906E+001, argumentOfPerigeeRad: 2.900829950, meanAnomalyRad: -0.1997426494E+001, week: 2444 },
+  { prn: 30, health: 0, eccentricity: 0.8216857910E-002, toaS: 233472.0000, inclinationRad: 0.9362879439, rateOfRightAscensionRadS: -0.8171768958E-008, sqrtA: 5153.549805, rightAscensionRad: 0.1679187649E+001, argumentOfPerigeeRad: -2.256289123, meanAnomalyRad: 0.1443373306E+001, week: 2444 },
+  { prn: 31, health: 0, eccentricity: 0.1118946075E-001, toaS: 233472.0000, inclinationRad: 0.9546118238, rateOfRightAscensionRadS: -0.7977475151E-008, sqrtA: 5153.609375, rightAscensionRad: 0.1717231571E+001, argumentOfPerigeeRad: 1.041474085, meanAnomalyRad: 0.5809716295E+000, week: 2444 },
+  { prn: 32, health: 0, eccentricity: 0.9775161743E-002, toaS: 233472.0000, inclinationRad: 0.9708864012, rateOfRightAscensionRadS: -0.7520313251E-008, sqrtA: 5153.576660, rightAscensionRad: 0.6372795102E+000, argumentOfPerigeeRad: -1.969827199, meanAnomalyRad: -0.1114126202E+001, week: 2444 },
+].map(satellite => Object.freeze(satellite)));

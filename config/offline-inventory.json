@@ -30,6 +30,7 @@
     { "origin": "https://ntrs.nasa.gov", "use": "documentation-link", "reason": "Citation of NASA TM X-3561 for the landing-gear drop fixture." },
     { "origin": "https://nrel.sitefinity.cloud", "use": "documentation-link", "reason": "Citation of the NREL AirfoilPrep reference in the airfoil-input audit." },
     { "origin": "https://discuss.ardupilot.org", "use": "documentation-link", "reason": "Citation of the forum topics the real flight logs of data/flight-logs/inventory.json come from; the logs are kept offline." },
+    { "origin": "https://www.navcen.uscg.gov", "use": "documentation-link", "reason": "Source of the stored GPS almanac data/gnss/yuma-2444.alm, cited in packages/sensors/src/gps-almanac.ts (TASK-117); never fetched by MirageSITL." },
     { "origin": "https://drive.google.com", "use": "documentation-link", "reason": "Citation of the links the forum posts gave for the real flight logs of data/flight-logs/inventory.json; never fetched by MirageSITL." },
     { "origin": "https://m-selig.ae.illinois.edu", "use": "documentation-link", "reason": "Citation of the UIUC propeller and airfoil coordinate databases; the data were provided offline." },
     { "origin": "https://creativecommons.org", "use": "documentation-link", "reason": "License URL recorded for ESA WorldCover (CC BY 4.0)." },
@@ -272,6 +273,19 @@
       "installDownload": false,
       "status": "ready",
       "files": [{ "path": "data/geoid/WW15MGH.DAC", "sha256": "9dcaf4efd6857aaa2e1e2e2c574d3f5264eacf47024cdcd5291c40ddad5e5acc", "bytes": 2076480 }]
+    },
+    {
+      "id": "gps-almanac",
+      "category": "reference-data",
+      "item": "YUMA GPS almanac of GPS week 2444 (current_yuma.alm)",
+      "version": "GPS week 2444 (396 modulo 1024), time of applicability 233472 s",
+      "source": "US Coast Guard Navigation Center, https://www.navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm, retrieved 2026-11-08 (it redirects to navcen.uscg.gov)",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "neededFor": "The run's GNSS satellite sky and the logged receiver statistics (TASK-117)",
+      "installDownload": false,
+      "status": "ready",
+      "files": [{ "path": "data/gnss/yuma-2444.alm", "sha256": "bfccba398921419d328093fecf7ca7f280e018187d0938b8037f752526bd8263", "bytes": 19008 }]
     },
     {
       "id": "uiuc-propeller-database",

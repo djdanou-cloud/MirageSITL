@@ -5,3 +5,5 @@ data/worldcover/**/*.tif binary
 # Docling archives of NASA/NACA reports: byte-exact (CRLF), hashed by the fixture generator.
 tests/fixtures/contact/nasa/*.md binary
 data/geoid/*.DAC binary
+# The YUMA almanac as navcen.uscg.gov serves it: byte-exact (CRLF), hashed in config/offline-inventory.json (TASK-117).
+data/gnss/*.alm binary

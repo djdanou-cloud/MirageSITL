@@ -19,6 +19,7 @@ if (!process.execArgv.includes(TRANSFORM)) {
   process.exit(child.status ?? 1);
 }
 const { gnssLogStatistics, MODEL_SETTINGS } = await import("../packages/analysis/src/gnss-statistics.ts");
+const { GPS_ALMANAC_SOURCE } = await import("../packages/sensors/src/gps-almanac.ts");
 const { readDataFlash } = await import("../packages/dataflash/src/reader.ts");
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -58,12 +59,13 @@ for (const entry of inventory.logs) {
     epochs: s.epochs, durationS: round(s.durationS, 1), rateHz: round(s.rateHz, 2), status: s.status,
     satellites: pct(s.satellites, 1), hdop: pct(s.hdop), horizontalAccuracyM: pct(s.horizontalAccuracyM), verticalAccuracyM: pct(s.verticalAccuracyM),
     speedAccuracyMps: pct(s.speedAccuracyMps, 3),
-    model: { visible: pct(s.model.visible, 1), hdop: pct(s.model.hdop), accuracyM: pct(s.model.accuracyM), solutions: s.model.solutions },
+    model: { visible: pct(s.model.visible, 1), hdop: pct(s.model.hdop), accuracyM: pct(s.model.accuracyM), solutions: s.model.solutions,
+      weeksFromAlmanac: s.model.weeksFromAlmanac },
   });
 }
 const status = reasons.length ? "FAIL" : "REPORTED";
 write({
   schemaVersion: 1, kind: "logged-gnss", status, reasons, inventorySha256: createHash("sha256").update(inventoryBytes).digest("hex"),
-  model: { constellation: "synthetic Walker 24/6/1", ...MODEL_SETTINGS }, logs,
+  model: { constellation: `GPS almanac of week ${GPS_ALMANAC_SOURCE.week} (${GPS_ALMANAC_SOURCE.file}, SHA-256 ${GPS_ALMANAC_SOURCE.sha256})`, ...MODEL_SETTINGS }, logs,
 });
 process.exit(reasons.length ? 1 : 0);

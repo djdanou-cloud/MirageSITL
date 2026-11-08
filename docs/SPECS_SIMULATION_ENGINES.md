@@ -6563,9 +6563,9 @@ latitude and longitude offsets in degrees, `_Z` in metres, `SIM_GPS1_NUMSATS`, `
 without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own rate, lag and noise.
 
 * Orbits: the almanac propagation of IS-GPS-200 Table 20-VI (μ = 3.986005e14 m³/s², Ω̇e =
-  7.2921151467e-5 rad/s). The constellation is synthetic, the Walker 24/6/1 pattern at 55° on
-  circular orbits of half a sidereal day, not any day's orbits; `parseYumaAlmanac` reads a real
-  almanac once one is stored (its download from navcen.uscg.gov timed out on 2026-11-07).
+  7.2921151467e-5 rad/s). Since 2026-11-08 the run's constellation is the real GPS almanac of week
+  2444 ("Real GPS almanac" below); until then it was synthetic, the Walker 24/6/1 pattern at 55° on
+  circular orbits of half a sidereal day, which stays for tests.
 * Geometry: elevation and azimuth of each satellite above the mask, and Q = (GᵀG)⁻¹ of the rows
   [−e_E, −e_N, −e_U, 1] for the dilutions.
 * Ionosphere: the Klobuchar model of IS-GPS-200 20.3.3.5.2.5 with RTKLIB's default broadcast set;
@@ -6648,6 +6648,43 @@ stated; 3-D fix only) 16 and 15 satellites, HDOP 0.66 and 0.68, HAcc 0.83 and 0.
 against 7 and 8, HDOP 0.98 and 0.87 and 1.48 and 1.31 m. The pattern holds: four times the
 satellites, half the HDOP. Still no reference position, so the error statistics stay
 BLOCKED_EXTERNAL.
+
+### Real GPS almanac (TASK-117, declared 2026-11-08)
+
+Recorded before the implementation. The approved download from navcen.uscg.gov succeeded on its
+retry of 2026-11-08 (the address now redirects to the host without `www`): `current_yuma.alm`, GPS
+week 396 modulo 1024, so week 2444 (2026-11-01 to 11-07), time of applicability 233,472 s, 32
+satellites, 19,008 bytes. It is stored unchanged as `data/gnss/yuma-2444.alm` (a United States
+Government work, public domain) and registered in `config/offline-inventory.json` with its SHA-256.
+`packages/sensors/src/gps-almanac.ts` holds its elements as a module, so the browser, the tests and the
+Node scripts read the same values without a file loader; `tests/gps-almanac.test.ts` parses the stored
+file with `parseYumaAlmanac` and requires the module equal to it field for field, and the file's
+SHA-256 equal to the inventory's. The run's sky becomes this almanac at week 2444, simulated time 0
+at its time of applicability, in place of the Walker 24/6/1 pattern, which stays for tests;
+`gnssLogStatistics` propagates it to each log's own GPS time and reports how many weeks lie between.
+Checks, limits set now: every satellite's orbital radius from `almanacEcefInto` within 1e-6 m of
+a(1 − e cos E) over a day, and after one period 2π/n its ECEF position, rotated about the z axis by
+the angle the node moved in ECEF over that period ((Ω̇ − Ω̇e)·2π/n), back at its start within 1e-3 m,
+as independent forms of the same elements; at the default home (32° N,
+35° E) over the 24 hours from the time of applicability, with the 10° mask, between 6 and 14 healthy
+satellites at every 10-minute step (the published GPS-only range at mid-latitudes, information for
+a plausibility bound, not a fidelity limit) and HDOP below 2.5 throughout. The logged statistics are
+shown, not judged (SA-01): a GPS-only sky still cannot show the counts of a multi-constellation
+receiver, and an almanac propagated weeks or years from its epoch gives real orbital planes and slot
+spacing but not that day's positions; Galileo, GLONASS and BeiDou almanacs would need another
+download.
+
+Result (2026-11-08; `tests/gps-almanac.test.ts` 3 passed on the first run, `tests/gnss-log-statistics.test.ts`
+2, `tests/gnss-errors.test.ts` 13, `tests/run-controller.test.ts` 136, `tests/offline-inventory.test.ts`
+passes with 8 hashed files): the module equals the file; every orbit keeps a(1 − e cos E) and closes after
+its period; at the default home over the day 7 to 11 satellites (median 9) and HDOP 0.74 to 1.58. Two tests
+changed with the sky: the run's GNSS stream at the test's home now tracks 10 satellites, the count the
+simulated receiver already holds, so only its accuracy is written, and the offline check hashes the almanac
+as an eighth file. `node scripts/check-gnss-stats.mjs` (exit 0; the report names the almanac and each log's
+distance from it, 10 to 194 weeks): the model's medians become 7 to 12 satellites and HDOP 0.73 to 1.68,
+against the synthetic sky's 6 to 8 and 0.87 to 1.35 and the receivers' 15 to 32 and 0.46 to 0.68. A real
+GPS-only sky closes part of the satellite gap (now about three times, not four to five) and none of the
+HDOP gap; the rest is the other constellations.
 
 ## Electromechanical drive (TASK-092)
 

@@ -1,5 +1,6 @@
 import type { DataFlashColumn, DataFlashGroup, DataFlashLog } from "@mirage/dataflash/reader";
-import { gnssSolution, walkerConstellation } from "@mirage/sensors/gnss";
+import { gnssSolution } from "@mirage/sensors/gnss";
+import { GPS_ALMANAC, GPS_ALMANAC_SOURCE } from "@mirage/sensors/gps-almanac";
 
 // Logged GNSS statistics (TASK-117; SPECS_SIMULATION_ENGINES "Logged receiver statistics"): what a real ArduCopter log's first GNSS
 // receiver reported (fix type, satellites, HDOP and its own accuracy estimates) beside what the GNSS v2 model's satellite geometry
@@ -20,7 +21,14 @@ export interface GnssLogStatistics {
   readonly verticalAccuracyM: Percentiles | null;
   readonly speedAccuracyMps: Percentiles | null;
   /** The GNSS v2 model's geometry at the log's positions and GPS times, one solution per `MODEL_STEP_S`. */
-  readonly model: { readonly visible: Percentiles; readonly hdop: Percentiles; readonly accuracyM: Percentiles; readonly solutions: number };
+  /**
+   * The model's geometry: the real GPS almanac of week 2444 propagated to each epoch's own GPS time, and how many weeks lay between
+   * the almanac and the log's first and last epochs (its orbital planes and slots are real, its positions that far away are not).
+   */
+  readonly model: {
+    readonly visible: Percentiles; readonly hdop: Percentiles; readonly accuracyM: Percentiles; readonly solutions: number;
+    readonly almanacWeek: number; readonly weeksFromAlmanac: readonly [number, number];
+  };
 }
 /** The model's settings: the `gnss.constellation` effect's defaults (mask 10°, σ 1.5 m). */
 export const MODEL_SETTINGS = Object.freeze({ maskDeg: 10, uereM: 1.5, stepS: 10 });
@@ -63,13 +71,13 @@ export function gnssLogStatistics(log: DataFlashLog): GnssLogStatistics {
   const column = (k: number) => percentiles(accuracy.map(r => r[k]!));
   const visible: number[] = [], hdop: number[] = [], accuracyM: number[] = [];
   const effects = { constellation: { maskRad: MODEL_SETTINGS.maskDeg * Math.PI / 180, uereM: MODEL_SETTINGS.uereM }, atmosphere: null, terrain: null, jamming: null };
-  let next = -Infinity, week = Number.NaN, almanac = walkerConstellation(0);
+  let next = -Infinity;
   for (const r of fixed) {
     const t = r[0]! * 1e-6;
     if (t < next) continue;
     next = t + MODEL_SETTINGS.stepS;
-    if (r[4] !== week) { week = r[4]!; almanac = walkerConstellation(week); }
-    const solution = gnssSolution(almanac, { latRad: r[6]! * Math.PI / 180, lonRad: r[7]! * Math.PI / 180, heightM: r[8]!, eastM: 0, northM: 0 },
+    const week = r[4]!;
+    const solution = gnssSolution(GPS_ALMANAC, { latRad: r[6]! * Math.PI / 180, lonRad: r[7]! * Math.PI / 180, heightM: r[8]!, eastM: 0, northM: 0 },
       week, r[5]! / 1000, effects);
     visible.push(solution.visible);
     if (solution.dilution) hdop.push(solution.dilution.hdop);
@@ -80,6 +88,7 @@ export function gnssLogStatistics(log: DataFlashLog): GnssLogStatistics {
     satellites: percentiles(fixed.map(r => r[2]!)), hdop: percentiles(fixed.map(r => r[3]!)),
     horizontalAccuracyM: accuracy.length ? column(0) : null, verticalAccuracyM: accuracy.length ? column(1) : null,
     speedAccuracyMps: accuracy.length ? column(2) : null,
-    model: { visible: percentiles(visible), hdop: percentiles(hdop), accuracyM: percentiles(accuracyM), solutions: visible.length },
+    model: { visible: percentiles(visible), hdop: percentiles(hdop), accuracyM: percentiles(accuracyM), solutions: visible.length,
+      almanacWeek: GPS_ALMANAC_SOURCE.week, weeksFromAlmanac: [fixed[0]![4]! - GPS_ALMANAC_SOURCE.week, fixed[fixed.length - 1]![4]! - GPS_ALMANAC_SOURCE.week] },
   };
 }

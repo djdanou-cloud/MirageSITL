@@ -87,6 +87,7 @@ With `--dist apps/web/dist`, all 27 are named and none is unused.
 | Chrome on macOS | Not selected | Yes | Not applicable | Pending | D-08 (TASK-132) |
 | World Magnetic Model coefficients | WMM2025 | No (in the repository) | Reviewed (public domain) | Ready | — |
 | EGM96 geoid grid | EGM96 15-minute | No (in the repository) | Reviewed (public domain) | Ready | — |
+| GPS almanac (YUMA) | GPS week 2444 | No (in the repository) | Reviewed (public domain) | Ready | — |
 | UIUC propeller database | README of 2022-06-27 | No (provided offline) | Reviewed (cited; non-commercial use) | Ready | D-06 (TASK-133) |
 | JSBSim WebAssembly | `570e8115` | Yes | Reviewed (LGPL-2.1) | Not needed in Phase 1 | — |
 | ArduPilot browser WebAssembly | `native/ardupilot/toolchain.lock.json` | Yes | Restricted (GPL-3.0-or-later) | Not needed in Phase 1 | TASK-045 |
@@ -111,8 +112,8 @@ data, keys or a deployment is not a ready source.
 | Quantized-mesh fixture | Test fixture | Synthetic | Zoom 0 to 12 | Test only | Not applicable |
 | 3D Tiles fixtures | Test fixture | Synthetic | Fixture geometry | Test only | Not applicable |
 
-The three WorldCover tiles, the WMM2025 coefficients and the EGM96 geoid grid
-are in the repository, and the check verifies their bytes and SHA-256 on every
+The three WorldCover tiles, the WMM2025 coefficients, the EGM96 geoid grid and
+the GPS almanac are in the repository, and the check verifies their bytes and SHA-256 on every
 run; [data/geoid/inventory.json](../../data/geoid/inventory.json) records where
 each geoid grid came from. The FABDEM, EGM2008 and building outputs are
 prepared by hand with `scripts/geodata/` and kept outside the repository.
@@ -146,7 +147,7 @@ they need keys and a deployment and their terms forbid offline caching.
 The remaining open rows wait on tasks, not on license questions: D-04 (UAVLogViewer,
 TASK-130). D-01 is decided: stable ArduCopter V4.7.2. D-02 is decided: the native build on the
 user's Mac from the pinned source.
-TASK-148 added the WMM and EGM96 files.
+TASK-148 added the WMM and EGM96 files; TASK-117 added the GPS almanac on 2026-11-08.
 
 ## Maintaining the inventory
 

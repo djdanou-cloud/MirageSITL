@@ -16,7 +16,8 @@
     "./pipeline": "./src/pipeline.ts",
     "./configured": "./src/configured.ts",
     "./lever-arm": "./src/lever-arm.ts",
-    "./gnss": "./src/gnss.ts"
+    "./gnss": "./src/gnss.ts",
+    "./gps-almanac": "./src/gps-almanac.ts"
   },
   "dependencies": {
     "@mirage/mavlink": "0.1.0",

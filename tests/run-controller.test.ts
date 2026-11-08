@@ -47,7 +47,8 @@ import { siteParameters } from '@mirage/aircraft/site-parameters';
 import { barometerAltitudePerPascal } from '@mirage/aircraft/sensor-parameters';
 import { barometerGlitchM } from '@mirage/physics/barometer';
 import { WGS84_E2, primeVerticalRadiusM } from '@mirage/sensors/geodesy';
-import { gnssSolution, walkerConstellation } from '@mirage/sensors/gnss';
+import { gnssSolution } from '@mirage/sensors/gnss';
+import { GPS_ALMANAC } from '@mirage/sensors/gps-almanac';
 import { DEFAULT_HOME, LauncherClient, parseLauncherExperiment, preparedRun } from '../apps/web/src/sitl/sitl-run.ts';
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import {
@@ -1553,9 +1554,11 @@ describe('effect controls in a run (TASK-168)', () => {
     const meridional = 6378137 * (1 - WGS84_E2) / (1 - WGS84_E2 * Math.sin(DEFAULT_HOME[0] * deg) ** 2) ** 1.5;
     const receiver = { latRad: DEFAULT_HOME[0] * deg + truth.northM / meridional, lonRad: DEFAULT_HOME[1] * deg + truth.eastM / (primeVerticalRadiusM(DEFAULT_HOME[0] * deg) * Math.cos(DEFAULT_HOME[0] * deg)),
       heightM: DEFAULT_HOME[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
-    const expected = gnssSolution(walkerConstellation(2400), receiver, 2400, simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
-    // Without an error the offsets stay, so only the count and the accuracy are written.
-    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_NUMSATS', value: expected.tracked }, { name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
+    const expected = gnssSolution(GPS_ALMANAC, receiver, 2444, 233472 + simTimeS, { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null });
+    // Without an error the offsets stay, so only the count and the accuracy can change, and only a changed value is written: under
+    // the real almanac's sky (since 2026-11-08) this home tracks 10 satellites, the count the receiver already holds.
+    expect(expected.tracked).toBe(10);
+    expect(paramSets(h)).toEqual([{ name: 'SIM_GPS1_ACC', value: Math.fround(expected.accuracyM ?? NaN) }]);
     expect(h.controller.view.effects.at(-1)).toMatchObject({ effect: 'gnss.constellation', status: 'applied' });
     // GNSS jamming writes the same parameters: refused while the stream runs.
     expect(h.controller.setEffect({ schemaVersion: 1, id: 'jam', effect: 'ew.gnss-jamming', enabled: true, intensity: 1, parameters: { severity: 1 } })).toContain('writes the same receiver parameters');
