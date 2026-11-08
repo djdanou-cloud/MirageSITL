@@ -552,8 +552,12 @@ implementation.
   sweeps or landing logs stays BLOCKED_EXTERNAL (D-11). TASK-101 adds the rotor
   wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
   any other in reach, on by default, so a coaxial pair is not twice one rotor,
-  and the airframe's download from the hull; only its comparison with measured
-  data stays BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode
+  and the airframe's download from the hull. Its forward-flight comparison with
+  NASA's MTB2 tunnel data ran on 2026-11-08 (`tests/rotor-wake-mtb2.test.ts`,
+  `MIRAGE_MTB2_DIR`), shown for the stakeholder to judge: the level rear rotor's
+  large loss at 40 ft/s is reproduced, a raised one's dependence on RPM and the
+  level one's loss at 20 ft/s are not; only a coaxial comparison stays
+  BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode
   (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
   Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
   the profile. TASK-103 is DONE: 9 of 111 left-out stand points miss the declared

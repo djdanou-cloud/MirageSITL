@@ -1216,8 +1216,8 @@ at the wind-off 2000 RPM points, with its torque about 4 % higher, and 0.2 to 0.
 forward flight (4 to 19 %), nearly constant in pounds across RPM; the rear rotor reads 0.15 to
 0.29 lb more at the same wind-off points. The report notes that the load cells' calibration
 depends on the combination of loads. The rotor-positions workbook has a sign and value slip in
-four rows of the equal-height configuration (rotors 1 and 2 at pitch −10° tilt 0 and at pitch
-−5° tilt −3°).
+six rows of the equal-height configuration (rotors 1 and 2 at pitch −10° tilt 0 and at pitch −5°
+and −10° tilt −3°; corrected from four rows when the test first read the workbook).
 
 Measured quantities, per condition (q level: 0 below 0.1 psf, 0.48 below 1.0, else 1.90; pitch
 and tilt rounded to the nearest degree; speed as above; the phase the most negative of the four
@@ -1262,6 +1262,54 @@ where the model falls, not a verdict. Per configuration and speed, the count ins
 skips without it), checks every file's SHA-256, and with `MIRAGE_MTB2_OUT` set writes the report
 (`test-results/validation/mtb2-rotor-wake.json`) with the status `SHOWN`; without the data its
 synthetic-table tests of the measurement still run.
+
+Correction to the method (2026-11-08, after the first comparison; the model is unchanged). The
+runs were made at densities from 0.00220 to 0.00244 slug/ft³ (run 102 at 0.00224, run 113 at
+0.00236, run 103's tunnel values recorded by hand), and at a held RPM a rotor's thrust follows
+the density, so a ratio of thrusts from two runs carries their density ratio: part of the front
+rotor's offset above is that. The corrected basis is the report's own thrust coefficient
+`C_T = Fz/(rho pi R^2 (Omega R)^2)` (its table 5.2.2), per point with Omega from the largest RPM
+column, in r, r_c, r_front and s alike (`thrustCoefficients`, basis `coefficient`). The model's
+ratios do not change: on and off run at one density. The report keeps both: `declared` (thrust)
+and `corrected` (coefficient). The corrected front rotor still reads 1.004 to 1.13 of its
+isolated value in the concept and tall tandems and 1.04 to 1.28 in the equal-height one (runs 143
+and 102 have one density), and s grows from 1.7 % to 2.7 %, largely from run 103's hand-recorded
+density. The model's front rotor matches its isolated self to 1e-5 (the test's check), not
+bitwise: the two rotors share one battery bus, which moves the governor's duty.
+
+Result (2026-11-08; `tests/rotor-wake-mtb2.test.ts` 4 passed, report
+`test-results/validation/mtb2-rotor-wake.json`, status `SHOWN`; 151 conditions, 100 of them with
+the model inside the corrected interval and 96 inside the declared one). The collective offset is
+−4.50°; with it the model's isolated thrust is 0.69 to 1.34 of the measured, RMS 12 %: rotor 3
+alone reads 5 to 20 % less than rotor 1 alone at the same nominal condition while the model's two
+rotors are identical, and the model's thrust changes with speed and pitch differently from the
+measured. Every condition's steps set the low-confidence polar flag (4): some blade elements, the
+retreating blade's root among them, run outside the NeuralFoil source's range. Means over pitch
+and tilt, corrected basis (r_c in brackets; each condition and the model's range are in the
+report):
+
+| Configuration | 20 ft/s, 2000 / 2500 / 3000 RPM: measured r (r_c) | model | 40 ft/s, 2000 / 2500 / 3000 RPM: measured r (r_c) | model |
+| --- | --- | --- | --- | --- |
+| concept, dz/R 0.33 | 1.079 (0.962) / 1.023 (0.955) / 1.014 (0.968) | 0.994 / 1.000 / 1.000 | 1.023 (0.963) / 0.959 (0.933) / 0.934 (0.916) | 0.755 / 0.839 / 0.928 |
+| equal height, 0 | 0.877 (0.619) / 0.893 (0.733) / 0.912 (0.805) | 0.907 / 0.993 / 1.000 | 0.828 (0.648) / 0.772 (0.662) / 0.765 (0.682) | 0.750 / 0.710 / 0.788 |
+| tall, 0.57 | 1.066 (0.971) / 1.038 (0.973) / 1.026 (0.980) | 1.000 / 1.000 / 1.000 | 1.002 (0.954) / 0.959 (0.929) / 0.945 (0.926) | 0.852 / 0.951 / 0.997 |
+
+Inside the corrected interval, per configuration at 20 and 40 ft/s: concept 30 of 30 and 9 of
+29, equal height 9 of 30 and 27 of 29, tall 15 of 15 and 8 of 15; the wind-off points (model
+1.000 by construction, measured r 1.13 to 1.21, r_c 0.99 to 1.09) 2 of 3. What it shows, for the
+stakeholder to judge (SA-01). The large loss of the equal-height rear rotor at 40 ft/s, 17 to
+35 % in the data (the means of r to those of r_c), is 21 to 29 % in the model, with the same
+order over the configurations: equal height loses most, the concept and tall rear rotors far
+less. Two features are not reproduced. At 40 ft/s the model's loss falls steeply with RPM in the
+concept and tall configurations, from 25 and 15 % at 2000 RPM to 7 and 0 % at 3000, where the
+measured loss is small at every RPM (0 to 8 %) and largest at 3000: at 2000 and 2500 RPM the
+model's wake reaches a raised rear rotor that the real one hardly reaches. At 20 ft/s the
+equal-height rear rotor loses 9 to 12 % by r and 20 to 38 % by r_c, where the model's wake has
+passed below its disk at 2500 and 3000 RPM. In the model a lighter rotor's wake leaves flatter,
+descending at 2 v from the disk on, so its RPM trend follows from the straight tube; the data
+suggest a wake that descends less near the rotor and reaches less far above its axis, which this
+comparison cannot separate. The phase −90° points differ from phase 0 by −0.045 to +0.098 in r,
+on average +0.005 to +0.022 per configuration, an effect the model does not have.
 
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
