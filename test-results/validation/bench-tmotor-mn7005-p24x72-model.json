@@ -7,7 +7,12 @@
  "betModule": {
   "file": "packages/wasm-bet/dist/mirage_bet.scalar.wasm",
   "sha256": "e97fec79bd79ba4ee435c7b2ce25bc5cd474092a80f3039c6673f2e307cf972f",
-  "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+  "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "sources": {
+   "files": 74,
+   "sha256": "37fa15d7ecefe56982d1a2301e0b35a92b2371bea69a274694d3b5bbcc17ea8c"
+  },
+  "hashNote": "sha256 is the module built on the recording host; WASM builds of the same sources differ between hosts, so sources identifies the code"
  },
  "vehicleManifestSha256": "f9fd359a35ee7c7d27988a62a03d3f504166fea9a4b389ab00d5ce220a401454",
  "modelId": 145,

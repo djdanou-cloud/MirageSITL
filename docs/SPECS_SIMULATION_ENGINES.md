@@ -4964,9 +4964,15 @@ UIUC DA4002 and DA4022 static tests, `bench-uiuc-da4002-da4022-static-capture.js
 `tests/bench-capture.test.ts` runs the script into a temporary directory and requires the committed
 descriptions to equal its output byte for byte, and the committed captures to equal it except that a
 predicted CT or CP may differ by 1e-9 relative: the native runner's floating point may differ between
-hosts (on the Mac that writes them they are byte-identical). A change to the BET code, a polar or an
-input file changes a description and fails the test until the captures are written again, because a
-committed capture describes the model of its commit. The test also holds the schema 3 rules above: the
+hosts (on the Mac that writes them they are byte-identical). One field is the host's own: the T-Motor
+description's `betModule.sha256`, because the WASM module built from the same sources differs between
+hosts (the Mac and the Linux CI runner gave different bytes on 2026-11-08, when this test first ran in CI
+and failed on it). The test requires that field to be the module the host built, the description's
+other bytes to be the committed ones, its `betModule.sources` digest of the native sources included
+(SHA-256 of the sorted "path TAB sha256 LF" lines, as the UIUC runner's), and each capture's
+`modelSha256` to be the hash of its own description. A change to the BET code, a polar or an input file
+changes a description and fails the test until the captures are written again, because a committed
+capture describes the model of its commit. The test also holds the schema 3 rules above: the
 refusals, schema 2 unchanged, and an analytic bench section whose model-flagged row moves the main
 errors but not those within model validity.
 
@@ -4974,11 +4980,12 @@ Result (2026-11-08, on the M5 with Node 24.22.1 and rustc 1.97.0; `node scripts/
 with identical bytes). The captures were written as declared, and `node scripts/check-fidelity.mjs --input
 CAPTURE --sha256 HEX` reports each REPORTED, exit 0, with no limit and no verdict. Written again on 2026-11-08
 after the TASK-145 binding was aligned with the flight's: the T-Motor predictions are byte-identical, and only
-its description's rotor-definition SHA-256 and binding note changed, so its two hashes below are new:
+its description's rotor-definition SHA-256 and binding note changed; the same day its description gained
+the native sources digest (see below), so its two hashes below are new:
 
 | Capture | SHA-256 | Model description | Sections | Rows compared | Measured rows flagged | Predictions with model flags | Largest CT error | Largest CP error | Within model validity: rows, CT, CP |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T-Motor MN7005 KV230 + P24*7.2 | `3ea50392…22c46a2f` | `34b615e7…7b07c262` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
+| T-Motor MN7005 KV230 + P24*7.2 | `77b604dc…bc1bb181` | `a8345fd8…45f3aeef` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
 | UIUC DA4002/DA4022 static | `df6e4490…34ae67d9` | `1dbab472…81009e3e` | 14 | 242 | 0 | 180 (outside-polar) | 0.270 | 0.385 | 62, 0.247, 0.271 |
 
 The uncalibrated T-Motor rotor predicts too much: CT 47 to 65 % and CP 71 to 100 % above the datasheet,

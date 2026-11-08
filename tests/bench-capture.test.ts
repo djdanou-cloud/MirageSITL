@@ -161,11 +161,20 @@ describe('the committed bench-test captures (TASK-090)', () => {
   it('reproduce from scripts/bench-capture.mjs', () => {
     const run = spawnSync(process.execPath, [join(ROOT, 'scripts/bench-capture.mjs'), '--out', out], { cwd: ROOT, encoding: 'utf8' });
     expect(run.status, run.stderr).toBe(0);
+    // A WASM build of the same sources differs between hosts (macOS and the Linux CI runner, 2026-11-08): a description's
+    // betModule.sha256 must be the module this host built and ran; everything else, the sources digest included, is exact.
+    const hostModule = sha256(readFileSync(join(ROOT, 'packages/wasm-bet/dist/mirage_bet.scalar.wasm')));
+    const withoutModule = (value: unknown) => JSON.stringify(value, (key, v: unknown) => (key === 'betModule' && typeof v === 'object' && v !== null ? { ...v, sha256: '' } : v));
     for (const name of CAPTURES) {
-      const model = committed(`${name}-model.json`);
-      expect(written(`${name}-model.json`), name).toBe(model);
+      const model = committed(`${name}-model.json`), theirText = written(`${name}-model.json`);
+      const mineModel: unknown = JSON.parse(model), theirModel: unknown = JSON.parse(theirText);
+      if (typeof mineModel === 'object' && mineModel !== null && 'betModule' in mineModel) {
+        expect(at(theirModel, 'betModule', 'sha256'), name).toBe(hostModule);
+        expect(withoutModule(theirModel), name).toBe(withoutModule(mineModel));
+      } else expect(theirText, name).toBe(model);
       const mine: unknown = JSON.parse(committed(`${name}-capture.json`)), theirs: unknown = JSON.parse(written(`${name}-capture.json`));
       expect(at(mine, 'provenance', 'modelSha256')).toBe(sha256(model));
+      expect(at(theirs, 'provenance', 'modelSha256')).toBe(sha256(theirText));
       const sections = arrayAt(mine, 'bench');
       expect(arrayAt(theirs, 'bench')).toHaveLength(sections.length);
       sections.forEach((_, s) => {
@@ -178,7 +187,8 @@ describe('the committed bench-test captures (TASK-090)', () => {
         });
       });
       // Everything but the predicted coefficients is exact.
-      const strip = (value: unknown) => JSON.stringify(value, (key, v: unknown) => (key === 'ct' || key === 'cp') && typeof v === 'number' ? 0 : v);
+      // ... and the model description's own hash, which follows the host's module hash checked above.
+      const strip = (value: unknown) => JSON.stringify(value, (key, v: unknown) => ((key === 'ct' || key === 'cp') && typeof v === 'number') || key === 'modelSha256' ? 0 : v);
       expect(strip(theirs), name).toBe(strip(mine));
     }
   }, 600_000);

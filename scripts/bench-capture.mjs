@@ -127,7 +127,10 @@ async function tmotor(M, wasm) {
   const model = {
     schemaVersion: 1, kind: "mirage-bench-model", capture: `${TMOTOR.name}-capture.json`, task: "TASK-090",
     method: "The forum quad profile's rotor 0, uncalibrated, bound as BetFlightDynamics binds it in flight, solved statically by staticLoads (packages/physics/src/propulsion-calibration.ts: 400 steps at 800 Hz on a 1e6 kg·m² shaft) at each measured rpm; CT = T/(ρn²D⁴), CP = 2πQ/(ρn²D⁵). Not the TASK-145 calibration, which is fitted on this same table.",
-    betModule: { file: "packages/wasm-bet/dist/mirage_bet.scalar.wasm", sha256: wasm.sha256, toolchain: wasm.toolchain },
+    // The module's bytes differ between hosts built from the same sources (macOS and the Linux CI runner, 2026-11-08), so the
+    // host-independent identity of the code is the sources digest; sha256 is the module this host built and ran.
+    betModule: { file: "packages/wasm-bet/dist/mirage_bet.scalar.wasm", sha256: wasm.sha256, toolchain: wasm.toolchain, sources: nativeDigest(),
+      hashNote: "sha256 is the module built on the recording host; WASM builds of the same sources differ between hosts, so sources identifies the code" },
     vehicleManifestSha256: derived.sha256, modelId: TMOTOR.modelId, rotorIndex: 0, polar: TMOTOR.polar,
     rotor: { dynamicInflow: rotor.dynamicInflow, vortexRingSeed: rotor.vortexRingSeed ?? null, minimumConfidence: rotor.minimumConfidence,
       definitionSha256: sha256(JSON.stringify(rotor)) },
