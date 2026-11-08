@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createExperimentRecord, experimentRecordName, isSetParameter, type ExperimentEnvironment, type ExperimentFlightTask, type ExperimentTerrain } from "@mirage/aircraft/experiment";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
-import { bodyOf, readAircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, landingGearOf, readAircraftProfile } from "@mirage/aircraft/profile";
 import { bodyHull, hullPartNames } from "@mirage/aircraft/standard-hull";
 import type { HullShape } from "@mirage/physics/vehicle-manifest";
 import { describeAccident } from "@mirage/physics/accident";
@@ -36,6 +36,7 @@ import { loadTerrainChoice } from "../weather/terrain-store";
 import { DEFAULT_LOCATION, describeLocation, homeOf, loadLocation, type LocationChoice } from "../weather/location";
 import { FlightTelemetry } from "./FlightTelemetry";
 import { FlightView, type FlightViewProbe, type RoutePoint } from "./FlightView";
+import { gearDrawing, type GearDrawing } from "../aircraft/scheme-geometry";
 import { CompatibilityList, ManualConnect } from "./ManualConnect";
 import { ManualControl } from "./ManualControl";
 import { MotorCheckPanel } from "./MotorCheck";
@@ -109,6 +110,14 @@ function describedHullOf(stored: StoredVersion | undefined): readonly HullShape[
   try {
     const profile = readAircraftProfile(stored), body = bodyOf(profile);
     return body ? bodyHull(profile, body) : null;
+  } catch { return null; }
+}
+/** The drawn landing gear of a profile version that describes one (TASK-194); null otherwise. */
+function describedGearOf(stored: StoredVersion | undefined): GearDrawing | null {
+  if (!stored) return null;
+  try {
+    const gear = landingGearOf(readAircraftProfile(stored));
+    return gear ? gearDrawing(gear) : null;
   } catch { return null; }
 }
 
@@ -472,6 +481,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
   const layout = useMemo(() => layoutOf(chosen), [chosen]);
   const hullNames = useMemo(() => hullNamesOf(chosen), [chosen]);
   const describedHull = useMemo(() => describedHullOf(chosen), [chosen]);
+  const describedGear = useMemo(() => describedGearOf(chosen), [chosen]);
   const accidents = view?.accidents ?? [];
   const status = view?.status ?? null;
   const stopAgain = failed?.restart.kind === "stop-again";
@@ -570,7 +580,7 @@ export function RunPanel({ storeState, project, visible, link }: { storeState: S
         onRelease={() => setManualRefusal(controller.current?.releaseManual() ?? "")} refusal={manualRefusal} />
       {layout && chosen && (
         <div className="flight-view-area" data-testid="flight-view" data-probe={probe}>
-          <FlightView runtime={runtime} layout={layout} hull={describedHull} hullNames={hullNames} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
+          <FlightView runtime={runtime} layout={layout} hull={describedHull} hullNames={hullNames} gear={describedGear} name={chosen.record.name} route={route} active={visible} ringTurning={view?.motorCheck?.running === true}
             onProbe={(next: FlightViewProbe) => setProbe(JSON.stringify(next))} />
           <div className="flight-view-panels">
             <MotorCheckPanel check={view?.motorCheck ?? null} refusal={motorRefusal}

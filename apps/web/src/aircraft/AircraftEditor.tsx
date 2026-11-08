@@ -3,7 +3,7 @@ import { bindMeasurements, type MeasurementCandidate } from "@mirage/aircraft/ca
 import { readComponentCard, type ComponentType } from "@mirage/aircraft/components";
 import { deriveLayout, type AircraftLayout } from "@mirage/aircraft/layout";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
-import { bodyOf, calculationSettings, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
+import { bodyOf, calculationSettings, landingGearOf, profileDraft, readAircraftProfile, type AircraftProfile } from "@mirage/aircraft/profile";
 import { bodyHull, hullPartNames } from "@mirage/aircraft/standard-hull";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { StoreState } from "../shell/AppShell";
@@ -14,6 +14,8 @@ import { BodySize } from "./BodySize";
 import { ArmTable, type CardOption, type CardOptions } from "./ArmTable";
 import { ClearancePanel } from "./ClearancePanel";
 import { MassProperties } from "./MassProperties";
+import { LandingGear } from "./LandingGear";
+import { gearDrawing } from "./scheme-geometry";
 import { AirframeDrag } from "./AirframeDrag";
 import { POLAR_CATALOG } from "@mirage/physics/polar-catalog";
 import { OutputMapping } from "./OutputMapping";
@@ -64,6 +66,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
   const [copyName, setCopyName] = useState("");
   const [rendered, setRendered] = useState<readonly RenderedRotor[]>([]);
   const [renderedHull, setRenderedHull] = useState<readonly RenderedHullShape[]>([]);
+  const [renderedGear, setRenderedGear] = useState<readonly (readonly number[])[]>([]);
   const [shared, setShared] = useState<{ motor: string | null; propeller: string | null; esc: string | null }>({ motor: null, propeller: null, esc: null });
 
   useEffect(() => {
@@ -127,6 +130,11 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
     if (!result?.ok) return null;
     const body = bodyOf(result.profile);
     return body ? { shapes: bodyHull(result.profile, body), names: hullPartNames(result.profile) } : null;
+  }, [result]);
+  // TASK-194: the described gear of the valid profile, as the scheme draws it.
+  const shownGear = useMemo(() => {
+    const gear = result?.ok ? landingGearOf(result.profile) : null;
+    return gear ? gearDrawing(gear) : null;
   }, [result]);
   // Each motor's propeller radius from its card, or null while a motor has none.
   const radii = useMemo(() => {
@@ -275,10 +283,12 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             <h3 id="scheme-heading">Scheme</h3>
             {shownLayout ? (
               <div data-testid="aircraft-scheme" data-rendered={JSON.stringify(rendered)} data-rendered-hull={JSON.stringify(renderedHull)}
+                data-rendered-gear={JSON.stringify(shownGear ? renderedGear : [])}
                 data-current={layout ? "true" : "false"}>
                 {!layout && <p className="hint">The form has problems, so the scheme shows the last valid layout.</p>}
                 <AircraftScheme3D layout={shownLayout} name={editing.name || "the new profile"} hull={layout ? hull?.shapes ?? null : null}
-                  hullNames={hull?.names ?? []} onRendered={setRendered} onRenderedHull={setRenderedHull} />
+                  hullNames={hull?.names ?? []} gear={shownGear} onRendered={setRendered} onRenderedHull={setRenderedHull}
+                  onRenderedGear={setRenderedGear} />
               </div>
             ) : <p>The scheme appears once the arms, motors and mass properties are valid.</p>}
           </section>
@@ -326,6 +336,7 @@ export function AircraftEditor({ storeState, project, active }: { storeState: St
             )}
           </section>
           <MassProperties form={editing.form} onChange={setForm} />
+          <LandingGear form={editing.form} profile={result?.ok ? result.profile : null} onChange={setForm} />
           <AirframeDrag form={editing.form} profile={result?.ok ? result.profile : null} radii={radii} onChange={setForm} />
         </>
       )}

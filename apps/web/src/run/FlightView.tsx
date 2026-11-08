@@ -5,9 +5,9 @@ import { BufferAttribute, BufferGeometry, Group, Line, LineBasicMaterial, Mesh, 
 import type { AircraftLayout } from "@mirage/aircraft/layout";
 import { FpvCamera } from "@mirage/cameras/fpv-camera";
 import { interpolatePoseInto, interpolationAlpha, newPowerSnapshotV1, newRenderPoseV2, wallNow } from "@mirage/protocol";
-import { BODY_COLOR, HullShapes, renderedHull, Rotor, SPIN_COLORS, Strut, type RenderedHullShape } from "../aircraft/AircraftScheme3D";
+import { BODY_COLOR, GearMeshes, HullShapes, renderedHull, Rotor, SPIN_COLORS, Strut, type RenderedHullShape } from "../aircraft/AircraftScheme3D";
 import type { HullShape } from "@mirage/physics/vehicle-manifest";
-import { armMounts, frdToRender, schemeDimensions } from "../aircraft/scheme-geometry";
+import { armMounts, frdToRender, schemeDimensions, type GearDrawing } from "../aircraft/scheme-geometry";
 import { nedToRenderBasis, nedToRenderPositionInto } from "../coordinates";
 import type { SimulationRuntime } from "../runtime";
 import { chaseOffset, drawnSpinRadS, onboardCamera, TRAIL_CAPACITY, TrailBuffer } from "./flight-view-geometry";
@@ -51,8 +51,8 @@ export interface FlightViewProbe {
 
 const PROBE_EVERY_FRAMES = 20;
 
-function Aircraft({ layout, hull, hullNames, runtime, aircraft, spinners, rings, ringTurning }: {
-  layout: AircraftLayout; hull: readonly HullShape[] | null; hullNames: readonly string[]; runtime: RefObject<SimulationRuntime | null>;
+function Aircraft({ layout, hull, hullNames, gear, runtime, aircraft, spinners, rings, ringTurning }: {
+  layout: AircraftLayout; hull: readonly HullShape[] | null; hullNames: readonly string[]; gear: GearDrawing | null; runtime: RefObject<SimulationRuntime | null>;
   aircraft: RefObject<Group | null>; spinners: RefObject<(Group | null)[]>; rings: RefObject<(Mesh | null)[]>; ringTurning: boolean;
 }) {
   const { discRadius, span } = schemeDimensions(layout);
@@ -105,6 +105,8 @@ function Aircraft({ layout, hull, hullNames, runtime, aircraft, spinners, rings,
         <meshStandardMaterial color="#9af0d1" />
       </mesh>
       {!hull && mounts.map((mount, index) => <Strut key={index} to={mount} thickness={span * 0.015} />)}
+      {/* TASK-194: a described landing gear at its size; the standard supports are not drawn. */}
+      {gear && <GearMeshes drawing={gear} size={span * 0.012} />}
       {layout.rotors.map((rotor, index) => {
         const [x, y, z] = frdToRender(rotor.hubPositionBodyM);
         return (
@@ -268,12 +270,14 @@ function Probe({ mode, aircraft, trail, routePoints, layout, rings, onProbe }: {
   return null;
 }
 
-export function FlightView({ runtime, layout, hull = null, hullNames = [], name, route = [], active, ringTurning = false, onProbe }: {
+export function FlightView({ runtime, layout, hull = null, hullNames = [], gear = null, name, route = [], active, ringTurning = false, onProbe }: {
   runtime: RefObject<SimulationRuntime | null>;
   layout: AircraftLayout;
   /** TASK-196: the hull of a described body, drawn at its size; null draws the schematic body. */
   hull?: readonly HullShape[] | null;
   hullNames?: readonly string[];
+  /** TASK-194: the profile's described landing gear, or null: the standard supports are not drawn. */
+  gear?: GearDrawing | null;
   name: string;
   route?: readonly RoutePoint[];
   /** False while the Run tab is hidden: the view stops drawing and the session runs on. */
@@ -308,7 +312,7 @@ export function FlightView({ runtime, layout, hull = null, hullNames = [], name,
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
             <planeGeometry args={[2000, 2000]} /><meshStandardMaterial color="#14232d" roughness={1} />
           </mesh>
-          <Aircraft layout={layout} hull={hull} hullNames={hullNames} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} />
+          <Aircraft layout={layout} hull={hull} hullNames={hullNames} gear={gear} runtime={runtime} aircraft={aircraft} spinners={spinners} rings={rings} ringTurning={ringTurning} />
           <Trail runtime={runtime} aircraft={aircraft} trail={trail} />
           <Route route={route} size={Math.max(0.15, span * 0.08)} />
           <Cameras mode={mode} layout={layout} runtime={runtime} aircraft={aircraft} />
