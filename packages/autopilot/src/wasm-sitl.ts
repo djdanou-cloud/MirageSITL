@@ -249,6 +249,8 @@ export class WasmSitlSession {
     if(!this.port)throw Error('Firmware HAL was not bound');
   }
   writeSerial(bytes:Uint8Array):void {this.firmware.write(bytes);}
+  /** The firmware's DataFlash logs, copied; see `BrowserWasmSession.readLogs`. */
+  readLogs():ReturnType<BrowserWasmSession['readLogs']> {return this.firmware.readLogs();}
   checkpoint():ReturnType<BrowserWasmSession['checkpoint']> {return this.firmware.checkpoint();}
   async dispose():Promise<{terminatedPthreads:number}> {
     this.port?.stop();return this.firmware.dispose(false);

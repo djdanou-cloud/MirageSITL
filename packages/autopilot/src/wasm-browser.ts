@@ -4,7 +4,7 @@ import {admitArdupilotWasm,parseArdupilotWasmManifest} from './wasm-loader.ts';
 import {EepromStore,storageIdentity,type EepromCheckpoint} from './wasm-storage.ts';
 import {MavParser} from '../../mavlink/src/codec.ts';
 
-interface FirmwareFs {readFile(path:string):Uint8Array;writeFile(path:string,bytes:Uint8Array):void}
+interface FirmwareFs {readFile(path:string):Uint8Array;writeFile(path:string,bytes:Uint8Array):void;readdir?:(path:string)=>unknown}
 interface FirmwareModule {
   HEAPU8:Uint8Array;FS:FirmwareFs;
   _ardupilot_malloc(n:number):number;_ardupilot_free(p:number):void;
@@ -99,6 +99,19 @@ export class BrowserWasmSession {
     });
   }
   get memoryBytes():number{return this.module?.HEAPU8.buffer.byteLength??0;}
+  /**
+   * TASK-105: copies of the firmware's DataFlash logs (`/logs/NNNNNNNN.BIN`, ArduPilot SITL's log directory) in name order, for
+   * cold diagnostics. A log still being written is copied as far as it has been flushed; none before the logger made its folder.
+   */
+  readLogs():{name:string;bytes:Uint8Array}[] {
+    const m=this.module;if(!m||this.stopped)throw Error('Firmware not running');
+    const fs=m.FS;if(typeof fs.readdir!=='function')return [];
+    let listed:unknown;
+    try{listed=fs.readdir('/logs');}catch{return [];}
+    if(!Array.isArray(listed))return [];
+    const names=listed.filter((name):name is string=>typeof name==='string'&&/^\d{8}\.BIN$/.test(name)).sort();
+    return names.map(name=>({name,bytes:fs.readFile('/logs/'+name).slice()}));
+  }
   async start(baseUrl:string,unknownManifest:unknown,profile:string):Promise<void> {
     if(this.module||this.stopped)throw Error('Firmware session already initialized/disposed');
     if(typeof DedicatedWorkerGlobalScope==='undefined'||!(globalThis instanceof DedicatedWorkerGlobalScope))throw Error('Firmware runtime must execute in a dedicated Worker');

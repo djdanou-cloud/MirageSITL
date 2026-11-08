@@ -52,7 +52,8 @@ bool decode(MirageHal::Sensor &s) {
     for (unsigned i=0; i<16; i++) {
         const double rpm = read_double(224+i*2);
         const bool masked = ((s.rpm_mask >> i) & 1) != 0;
-        if (!std::isfinite(rpm) || rpm < 0 || rpm > 1e6 || (!masked && rpm != 0)) return false;
+        // rpm > 0 rather than rpm != 0: equal for rpm >= 0, and ArduPilot builds with -Werror=float-equal.
+        if (!std::isfinite(rpm) || rpm < 0 || rpm > 1e6 || (!masked && rpm > 0)) return false;
         s.rpm[i] = rpm;
     }
     return true;

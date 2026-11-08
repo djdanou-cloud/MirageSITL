@@ -34,61 +34,61 @@
     "kvRpmPerV": 1950,
     "duty": 0.6
   },
-  "referenceSamples": 136,
+  "referenceSamples": 135,
   "bins": [
     {
       "fromM": 0.1,
       "toM": 0.15,
-      "measured": 1.0545078695011825,
-      "standardError": 0.007798576197177215,
-      "samples": 38,
+      "measured": 1.0427994883444422,
+      "standardError": 0.006253219385801835,
+      "samples": 33,
       "model": [
         {
           "offsetM": 0.01,
           "blades": 2,
-          "rotorHeightM": 0.13415800107037382,
-          "ratio": 1.0114749478237006
+          "rotorHeightM": 0.13575356981323428,
+          "ratio": 1.0112670878095154
         },
         {
           "offsetM": 0.01,
           "blades": 3,
-          "rotorHeightM": 0.13415800107037382,
-          "ratio": 1.0127947003867395
+          "rotorHeightM": 0.13575356981323428,
+          "ratio": 1.012539511349011
         },
         {
           "offsetM": 0.03,
           "blades": 2,
-          "rotorHeightM": 0.1541580010703738,
-          "ratio": 1.0092095218873678
+          "rotorHeightM": 0.15575356981323427,
+          "ratio": 1.0090566220820152
         },
         {
           "offsetM": 0.03,
           "blades": 3,
-          "rotorHeightM": 0.1541580010703738,
-          "ratio": 1.0100805408490996
+          "rotorHeightM": 0.15575356981323427,
+          "ratio": 1.0098969446050032
         },
         {
           "offsetM": 0.05,
           "blades": 2,
-          "rotorHeightM": 0.17415800107037382,
-          "ratio": 1.0075227419760606
+          "rotorHeightM": 0.17575356981323426,
+          "ratio": 1.0074073119962217
         },
         {
           "offsetM": 0.05,
           "blades": 3,
-          "rotorHeightM": 0.17415800107037382,
-          "ratio": 1.0080649388296026
+          "rotorHeightM": 0.17575356981323426,
+          "ratio": 1.007947549943766
         }
       ],
-      "modelLow": 1.0075227419760606,
-      "modelHigh": 1.0127947003867395,
-      "reproduced": false
+      "modelLow": 1.0074073119962217,
+      "modelHigh": 1.012539511349011,
+      "reproduced": true
     },
     {
       "fromM": 0.15,
       "toM": 0.2,
-      "measured": 1.0004425941164439,
-      "standardError": 0.008398291932878797,
+      "measured": 1.000699775447562,
+      "standardError": 0.008400450861248212,
       "samples": 17,
       "model": [
         {
@@ -135,8 +135,8 @@
     {
       "fromM": 0.2,
       "toM": 0.3,
-      "measured": 0.9814428582618555,
-      "standardError": 0.002440944963046645,
+      "measured": 0.981695155377341,
+      "standardError": 0.00244157245079904,
       "samples": 31,
       "model": [
         {
@@ -183,8 +183,8 @@
     {
       "fromM": 0.3,
       "toM": 0.45,
-      "measured": 0.9779631645720792,
-      "standardError": 0.0020686557957801436,
+      "measured": 0.9782145671712171,
+      "standardError": 0.0020691875800667304,
       "samples": 39,
       "model": [
         {
@@ -231,8 +231,8 @@
     {
       "fromM": 0.45,
       "toM": 0.6,
-      "measured": 0.996098193262829,
-      "standardError": 0.0019901004584107294,
+      "measured": 0.9963542577894442,
+      "standardError": 0.0019906120486688455,
       "samples": 67,
       "model": [
         {
@@ -277,5 +277,5 @@
       "reproduced": true
     }
   ],
-  "status": "NOT_REPRODUCED"
+  "status": "REPRODUCED"
 }

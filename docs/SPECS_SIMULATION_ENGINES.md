@@ -1120,10 +1120,36 @@ Result (2026-11-08; `tests/ground-effect-logged.test.ts` 3 passed, report
 At about 3 radii the aircraft gains 5.5 % of thrust at equal rotor speed where the model, its own
 rotor and the Sanchez-Cuevas neighbours included, gives 0.8 to 1.3 %: four to seven times less,
 over every offset and blade count tried. What the model leaves out and this aircraft has: the
-Bee35 is a ducted cinewhoop, and ducts are not modelled; the body term of Sanchez-Cuevas et al.,
-left out above for lack of data; and the room, whose floor and walls the flight was close to. The
-log cannot tell these apart. Two higher bins pass only by the 2 points the tolerance allows for the
-unexplained dip of about −2 % between 6 and 9 radii.
+body term of Sanchez-Cuevas et al., left out above for lack of data; the Bee35's propeller guards
+(rings around the propellers, not ducts: corrected by the stakeholder on 2026-11-08, after this
+paragraph first called the Bee35 ducted), which the model does not represent; and the room, whose
+floor and walls the flight was close to. Two higher bins pass only by the 2 points the tolerance
+allows for the unexplained dip of about −2 % between 6 and 9 radii.
+
+Investigation (2026-11-08; the stakeholder did not accept the miss). Correction to the method: a
+bin dropped only its rangefinder readings that were not good (`RFND.Stat` other than 4), and the
+sensor flags readings below its 0.10 m minimum (`RNGFND1_MIN`) that way, so a bin that dipped toward
+the ground kept the mean of its remaining, higher readings. A bin now counts only when every reading
+in it is good. The lowest bin becomes 1.0428 ± 0.0063 (33 bins) and the others change by less than
+0.0004; the report reads `REPRODUCED`, but only through the tolerance's 2 points: the gap to the
+model's 1.0074 to 1.0125 is still about 3 points, and this comparison is not counted as closed.
+Ruled out as causes, each from the log: the climb rate (`CTUN.CRt`; ratio against it over the
+reference bins −0.029 per m/s, and the bins with |CRt| < 0.1 m/s give 1.066 in the lowest bin);
+horizontal speed (optical flow times height; +0.0185 per m/s over the reference bins, and the
+bins slower than 0.15 m/s keep the −2 % dip at 0.980); lean (no slope); a motor's speed dropping
+out (all four report every 10 ms without a gap). The flight was in Stabilize, height held by hand,
+and the gain in the lowest bin comes in bursts of about 0.3 s, up to 1.14, at the bottoms of small
+dips (113.9 to 114.2, 115.2 to 115.5, 116.1 to 116.5, 117.2 s) with 1.01 to 1.03 between them at
+the same reading. The term the model omits is the most likely cause: Sanchez-Cuevas et al.'s
+equation (4) (IJAE 2017, doi 10.1155/2017/1823056, read 2026-11-08) adds to the neighbours' sum
+`2 R^2 z K_b / (b^2 + 4 z^2)^(3/2)`, the lift of the fountain where the rotors' ground jets meet
+under the body, b the distance between opposite rotor axes and K_b about 2 on their 12 cm-radius,
+1.4 kg PQUAD on a thrust stand. With the Bee35's 153 mm diagonal, R 0.0445 m and K_b 2 the full
+equation gives 1.041 to 1.062 in the lowest bin over the offsets 0.05 to 0.01 m, against the
+measured 1.043; K_b 1.1 to 2.3 matches it exactly over the same offsets. The same term gives +2.6
+to +3.7 % at 4 to 5 radii and +1.6 to +2.0 % at 6 to 7, where the log has 1.000 and 0.982: with it,
+the −2 % dip between 6 and 9 radii, which neither speed nor climb rate explains, becomes a gap of
+3 to 4 points. The log cannot settle K_b without the propellers' height above the rangefinder.
 
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
@@ -7080,9 +7106,41 @@ compared with an unshaped ESC; (5) a heated motor was expected to turn slower, b
 0.2 % faster: the magnets' lower k raises the speed a duty gives more than the winding's higher R lowers it,
 so the check is only that the heat reaches the rotor.
 
-Not yet: G1 of the flight path, as above; desynchronization; a rebuilt WASM firmware and the notch-tracking check with it, which need an
-Emscripten SDK on the reference Mac, where none is installed; and thrust-stand temperature runs
+Not yet: G1 of the flight path, as above; desynchronization; and thrust-stand temperature runs
 (BLOCKED_EXTERNAL).
+
+### Notch tracking in the browser firmware (TASK-105, declared 2026-11-08)
+
+Recorded before the first run. The stakeholder approved the Emscripten SDK download on 2026-11-08; the
+pinned SDK (4.0.15, emsdk `389a68bc…`, manifest `2df8c7f8…`) and a shallow ArduPilot checkout at the
+browser track's `8ab6afd` live outside the repository, and `scripts/build-ardupilot-hal.mjs` now runs on
+macOS and Linux as well as through WSL, with the three directories given by `MIRAGE_ARDUPILOT_SOURCE`,
+`MIRAGE_EMSDK_DIR` and `MIRAGE_ARDUPILOT_VENV`. The check, `tests/browser/wasm-notch.spec.ts`, boots that
+firmware in a Worker with cold defaults `INS_HNTCH_ENABLE 1`, `INS_HNTCH_MODE 3` (ESC telemetry),
+`INS_HNTCH_REF 1`, `INS_HNTCH_FREQ 40`, `INS_HNTCH_BW 20` and `LOG_DISARMED 1`, at 800 Hz, disarmed and
+stationary, and publishes four motors' speeds through HAL mailbox version 2 in three phases of simulated
+time: 4800 rpm on every motor up to 9 s, 7200 rpm up to 12 s, then 4000, 5000, 6000 and 7000 rpm up to
+15 s. ArduPilot's SITL ESC telemetry ignores speeds before 6 s, and its average motor frequency is the
+mean speed over 60, so `FTNS.NF`, the notch frequency the firmware logs before its filter clamps it, must
+be 80, 120 and 91.667 Hz. The firmware's own DataFlash log is copied out of its file system
+(`BrowserWasmSession.readLogs`) and read by `packages/dataflash`. Limits: every `FTNS` row logged in the
+last second of a phase within 0.01 Hz of that phase's value (a single-precision frequency near 120 Hz
+rounds to about 1e-5 Hz), at least five such rows per phase (it is logged at 10 Hz), and no row from a
+phase's first 0.5 s required to match, since the ESC telemetry's average follows the new speeds within one
+update. What it does not show: the notch's attenuation of a vibration, which needs TASK-111's vibration,
+and the native SITL, whose JSON link has no speed field.
+
+Result (2026-11-08; Apple M5, macOS 27.2, Playwright's Chromium 141; firmware 3,735,881 bytes, SHA-256
+`1f8e3a6a…`): `tests/browser/wasm-notch.spec.ts` 1 passed, report `test-results/browser/task-105-notch.json`
+(ignored). Each phase's last second holds 10 `FTNS` rows, 80.00001, 120.00001 and 91.66667 Hz, the worst
+7.6e-6 Hz from its value, and the notch took each new value from the first row logged in the phase; before
+6 s it reads 0 Hz, ArduPilot's start-up hold. The four `tests/browser/wasm-hal.spec.ts` checks pass on the
+rebuilt firmware. Two findings on the way: the first build stopped at `browser_hal.cpp`, whose speed check
+compared a double with `!=`, an error under ArduPilot's `-Werror=float-equal` that the native probe's flags
+did not raise (now `rpm > 0`, equal for the non-negative speeds it admits); and the first run stepped the
+firmware faster than real time, so its log writer fell behind and the file ended at 7.86 s of 17 s, on a
+4096-byte boundary; the check now paces the firmware to real time, as the application runs it, with the
+limits unchanged.
 
 ## Propulsion calibration: TASK-145
 

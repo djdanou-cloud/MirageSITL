@@ -8,13 +8,16 @@ import {readMemoryImport} from '../packages/autopilot/src/wasm-loader.ts';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const cache=resolve(root,'.cache/task-046');mkdirSync(cache,{recursive:true});
 const sha=b=>createHash('sha256').update(b).digest('hex');
-const wslPath=p=>'/mnt/'+p[0].toLowerCase()+p.slice(2).replaceAll('\\','/');
+// On Windows the build runs in WSL; on macOS and Linux (TASK-105, 2026-11-08) the same bash script runs on the host,
+// where the three directories below must be given, since the WSL defaults name another machine.
+const windows=process.platform==='win32';
+const hostPath=p=>windows?'/mnt/'+p[0].toLowerCase()+p.slice(2).replaceAll('\\','/'):p;
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
-if(process.platform!=='win32')throw Error('This local builder currently requires the configured Windows/WSL toolchain');
-const source=process.env.MIRAGE_ARDUPILOT_SOURCE??'/home/dadu/mirage/ardupilot';
-const sdk=process.env.MIRAGE_EMSDK_DIR??'/home/dadu/mirage/emsdk';
-const venv=process.env.MIRAGE_ARDUPILOT_VENV??'/home/dadu/mirage/venv';
-const run=s=>execFileSync('wsl.exe',['-e','bash','-lc',s],{encoding:'utf8',timeout:300000});
+const directory=(name,wslDefault)=>{const value=process.env[name]??(windows?wslDefault:undefined);if(!value)throw Error(name+' is required on this host');return value;};
+const source=directory('MIRAGE_ARDUPILOT_SOURCE','/home/dadu/mirage/ardupilot');
+const sdk=directory('MIRAGE_EMSDK_DIR','/home/dadu/mirage/emsdk');
+const venv=directory('MIRAGE_ARDUPILOT_VENV','/home/dadu/mirage/venv');
+const run=s=>windows?execFileSync('wsl.exe',['-e','bash','-lc',s],{encoding:'utf8',timeout:300000}):execFileSync('/bin/bash',['-c',s],{encoding:'utf8',timeout:300000});
 const lock=JSON.parse(readFileSync(resolve(root,'native/ardupilot/source.lock.json')));
 const toolchain=JSON.parse(readFileSync(resolve(root,'native/ardupilot/toolchain.lock.json')));
 if(run(`git -C ${quote(sdk)} rev-parse HEAD`).trim()!==toolchain.emsdk.commit ||
@@ -33,14 +36,14 @@ const resume=process.argv.includes('--resume');
 const copy=resume?readFileSync(resolve(cache,'build-directory.txt'),'utf8').trim():run('mktemp -d /tmp/mirage-task-046-XXXXXX').trim();
 if(!/^\/tmp\/mirage-task-046-[A-Za-z0-9]+$/.test(copy))throw Error('Unexpected build directory');
 writeFileSync(resolve(cache,'build-directory.txt'),copy+'\n');
-const repo=wslPath(root),out=wslPath(cache);
+const repo=hostPath(root),out=hostPath(cache);
 const prepare=resume?`test "$(git -C ${quote(copy)} rev-parse HEAD)" = ${quote(lock.commit)}
 cd ${quote(copy)}
 git apply --reverse --check ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}
 git apply --reverse ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}
 test -z "$(git diff --name-only)"
 git apply ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}`:
-  `cp -a --reflink=auto ${quote(source+'/.')} ${quote(copy+'/')}\ncd ${quote(copy)}\ngit apply --check ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}\ngit apply ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}`;
+  `${windows?'cp -a --reflink=auto':'cp -a'} ${quote(source+'/.')} ${quote(copy+'/')}\ncd ${quote(copy)}\ngit apply --check ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}\ngit apply ${quote(repo+'/native/ardupilot/hal/sitl-state.patch')}`;
 const script=`set -eu
 ${prepare}
 cd ${quote(copy)}
@@ -55,7 +58,7 @@ cp build/wasm/bin/arducopter.js ${quote(out+'/arducopter.js')}
 cp build/wasm/bin/arducopter.wasm ${quote(out+'/arducopter.wasm')}
 `;
 writeFileSync(resolve(cache,'build.sh'),script);
-const result=spawnSync('wsl.exe',['-e','bash',wslPath(resolve(cache,'build.sh'))],{encoding:'utf8',timeout:900000,maxBuffer:16*1024*1024});
+const result=spawnSync(windows?'wsl.exe':'/bin/bash',[...(windows?['-e','bash']:[]),hostPath(resolve(cache,'build.sh'))],{encoding:'utf8',timeout:1800000,maxBuffer:16*1024*1024});
 writeFileSync(resolve(cache,'build.log'),(result.stdout??'')+(result.stderr??''));
 if(result.status!==0)throw Error('HAL firmware build failed; see .cache/task-046/build.log');
 for(const f of sourceInputs)if(sha(readFileSync(resolve(root,f.file)))!==f.sha256)throw Error('HAL sources changed during build; rebuild before admission');

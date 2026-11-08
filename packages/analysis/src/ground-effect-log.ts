@@ -32,7 +32,7 @@ export interface GroundEffectMeasurement {
   readonly referenceSamples: number;
   readonly bins: readonly GroundEffectBin[];
 }
-interface Bin { rpm2: number; rows: number; motors: Set<number>; acc: number; accRows: number; range: number; rangeRows: number; tilt: number; tiltRows: number }
+interface Bin { rpm2: number; rows: number; motors: Set<number>; acc: number; accRows: number; range: number; rangeRows: number; rangeInvalid: number; tilt: number; tiltRows: number }
 
 const groupOf = (log: DataFlashLog, name: string): DataFlashGroup | null => log.groups.find(item => item.name === name && item.count > 0) ?? null;
 const columnOf = (group: DataFlashGroup, name: string): DataFlashColumn | null => group.columns.find(item => item.name === name) ?? null;
@@ -50,7 +50,7 @@ function binsOf(log: DataFlashLog): { k: number; readingM: number; cosTilt: numb
   const at = (timeUs: number): Bin => {
     const key = Math.floor(timeUs * 1e-6 / m.binS);
     let bin = bins.get(key);
-    if (!bin) { bin = { rpm2: 0, rows: 0, motors: new Set(), acc: 0, accRows: 0, range: 0, rangeRows: 0, tilt: 0, tiltRows: 0 }; bins.set(key, bin); }
+    if (!bin) { bin = { rpm2: 0, rows: 0, motors: new Set(), acc: 0, accRows: 0, range: 0, rangeRows: 0, rangeInvalid: 0, tilt: 0, tiltRows: 0 }; bins.set(key, bin); }
     return bin;
   };
   const esc = need(groupOf(log, "ESC"), "ESC", "TimeUS", "RPM"), instance = columnOf(esc.group, "Instance") ?? columnOf(esc.group, "I");
@@ -66,8 +66,10 @@ function binsOf(log: DataFlashLog): { k: number; readingM: number; cosTilt: numb
   }
   const rf = need(groupOf(log, "RFND"), "RFND", "TimeUS", "Dist", "Stat"), rfInstance = columnOf(rf.group, "Instance");
   for (let row = 0; row < rf.group.count; row++) {
-    if ((rfInstance && valueAt(rfInstance, row) !== 0) || valueAt(rf.columns.Stat, row) !== 4) continue;
-    const bin = at(Number(rf.columns.TimeUS.values[row])); bin.range += valueAt(rf.columns.Dist, row); bin.rangeRows++;
+    if (rfInstance && valueAt(rfInstance, row) !== 0) continue;
+    const bin = at(Number(rf.columns.TimeUS.values[row]));
+    if (valueAt(rf.columns.Stat, row) !== 4) { bin.rangeInvalid++; continue; }
+    bin.range += valueAt(rf.columns.Dist, row); bin.rangeRows++;
   }
   const att = need(groupOf(log, "ATT"), "ATT", "TimeUS", "Roll", "Pitch");
   for (let row = 0; row < att.group.count; row++) {
@@ -76,7 +78,9 @@ function binsOf(log: DataFlashLog): { k: number; readingM: number; cosTilt: numb
   }
   const out: { k: number; readingM: number; cosTilt: number }[] = [];
   for (const [, bin] of [...bins].sort((a, b) => a[0] - b[0])) {
-    if (bin.motors.size < m.motors || bin.rows < m.minEscRows || bin.accRows === 0 || bin.rangeRows === 0 || bin.tiltRows === 0) continue;
+    // A bin counts only when every rangefinder reading in it is good (correction of 2026-11-08): dropping a bin's readings below
+    // the sensor's minimum alone left its mean at the remaining, higher readings, so a dip toward the ground counted as higher.
+    if (bin.motors.size < m.motors || bin.rows < m.minEscRows || bin.accRows === 0 || bin.rangeRows === 0 || bin.rangeInvalid > 0 || bin.tiltRows === 0) continue;
     const rpm2 = bin.rpm2 / bin.rows;
     if (rpm2 < m.minMeanRpm ** 2) continue;
     out.push({ k: -(bin.acc / bin.accRows) / rpm2, readingM: bin.range / bin.rangeRows, cosTilt: bin.tilt / bin.tiltRows });
