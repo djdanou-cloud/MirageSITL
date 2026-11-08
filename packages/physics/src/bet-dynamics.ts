@@ -114,6 +114,11 @@ export interface BetFlightConfiguration {
   /** TASK-100: the ground the rotor ground effect sees; without it a flat plane at the session's ground. */
   groundPlanes?: GroundPlaneSource;
   /**
+   * TASK-100: K_b of the fountain's lift on the body (Sanchez-Cuevas et al. 2017, equation (4)), switched with the ground effect;
+   * 2 when absent (their thrust-stand quadrotor), 0 for none.
+   */
+  groundBodyLiftCoefficient?: number;
+  /**
    * TASK-146 component ratings checked every step with the ESC drive; null or
    * absent checks none, and the modeled clamps are reported either way.
    */
@@ -160,6 +165,18 @@ export function groundEffectCorrectionsInto(n:number,radius:Float64Array,heightM
       term+=0.5*radius[j]!*radius[j]!*zM/(s*Math.sqrt(s));
     }
     out[i]=term;
+  }
+}
+/**
+ * TASK-100: each rotor's fountain share `K_b · 2 R^2 z / (b^2 + 4 z^2)^(3/2)` at its axial height, held at half a radius below that,
+ * `opposite2` the squared distance b to the opposite rotor axis; an infinite height (no ground) gives 0. Arrays only, as above.
+ */
+export function bodyLiftFractionsInto(n:number,radius:Float64Array,heightM:Float64Array,opposite2:Float64Array,coefficient:number,out:Float64Array):void {
+  for(let i=0;i<n;i++){
+    const R=radius[i]!,h=heightM[i]!;
+    if(!(h<Infinity)){out[i]=0;continue;}
+    const zM=h<0.5*R?0.5*R:h,s=opposite2[i]!+4*zM*zM;
+    out[i]=coefficient*2*R*R*zM/(s*Math.sqrt(s));
   }
 }
 /** What `BetFlightDynamics` needs of its contact; `GroundContact` provides it. */
@@ -306,6 +323,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   private readonly groundZ:Float64Array;
   private readonly groundCos:Float64Array;
   private readonly groundQuery=new Float64Array(3);
+  /** TASK-100: the fountain's coefficient, each rotor's squared opposite-axis distance, unit ground normal in body axes, thrust and share. */
+  private readonly groundBodyLift:number;
+  private readonly groundOpposite2:Float64Array;
+  private readonly groundNormalBody:Float64Array;
+  private readonly groundThrust:Float64Array;
+  private readonly groundLiftShare:Float64Array;
+  /** TASK-100: the fountain's force on the body of the last step, N in body axes (zero without it). */
+  readonly bodyLiftBodyN=new Float64Array(3);
+  /** TASK-100: each rotor's height along its axis above the ground of the last ground query, m (infinite without ground). Read only. */
+  get groundHeightsM():Float64Array {return this.groundZ;}
   private readonly groundPlane=new Float64Array(4);
   /** TASK-116: the pressure errors at the barometer's static port, worked out after each step while one of them is on. */
   readonly barometer=new BarometerErrors();
@@ -457,6 +484,16 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.levelGround=configuration.groundPlanes??{planeInto:(_position,out)=>{out[0]=0;out[1]=0;out[2]=-1;out[3]=-flatDown;}};
     this.groundPlanes=this.levelGround;
     this.groundLateral=new Float64Array(n*n);this.groundRadius=new Float64Array(n);this.groundZ=new Float64Array(n);this.groundCos=new Float64Array(n);this.groundCorrection=new Float64Array(n);
+    const bodyLift=configuration.groundBodyLiftCoefficient??2;
+    if(!Number.isFinite(bodyLift)||bodyLift<0)throw Error('Invalid ground body lift coefficient');
+    this.groundBodyLift=bodyLift;
+    this.groundOpposite2=new Float64Array(n);this.groundNormalBody=new Float64Array(n*3);this.groundThrust=new Float64Array(n);this.groundLiftShare=new Float64Array(n);
+    {
+      // b = 2 rho, rho the hub's lateral distance from the hubs' centroid: the paper's diagonal on a symmetric quadrotor.
+      let cx=0,cy=0;
+      for(const rotor of model.rotors){cx+=rotor.hubPositionBodyM[0]!/n;cy+=rotor.hubPositionBodyM[1]!/n;}
+      model.rotors.forEach((rotor,i)=>{const dx=rotor.hubPositionBodyM[0]!-cx,dy=rotor.hubPositionBodyM[1]!-cy;this.groundOpposite2[i]=4*(dx*dx+dy*dy);});
+    }
     model.rotors.forEach((rotor,i)=>{
       this.groundRadius[i]=rotor.radiusM;
       this.barometerDiscAreaM2+=Math.PI*rotor.radiusM*rotor.radiusM;this.barometerMeanRadiusM+=rotor.radiusM/n;
@@ -509,6 +546,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   /** Back to neutral fields, so that off is what a run without the effect does. */
   private clearGroundEffect():void {
     this.groundIntensity=0;
+    this.bodyLiftBodyN.fill(0);this.groundLiftShare.fill(0);
     const esc=this.escEngine;
     if(!esc)return;
     for(let i=0;i<this.rotorCount;i++){
@@ -554,6 +592,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       const a=i*9,b=i*this.inputStride;
       const hx=r[a]!*fx+r[a+3]!*fy+r[a+6]!*fz,hy=r[a+1]!*fx+r[a+4]!*fy+r[a+7]!*fz,hz=r[a+2]!*fx+r[a+5]!*fy+r[a+8]!*fz;
       input[b+18]=hx;input[b+19]=hy;input[b+20]=hz;
+      const nb=this.groundNormalBody;nb[c]=fx;nb[c+1]=fy;nb[c+2]=fz;
       cosines[i]=hz;
       heights[i]=hz>0?height/hz:Infinity;
       esc.inputFlags[i]=1;
@@ -569,6 +608,12 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       // Below the envelope the record says so, whatever the intensity.
       const reported=zi<0.5*R?Math.min(effective,zi):effective;
       input[b+21]=Number.isFinite(reported)?reported*cosines[i]!:1e9;
+    }
+    // The fountain's share of each rotor's thrust, scaled by the intensity; a rotor without ground under it has an infinite height.
+    if(this.groundBodyLift>0){
+      const share=this.groundLiftShare;
+      bodyLiftFractionsInto(n,radius,heights,this.groundOpposite2,this.groundBodyLift,share);
+      for(let i=0;i<n;i++)share[i]=esc.inputFlags[i]===0?0:intensity*share[i]!;
     }
   }
   reset():void {
@@ -816,6 +861,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         if(!faults.wrenchInto(i,this.faultWrench,this.faultScaled)){this.fault='BET motor fault table mismatch';return;}
         for(let j=0;j<6;j++)this.hub[b+j]=this.faultScaled[j]!;
       }
+      // TASK-100: the fountain lifts the body with a share of what this rotor gave, before TASK-101's download.
+      this.groundThrust[i]=this.hub[b+2]!;
       // TASK-101: the next step's wake is what this rotor gave; its download leaves the wrench at its hub.
       if(wake){const thrust=this.hub[b+2]!;wake.thrustN[i]=thrust;this.hub[b+2]=thrust-wake.downloadN[i]!;}
     }
@@ -830,6 +877,17 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.busLimited=this.bus.output[6]!!==0||esc!.busLimited;
     }
     if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
+    if(this.groundIntensity>0&&this.groundBodyLift>0){
+      // TASK-100: the fountain's lift along each rotor's ground normal, at the body's origin: no moment.
+      const share=this.groundLiftShare,thrust=this.groundThrust,nb=this.groundNormalBody,lift=this.bodyLiftBodyN,w=this.wrench;
+      let lx=0,ly=0,lz=0;
+      for(let i=0;i<this.rotorCount;i++){
+        const t=thrust[i]!,f=(t>0?t:0)*share[i]!,c=i*3;
+        lx+=f*nb[c]!;ly+=f*nb[c+1]!;lz+=f*nb[c+2]!;
+      }
+      lift[0]=lx;lift[1]=ly;lift[2]=lz;
+      w[0]=w[0]!+lx;w[1]=w[1]!+ly;w[2]=w[2]!+lz;
+    }
     if(this.dragArea){
       // TASK-096: F = ½·ρ·|u|·(C_D·A)·u with u = (fx, fy, fz), the air's velocity past the body at the step's midpoint: −v_a.
       const c=this.dragArea,k=0.5*this.atmosphere[0]!*Math.sqrt(fx*fx+fy*fy+fz*fz),r=this.dragCenter,d=this.dragWrenchBody,w=this.wrench;

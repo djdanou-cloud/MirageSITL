@@ -5,7 +5,8 @@ import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/comp
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars } from '@mirage/aircraft/profile';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
-import { BetFlightDynamics, groundEffectCorrectionsInto, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
+import { BetFlightDynamics, bodyLiftFractionsInto, groundEffectCorrectionsInto, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
+import { BOUND_V2, BOUND_V2_OUTPUT_SLOTS } from '@mirage/wasm-bet/rotor-v2';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
 import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
 import {
@@ -123,6 +124,98 @@ describe('the rotor ground effect in a flight', () => {
     const raised = held({ ...quad, groundPlanes: { planeInto: (_position, out) => { out[0] = 0; out[1] = 0; out[2] = -1; out[3] = 4.8; } } }, 5, 1, 1);
     const lowered = held(quad, 0.2, 1, 1);
     expect(Math.abs(raised.thrustN - lowered.thrustN) / lowered.thrustN).toBeLessThan(1e-3);
+  });
+});
+
+// TASK-100, the fountain's lift on the body (SPECS_SIMULATION_ENGINES "Body lift, the fountain"), declared before the implementation.
+describe("the fountain's lift on the body", () => {
+  it('follows equation (4) of Sanchez-Cuevas et al. within 1e-12, held at half a radius, and nothing without ground', () => {
+    const R = 0.0445, b = 0.153, kb = 2, n = 3;
+    const radius = new Float64Array(n).fill(R), opposite = new Float64Array(n).fill(b * b), out = new Float64Array(n);
+    bodyLiftFractionsInto(n, radius, new Float64Array([0.15, 0.3, Infinity]), opposite, kb, out);
+    const expression = (z: number) => kb * 2 * R * R * z / Math.sqrt((b * b + 4 * z * z) ** 3);
+    expect(Math.abs(out[0]! - expression(0.15)) / expression(0.15)).toBeLessThanOrEqual(1e-12);
+    expect(Math.abs(out[1]! - expression(0.3)) / expression(0.3)).toBeLessThanOrEqual(1e-12);
+    expect(out[2]).toBe(0);
+    bodyLiftFractionsInto(1, radius, new Float64Array([0.01]), opposite, kb, out);
+    expect(out[0]).toBe(expression(0.5 * R));
+  });
+
+  /** The held vehicle (as `held`), returning its thrust from its acceleration, the last step's lift and rotor thrusts, and its rates. */
+  function heldLift(configuration: BetFlightConfiguration, heightM: number) {
+    const scale = 1e5, manifest = validateModelManifest(configuration.manifest);
+    const heavy: BetFlightConfiguration = { ...configuration, gravityMps2: 0, syntheticGroundDownM: undefined,
+      manifest: { ...structuredClone(configuration.manifest as object), massKg: manifest.massKg * scale, inertiaBodyKgM2: manifest.inertiaBodyKgM2.map(v => v * scale) },
+      initialBody: { ...configuration.initialBody, positionNedM: new Float64Array([0, 0, -heightM]) } };
+    const d = new BetFlightDynamics(module, heavy, HZ);
+    try {
+      d.setGroundEffect?.(1);
+      const frame = newActuatorFrameV2(), pilot = newInput(), rates: number[] = [];
+      frame.motorMapId = heavy.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed;
+      frame.actuatorCount = Math.max(...manifest.rotors.map(rotor => rotor.motorChannel)) + 1;
+      for (const rotor of manifest.rotors) frame.normalizedActuators[rotor.motorChannel] = 0.6;
+      const ticks = 2 * HZ;
+      let start = 0, lastDown = 0, lastQ = [1, 0, 0, 0];
+      for (let tick = 0; tick < ticks; tick++) {
+        // The pose the last step's ground query starts from: the vehicle drifts up a little under its thrust, and the fixture's CG
+        // offset pitches it by a fraction of a milliradian.
+        lastDown = d.state.down; lastQ = [d.state.qw, d.state.qx, d.state.qy, d.state.qz];
+        d.useActuators(frame); d.nowMs = (tick + 1) * 1000 / HZ; d.stepNow(pilot);
+        if (d.fault !== '') throw new Error(d.fault);
+        if (tick === ticks - HZ / 2 - 1) start = d.state.vd;
+        rates.push(d.state.p, d.state.q, d.state.r);
+      }
+      const out = d.escEngine?.output;
+      if (!out) throw new Error('The ESC drive is required');
+      const thrusts = manifest.rotors.map((_, i) => out[i * BOUND_V2_OUTPUT_SLOTS + BOUND_V2.output.forceHub / 8 + 2]!);
+      return { thrustN: (start - d.state.vd) / 0.5 * manifest.massKg * scale, upN: -d.state.ad * manifest.massKg * scale, lift: Array.from(d.bodyLiftBodyN), thrusts, rates, manifest, heightM: -lastDown, q: lastQ, heights: Array.from(d.groundHeightsM) };
+    } finally { d.dispose(); }
+  }
+
+  it('lifts the held quad by its share of the rotors\' thrust, along the ground normal, with no moment', () => {
+    const z = 0.2, on = heldLift(quad, z), none = heldLift({ ...quad, groundBodyLiftCoefficient: 0 }, z);
+    expect(none.lift).toEqual([0, 0, 0]);
+    // The share by the expression from the manifest's own geometry, at the heights the step queried; those heights are checked
+    // against the body's pose before the last step (each hub turned into NED by its attitude) within a micrometre.
+    const [qw, qx, qy, qz] = on.q as [number, number, number, number];
+    const downOf = (v: readonly number[]) => 2 * (qx * qz - qw * qy) * v[0]! + 2 * (qy * qz + qw * qx) * v[1]! + (1 - 2 * (qx * qx + qy * qy)) * v[2]!;
+    const rotors = on.manifest.rotors, cx = rotors.reduce((a, r) => a + r.hubPositionBodyM[0]! / rotors.length, 0), cy = rotors.reduce((a, r) => a + r.hubPositionBodyM[1]! / rotors.length, 0);
+    let expected = 0;
+    rotors.forEach((rotor, i) => {
+      // Level within a milliradian, so the hub axis stays vertical to 1e-7 and the axial height is the vertical one to that order.
+      expect(Math.abs(on.heights[i]! - (on.heightM - downOf(rotor.hubPositionBodyM)))).toBeLessThanOrEqual(1e-6);
+      const R = rotor.radiusM, h = Math.max(on.heights[i]!, 0.5 * R), b2 = 4 * ((rotor.hubPositionBodyM[0]! - cx) ** 2 + (rotor.hubPositionBodyM[1]! - cy) ** 2);
+      expected += Math.max(on.thrusts[i]!, 0) * 2 * 2 * R * R * h / Math.sqrt((b2 + 4 * h * h) ** 3);
+    });
+    // Its size exactly; its direction along the ground normal, up, in body axes (minus NED down turned into the body, the row
+    // `downOf` uses) within a microradian: the step takes the normal at its midpoint attitude, the published state is its start,
+    // and the quad pitches at about 1.6e-4 rad/s (corrected after the first run from an exact component check).
+    const up = [-2 * (qx * qz - qw * qy), -2 * (qy * qz + qw * qx), -(1 - 2 * (qx * qx + qy * qy))];
+    const size = Math.hypot(on.lift[0]!, on.lift[1]!, on.lift[2]!);
+    expect(Math.abs(size - expected) / expected).toBeLessThanOrEqual(1e-12);
+    const cross = Math.hypot(on.lift[1]! * up[2]! - on.lift[2]! * up[1]!, on.lift[2]! * up[0]! - on.lift[0]! * up[2]!, on.lift[0]! * up[1]! - on.lift[1]! * up[0]!);
+    expect(Math.asin(cross / size)).toBeLessThanOrEqual(1e-6);
+    // The body's motion carries it: the last step's upward force with the term against the run without it, less the rotors' own
+    // difference (the lifted quad sits about 22 µm higher, so they give 0.24 mN less), is the lift within 1e-4 of it. Corrected after
+    // the first run from the thrust averaged over the last 0.5 s, whose lift was larger than the last step's as the quad rose.
+    const rotorDiff = on.thrusts.reduce((x, t) => x + t, 0) - none.thrusts.reduce((x, t) => x + t, 0);
+    expect(Math.abs((on.upN - none.upN) - rotorDiff - expected) / expected).toBeLessThanOrEqual(1e-4);
+    for (let k = 0; k < on.rates.length; k++) expect(Math.abs(on.rates[k]! - none.rates[k]!)).toBeLessThanOrEqual(1e-9);
+  });
+
+  it('falls off as the inverse square of the height, and is bitwise absent when off, at intensity 0 or with K_b 0', () => {
+    // Corrected after the first run: the declared "no more than 1e-5 of thrust above 20 radii" ignored that the term falls only as
+    // K_b R^2 / (4 z^2) far from the ground, 1.25e-3 at 20 radii with K_b 2; the far field is checked against that asymptote instead,
+    // within 5 % for the frame's own b at 20 radii.
+    const R = validateModelManifest(quad.manifest).rotors[0]!.radiusM;
+    for (const radii of [20, 80]) {
+      const high = heldLift(quad, radii * R), share = -high.lift[2]! / high.thrusts.reduce((a, t) => a + t, 0), asymptote = 2 * R * R / (4 * (radii * R) ** 2);
+      expect(Math.abs(share / asymptote - 1)).toBeLessThanOrEqual(0.05);
+    }
+    const absent = held(quad, 0.3, null, 1);
+    expect(held({ ...quad, groundBodyLiftCoefficient: 0 }, 0.3, null, 1).trace).toEqual(absent.trace);
+    expect(held(quad, 0.3, 0, 1).trace).toEqual(absent.trace);
+    expect(() => new BetFlightDynamics(module, { ...quad, groundBodyLiftCoefficient: -1 }, HZ)).toThrow('Invalid ground body lift coefficient');
   });
 });
 

@@ -1070,8 +1070,49 @@ session's ground unless its configuration gives another (`CollisionChunks.planeI
 the neighbours (Sanchez-Cuevas et al. 2017): per other rotor at lateral distance D,
 `(R_j^2/2) z / (D^2 + 4 z^2)^(3/2)`, passing the height that gives the sum. A rotor nearer
 than half a radius, a coaxial partner among them, is not a neighbour: TASK-101 owns that
-pair. Their body term needs data a profile does not have and is left out. Control Protocol
+pair. Their body term was left out at first for lack of data; it is added below. Control Protocol
 v3's `rotor.ground-effect` switches it, and only the ESC drive's interface has its fields.
+
+Body lift, the fountain (TASK-100, the stakeholder's decision of 2026-11-08; design recorded before
+the implementation). Near the ground the rotors' wakes spread along it, meet under the airframe and
+turn up, a fountain that lifts the body. Sanchez-Cuevas et al. 2017 (IJAE, doi 10.1155/2017/1823056,
+equation (4)) add `2 R^2 z K_b / (b^2 + 4 z^2)^(3/2)` to the quadrotor's denominator, b the distance
+between opposite rotor axes and K_b an empirical coefficient, about 2 on their 12 cm-radius, 1.4 kg
+PQUAD on a thrust stand. That equation is a ratio of the whole vehicle's thrust measured on a stand,
+rotors and body together, and the term carries no rotor inflow: here it is a force on the airframe,
+not a change of any rotor's inflow, so the rotors keep the closed form above. Per rotor i with ground
+under it, `B_i = K_b · 2 R_i^2 z_i / (b_i^2 + 4 z_i^2)^(3/2)`, with z_i the rotor's height along its
+axis held at 0.5 R_i below that, as the closed form is, and `b_i = 2 ρ_i`, ρ_i the lateral distance of
+its hub from the centroid of all hubs in body axes, which is the paper's diagonal on a symmetric quad
+and its extrapolation on other frames. The force is `F = intensity · Σ_i max(T_i, 0) · B_i · n_i`,
+T_i the rotor's thrust of the step (before TASK-101's download) and n_i the unit ground normal under
+it in body axes, applied at the body's origin, so it adds no moment. Against the paper's
+`1/(1 − S − B)` this is the first-order share of B on top of a rotor already raised by S: the
+difference, about S·B, is under 0.1 % of thrust at 3 radii on the Bee35. `K_b` is the configuration's
+`groundBodyLiftCoefficient`, default 2 (the paper's), 0 for none. Intensity 0 and off stay bitwise a
+run without the effect. Checks, limits set now: `bodyLiftFractionsInto` against the expression within
+1e-12; through a real `BetFlightDynamics` held at heights as the tests above hold it, the step's
+`bodyLiftBodyN` equal to `Σ max(T_i, 0) B_i n_i` from the same step's rotor outputs within 1e-12
+relative; the vehicle's thrust measured from its acceleration, with the term against the same run with
+`groundBodyLiftCoefficient` 0, larger by that lift within 1e-4 relative of the lift (the lift itself
+makes the held vehicle climb a few µm/s faster, which moves each rotor's thrust by a few parts in 10^7,
+up to about 2e-5 of the lift; corrected before the first run from a declared 1e-6 that this ignored);
+the roll, pitch and yaw rates as without the term within 1e-9 rad/s, since it adds no moment; above 20
+radii no more than 1e-5 of thrust; and off, intensity 0 and `groundBodyLiftCoefficient` 0 each bitwise
+as before the term; G1 with the term active. The logged comparison below is then run again, its method and tolerance unchanged.
+
+Result (2026-11-08; `tests/rotor-ground-effect.test.ts` 9 passed). Three declared checks were corrected
+after their first runs, each a fault of the check, not of the term: (1) the far field falls as
+`K_b R^2 / (4 z^2)`, 1.25e-3 of thrust at 20 radii with K_b 2, so "no more than 1e-5 above 20 radii"
+could not hold; it is checked against that asymptote within 5 % at 20 and 80 radii; (2) the step takes
+the ground normal at its midpoint attitude and the published state is its start, and the fixture's CG
+offset pitches the held quad at about 1.6e-4 rad/s, so the lift's size is checked within 1e-12 and its
+direction within 1e-6 rad of the published normal, and the queried heights against the published pose
+within 1e-6 m; (3) the thrust averaged from the last 0.5 s carried the larger lift of the lower heights
+the quad rose through, so the last step's published acceleration is used, less the rotors' own
+difference (the lifted quad sits about 22 µm higher and its rotors give 0.24 mN less): it equals the lift
+within 3.5e-6 of it, inside the declared 1e-4. Rates equal within 1e-9 rad/s, and off, intensity 0 and
+K_b 0 are bitwise.
 
 Logged ground effect (TASK-100, 2026-11-08), declared before the model's prediction was computed
 and after a first look at the log's ratios. The log is the stakeholder's SpeedyBee 3.5 flight
@@ -1150,6 +1191,27 @@ measured 1.043; K_b 1.1 to 2.3 matches it exactly over the same offsets. The sam
 to +3.7 % at 4 to 5 radii and +1.6 to +2.0 % at 6 to 7, where the log has 1.000 and 0.982: with it,
 the −2 % dip between 6 and 9 radii, which neither speed nor climb rate explains, becomes a gap of
 3 to 4 points. The log cannot settle K_b without the propellers' height above the rangefinder.
+
+With the body lift (2026-11-08). The stakeholder gave the propellers' height above the rangefinder as
+under 2 cm and decided that day to add the fountain ("Body lift, the fountain" above). With the
+simulation's own ratios at 1 and 3 cm offsets, the lowest bin asks for K_b 1.7 to 2.0, the paper's value
+on another quadrotor. Run again with the term at its default K_b 2, method and tolerance unchanged
+(`tests/ground-effect-logged.test.ts` 3 passed, report `test-results/validation/logged-ground-effect.json`,
+status `NOT_REPRODUCED`):
+
+| Reading, m | Measured | Model (o 0.01 to 0.05 m, 2 or 3 blades) | Reproduced |
+| --- | --- | --- | --- |
+| 0.10–0.15 | 1.0428 ± 0.0063 (33) | 1.0287–1.0429 | yes |
+| 0.15–0.20 | 1.0007 ± 0.0084 (17) | 1.0191–1.0267 | yes |
+| 0.20–0.30 | 0.9817 ± 0.0024 (31) | 1.0115–1.0150 | no |
+| 0.30–0.45 | 0.9782 ± 0.0021 (39) | 1.0064–1.0080 | no |
+| 0.45–0.60 | 0.9964 ± 0.0020 (67) | 1.0034–1.0041 | yes |
+
+At the stakeholder's offset, 1 cm, the model gives 1.0429 in the lowest bin against the measured 1.0428:
+the gap of 3 points without the term is gone. The two bins between 6 and 9 radii now miss by about 3
+points: the log's dip of −2 % there, which no speed, climb rate or lean explains, sits below a model that
+the term raises by 1.2 to 1.5 %. Whether that dip is the room, the guards or the log's own reference is
+not settled by this flight.
 
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From

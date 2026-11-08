@@ -47,41 +47,41 @@
           "offsetM": 0.01,
           "blades": 2,
           "rotorHeightM": 0.13575356981323428,
-          "ratio": 1.0112670878095154
+          "ratio": 1.0416038768951246
         },
         {
           "offsetM": 0.01,
           "blades": 3,
           "rotorHeightM": 0.13575356981323428,
-          "ratio": 1.012539511349011
+          "ratio": 1.0429105085017933
         },
         {
           "offsetM": 0.03,
           "blades": 2,
           "rotorHeightM": 0.15575356981323427,
-          "ratio": 1.0090566220820152
+          "ratio": 1.034358659538145
         },
         {
           "offsetM": 0.03,
           "blades": 3,
           "rotorHeightM": 0.15575356981323427,
-          "ratio": 1.0098969446050032
+          "ratio": 1.0352169516106478
         },
         {
           "offsetM": 0.05,
           "blades": 2,
           "rotorHeightM": 0.17575356981323426,
-          "ratio": 1.0074073119962217
+          "ratio": 1.0287127396882727
         },
         {
           "offsetM": 0.05,
           "blades": 3,
           "rotorHeightM": 0.17575356981323426,
-          "ratio": 1.007947549943766
+          "ratio": 1.0292619752295034
         }
       ],
-      "modelLow": 1.0074073119962217,
-      "modelHigh": 1.012539511349011,
+      "modelLow": 1.0287127396882727,
+      "modelHigh": 1.0429105085017933,
       "reproduced": true
     },
     {
@@ -95,41 +95,41 @@
           "offsetM": 0.01,
           "blades": 2,
           "rotorHeightM": 0.1867980066419305,
-          "ratio": 1.0066719838028693
+          "ratio": 1.0261285107624611
         },
         {
           "offsetM": 0.01,
           "blades": 3,
           "rotorHeightM": 0.1867980066419305,
-          "ratio": 1.0071989452363468
+          "ratio": 1.0266635148029908
         },
         {
           "offsetM": 0.03,
           "blades": 2,
           "rotorHeightM": 0.2067980066419305,
-          "ratio": 1.0056013200809442
+          "ratio": 1.0222298287938958
         },
         {
           "offsetM": 0.03,
           "blades": 3,
           "rotorHeightM": 0.2067980066419305,
-          "ratio": 1.006068040484446
+          "ratio": 1.022702546178189
         },
         {
           "offsetM": 0.05,
           "blades": 2,
           "rotorHeightM": 0.2267980066419305,
-          "ratio": 1.0047739887185836
+          "ratio": 1.0191127573351308
         },
         {
           "offsetM": 0.05,
           "blades": 3,
           "rotorHeightM": 0.2267980066419305,
-          "ratio": 1.0051805317024538
+          "ratio": 1.0195237071776901
         }
       ],
-      "modelLow": 1.0047739887185836,
-      "modelHigh": 1.0071989452363468,
+      "modelLow": 1.0191127573351308,
+      "modelHigh": 1.0266635148029908,
       "reproduced": true
     },
     {
@@ -143,42 +143,42 @@
           "offsetM": 0.01,
           "blades": 2,
           "rotorHeightM": 0.2644109489998093,
-          "ratio": 1.0036346516377723
+          "ratio": 1.0147244453376556
         },
         {
           "offsetM": 0.01,
           "blades": 3,
           "rotorHeightM": 0.2644109489998093,
-          "ratio": 1.003957534807233
+          "ratio": 1.0150499289475523
         },
         {
           "offsetM": 0.03,
           "blades": 2,
           "rotorHeightM": 0.28441094899980934,
-          "ratio": 1.0031840487613453
+          "ratio": 1.012957257942123
         },
         {
           "offsetM": 0.03,
           "blades": 3,
           "rotorHeightM": 0.28441094899980934,
-          "ratio": 1.0034647083345556
+          "ratio": 1.0132398446604678
         },
         {
           "offsetM": 0.05,
           "blades": 2,
           "rotorHeightM": 0.3044109489998093,
-          "ratio": 1.0028091547842983
+          "ratio": 1.0114763823751276
         },
         {
           "offsetM": 0.05,
           "blades": 3,
           "rotorHeightM": 0.3044109489998093,
-          "ratio": 1.0030561798653894
+          "ratio": 1.0117248631155866
         }
       ],
-      "modelLow": 1.0028091547842983,
-      "modelHigh": 1.003957534807233,
-      "reproduced": true
+      "modelLow": 1.0114763823751276,
+      "modelHigh": 1.0150499289475523,
+      "reproduced": false
     },
     {
       "fromM": 0.3,
@@ -191,42 +191,42 @@
           "offsetM": 0.01,
           "blades": 2,
           "rotorHeightM": 0.37512887365896186,
-          "ratio": 1.00189493077358
+          "ratio": 1.0078092215279104
         },
         {
           "offsetM": 0.01,
           "blades": 3,
           "rotorHeightM": 0.37512887365896186,
-          "ratio": 1.0020587021768412
+          "ratio": 1.0079735670119792
         },
         {
           "offsetM": 0.03,
           "blades": 2,
           "rotorHeightM": 0.3951288736589619,
-          "ratio": 1.0017129494562598
+          "ratio": 1.0070753525955267
         },
         {
           "offsetM": 0.03,
           "blades": 3,
           "rotorHeightM": 0.3951288736589619,
-          "ratio": 1.0018617247066464
+          "ratio": 1.0072245829419866
         },
         {
           "offsetM": 0.05,
           "blades": 2,
           "rotorHeightM": 0.41512887365896184,
-          "ratio": 1.001554486079228
+          "ratio": 1.0064348838002364
         },
         {
           "offsetM": 0.05,
           "blades": 3,
           "rotorHeightM": 0.41512887365896184,
-          "ratio": 1.0016907380891404
+          "ratio": 1.0065715013586347
         }
       ],
-      "modelLow": 1.001554486079228,
-      "modelHigh": 1.0020587021768412,
-      "reproduced": true
+      "modelLow": 1.0064348838002364,
+      "modelHigh": 1.0079735670119792,
+      "reproduced": false
     },
     {
       "fromM": 0.45,
@@ -239,43 +239,43 @@
           "offsetM": 0.01,
           "blades": 2,
           "rotorHeightM": 0.5291505599329716,
-          "ratio": 1.0009579093574414
+          "ratio": 1.0039824871209029
         },
         {
           "offsetM": 0.01,
           "blades": 3,
           "rotorHeightM": 0.5291505599329716,
-          "ratio": 1.0010385300480042
+          "ratio": 1.004063199881426
         },
         {
           "offsetM": 0.03,
           "blades": 2,
           "rotorHeightM": 0.5491505599329716,
-          "ratio": 1.0008875842780607
+          "ratio": 1.003692007821356
         },
         {
           "offsetM": 0.03,
           "blades": 3,
           "rotorHeightM": 0.5491505599329716,
-          "ratio": 1.0009619594339105
+          "ratio": 1.0037664550712064
         },
         {
           "offsetM": 0.05,
           "blades": 2,
           "rotorHeightM": 0.5691505599329716,
-          "ratio": 1.000824198626013
+          "ratio": 1.003429783802436
         },
         {
           "offsetM": 0.05,
           "blades": 3,
           "rotorHeightM": 0.5691505599329716,
-          "ratio": 1.000892929849859
+          "ratio": 1.0034985709792947
         }
       ],
-      "modelLow": 1.000824198626013,
-      "modelHigh": 1.0010385300480042,
+      "modelLow": 1.003429783802436,
+      "modelHigh": 1.004063199881426,
       "reproduced": true
     }
   ],
-  "status": "REPRODUCED"
+  "status": "NOT_REPRODUCED"
 }
