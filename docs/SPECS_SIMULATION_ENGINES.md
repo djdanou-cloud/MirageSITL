@@ -7192,7 +7192,7 @@ be 80, 120 and 91.667 Hz. The firmware's own DataFlash log is copied out of its 
 last second of a phase within 0.01 Hz of that phase's value (a single-precision frequency near 120 Hz
 rounds to about 1e-5 Hz), at least five such rows per phase (it is logged at 10 Hz), and no row from a
 phase's first 0.5 s required to match, since the ESC telemetry's average follows the new speeds within one
-update. What it does not show: the notch's attenuation of a vibration, which needs TASK-111's vibration,
+update. What it does not show: the notch's attenuation of a vibration, which needs TASK-114's vibration,
 and the native SITL, whose JSON link has no speed field.
 
 Result (2026-11-08; Apple M5, macOS 27.2, Playwright's Chromium 141; firmware 3,735,881 bytes, SHA-256
