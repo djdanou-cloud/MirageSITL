@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "datasetId": "ardupilot-forum-flight-logs-2026-11-07",
-  "description": "Real ArduCopter DataFlash logs and one manufacturer bench table that their owners posted publicly on the ArduPilot forum while asking for help. The files are not in the repository: they are too large for git, and nobody granted a license. They are kept outside every checkout and passed to the analysis scripts with --input PATH --sha256 HEX; this file holds each file's SHA-256, size and source. Adopted for TASK-116, TASK-117, TASK-145 and TASK-184 by the stakeholder's decision of 2026-11-07 ('Use the parts that hold up'), after a review that found the logs genuine and several claims of the list that pointed to them wrong (no rangefinder, radar altimeter or ESC telemetry in any log). A second list of 2026-11-07 (ardupilot-forum-datasets-v2.md) added the 5-inch quad of topic 145352 with a rangefinder and motor speeds, the 18 kg quad of topic 96944 and two more logs of topic 140620; its other claims checked wrong are noted with their aircraft.",
+  "description": "Real ArduCopter DataFlash logs and one manufacturer bench table that their owners posted publicly on the ArduPilot forum while asking for help, the stakeholder's own logs, and one GPL-3.0 template log of the ArduPilot Methodic Configurator. The files are not in the repository: they are too large for git, and nobody granted a license. They are kept outside every checkout and passed to the analysis scripts with --input PATH --sha256 HEX; this file holds each file's SHA-256, size and source. Adopted for TASK-116, TASK-117, TASK-145 and TASK-184 by the stakeholder's decision of 2026-11-07 ('Use the parts that hold up'), after a review that found the logs genuine and several claims of the list that pointed to them wrong (no rangefinder, radar altimeter or ESC telemetry in any log). A second list of 2026-11-07 (ardupilot-forum-datasets-v2.md) added the 5-inch quad of topic 145352 with a rangefinder and motor speeds, the 18 kg quad of topic 96944 and two more logs of topic 140620; its other claims checked wrong are noted with their aircraft.",
   "license": "none stated; posted publicly to discuss.ardupilot.org for analysis by others",
   "licenseStatus": "no-explicit-license",
   "localCopy": "Kept outside the repository (on the reference Mac in ~/Projects/MirageSITL-data/forum-logs/, with a SHA256SUMS file); never committed.",
@@ -198,6 +198,52 @@
         "ESC model"
       ],
       "notes": "19 logs given by the stakeholder on 2026-11-08 (ArduCopter V4.6.3, 3fc7011a), flown indoors or without GNSS and without a rangefinder: AltHold, Stabilize, AutoTune (logs 12, 13, 15, 22, 24, 26) and four SystemId flights (33 and 34 recovery roll, 35 recovery pitch, 36 recovery yaw). log_0 never spun its motors. Bidirectional-DShot speeds hold a few NaN rows and isolated readings of 540,800 rpm, which an analysis must reject."
+    },
+    {
+      "id": "amc-tarot-x4",
+      "topic": null,
+      "owner": "ArduPilot Methodic Configurator vehicle template (Amilcar Lucas)",
+      "stated": {
+        "frame": {
+          "value": "Tarot X4, 960 mm motor to motor, 25 mm tube arms, quad X (FRAME_CLASS 1, FRAME_TYPE 1)",
+          "locator": "vehicle_components.json of the template, and the log"
+        },
+        "massKg": {
+          "value": "5 to 7 (take-off weight range, no exact value)",
+          "locator": "vehicle_components.json"
+        },
+        "motor": {
+          "value": "T-Motor MN7005 (7206) 230KV, 28 poles, integrated arm sets",
+          "locator": "vehicle_components.json"
+        },
+        "esc": {
+          "value": "T-Motor STAR 50 iESC, PWM, no telemetry",
+          "locator": "vehicle_components.json"
+        },
+        "propeller": {
+          "value": "Mejzlik 24 x 8.1 LAF",
+          "locator": "vehicle_components.json"
+        },
+        "battery": {
+          "value": "custom 6S6P Li-ion, Samsung 50S cells, 30,000 mAh, 4.1 V per cell max",
+          "locator": "vehicle_components.json"
+        },
+        "gnss": {
+          "value": "Holybro M9N",
+          "locator": "vehicle_components.json"
+        },
+        "flightController": {
+          "value": "Holybro Pixhawk 6X, ArduCopter 4.5.5",
+          "locator": "vehicle_components.json and the log"
+        }
+      },
+      "unknown": [
+        "exact mass",
+        "inertia",
+        "propeller geometry",
+        "weather"
+      ],
+      "notes": "From github.com/ArduPilot/MethodicConfigurator at b01ea5e9 (GPL-3.0), downloaded 2026-11-08 with the stakeholder's approval; the template's 70 parameter steps are kept beside the log. The log's parameters match step 26_motor_notch_logging (INS_LOG_BAT_MASK 1). BAT.Curr reads at most 0.3 A in a hover, so current and energy are invalid."
     }
   ],
   "logs": [
@@ -247,7 +293,8 @@
     {"file": "stakeholder-pavo-log_35_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "9c78c2eac10a911ca79613d06845d92628872165fbc50bf2d5bd2f8c4841f7dd", "bytes": 54665216, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 141 s; modes Stabilize, SystemId; SystemId with SID_AXIS 5 (recovery pitch); ESC.RPM has 12 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
     {"file": "stakeholder-pavo-log_36_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "012137bb6197fdb8ea00401e0926c05dba997178aec747d0f4f1b75d2feae2c3", "bytes": 55087104, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 146 s; modes Stabilize, SystemId; SystemId with SID_AXIS 6 (recovery yaw); ESC.RPM has 16 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
     {"file": "stakeholder-pavo-log_37_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "64e0b6bbf3ffbd77d1a20bd9c7fde47b92fbc52c2a2d925cfacfe4b222a2b9e9", "bytes": 43782144, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 130 s; modes AltHold; ESC.RPM has 13 NaN rows and glitch values of 540,800 rpm; loop 400 Hz"},
-    {"file": "stakeholder-pavo-log_63_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2", "bytes": 166502400, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 362 s; modes AltHold; ESC.RPM has 47 NaN rows and glitch values of 540,800 rpm; loop 800 Hz"}
+    {"file": "stakeholder-pavo-log_63_UnknownDate.bin", "aircraft": "stakeholder-pavo20pro2", "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2", "bytes": 166502400, "post": null, "posted": "2026-11-08", "link": null, "binding": "given by the stakeholder with a hardware note", "firmware": "ArduCopter V4.6.3 (3fc7011a)", "notes": "armed 362 s; modes AltHold; ESC.RPM has 47 NaN rows and glitch values of 540,800 rpm; loop 800 Hz"},
+    {"file": "amc-tarot-x4-2024-08-05-18-48-54.bin", "aircraft": "amc-tarot-x4", "sha256": "a4dc00507cc8448c0ce320279e70040de3af3439dd4c3dd5363a7fa388609108", "bytes": 5197824, "post": null, "posted": "2024-08-05", "link": "https://github.com/ArduPilot/MethodicConfigurator/tree/b01ea5e9c4b970269dd8f8cd1d5fd1eff974ab80/ardupilot_methodic_configurator/vehicle_templates/ArduCopter/Tarot_X4", "binding": "the template's own log, '2024-08-05 18-48-54.bin', GPL-3.0", "firmware": "ArduCopter V4.5.5 (142aece2)", "notes": "starts after arming (no ARM record); modes AltHold, Loiter; rangefinder 0.45 to 4.4 m; GNSS 3-D fix throughout, up to 29 satellites; IMU batch sampler (ISBD) before and after the filters; no ESC telemetry; loop 400 Hz"}
   ],
   "benchTables": [
     {

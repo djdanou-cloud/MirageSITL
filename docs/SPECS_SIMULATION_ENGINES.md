@@ -6698,6 +6698,12 @@ against the synthetic sky's 6 to 8 and 0.87 to 1.35 and the receivers' 15 to 32 
 GPS-only sky closes part of the satellite gap (now about three times, not four to five) and none of the
 HDOP gap; the rest is the other constellations.
 
+A receiver of known model joined on 2026-11-08: the ArduPilot Methodic Configurator's Tarot X4 template
+log (GPL-3.0; `amc-tarot-x4` in the inventory, Holybro M9N, 709 epochs over 141.6 s) reports a median of
+27 satellites, HDOP 0.54 and HAcc 0.31 m, against the model's 10 satellites, HDOP 0.87 and σ·HDOP 1.3 m
+at the same place and time, 118 weeks before the almanac. The 21 logs the stakeholder gave that day have no
+GNSS and are listed with that reason.
+
 ## Electromechanical drive (TASK-092)
 
 The production drive replaces the ideal torque-source ESC with an ESC, a
@@ -7157,6 +7163,16 @@ so the check is only that the heat reaches the rotor.
 
 Not yet: G1 of the flight path, as above; desynchronization; and thrust-stand temperature runs
 (BLOCKED_EXTERNAL).
+
+Desynchronization evidence (2026-11-08). The one public case found, discuss.ardupilot.org topic 136849
+(X500 V2 class quads on AM32 ESCs, crashing in AutoTune), has no logs left: its three Proton Drive shares
+answer that the files were deleted or made unavailable. What remains is the developer's screenshot in post
+8, called "classic desync" there: within about 2 s of AutoTune starting, two motors are commanded to full
+output (1950 µs) and two to about 1100 µs while the vehicle rolls, then ArduPilot's vibration failsafe and
+crash check; the ESCs' `RawRPM` jumps to impossible values (571,428 rpm), the same artefact as the
+isolated 540,800 rpm readings in the stakeholder's Pavo logs. The thread's resolution was electrical: the
+slim ESCs needed far larger capacitors. A picture of one crash fixes no rate or condition, so a
+desynchronization model still has no data to be compared with.
 
 ### Notch tracking in the browser firmware (TASK-105, declared 2026-11-08)
 

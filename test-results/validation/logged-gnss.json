@@ -3,7 +3,7 @@
   "kind": "logged-gnss",
   "status": "REPORTED",
   "reasons": [],
-  "inventorySha256": "f07a0cd9c614dc02b1e8c6f1142c046bb4bc2824d1f0f745f9a0768eeddc2616",
+  "inventorySha256": "76d35659c2979c2e886911ab253ef20baa426c06ac8570166e7dde00a29be25c",
   "model": {
     "constellation": "GPS almanac of week 2444 (data/gnss/yuma-2444.alm, SHA-256 bfccba398921419d328093fecf7ca7f280e018187d0938b8037f752526bd8263)",
     "maskDeg": 10,
@@ -1241,6 +1241,73 @@
       "aircraft": "stakeholder-pavo20pro2",
       "receiver": "not stated",
       "missing": "The log has no GPS messages"
+    },
+    {
+      "file": "amc-tarot-x4-2024-08-05-18-48-54.bin",
+      "sha256": "a4dc00507cc8448c0ce320279e70040de3af3439dd4c3dd5363a7fa388609108",
+      "aircraft": "amc-tarot-x4",
+      "receiver": "Holybro M9N",
+      "epochs": 709,
+      "durationS": 141.6,
+      "rateHz": 5,
+      "status": {
+        "4": 709
+      },
+      "satellites": {
+        "p5": 25,
+        "p50": 27,
+        "p95": 29,
+        "samples": 709
+      },
+      "hdop": {
+        "p5": 0.5,
+        "p50": 0.54,
+        "p95": 0.6,
+        "samples": 709
+      },
+      "horizontalAccuracyM": {
+        "p5": 0.29,
+        "p50": 0.31,
+        "p95": 0.33,
+        "samples": 709
+      },
+      "verticalAccuracyM": {
+        "p5": 0.45,
+        "p50": 0.51,
+        "p95": 0.58,
+        "samples": 709
+      },
+      "speedAccuracyMps": {
+        "p5": 0.09,
+        "p50": 0.12,
+        "p95": 0.16,
+        "samples": 709
+      },
+      "model": {
+        "visible": {
+          "p5": 10,
+          "p50": 10,
+          "p95": 10,
+          "samples": 15
+        },
+        "hdop": {
+          "p5": 0.87,
+          "p50": 0.87,
+          "p95": 0.87,
+          "samples": 15
+        },
+        "accuracyM": {
+          "p5": 1.3,
+          "p50": 1.3,
+          "p95": 1.3,
+          "samples": 15
+        },
+        "solutions": 15,
+        "weeksFromAlmanac": [
+          -118,
+          -118
+        ]
+      }
     }
   ]
 }
