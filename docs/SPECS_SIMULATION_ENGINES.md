@@ -1256,6 +1256,41 @@ speed at every command up to the full 13.05 V, and above about 5.4 V this 28 mm 
 alternation of about 3e-6 of its speed at 800 Hz, whatever the ESC's update period; a held hover at
 zero climb replaces it.
 
+Why the model hovers faster (2026-11-08). The stakeholder asked for the cause, since no datasheet of
+the GP2219-3 exists. Measured over the 18 armed flights with the two scripts in `scripts/pavo/` (run
+with `node --experimental-transform-types --no-warnings SCRIPT LOG...`):
+
+* The speed reading. The logs convert the ESC's electrical speed with SERVO_BLH_POLES 14; a motor with
+  12 magnets would make every logged rpm 12/14 of the truth, a ratio of 1.167 close to the 1.17
+  observed. Retailers list the GTS V3 1303 8000KV as 12N14P, 14 magnets, which the parameter matches.
+  `scripts/pavo/rpm-voltage-balance.mjs` compares each logged rpm with KV (V_m − I_p R), V_m the
+  commanded duty times the battery voltage and I_p the phase current from the battery power per motor
+  through a lossless ESC (KV 8000 and R 0.145 Ω from the listing; the avionics current 0.4 or 0.8 A
+  assumed): over 209,424 samples the logged rpm is a median 1.21 to 1.24 times that bound (p10 1.12,
+  p90 1.35). That does not pin the speed to 20 %: the ESC's real duty or the motor's real KV differ
+  from the nominal ones. It does rule out the pole error, which would put the logged rpm below the
+  bound, at most about 0.9 times it. The logged speeds stand.
+* The propeller in flight. `scripts/pavo/propeller-from-flight.mjs` takes every BAT sample (about
+  10 Hz) with all three EKF velocity components below 1.5 m/s and the baro height above 1.5 m: the
+  thrust is 0.169 kg times the body specific force −AccZ of IMU 0, the speeds are the four ESC rpms,
+  the density p/(R·298 K) from the baro pressure, and the shaft power per motor E (I − I₀) with
+  E = rpm/KV and I from the battery power per motor P = (E + I R) I (no-load current 0.3 A assumed).
+  Over 15,316 samples, at a median 22,513 rpm and 1.177 kg/m³: CT = T/(ρn²D⁴) 0.255 (0.248 to 0.255
+  across 20,000 to 26,000 rpm), and CP = 2πQ/(ρn²D⁵) 0.24 to 0.26 for an avionics current of 0.8 to
+  0.4 A. The CT rests on the mass and the logged rpm; the CP also on the motor constants.
+* The model's rotor, bound as the flight binds it, at 22,500 rpm in that air: CT 0.182 and CP 0.145,
+  both well below the aircraft's. With the chord, constant along the blade, scaled by k: k 1.25 gives
+  CT 0.222 and CP 0.181, k 1.5 gives CT 0.262 and CP 0.217, k 1.75 gives CT 0.301 and CP 0.254. The
+  measured CT lies at k ≈ 1.46, a chord of 0.265 R (7.4 mm), where the model's CP is about 0.21, 12 to
+  19 % below the measured range.
+
+So one geometric change accounts for both coefficients at once: the assumed chord, 0.1812 R from the
+median of the UIUC two-blade propellers, is too narrow for this three-blade whoop propeller. The open
+rings cannot be the main cause: a duct-like ring raises thrust at equal power, not power with it. Not
+established: the propeller's real chord and twist, which a ruler across one blade would give (the
+model predicts about 7.4 mm at a constant chord). The card keeps its assumed chord until the
+stakeholder decides; the Pavo's TASK-099 descent and TASK-090 SystemId results were computed with it.
+
 Logged descent (TASK-099, 2026-11-08), declared before the model's prediction was computed and
 after a first look at the logs. The logs are the Pavo's 18 armed flights of
 `data/flight-logs/inventory.json` (`stakeholder-pavo-log_N_UnknownDate.bin`, N 12 to 63; log 0 never
@@ -4894,9 +4929,10 @@ section `mn7005-kv230-p24x72`:
   D = 0.6096 m. The model description holds the BET module's SHA-256, the vehicle manifest's SHA-256,
   the SHA-256 of the bound rotor definition's JSON, the air, the derived geometry's assumptions and
   flags, and the SHA-256 of every input file.
-* The TASK-145 static solve binds the rotor without dynamic inflow (`profileRotorDefinition` passes
-  none), while flight binds it with; the exploratory run computed both. The capture takes flight's
-  binding, and its description says so.
+* Until 2026-11-08 the TASK-145 static solve bound the rotor without dynamic inflow
+  (`profileRotorDefinition` passed none), while flight binds it with; the exploratory run computed both.
+  Since then `profileRotorDefinition` returns the flight's own binding (`flightRotorDefinition`), so the
+  capture and TASK-145 solve the same rotor; the description says so.
 
 UIUC DA4002 and DA4022 static tests, `bench-uiuc-da4002-da4022-static-capture.json`:
 
@@ -4936,11 +4972,13 @@ errors but not those within model validity.
 
 Result (2026-11-08, on the M5 with Node 24.22.1 and rustc 1.97.0; `node scripts/bench-capture.mjs` exit 0, twice
 with identical bytes). The captures were written as declared, and `node scripts/check-fidelity.mjs --input
-CAPTURE --sha256 HEX` reports each REPORTED, exit 0, with no limit and no verdict:
+CAPTURE --sha256 HEX` reports each REPORTED, exit 0, with no limit and no verdict. Written again on 2026-11-08
+after the TASK-145 binding was aligned with the flight's: the T-Motor predictions are byte-identical, and only
+its description's rotor-definition SHA-256 and binding note changed, so its two hashes below are new:
 
 | Capture | SHA-256 | Model description | Sections | Rows compared | Measured rows flagged | Predictions with model flags | Largest CT error | Largest CP error | Within model validity: rows, CT, CP |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| T-Motor MN7005 KV230 + P24*7.2 | `8bd8e644…737e817e` | `4b02e651…d03b223e` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
+| T-Motor MN7005 KV230 + P24*7.2 | `3ea50392…22c46a2f` | `34b615e7…7b07c262` | 1 | 11 | 0 | 1 (low-confidence-polar at 2596 rpm) | 0.652 | 1.001 | 10, 0.652, 1.001 |
 | UIUC DA4002/DA4022 static | `df6e4490…34ae67d9` | `1dbab472…81009e3e` | 14 | 242 | 0 | 180 (outside-polar) | 0.270 | 0.385 | 62, 0.247, 0.271 |
 
 The uncalibrated T-Motor rotor predicts too much: CT 47 to 65 % and CP 71 to 100 % above the datasheet,
@@ -8081,7 +8119,13 @@ is a bound rotor of its own on the drive-mode-0 shaft with no motor torque and a
 shaft inertia of 10⁶ kg·m², so it holds its speed to 10⁻⁶ while its inflow
 (lag 5 ms) settles over 400 steps at 800 Hz; thrust is the axial hub force,
 torque the magnitude of the aerodynamic shaft torque. A speed that does not
-settle to 10⁻⁹ or does not hold throws.
+settle to 10⁻⁹ or does not hold throws. The rotor solved is the one the flight
+binds: `profileRotorDefinition` returns `flightRotorDefinition` of
+`bet-dynamics.ts`, which the flight model's constructor also uses (dynamic
+inflow, the vortex ring seed, kernel options and a rotor table included). A rotor
+flown from a table (TASK-103) is refused, since polar scales cannot reach it.
+Until 2026-11-08 the definition left out dynamic inflow and the rest (section
+"Aligned with the flight's binding" below).
 
 **The rotor fit** (`fitPropulsion`) minimizes, by Levenberg–Marquardt in
 x = (ln s_L, ln s_D) with central differences,
@@ -8141,7 +8185,7 @@ which a calibrated rotor flew outside its bench data.
 
 **The calibration record and its binding.** A fit is stored as a
 `propulsion-calibration` item of the project store
-(`@mirage/aircraft/propulsion-calibration`, payload schema 1): the combination
+(`@mirage/aircraft/propulsion-calibration`, payload schema 2; schema 1 below): the combination
 key, the measurement set's SHA-256, the motor and propeller cards, the date the
 bench measured, the polar's catalog ID and the SHA-256 of the BET module it was
 fitted with, and the fit itself (s_L, s_D, iterations, the RMS thrust and torque
@@ -8247,6 +8291,39 @@ the second test of `tests/browser/propulsion-calibration.spec.ts` (2 passed in C
 the Components tab: lift ×0.47.., drag ×1.24.., eleven residual rows, the envelope 2023 to 2835 rpm,
 version 2 saved and every motor calibrated after a reload. Measured mode works on real data; the
 data are the manufacturer's, and the user judges how far to trust them.
+
+### Aligned with the flight's binding (2026-11-08)
+
+TASK-090's bench captures found that the static solve bound the rotor without the dynamic inflow
+(Pitt-Peters, TASK-098) that every profile flight uses, so a calibration's scales were fitted to
+another rotor than the one that flies with them. By the stakeholder's decision of 2026-11-08 ("Yes
+align") the solve now takes the flight's own binding: `flightRotorDefinition` (`bet-dynamics.ts`)
+builds each rotor's bound definition for the `BetFlightDynamics` constructor and for
+`profileRotorDefinition` alike, so the two cannot drift apart again. The static solve's own inflow lag
+of 5 ms stays: it changes how fast the inflow settles, not where.
+
+The calibration record's payload schema becomes 2, which marks a fit on the flight's binding. A
+schema 1 record, fitted before, still validates, since stored versions are immutable, but
+`savePropulsionCalibration` and `bindCalibration` refuse it ("This calibration was fitted before
+2026-11-08 to the rotor without the flight's dynamic inflow; fit it again to bind it"), and the
+Components tab shows that note under a motor whose bound calibration is of schema 1 (test ID
+`calibration-stale-N`). A profile version that bound one before keeps its scales until it is fitted
+again.
+
+Checks, declared before the run. `tests/propulsion-calibration.test.ts`: the definition the fit takes
+has the flight's dynamic inflow, vortex ring seed and kernel options; the fit's residual rows equal an
+independent static solve of that rotor on the fitted polar within 10⁻⁹ relative and differ by more than
+10⁻⁶ from the same solve on the old binding; new records are schema 2, and a schema 1 record reads, is
+refused on saving and on binding, and schema 3 is refused; a rotor flown from a table is refused.
+Result: 6 passed. `tests/browser/propulsion-calibration.spec.ts` (2 passed in Chromium) also binds a
+schema 1 copy of the T-Motor calibration to a new profile version and finds the note.
+
+The T-Motor fit on the flight's binding (`tests/tmotor-bench-fit.test.ts`, 2 passed): lift ×0.504,
+drag ×0.846 in 7 iterations (×0.474 and ×1.249 before); RMS thrust residual 0.688 N and torque
+0.022 N·m; thrust residuals from −7.5 % at 2023 rpm to +3.7 % at 2835 rpm, as before; the motor fit
+unchanged (R 0.132 Ω, I₀ 0.889 A, RMS 1.45 W), since it reads the bench, not the rotor. The drag scale
+moved most: with the dynamic inflow's tip and hub losses the rotor already needs more torque for its
+thrust, so less is added through the drag coefficient.
 
 ## Profile-driven dynamics (TASK-144)
 

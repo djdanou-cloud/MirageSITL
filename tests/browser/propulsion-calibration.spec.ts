@@ -173,7 +173,7 @@ test("T-Motor's datasheet on a laboratory supply is fitted in the Components tab
   await one.getByRole("button", { name: "Fit to the bench data" }).click();
   const result = one.getByTestId("calibration-result-1");
   await expect(result).toBeVisible({ timeout: 120_000 });
-  await expect(result).toContainText(/Lift ×0\.47\d\d, drag ×1\.24\d\d in \d+ iterations; RMS thrust residual \d+\.\d{4} N, torque \d+\.\d{5} N·m\./);
+  await expect(result).toContainText(/Lift ×0\.50\d\d, drag ×0\.84\d\d in \d+ iterations; RMS thrust residual \d+\.\d{4} N, torque \d+\.\d{5} N·m\./);
   await expect(result).toContainText("Motor at KV 230: R ");
   await expect(result.getByRole("region", { name: "Residuals of motor 1" }).locator("tbody tr")).toHaveCount(11);
   await expect(result).toContainText("Envelope: 2023 to 2835 rpm at ");
@@ -181,5 +181,29 @@ test("T-Motor's datasheet on a laboratory supply is fitted in the Components tab
   await result.getByRole("button", { name: "Save and bind as a new profile version" }).click();
   await expect(panel.getByTestId("calculation-status")).toHaveText("Saved the calibration and version 2 of Forum quad, which flies every motor of this combination calibrated.");
   await page.reload();
-  for (const id of [1, 2, 3, 4]) await expect(motors.getByTestId(`calibration-${id}`)).toContainText(/Calibrated \(lift ×0\.47\d\d, drag ×1\.24\d\d\) from the set measured on 2026-07-28/);
+  for (const id of [1, 2, 3, 4]) await expect(motors.getByTestId(`calibration-${id}`)).toContainText(/Calibrated \(lift ×0\.50\d\d, drag ×0\.84\d\d\) from the set measured on 2026-07-28/);
+  await expect(motors.getByTestId("calibration-stale-1")).toHaveCount(0);
+  // A profile version bound to a schema 1 calibration (fitted before 2026-11-08 without the flight's dynamic inflow) asks for a new fit.
+  await page.evaluate(async ({ urls }) => {
+    const { ProjectStore } = await import(urls.store) as Store;
+    const { profileDraft, propulsionCalibrationsOf, validateAircraftProfile, withPropulsionCalibrations } = await import(urls.profile) as Profiles;
+    const store = await ProjectStore.openIndexedDb();
+    try {
+      const project = (await store.listProjects()).find(item => item.record.name === "Forum quad");
+      if (!project) throw new Error("No Forum quad project");
+      const [calibration] = await store.listItems(project.record.id, "propulsion-calibration");
+      const [profileItem] = await store.listItems(project.record.id, "aircraft-profile");
+      if (!calibration || !profileItem) throw new Error("No calibration or profile");
+      const payload = { ...(calibration.record.payload as Record<string, unknown>), schemaVersion: 1 };
+      const old = await store.createItem(project.record.id, "propulsion-calibration", { name: "Fitted before 2026-11-08", payload,
+        dependencies: calibration.record.dependencies.map(dependency => dependency.sha256) });
+      const profile = validateAircraftProfile(profileItem.record.payload);
+      const next = withPropulsionCalibrations(profile, propulsionCalibrationsOf(profile).map(entry => ({ ...entry, record: old.sha256 })));
+      await store.saveVersion(profileItem.record.id, profileItem.sha256, profileDraft(profileItem.record.name, next));
+    } finally {
+      store.close();
+    }
+  }, { urls });
+  await page.reload();
+  await expect(motors.getByTestId("calibration-stale-1")).toContainText("fitted before 2026-11-08 to the rotor without the flight's dynamic inflow");
 });

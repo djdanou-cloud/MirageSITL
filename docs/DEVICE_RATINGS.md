@@ -85,6 +85,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | External 1920 x 1080 60 Hz (DISPLAY5) | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 69 (usable) | not run |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | geodata | 97 (excellent) | not run |
 
 Notes:
 
@@ -173,6 +174,24 @@ Notes:
   canvas was the 1710 x 985 window, not 1920 x 1080 at 1x. The second run of
   that day is excluded because the machine slept through it with the lid
   closed.
+* **MacBook Air M5 (15-inch), external DELL P2317H:** 2026-11-08, macOS 27.2, Chrome
+  156.0.8078.80, on AC with Low Power Mode off. The external screen ran at 1920 x 1080, 60 Hz
+  and 1x as a second display left of the built-in one, which stayed the main display; the
+  window went full screen there with `--chrome-args "--kiosk"`, because Chrome on macOS keeps
+  its toolbar in full screen (without it the canvas was 1920 x 992). Geodata terrain
+  (`~/mirage-geodata/israel`, terrain only). Both runs FAIL the p99 limit with no missed
+  refresh: WebGL2 median 16.665 ms, p99 18.620 ms, longest 18.695 ms; WebGPU median 16.665 ms,
+  p99 18.635 ms, longest 18.685 ms. The mean interval was 16.6667 ms, the external screen's
+  60.00 Hz, while the harness measured 59.88 Hz, the built-in screen's. The intervals outside
+  16.67 ± 1 ms lie between 14.65 and 18.70 ms, most often a short one followed by a long one:
+  the frame clock wanders by up to 2 ms without losing a refresh. In the WebGL2 run they were
+  absent for the first 90 s and grew over the 10 minutes, from about 6 to 24 a second; in the
+  WebGPU run, which started on the warm machine, they were there from the start. A 25 s run
+  before both had none. The cause is not established. Candidates: the fanless machine's heat;
+  the built-in screen staying the main display (Chrome on Windows paces every window by the
+  main display); and the macOS 27.2 update of 2026-11-03, after which the A-06 runs on the
+  built-in screen showed the same p99 near 18.665 ms. A run with the external screen as the
+  main display would separate the second.
 
 ## 4. Gate status
 
@@ -183,8 +202,11 @@ panel as the only (and therefore primary) display, PASSES on both backends
 (p99 17.310 ms on WebGL2 and WebGPU, displayed p99 17.279 and 17.281 ms,
 rating 100); its six earlier runs, with an external monitor on the NVIDIA GPU
 as the primary display, all FAIL. On Windows, gate captures therefore run on
-the primary display. The M4 and M5 have no gate-eligible run yet, so the least
-performant integrated GPU is still unknown. The Macs need 10-minute WebGL2 and
+the primary display. The M5's first gate-eligible pair (2026-11-08, an external
+DELL P2317H at 1920 x 1080, 60 Hz and 1x) FAILS on both backends with no missed
+refresh: p99 18.620 ms on WebGL2 and 18.635 ms on WebGPU, rating 97 each (section 3
+says what is known of the cause). The M4 has no gate-eligible run yet, so the least
+performant integrated GPU is still unknown. The M4 needs 10-minute WebGL2 and
 WebGPU captures on a 1920 x 1080 display at 1x scale (an external 1920 x 1080 monitor
 or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 
@@ -215,6 +237,8 @@ or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 20.140 | 81 | FAIL | 91 (excellent) |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 0 | PASS | 100 (excellent) |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.620 | 0 | FAIL | 97 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.635 | 0 | FAIL | 97 (excellent) |
 
 ## 6. Adding a run
 

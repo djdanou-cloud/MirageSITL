@@ -110,9 +110,8 @@ async function tmotor(M, wasm) {
   const derived = await M.deriveVehicleManifest(profile, resolved.components, { modelId: TMOTOR.modelId });
   const built = M.buildProfileDynamics(derived.manifest, { syntheticPad: true });
   const { configuration } = built;
-  // The rotor as BetFlightDynamics binds rotor 0 in flight: dynamic inflow and its vortex ring seed (bet-dynamics.ts).
-  const rotor = { ...M.profileRotorDefinition(configuration, 0), dynamicInflow: configuration.dynamicInflow === true,
-    ...(configuration.vortexRingSeed === undefined ? {} : { vortexRingSeed: configuration.vortexRingSeed }) };
+  // The rotor as BetFlightDynamics binds rotor 0 in flight (flightRotorDefinition in bet-dynamics.ts), which TASK-145 also fits since 2026-11-08.
+  const rotor = M.profileRotorDefinition(configuration, 0);
   if (!rotor.dynamicInflow) throw new Error("The profile build does not fly dynamic inflow");
   const isa = M.isaTroposphere(0);
   const air = { densityKgM3: TMOTOR.densityKgM3, viscosityPaS: isa.dynamicViscosityPaS, soundMps: isa.speedOfSoundMps };
@@ -134,7 +133,7 @@ async function tmotor(M, wasm) {
       definitionSha256: sha256(JSON.stringify(rotor)) },
     air, diameterM,
     geometryAssumptions: geometry.assumptions.map(note => note.id), geometryFlags: geometry.flags.map(note => note.id),
-    inflowNote: "TASK-145's static solve binds this rotor without dynamic inflow (profileRotorDefinition passes none); flight binds it with, and so does this capture.",
+    inflowNote: "Since 2026-11-08 profileRotorDefinition returns the flight's own binding (flightRotorDefinition), so this capture and TASK-145's static solve bind the rotor with dynamic inflow, as flight does; before, TASK-145 bound it without.",
     inputs: Object.fromEntries(Object.entries(files).map(([kind, path]) => [kind, { path, sha256: sha256(read(path)) }])),
   };
   const modelText = text(model);

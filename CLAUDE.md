@@ -154,7 +154,9 @@ implementation.
   flight does not carry to the same aircraft's other flights, and the task stays
   open by the stakeholder's decision of 2026-11-07. TASK-145 is
   DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
-  Components tab (laboratory sets bind whatever the battery, 2026-11-07). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry
+  Components tab (laboratory sets bind whatever the battery, 2026-11-07), and since 2026-11-08 its
+  static solve takes the flight's own rotor binding (`flightRotorDefinition`; calibration record
+  schema 2, schema 1 fits refused on binding). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry
   of a four-system sky (the GPS almanac with IGS broadcast Galileo, GLONASS and
   BeiDou records, one receiver clock per system), atmosphere, terrain and jamming
   stream into SIM_GPS1_*, and the inductive motor,
@@ -472,7 +474,7 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured data for TASK-099, TASK-100 and TASK-101;
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured coaxial data for TASK-101 (TASK-099 and TASK-100 are DONE, the stakeholder judging their comparisons on 2026-11-08);
   TASK-145 and TASK-184 are DONE on T-Motor's datasheet and a forum flight log (2026-11-07). A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
   failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
   stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
@@ -492,7 +494,7 @@ implementation.
   relax thresholds to hide them.**
 * **Browser WASM SITL, UX chain, GPU timing, and release gates:**
   Browser application session/READY integration, TASK-073 (G3 frame-time gate via `scripts/check-gpu-perf.mjs` and
-  `scripts/gpu-ratings.mjs`: by user decision of 2026-10-23 the least performant tested integrated GPU must pass a 1920×1080 canvas at 1x on WebGL2 and WebGPU at median 16.680 ms and p99 17.665 ms; every other machine, screen and GPU is rated out of 100 in `docs/DEVICE_RATINGS.md` without deciding; the Intel iGPU passed on 2026-10-24, the M4 and M5 still need gate-eligible runs; on Windows capture on the primary display, because Chrome takes its frame clock from the primary display's vertical blank), TASK-080
+  `scripts/gpu-ratings.mjs`: by user decision of 2026-10-23 the least performant tested integrated GPU must pass a 1920×1080 canvas at 1x on WebGL2 and WebGPU at median 16.680 ms and p99 17.665 ms; every other machine, screen and GPU is rated out of 100 in `docs/DEVICE_RATINGS.md` without deciding; the Intel iGPU passed on 2026-10-24, the M5's first gate-eligible pair, on an external 1920 x 1080 screen on 2026-11-08, FAILS with p99 18.620/18.635 ms and no missed refresh (cause not established), and the M4 still needs gate-eligible runs; on Windows capture on the primary display, because Chrome takes its frame clock from the primary display's vertical blank), TASK-080
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
@@ -549,18 +551,19 @@ implementation.
   that does not ask for it runs the old model bitwise. TASK-099 adds Johnson's
   descent and vortex ring model with a seeded thrust fluctuation (configuration
   version 5); its comparison with the stakeholder's Pavo descents ran on 2026-11-08
-  and is not reproduced (the logs reach only the edge of the vortex ring region),
-  shown for the stakeholder to judge (D-11). TASK-100 adds the rotor ground effect,
+  and is not reproduced (the logs reach only the edge of the vortex ring region);
+  the stakeholder judged it "Good for now" and the task is DONE. The Pavo model's faster hover
+  traces to its assumed propeller chord (SPECS_SIMULATION_ENGINES "Why the model hovers faster"). TASK-100 adds the rotor ground effect,
   off unless effect `rotor.ground-effect` asks for it, with the closed-form thrust
   ratio at equal power, the multirotor's neighbours and, since 2026-11-08, the
   fountain's lift on the body (Sanchez-Cuevas, K_b 2); its comparison with the
   stakeholder's Bee35 hover log reproduces the lowest heights and misses 6 to 9
-  radii, shown for the stakeholder to judge (D-11). TASK-101 adds the rotor
+  radii; the stakeholder accepted it, and the task is DONE. TASK-101 adds the rotor
   wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
   any other in reach, on by default, so a coaxial pair is not twice one rotor,
   and the airframe's download from the hull. Its forward-flight comparison with
   NASA's MTB2 tunnel data ran on 2026-11-08 (`tests/rotor-wake-mtb2.test.ts`,
-  `MIRAGE_MTB2_DIR`), shown for the stakeholder to judge: the level rear rotor's
+  `MIRAGE_MTB2_DIR`), judged by the stakeholder as it stands: the level rear rotor's
   large loss at 40 ft/s is reproduced, a raised one's dependence on RPM and the
   level one's loss at 20 ft/s are not; only a coaxial comparison stays
   BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode

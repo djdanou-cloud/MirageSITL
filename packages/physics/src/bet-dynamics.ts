@@ -3,7 +3,7 @@ import { AccidentMonitor, type ContactShapePart } from './accident.ts';
 import { BarometerErrors, BarometerInput, type BarometerEffectIndex } from './barometer.ts';
 import { ControlFlag, INPUT_CLOCK_TOLERANCE_MS, INPUT_TIMEOUT_MS, StateFlag, ActuatorFlagV2, newState,
   type PilotInput, type PhysicsHz, type ActuatorFrameV2 } from '@mirage/protocol';
-import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar } from '../../wasm-bet/src/rotor.ts';
+import { BetRotorEngine, ROTOR_FLAG_HOVER_SAMPLING, ROTOR_FLAG_REDUCED_PREDICTOR, type BoundPolar, type BoundRotorDefinition } from '../../wasm-bet/src/rotor.ts';
 import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTPUT_SLOTS, BetRotorEngineV2 } from '../../wasm-bet/src/rotor-v2.ts';
 import type { RotorMapTable } from '../../wasm-bet/src/rotor-map.ts';
 import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
@@ -207,6 +207,24 @@ const FLAG_INFLOW_OUTSIDE_VALIDITY = 8;
 export const VALIDITY_FLAG_DRAG_OUTSIDE_RANGE = 1 << 17;
 /** TASK-145: a calibrated rotor ran outside its bench data's RPM range, density or (near-zero) advance ratio, with their margins. */
 export const VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION = 1 << 18;
+
+/**
+ * Rotor `index` of a configuration exactly as the flight binds it: geometry, polar, inflow settings, kernel options, dynamic inflow,
+ * the vortex ring seed (configuration seed plus index) and a rotor table. The flight and every off-line static solve of the same rotor
+ * (TASK-145 calibration, TASK-090 bench captures) take it from here, so they cannot drift apart. Cold.
+ */
+export function flightRotorDefinition(configuration:BetFlightConfiguration,model:ReturnType<typeof validateModelManifest>,index:number):BoundRotorDefinition {
+  const r=model.rotors[index];
+  if(!r)throw Error(`The build has no rotor ${index}`);
+  const polar=configuration.polars.get(r.polarId),rotorMap=configuration.rotorMaps?.[index]??null;
+  if(!polar)throw Error('Missing rotor polar binding');
+  const initialOmegaRadS=configuration.initialOmegaRadS[index],inflowTauS=configuration.inflowTauS[index],inflowLimitMps=configuration.inflowLimitMps[index];
+  if(initialOmegaRadS===undefined||inflowTauS===undefined||inflowLimitMps===undefined)throw Error('Invalid BET flight configuration');
+  return {geometry:r,polar,initialOmegaRadS,inflowTauS,inflowLimitMps,minimumConfidence:configuration.minimumConfidence,
+    kernelOptions:configuration.kernelOptions??0,dynamicInflow:configuration.dynamicInflow===true,
+    ...(configuration.vortexRingSeed===undefined?{}:{vortexRingSeed:configuration.vortexRingSeed+index}),
+    ...(rotorMap?{rotorModel:'map' as const,rotorMap}:{})};
+}
 /** One calibrated rotor's envelope, margins included (SPECS_SIMULATION_ENGINES "Propulsion calibration: TASK-145"). */
 export interface CalibrationEnvelopeConfiguration {
   /** Index of the rotor in the manifest's rotor order. */
@@ -423,15 +441,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         !Number.isFinite(configuration.minimumConfidence) || configuration.minimumConfidence<0 || configuration.minimumConfidence>1)
       throw Error('Invalid BET flight configuration');
     if(configuration.rotorMaps&&configuration.rotorMaps.length!==n)throw Error('Rotor maps need one entry per rotor');
-    const definitions=model.rotors.map((r,i)=>{
-      const polar=configuration.polars.get(r.polarId),rotorMap=configuration.rotorMaps?.[i]??null;
-      if(!polar)throw Error('Missing rotor polar binding');
-      return {geometry:r,polar,initialOmegaRadS:configuration.initialOmegaRadS[i]!,
-        inflowTauS:configuration.inflowTauS[i]!,inflowLimitMps:configuration.inflowLimitMps[i]!,minimumConfidence:configuration.minimumConfidence,
-        kernelOptions:configuration.kernelOptions??0,dynamicInflow:configuration.dynamicInflow===true,
-        ...(configuration.vortexRingSeed===undefined?{}:{vortexRingSeed:configuration.vortexRingSeed+i}),
-        ...(rotorMap?{rotorModel:'map' as const,rotorMap}:{})};
-    });
+    const definitions=model.rotors.map((_,i)=>flightRotorDefinition(configuration,model,i));
     this.hz=hz;this.dt=1/hz;this.rotorCount=n;this.modelId=model.modelId;this.motorMapId=configuration.motorMapId;
     const drive=configuration.drive;
     if(drive) {

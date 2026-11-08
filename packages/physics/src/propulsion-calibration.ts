@@ -153,6 +153,8 @@ export function fitPropulsion(input: PropulsionFitInput): PropulsionFit {
   if (points.length < 3) throw new Error('A calibration needs at least three bench points');
   if (points.length > 32) throw new Error('A calibration takes at most 32 bench points');
   // A calibration belongs to its combination: the bench propeller must be the rotor's.
+  // A rotor flown from a table (TASK-103) takes no section polar, so polar scales cannot reach its loads.
+  if (input.rotor.rotorModel === 'map') throw new Error('The rotor flies from a rotor table, which the polar scales of a calibration cannot reach');
   const diameterM = 2 * input.rotor.geometry.radiusM;
   if (Math.abs(bench.diameterM - diameterM) > 1e-6 * diameterM) {
     throw new Error(`The bench propeller's diameter of ${bench.diameterM} m is not the rotor's ${diameterM} m: a calibration belongs to its own combination`);

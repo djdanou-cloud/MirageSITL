@@ -1457,6 +1457,140 @@
         }
       },
       "traceSha256": "d7e1d9154d2a8a643d1b9dcf740ed680bce9d62c1f02ecb544b773720e9993b4"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-11-08T14:43:49.138Z",
+      "machine": {
+        "label": "MacBook Air M5 (15-inch)",
+        "hostModel": "Apple M5",
+        "os": "macOS 27.2"
+      },
+      "screen": {
+        "label": "External DELL P2317H 1920 x 1080 60 Hz",
+        "refreshHz": 59.88023952095833,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "kind": "integrated"
+      },
+      "browser": "156.0.8078.80 --kiosk",
+      "powerMode": "AC",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgl2",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 18.62 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 36004,
+        "measuredS": 600.06624,
+        "p50FrameMs": 16.665000000037253,
+        "p99FrameMs": 18.619999999995343,
+        "maxFrameMs": 18.695000000065193,
+        "missedRefreshes": 0,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 480308,
+        "cpuBytes": 480308,
+        "displaySource": "unavailable",
+        "p50DisplayedMs": null,
+        "p99DisplayedMs": null
+      },
+      "chromeArgs": [
+        "--kiosk"
+      ],
+      "rating": {
+        "score": 97,
+        "band": "excellent",
+        "components": {
+          "pacing": 47.0760606446827,
+          "sustain": 20,
+          "median": 10,
+          "features": 10,
+          "memory": 9.991053566336632
+        }
+      },
+      "traceSha256": "351db4d9d64c783cfe288ff8fc4fe41e417cad89884fd96e1a8f7e717f6a29c8"
+    },
+    {
+      "schemaVersion": 1,
+      "source": "harness",
+      "recordedAt": "2026-11-08T14:55:00.797Z",
+      "machine": {
+        "label": "MacBook Air M5 (15-inch)",
+        "hostModel": "Apple M5",
+        "os": "macOS 27.2"
+      },
+      "screen": {
+        "label": "External DELL P2317H 1920 x 1080 60 Hz",
+        "refreshHz": 59.88023952095813,
+        "widthPx": 1920,
+        "heightPx": 1080,
+        "scale": 1
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+        "kind": "integrated"
+      },
+      "browser": "156.0.8078.80 --kiosk",
+      "powerMode": "AC",
+      "terrain": "geodata",
+      "view": "chase",
+      "backend": "webgpu",
+      "fps": 60,
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1,
+        "displayScale": 1
+      },
+      "status": "FAIL",
+      "reasons": [
+        "p99 18.635 ms > 17.665 ms"
+      ],
+      "metrics": {
+        "frames": 36004,
+        "measuredS": 600.06589,
+        "p50FrameMs": 16.665000000037253,
+        "p99FrameMs": 18.635000000009313,
+        "maxFrameMs": 18.68499999999767,
+        "missedRefreshes": 0,
+        "featuresHeld": true,
+        "airborne": true,
+        "gpuBytes": 469494,
+        "cpuBytes": 469494,
+        "displaySource": "unavailable",
+        "p50DisplayedMs": null,
+        "p99DisplayedMs": null
+      },
+      "chromeArgs": [
+        "--kiosk"
+      ],
+      "rating": {
+        "score": 97,
+        "band": "excellent",
+        "components": {
+          "pacing": 47.028283857786576,
+          "sustain": 20,
+          "median": 10,
+          "features": 10,
+          "memory": 9.99125499278307
+        }
+      },
+      "traceSha256": "5dea7b6dbb16be724efd5d3f82ac804085dafd7ed8300bdf93fb273612ef727c"
     }
   ]
 }

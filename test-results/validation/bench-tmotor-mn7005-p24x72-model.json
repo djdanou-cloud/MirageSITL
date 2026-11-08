@@ -17,7 +17,7 @@
   "dynamicInflow": true,
   "vortexRingSeed": 145,
   "minimumConfidence": 0.9,
-  "definitionSha256": "f4b1e23f9ac8af6077ff872773a68966cc342c0b860b777adb53d1a55f1a8a12"
+  "definitionSha256": "cf313a6e9435162a76bfc1a4207a615fcf039b8a9ca5836cdd4b679b59dc8def"
  },
  "air": {
   "densityKgM3": 1.225,
@@ -39,7 +39,7 @@
   "twist-from-pitch",
   "airfoil-unspecified"
  ],
- "inflowNote": "TASK-145's static solve binds this rotor without dynamic inflow (profileRotorDefinition passes none); flight binds it with, and so does this capture.",
+ "inflowNote": "Since 2026-11-08 profileRotorDefinition returns the flight's own binding (flightRotorDefinition), so this capture and TASK-145's static solve bind the rotor with dynamic inflow, as flight does; before, TASK-145 bound it without.",
  "inputs": {
   "benchCsv": {
    "path": "tests/fixtures/components/tmotor-mn7005-kv230-p24x72.csv",

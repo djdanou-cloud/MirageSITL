@@ -84,6 +84,9 @@ describe('propulsion calibration (TASK-145)', () => {
     expect(() => scaledPolar(rotor.polar, { lift: POLAR_SCALE_RANGE[1] * 1.01, drag: 1 })).toThrow('A polar scale must be 0.25 to 4');
     const two = benchMeasurements(0.3, CONDITIONS, { rpm: [2000, 3000], thrustN: [1, 2], torqueNm: null, voltageV: null, currentA: null });
     expect(() => fitPropulsion({ module, rotor, bench: two, kvRpmPerV: null })).toThrow('at least three bench points');
+    // A rotor flown from a table (TASK-103) has no polar for the scales to reach.
+    const bench = syntheticBench({ lift: 1, drag: 1 }, null, false);
+    expect(() => fitPropulsion({ module, rotor: { ...rotor, rotorModel: 'map' }, bench, kvRpmPerV: null })).toThrow('flies from a rotor table');
     expect(CALIBRATION_RPM_MARGIN).toBe(0.1);
   }, 120_000);
   it('refuses bench data of another propeller, and fits the repository\'s bench CSV v2 fixture on a rotor of its diameter, keeping every residual', () => {
@@ -160,5 +163,44 @@ describe('a calibration of a profile version (TASK-145)', () => {
     await expect(calibrateMotor({ module, betModuleSha256, profile: measured, components, motorId: measured.motors[0]?.id ?? 1, set: { sha256: 'e'.repeat(64), set: other } }))
       .rejects.toThrow('another combination');
     expect(() => bindCalibration(base, stored)).toThrow('is not bound by this profile version');
+
+    // 2026-11-08, stakeholder decision "Yes align": the fit solves the rotor exactly as the flight binds it. Declared before the run:
+    //  - the definition the fit takes has the flight's dynamic inflow, vortex ring seed (configuration seed + index) and kernel options;
+    //  - the fit's residual rows equal, within 1e-9 relative, an independent static solve of that rotor on the fitted polar, and differ
+    //    by more than 1e-6 from the same solve on the binding used before (no dynamic inflow), so the change is not empty;
+    //  - new records are schema 2; a schema 1 record still reads, is refused on saving and on binding, with the reason.
+    const { STATIC_BINDING_REFUSAL } = await import('../packages/aircraft/src/propulsion-calibration.ts');
+    const { profileRotorDefinition } = await import('../packages/physics/src/profile-dynamics.ts');
+    const uncalibrated = buildProfileDynamics((await deriveVehicleManifest(measured, components, { modelId: 1 })).manifest, { syntheticPad: true }).configuration;
+    const flightRotor = profileRotorDefinition(uncalibrated, 0);
+    expect(uncalibrated.dynamicInflow).toBe(true);
+    expect(flightRotor.dynamicInflow).toBe(true);
+    expect(flightRotor.vortexRingSeed).toBe(uncalibrated.vortexRingSeed);
+    expect(flightRotor.kernelOptions).toBe(uncalibrated.kernelOptions ?? 0);
+    expect(calibration.schemaVersion).toBe(2);
+    // The bench's air as the fit takes it: viscosity and sound speed from its temperature and pressure, else of the ISA sea level.
+    const { measurementSetBench } = await import('../packages/aircraft/src/measurements.ts');
+    const conditions = measurementSetBench(set).conditions;
+    const state = conditions.airTemperatureK !== null && conditions.airPressurePa !== null
+      ? { temperatureK: conditions.airTemperatureK, pressurePa: conditions.airPressurePa } : { temperatureK: 288.15, pressurePa: 101325 };
+    const atmosphere = atmosphereFromState(state);
+    const air = { densityKgM3: calibration.fit.envelope.densityKgM3, viscosityPaS: atmosphere.dynamicViscosityPaS, soundMps: atmosphere.speedOfSoundMps };
+    const rpms = calibration.fit.residuals.map(row => row.rpm);
+    const fitted = staticLoads(module, { ...flightRotor, polar: scaledPolar(flightRotor.polar, calibration.fit.scales) }, air, rpms);
+    // The binding profileRotorDefinition gave before 2026-11-08: geometry, polar and inflow settings only.
+    const old = { geometry: flightRotor.geometry, polar: scaledPolar(flightRotor.polar, calibration.fit.scales), initialOmegaRadS: flightRotor.initialOmegaRadS,
+      inflowTauS: flightRotor.inflowTauS, inflowLimitMps: flightRotor.inflowLimitMps, minimumConfidence: flightRotor.minimumConfidence };
+    const before = staticLoads(module, old, air, rpms);
+    calibration.fit.residuals.forEach((row, i) => {
+      expect(Math.abs(row.modelThrustN / (fitted.thrustN[i] ?? NaN) - 1)).toBeLessThan(1e-9);
+      expect(Math.abs(row.modelThrustN / (before.thrustN[i] ?? NaN) - 1)).toBeGreaterThan(1e-6);
+    });
+    const schema1 = validatePropulsionCalibration({ ...calibration, schemaVersion: 1 });
+    expect(schema1.schemaVersion).toBe(1);
+    expect(() => savePropulsionCalibration(store, projectId, 'Old fit', schema1)).toThrow(STATIC_BINDING_REFUSAL);
+    const storedOld = await store.createItem(projectId, 'propulsion-calibration', { name: 'Old fit', payload: schema1,
+      dependencies: [...new Set([schema1.measurementSet, schema1.motorCard, schema1.propellerCard])].sort() });
+    expect(() => bindCalibration(measured, storedOld)).toThrow(STATIC_BINDING_REFUSAL);
+    expect(() => validatePropulsionCalibration({ ...calibration, schemaVersion: 3 })).toThrow('schemaVersion must be 1 or 2');
   }, 300_000);
 });
