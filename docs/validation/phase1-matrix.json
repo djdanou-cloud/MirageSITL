@@ -613,7 +613,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/offline-workflow.json",
-        "sha256": "36b43a74b5d55adc8f20175d06823e7a03063698d9fc23a147d07635ec4bf16a"
+        "sha256": "125ac8ca34767930a61d4d1e330c8dd3f5bf5f419ca4c5c55159b77b86ec8e5b"
       }
     },
     {
