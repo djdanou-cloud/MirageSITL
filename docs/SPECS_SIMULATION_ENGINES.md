@@ -4589,6 +4589,39 @@ two flights whose pilots differ, which the report states beside them. The captur
 SITL executable's (no binary of the real board's V4.6.3 is held) and its model hash the derived Pavo
 manifest's. The SITL log is simulated, the capture names it by SHA-256, and nothing calls it real data.
 
+Result (2026-11-08; `tests/sitl-systemid-pavo.test.ts` with `MIRAGE_SYSTEMID_LOG` 33, 34, 35 and 36, each
+exit 0, about 36 s of wall time for 144 s of simulated flight at speed 4, no lockstep gap or duplicate;
+reports `test-results/validation/pavo-systemid-log33.json` to `log36.json`, each `REPORTED`). The
+validator's call in the test was corrected after the declaration's commit (`scripts/check-fidelity.mjs`
+takes no `--out`; its report is copied instead), and the flight is as declared. Every simulated sweep
+ran its 77 s, from SIDS to "SystemID Finished", as the real ones did. The pilot model held 2.5 to 3.0 m,
+not 5 m: its proportional term leaves the hover about 2 m low, and the real log 34 swept at about 10 to
+18 m by the barometer. J of the swept axis, over the points where the real flight's coherence is at least
+0.6:
+
+| Log | Axis | J | Points (excluded) | Real, 1–4 Hz | SITL, 1–4 Hz | Real, 10.2 Hz | SITL, 10.2 Hz |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 33 | roll | 188.3 | 18 (0) | 0.2 to 0.4 dB, −8 to −21° | 0.2 to 0.8 dB, −7 to −22° | 1.1 dB, −68° | 3.2 dB, −92° |
+| 34 | roll | 238.5 | 18 (0) | −0.5 to 0.2 dB, −16 to −22° | 0.1 to 0.7 dB, −7 to −22° | 1.1 dB, −63° | 3.3 dB, −91° |
+| 35 | pitch | 276.6 | 18 (0) | 0.4 to 0.6 dB, −6 to −22° | 0.2 to 1.2 dB, −7 to −23° | 1.8 dB, −81° | 3.8 dB, −124° |
+| 36 | yaw | 7.9 | 10 (8) | −0.8 to 0.8 dB, −10 to −24° | −0.2 to −0.1 dB, −7 to −22° | coherence below 0.6 above 5.1 Hz | |
+
+Up to about 4 Hz the simulated rate loop follows the real one within about 1 dB and a few degrees on
+every swept axis. Above about 5 Hz the simulated roll and pitch loops peak higher and earlier (3.2 dB at
+10 Hz in roll and 4.7 dB at 8.6 Hz in pitch, against the aircraft's 1.9 to 2.4 dB at 12 to 14 Hz) and lag
+more (at 16.8 Hz −178° against −135° and −125° in roll), so the model's closed loop has less phase margin
+than the aircraft's at the same gains; in yaw the real response is coherent only
+to 5.1 Hz. The cross-axis responses of each log (for example pitch in a roll sweep, J 1435 on log 33)
+and every time-domain row compare two flights whose pilots, heights and leans differ, and are reported
+only as such (log 34's height bias −10.5 m is the difference of the sweep heights). What the model
+assumes and could make the high-frequency difference, none established by these logs: the motor's
+resistance and the rotor inertia (a 1.0 g propeller, no motor rotor), which set how fast the speed
+follows the command; the body inertia from a sum of parts; the ESC's lag of one 400 Hz period; and the
+assumed blade geometry, with which the rotor hovers 17 % faster than the aircraft's. The harmonic notch
+left out of the SITL would add lag to the real loop, not remove it. With these four flights the
+SystemId item of the G4 criterion has its real captures, scored; the SITL logs and captures stay in
+the run's directory, named by SHA-256 in the reports, and are not committed.
+
 ## Sensor-error ownership (TASK-089)
 
 ArduPilot's SITL sensor backends read `sitl_fdm` and add their own errors on

@@ -268,7 +268,9 @@ describe.skipIf(!ready)('the Pavo\'s SystemId flight in native SITL against its 
       '--simulated-offset', String(simulated.fromS - real.fromS)], { encoding: 'utf8' });
     expect(capture.status, capture.stderr).toBe(0);
     const captureSha256 = createHash('sha256').update(readFileSync(capturePath)).digest('hex');
-    const check = spawnSync(process.execPath, ['scripts/check-fidelity.mjs', '--input', capturePath, '--sha256', captureSha256, '--out', OUT], { encoding: 'utf8' });
+    // The validator always writes test-results/validation/fidelity.json, which is ignored and untracked; a copy goes to OUT.
+    const check = spawnSync(process.execPath, ['scripts/check-fidelity.mjs', '--input', capturePath, '--sha256', captureSha256], { encoding: 'utf8' });
+    copyFileSync(join(ROOT, 'test-results/validation/fidelity.json'), join(OUT, `pavo-systemid-log${LOG_NUMBER}-fidelity.json`));
     writeFileSync(join(OUT, `pavo-systemid-log${LOG_NUMBER}-run.json`), `${JSON.stringify({ realFile: LOG_FILE, realSha256, simulatedSha256: createHash('sha256').update(simulatedBytes).digest('hex'),
       firmware: { id: firmware.id, commit: firmware.commit, binarySha256: firmware.binarySha256 }, manifestSha256: derived.sha256, hz: HZ, speedup: SPEEDUP,
       realSweep: real, simulatedSweep: simulated, parameters: logged, captureSha256, captureStdout: capture.stdout, checkStatus: check.status, checkStdout: check.stdout, ...summary }, null, 2)}\n`);
