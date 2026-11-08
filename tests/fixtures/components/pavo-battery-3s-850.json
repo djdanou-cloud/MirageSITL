@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "type": "battery",
+  "example": false,
+  "manufacturer": null,
+  "model": "3S 850 mAh pack of the Pavo20 Pro II",
+  "sources": [
+    {
+      "id": "stakeholder",
+      "kind": "specification",
+      "description": "The stakeholder's note of 2026-11-08 about the BetaFPV Pavo20 Pro II (sources/stakeholder-pavo.txt; data/flight-logs/inventory.json): a 3S 850 mAh battery; not a datasheet.",
+      "sha256": null,
+      "date": "2026-11-08"
+    },
+    {
+      "id": "log-parameters",
+      "kind": "specification",
+      "description": "The aircraft's own parameters in stakeholder-pavo-log_34_UnknownDate.bin: MOT_BAT_VOLT_MAX 13.05 V and MOT_BAT_VOLT_MIN 9.9 V over three cells (4.35 V and 3.3 V per cell); the owner's settings, not a cell datasheet. The same log's BATT_CAPACITY is 720 mAh.",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "date": "2026-11-08"
+    },
+    {
+      "id": "log-resistance",
+      "kind": "measured",
+      "description": "ArduPilot's own in-flight estimate of the pack resistance in stakeholder-pavo-log_34_UnknownDate.bin: the median of BAT.Res over the log, 0.0771 ohm (0.0721 ohm at its end); an estimate from voltage and current, not a bench measurement.",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "date": "2026-11-08"
+    }
+  ],
+  "values": {
+    "cellsSeries": 3,
+    "capacityAh": 0.85,
+    "internalResistanceOhm": 0.0771,
+    "cellFullV": 4.35,
+    "cellEmptyV": 3.3,
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "provenance": {
+    "cellsSeries": "stakeholder",
+    "capacityAh": "stakeholder",
+    "internalResistanceOhm": "log-resistance",
+    "cellFullV": "log-parameters",
+    "cellEmptyV": "log-parameters",
+    "maxDischargeCurrentA": null,
+    "massKg": null
+  },
+  "applicability": "Three cells and 0.85 Ah as the stakeholder states them (the logs set BATT_CAPACITY 720 mAh); cell voltages from the owner's MOT_BAT_VOLT_* settings, which suit a high-voltage pack; chemistry not known."
+}

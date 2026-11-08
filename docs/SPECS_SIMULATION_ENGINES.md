@@ -1213,6 +1213,141 @@ points: the log's dip of −2 % there, which no speed, climb rate or lean explai
 the term raises by 1.2 to 1.5 %. Whether that dip is the room, the guards or the log's own reference is
 not settled by this flight.
 
+The Pavo20 Pro II profile (TASK-099, 2026-11-08). The stakeholder's BetaFPV Pavo20 Pro II
+(`stakeholder-pavo20pro2` of `data/flight-logs/inventory.json`) is built from four component cards,
+`tests/fixtures/components/pavo-motor-1303-8000kv.json`, `pavo-gemfan-2219-3.json`, `pavo-esc-aio.json`
+and `pavo-battery-3s-850.json`, and the profile `tests/fixtures/aircraft/pavo-quad.json`, as the U35 is
+(`tests/support/pavo.ts`; the propellers fly the NACA6409 catalog polar, the card naming no airfoil).
+Stated: 169 g all-up, the RCinPower 1303 V3 8000KV motors, 2.2-inch Gemfan GP2219-3 propellers and a
+3S 850 mAh battery (the stakeholder); a 93.9 mm wheelbase (BetaFPV's frame page); three blades and a
+1.9-inch pitch read from the name GP2219-3 by Gemfan's naming, the pitch not confirmed; the outputs
+SERVO1 to SERVO4 on motors 2, 3, 4 and 1, QUAD/X_REV (FRAME_CLASS 1, FRAME_TYPE 18), DShot600 once per
+400 Hz loop, the cell voltages 4.35 and 3.3 V (MOT_BAT_VOLT_MAX 13.05 V and MOT_BAT_VOLT_MIN 9.9 V over
+three cells) and a pack resistance of 0.0771 ohm (ArduPilot's own BAT.Res estimate, its median over
+log 34), all from the logs. The logs set BATT_CAPACITY 720 mAh; the card keeps the stakeholder's
+850 mAh. The propeller guards are open rings, not ducts, as the stakeholder said; BetaFPV's page calls
+them ducts with an 8 to 11 % thrust gain. The model represents neither. Assumed, each with its basis:
+
+| Value | Assumed | Basis |
+| --- | --- | --- |
+| Arm length and azimuths | 46.95 mm at ±45° and ±135° | half the 93.9 mm wheelbase on a square X; no drawing gives the arms |
+| Rotor height, tilt | 0, 0 | flat frame; not measured |
+| CG offset | 0 | not measured |
+| Inertia about the CG | diag(9.5e-5, 1.2e-4, 1.9e-4) kg m² | a sum of parts: four 5.5 g motors with propellers at the hubs, 30 g of frame and guards as four 30 mm rings around the hubs, and the other 117 g as a 60 by 30 by 40 mm box at the CG |
+| Ground clearance | 25 mm | a whoop resting on its guards; not measured |
+| Motor resistance, no-load current and voltage, current and power limits, mass | 0.25 ohm, 0.5 A at 10 V, 12 A, 130 W, 4.5 g | typical of a 1303-size 8000 KV whoop motor; the logs' ESC voltage and current telemetry (15.75 V and 148 A at hover) is not usable for a fit |
+| Propeller mass | 1.0 g | typical of a 2-inch three-blade whoop propeller |
+| Propeller hub, chord, twist, airfoil | none on the card | the TASK-139 derivation's assumptions: a root at 0.15 R, a chord of 0.1812 R, the blade angle from the nominal pitch, the NACA6409 polar |
+| ESC current limit | 12 A | typical of a whoop all-in-one ESC; its model is not stated |
+
+`tests/pavo-profile.test.ts` holds, declared before its run: every card value is known with a named
+source or not known, and the assumed ones are exactly those of the table; the cards resolve with nothing
+missing; the derived rotors stand 46.95 mm from the axis and opposite ones 93.9 mm apart; the outputs are
+the logs' SERVO1..4_FUNCTION 34, 35, 36 and 33; the propellers clear; the manifest's bytes repeat; and,
+held level with equal commands, the model carries its weight within 0.1 % at zero climb with no vortex
+ring fluctuation. The TASK-128 frame catalog holds stock QUAD X (FRAME_TYPE 1) and not X_REV, whose spins
+differ, so the profile flies on the scripting matrix (FRAME_CLASS 15) with X_REV's spins, as the U35 does.
+Result (2026-11-08, 4 passed): the model hovers at 26,235 rpm on a command of 0.316, where the logs hover
+at a median of 22,400 to 23,100 rpm per flight: it needs 17 % more rotor speed, or its thrust per squared
+speed is 0.73 times the aircraft's. That is reported, not judged; the assumed blade geometry, the guards
+and the 14 poles the logs assume for the speed reading (SERVO_BLH_POLES) are what it rests on. The
+six-axis trim of `tests/support/hover-trim.ts` does not apply to this rotor: its sweep needs a settled
+speed at every command up to the full 13.05 V, and above about 5.4 V this 28 mm rotor holds a period-two
+alternation of about 3e-6 of its speed at 800 Hz, whatever the ESC's update period; a held hover at
+zero climb replaces it.
+
+Logged descent (TASK-099, 2026-11-08), declared before the model's prediction was computed and
+after a first look at the logs. The logs are the Pavo's 18 armed flights of
+`data/flight-logs/inventory.json` (`stakeholder-pavo-log_N_UnknownDate.bin`, N 12 to 63; log 0 never
+armed), each checked by its SHA-256. They hold no GNSS, rangefinder or airspeed: the climb rate is the
+EKF's (`CTUN.CRt`, cm/s stored, m/s by its FMTU), from barometer and accelerometer, and the horizontal
+speed is not known. `measureDescent` (`packages/analysis/src/descent-log.ts`) measures thrust per squared
+rotor speed against the climb rate scaled with the hover inflow, as TASK-100 measures it against height.
+In 0.1 s bins: k = the negated mean of the first IMU's `AccZ` over the mean, over the four motors, of each
+motor's mean squared `ESC.RPM`. An `ESC.RPM` row is rejected when it is not finite or exceeds KV times
+MOT_BAT_VOLT_MAX (8000 × 13.05 = 104,400 rpm, the motor's speed without load at the highest voltage the
+autopilot assumes), which removes the NaN rows and the isolated 540,800 rpm readings of bidirectional
+DShot; a bin needs at least 5 accepted rows of each motor. A bin is airborne when its CTUN rows all have
+`ThO` above 0.05 (MOT_SPIN_ARM) and `Alt` at least 0.5 m (18 rotor radii above the take-off height, so no
+ground effect), its mean rotor speed is at least 8000 rpm, its specific force at least 4.9 m/s² and every
+ATT row's tilt from level at most 30° (ANGLE_MAX). A bin counts when every bin with CTUN rows within 1 s
+of it is airborne: this removes take-offs, landings, the estimator's climb-rate extremes at zero throttle
+(log 22 from 479 s, log 23 at 5 s) and log 22's tumble at 476 s. The climb rate V_z is the bin's mean
+CRt; the hover inflow `v_h = sqrt(m a/(8 rho A))` with m 0.169 kg, a the bin's specific force, A the disk of
+radius 0.02794 m and rho the flight's mean `BARO.Press` over 287.053 J/(kg K) times 288.15 K (the
+barometer's temperature is the board's); x = V_z/v_h. Each flight is its own reference: k over the
+mean k of its counted bins with |x| ≤ 0.03, and a flight counts with at least 20 of them. The ratios are
+reported in classes of x: [−0.7, −0.45), [−0.45, −0.3), [−0.3, −0.2), [−0.2, −0.1), [−0.1, −0.03), descending,
+and (0.03, 0.1], (0.1, 0.2], (0.2, 0.3], (0.3, 0.7], climbing, where momentum theory is established and which is
+the method's control; each with its count, mean ratio, standard error of the mean, mean x and mean tilt,
+and again over the bins with a tilt of at most 5°, where the unknown horizontal speed matters least.
+
+The first look (a pymavlink script over the same bins, before this declaration) gave v_h about 8.4 m/s at
+hover, the deepest counted descent −4.6 m/s in log 34 near 94.5 s at x −0.57, about ten bins below Johnson's
+N (−0.45 at V_x = 0) and none near the region's centre (−0.975) or X (−1.5); ratios of about 0.976 from
+x −0.45 to −0.2, 0.986 from −0.2 to −0.05, 0.98 and 0.97 on both sides close to hover (|x| 0.03 to 0.1), and
+0.944 and 0.91 in climbs of 0.1 to 0.3. Momentum theory and Johnson's curve have the ratio above 1 in such
+descents, so the first look already disagrees in sign there; the climbs fall as momentum theory has them.
+
+The model's prediction is its own flight dynamics with the Pavo profile (`buildProfileDynamics` as a
+profile flight builds it: ESC drive, dynamic inflow with the vortex ring option 32 and its seeded
+fluctuation, rotor wakes, the standard hull's drag; ground effect off), at 800 Hz, held level 20 m up by a
+huge mass with gravity off, as `tests/rotor-ground-effect.test.ts` holds it, on the command that carries
+169 g at zero climb (`hoverCommand`, `tests/support/pavo.ts`), moving at a fixed climb rate V_c and
+transverse speed V_x through still air: after 0.5 s the vertical force and the rotors' mean squared speed
+are averaged over 2 s (about 600 correlation times of the fluctuation), k is their ratio and x the climb
+rate over the hover inflow of that force at the model's air. For each class the model runs at
+V_c = x̄ v_h,0 (x̄ the class's measured mean, v_h,0 the model's at zero climb) and V_x 0 and 2 m/s (about
+0.24 v_h: the descent bins lean 7 to 11° on average, at a speed the logs do not give), each normalized by
+the model at zero climb and the same V_x, and it reports its own x and how many steps carried the
+fluctuation. Declared tolerance, set after the first look as TASK-100's was: a class is reproduced when its
+measured mean lies within the model's range over V_x, widened by two standard errors of the class and by 2
+percentage points, the size of the fall on both sides of hover that neither the climb nor the descent
+effect makes. `tests/descent-logged.test.ts` runs it with `MIRAGE_FORUM_LOG_DIR` (it skips without it) and,
+with `MIRAGE_DESCENT_OUT` set, writes the report: per flight its file, SHA-256, density and counts; per class
+the measured values, the model's runs, `reproduced`; v_h at hover, the deepest descent and the bins past N;
+and the status `REPRODUCED` or `NOT_REPRODUCED`. That status is the declared comparison's, not a fidelity
+verdict (SA-01): the effect stays labeled as not validated (D-11) until the stakeholder judges it. If the
+logs do not reach the vortex ring region, the report says so with these numbers.
+
+Result (2026-11-08; `tests/descent-logged.test.ts` 3 passed in 20 s, report
+`test-results/validation/logged-descent.json`, status `NOT_REPRODUCED`). All 18 flights count: 42,527
+bins, 32,861 of them reference bins, densities 1.214 to 1.220 kg/m³. The hover inflow is 8.31 m/s at
+hover (the median over the reference bins; the model's is 8.30 m/s), so the 4.4 m/s descent of log 34 at
+94.4 s, the deepest counted, is only −0.57 v_h: the logs reach just past Johnson's N, with 10 bins below
+−0.45 v_h, all in that one 0.6 s pass at low throttle, and nowhere near the region's centre (−0.975 v_h, about
+8.1 m/s down) or X (−1.5 v_h, about 12.5 m/s). The vortex ring state is therefore touched only at its edge;
+the comparison tests mainly the descent between D and N, where Johnson's curve lowers the inflow, and the
+climbs. Model columns: V_x 0 and 2 m/s; the level column is the bins of at most 5° tilt.
+
+| x = V_z/v_h | Bins | Measured | Mean x | Tilt, ° | Level (bins) | Model | Reproduced |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| −0.7 to −0.45 | 10 | 0.9855 ± 0.0163 | −0.530 | 11.2 | — (0) | 1.1244–1.1401 | no |
+| −0.45 to −0.3 | 42 | 0.9802 ± 0.0046 | −0.332 | 7.4 | 0.9847 (18) | 1.1130–1.1252 | no |
+| −0.3 to −0.2 | 163 | 0.9808 ± 0.0033 | −0.238 | 7.4 | 0.9818 (65) | 1.0982–1.1071 | no |
+| −0.2 to −0.1 | 891 | 0.9921 ± 0.0012 | −0.135 | 8.4 | 0.9862 (288) | 1.0528–1.0570 | no |
+| −0.1 to −0.03 | 5414 | 0.9865 ± 0.0005 | −0.055 | 7.3 | 0.9862 (2370) | 1.0180–1.0208 | no |
+| 0.03 to 0.1 | 2541 | 0.9749 ± 0.0006 | 0.055 | 4.9 | 0.9802 (1332) | 0.9885–0.9888 | yes |
+| 0.1 to 0.2 | 496 | 0.9468 ± 0.0015 | 0.134 | 5.9 | 0.9605 (226) | 0.9716–0.9726 | no |
+| 0.2 to 0.3 | 70 | 0.9151 ± 0.0029 | 0.234 | 7.3 | 0.9451 (18) | 0.9490–0.9506 | no |
+| 0.3 to 0.7 | 38 | 0.7899 ± 0.0074 | 0.541 | 9.9 | — (0) | 0.8736–0.8758 | no |
+
+In descent the model gains 2 to 14 % of thrust at equal rotor speed, as momentum theory and Johnson's
+curve between D and N have it, and the aircraft loses 1 to 2 %: the sign differs in every descending class.
+In climb both lose thrust, the aircraft about twice as fast (0.947 against 0.972 at 0.13 v_h, 0.79 against
+0.875 at 0.54 v_h). The deepest class carries the model's fluctuation on every step (the region's edge at
+x −0.50) and has a measured spread of 0.05 per bin. Checked after the run with the first look's script,
+not causes: the bins whose rotor speed and climb rate are steady to 1 % and 0.1 m/s between their neighbours keep the
+descent ratios at 0.980 to 1.002, so throttle transients and the ESC speed's lag do not make the fall, and
+the level bins keep it, so lean does not either; the airframe's vertical drag would raise a descending
+bin's ratio, not lower it. What the model leaves out and this aircraft has: the open propeller rings,
+whose lip thrust a duct gains in hover from the inflow and loses as the descent slows the flow through it
+(BetaFPV's page claims 8 to 11 % for them), and a blade geometry the model assumes: at hover it needs 17 %
+more speed than the aircraft, so the real rotor is more heavily loaded at a given speed and its thrust is
+more sensitive to inflow, which is the direction of the steeper climbs. Neither is established by these
+logs. The effect stays labeled as not validated (D-11); whether the model needs a guard term, or this
+comparison is enough for Phase 1, is the stakeholder's to judge.
+
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
 each rotor's last thrust T and its air, with V >= 0 down through the disk and V_t across
@@ -4611,6 +4746,74 @@ Open items:
   file (G4).
 * Convert DataFlash logs to capture schema 2.
 * Build the simulation replay that produces the simulated series.
+
+SystemId flights of the Pavo20 Pro II (2026-11-08), declared before the simulated flight was flown.
+The real flights are the stakeholder's Pavo SystemId logs of `data/flight-logs/inventory.json`: 33 and
+34 with SID_AXIS 4 (recovery roll), 35 with 5 (recovery pitch) and 36 with 6 (recovery yaw), each with
+SID_MAGNITUDE 3°, SID_F_START_HZ 0.5, SID_F_STOP_HZ 40, SID_T_FADE_IN 1, SID_T_REC 70 and SID_T_FADE_OUT 1
+s, entered from Stabilize with the throttle by hand, on ArduCopter V4.6.3; log 34 swept twice and is
+compared on its complete second sweep. Each is simulated by native ArduCopter V4.7.2 (`fb77356`, the
+TASK-198 build) flying the Pavo profile ("The Pavo20 Pro II profile") in JSON lockstep at 800 Hz:
+`tests/sitl-systemid-pavo.test.ts` flies as `tests/external-sitl-flight.test.ts` does, through the
+launcher, `PhysicsSessionV2` and `SitlJsonLink`, on the synthetic pad (no contact module): a GUIDED
+take-off to 5 m and 5 s of hover, so that ArduPilot learns MOT_THST_HOVER; then Stabilize under RC
+override at 25 Hz, the sticks centred and the throttle from a pilot model holding 5 m (1500 us, plus 30
+us per metre below 5 m and minus 40 us per m/s of climb, within ±150 us), as the real pilot held height
+by hand; after 3 s SYSTEMID with the axis's logged SID_* values, until ArduPilot reports "SystemID
+Finished"; then LAND. Parameters: the real log's attitude controller (every ATC_RAT_* of the three axes,
+ATC_ANG_*_P, ATC_INPUT_TC, ATC_RATE_FF_ENAB, ATC_RATE_*_MAX, ATC_THR_MIX_*, ATC_ANGLE_BOOST), its V4.6
+names under V4.7.2's (ATC_ACCEL_R/P/Y_MAX in cdeg/s² as ATC_ACC_R/P/Y_MAX in deg/s², ANGLE_MAX in cdeg
+as ATC_ANGLE_MAX in degrees), INS_GYRO_FILTER, INS_ACCEL_FILTER, MOT_THST_EXPO, MOT_SPIN_ARM, MOT_SPIN_MIN,
+MOT_SPIN_MAX, MOT_HOVER_LEARN, the starting MOT_THST_HOVER, MOT_BAT_VOLT_MAX and MOT_BAT_VOLT_MIN and
+LOG_BITMASK; the profile's frame parameters; and MOT_PWM_MIN 1000 and MOT_PWM_MAX 2000, the span the
+link maps to ESC duty (the real ESCs take DShot600). Left out, each a stated difference: the harmonic
+notch (the real one follows the ESCs' speed telemetry, which this link does not give, so
+INS_HNTCH_ENABLE 0), ATC_SLEW_YAW (no V4.7.2 name; it limits autonomous yaw only), INS_GYRO_RATE, and the
+real pilot's own sticks during the sweep (the real flights lean 5 to 10° and hold height by hand).
+
+Compared, for each log: `scripts/fidelity-capture.mjs` over the sweep, from the SIDS record to the
+"SystemID Finished" message of each log (`--from`, `--to`, and `--simulated-offset` from the two
+starts), with the script's fixed method: per axis the requested-to-actual rate response of RATE at the
+real log's 400 Hz, Hann segments of 1024 samples with half overlap, 20 points spaced logarithmically
+from 0.78 to 20 Hz and the coherence guideline 0.6; and the time-domain sections it finds.
+`scripts/check-fidelity.mjs` reports RMS, bias, Theil and J as REPORTED, with no limit and no verdict
+(SA-01). The swept axis's response is the comparison; the other axes and the time-domain rows compare
+two flights whose pilots differ, which the report states beside them. The capture's firmware hash is the
+SITL executable's (no binary of the real board's V4.6.3 is held) and its model hash the derived Pavo
+manifest's. The SITL log is simulated, the capture names it by SHA-256, and nothing calls it real data.
+
+Result (2026-11-08; `tests/sitl-systemid-pavo.test.ts` with `MIRAGE_SYSTEMID_LOG` 33, 34, 35 and 36, each
+exit 0, about 36 s of wall time for 144 s of simulated flight at speed 4, no lockstep gap or duplicate;
+reports `test-results/validation/pavo-systemid-log33.json` to `log36.json`, each `REPORTED`). The
+validator's call in the test was corrected after the declaration's commit (`scripts/check-fidelity.mjs`
+takes no `--out`; its report is copied instead), and the flight is as declared. Every simulated sweep
+ran its 77 s, from SIDS to "SystemID Finished", as the real ones did. The pilot model held 2.5 to 3.0 m,
+not 5 m: its proportional term leaves the hover about 2 m low, and the real log 34 swept at about 10 to
+18 m by the barometer. J of the swept axis, over the points where the real flight's coherence is at least
+0.6:
+
+| Log | Axis | J | Points (excluded) | Real, 1–4 Hz | SITL, 1–4 Hz | Real, 10.2 Hz | SITL, 10.2 Hz |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 33 | roll | 188.3 | 18 (0) | 0.2 to 0.4 dB, −8 to −21° | 0.2 to 0.8 dB, −7 to −22° | 1.1 dB, −68° | 3.2 dB, −92° |
+| 34 | roll | 238.5 | 18 (0) | −0.5 to 0.2 dB, −16 to −22° | 0.1 to 0.7 dB, −7 to −22° | 1.1 dB, −63° | 3.3 dB, −91° |
+| 35 | pitch | 276.6 | 18 (0) | 0.4 to 0.6 dB, −6 to −22° | 0.2 to 1.2 dB, −7 to −23° | 1.8 dB, −81° | 3.8 dB, −124° |
+| 36 | yaw | 7.9 | 10 (8) | −0.8 to 0.8 dB, −10 to −24° | −0.2 to −0.1 dB, −7 to −22° | coherence below 0.6 above 5.1 Hz | |
+
+Up to about 4 Hz the simulated rate loop follows the real one within about 1 dB and a few degrees on
+every swept axis. Above about 5 Hz the simulated roll and pitch loops peak higher and earlier (3.2 dB at
+10 Hz in roll and 4.7 dB at 8.6 Hz in pitch, against the aircraft's 1.9 to 2.4 dB at 12 to 14 Hz) and lag
+more (at 16.8 Hz −178° against −135° and −125° in roll), so the model's closed loop has less phase margin
+than the aircraft's at the same gains; in yaw the real response is coherent only
+to 5.1 Hz. The cross-axis responses of each log (for example pitch in a roll sweep, J 1435 on log 33)
+and every time-domain row compare two flights whose pilots, heights and leans differ, and are reported
+only as such (log 34's height bias −10.5 m is the difference of the sweep heights). What the model
+assumes and could make the high-frequency difference, none established by these logs: the motor's
+resistance and the rotor inertia (a 1.0 g propeller, no motor rotor), which set how fast the speed
+follows the command; the body inertia from a sum of parts; the ESC's lag of one 400 Hz period; and the
+assumed blade geometry, with which the rotor hovers 17 % faster than the aircraft's. The harmonic notch
+left out of the SITL would add lag to the real loop, not remove it. With these four flights the
+SystemId item of the G4 criterion has its real captures, scored; the SITL logs and captures stay in
+the run's directory, named by SHA-256 in the reports, and are not committed.
 
 ## Sensor-error ownership (TASK-089)
 

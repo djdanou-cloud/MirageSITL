@@ -1,0 +1,859 @@
+{
+  "schemaVersion": 1,
+  "kind": "logged-descent",
+  "aircraft": "stakeholder-pavo20pro2",
+  "method": {
+    "binS": 0.1,
+    "motors": 4,
+    "minEscRowsPerMotor": 5,
+    "minThrottle": 0.05,
+    "minAltitudeM": 0.5,
+    "minMeanRpm": 8000,
+    "minSpecificForceMps2": 4.9,
+    "maxTiltDeg": 30,
+    "airborneWindowS": 1,
+    "referenceMaxScaledClimb": 0.03,
+    "minReferenceBins": 20,
+    "airTemperatureK": 288.15,
+    "gasConstant": 287.053,
+    "descentClasses": [
+      [
+        -0.7,
+        -0.45
+      ],
+      [
+        -0.45,
+        -0.3
+      ],
+      [
+        -0.3,
+        -0.2
+      ],
+      [
+        -0.2,
+        -0.1
+      ],
+      [
+        -0.1,
+        -0.03
+      ]
+    ],
+    "climbClasses": [
+      [
+        0.03,
+        0.1
+      ],
+      [
+        0.1,
+        0.2
+      ],
+      [
+        0.2,
+        0.3
+      ],
+      [
+        0.3,
+        0.7
+      ]
+    ],
+    "levelTiltDeg": 5
+  },
+  "measuredAircraft": {
+    "massKg": 0.169,
+    "rotorRadiusM": 0.02794,
+    "maxRpm": 104400
+  },
+  "flights": [
+    {
+      "file": "stakeholder-pavo-log_12_UnknownDate.bin",
+      "sha256": "0113ab869461cf3c8515eafbf2b89ff01d61074584e2701a58b97018998bba9c",
+      "densityKgM3": 1.2183676796924439,
+      "referenceBins": 2663,
+      "countedBins": 3202,
+      "rejected": {
+        "not-airborne": 562,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 21
+    },
+    {
+      "file": "stakeholder-pavo-log_13_UnknownDate.bin",
+      "sha256": "fe2ce1e0b1aac28f1d54d80f1aaeb55c4f9e26ea8b998c7c37a0623be2eb7ed4",
+      "densityKgM3": 1.218080657038754,
+      "referenceBins": 2938,
+      "countedBins": 3295,
+      "rejected": {
+        "not-airborne": 1080,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 33
+    },
+    {
+      "file": "stakeholder-pavo-log_14_UnknownDate.bin",
+      "sha256": "0eb4a87bdc72e077b2b1939efbafa1ed3d410e3c2208db7e7916bd1a050a1f6e",
+      "densityKgM3": 1.2179120688000546,
+      "referenceBins": 3020,
+      "countedBins": 4216,
+      "rejected": {
+        "not-airborne": 886,
+        "airborne-window": 34,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 40
+    },
+    {
+      "file": "stakeholder-pavo-log_15_UnknownDate.bin",
+      "sha256": "3a952234a170314e30e0eab37e4e36b6e8bd27e329017b977490083d1b497db0",
+      "densityKgM3": 1.2178575689683084,
+      "referenceBins": 2184,
+      "countedBins": 2599,
+      "rejected": {
+        "not-airborne": 740,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 36
+    },
+    {
+      "file": "stakeholder-pavo-log_22_UnknownDate.bin",
+      "sha256": "59da21a893db9681633c95d931b6d84587309f9f055e85e67cf8531ba62fbbda",
+      "densityKgM3": 1.2171254797725624,
+      "referenceBins": 3556,
+      "countedBins": 4255,
+      "rejected": {
+        "not-airborne": 765,
+        "airborne-window": 21,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 47
+    },
+    {
+      "file": "stakeholder-pavo-log_23_UnknownDate.bin",
+      "sha256": "6288bee018c3555906fab8c787037b63b0577dd2405721d5628306534d9f3e03",
+      "densityKgM3": 1.2162142888151781,
+      "referenceBins": 780,
+      "countedBins": 934,
+      "rejected": {
+        "not-airborne": 452,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 15
+    },
+    {
+      "file": "stakeholder-pavo-log_24_UnknownDate.bin",
+      "sha256": "43f344c8232548a6fa3afb912f9d339a8bf65ba535a216533ad14c14b821e5ed",
+      "densityKgM3": 1.2158078118456748,
+      "referenceBins": 3105,
+      "countedBins": 3861,
+      "rejected": {
+        "not-airborne": 468,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 52
+    },
+    {
+      "file": "stakeholder-pavo-log_26_UnknownDate.bin",
+      "sha256": "875721929e8fbe69f5169d79d90e657c1a5f04d0011546d36fd5e0a0e48ccb4d",
+      "densityKgM3": 1.215559933172121,
+      "referenceBins": 3931,
+      "countedBins": 4994,
+      "rejected": {
+        "not-airborne": 608,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 49
+    },
+    {
+      "file": "stakeholder-pavo-log_29_UnknownDate.bin",
+      "sha256": "717cd3d68597b5a512ae87b73ea2f7e04290328fea53f8c7a6c494e02b16b396",
+      "densityKgM3": 1.2161608276164628,
+      "referenceBins": 334,
+      "countedBins": 449,
+      "rejected": {
+        "not-airborne": 507,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 5
+    },
+    {
+      "file": "stakeholder-pavo-log_30_UnknownDate.bin",
+      "sha256": "b334b38d4b40ebc2f6b65caea72ea94f7ea83b6282b8d355b6d9f73054aef586",
+      "densityKgM3": 1.21605258397803,
+      "referenceBins": 1997,
+      "countedBins": 2167,
+      "rejected": {
+        "not-airborne": 655,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 20
+    },
+    {
+      "file": "stakeholder-pavo-log_31_UnknownDate.bin",
+      "sha256": "85d656b7e0c16571c27809c40e8960a695ec0d003c13dfad501c9a4bbcb31e79",
+      "densityKgM3": 1.21590722914872,
+      "referenceBins": 1108,
+      "countedBins": 1622,
+      "rejected": {
+        "not-airborne": 537,
+        "airborne-window": 21,
+        "no-climb-rate": 1
+      },
+      "rejectedEscRows": 29
+    },
+    {
+      "file": "stakeholder-pavo-log_32_UnknownDate.bin",
+      "sha256": "16553acbe7692687b4812c2b3e23a9ec5db79a18b4b0c927d3707d05966b41ce",
+      "densityKgM3": 1.2158794625642222,
+      "referenceBins": 977,
+      "countedBins": 1215,
+      "rejected": {
+        "not-airborne": 519,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 11
+    },
+    {
+      "file": "stakeholder-pavo-log_33_UnknownDate.bin",
+      "sha256": "922b36fe68d2e08c78298019f1db938063394addc1c1ca9461c0bdb49aab63ac",
+      "densityKgM3": 1.2151264235850345,
+      "referenceBins": 281,
+      "countedBins": 1241,
+      "rejected": {
+        "not-airborne": 633,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 21
+    },
+    {
+      "file": "stakeholder-pavo-log_34_UnknownDate.bin",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "densityKgM3": 1.2146907286233382,
+      "referenceBins": 544,
+      "countedBins": 1263,
+      "rejected": {
+        "not-airborne": 654,
+        "airborne-window": 20,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 24
+    },
+    {
+      "file": "stakeholder-pavo-log_35_UnknownDate.bin",
+      "sha256": "9c78c2eac10a911ca79613d06845d92628872165fbc50bf2d5bd2f8c4841f7dd",
+      "densityKgM3": 1.2149092147766698,
+      "referenceBins": 379,
+      "countedBins": 1310,
+      "rejected": {
+        "not-airborne": 590,
+        "airborne-window": 20,
+        "no-climb-rate": 1
+      },
+      "rejectedEscRows": 16
+    },
+    {
+      "file": "stakeholder-pavo-log_36_UnknownDate.bin",
+      "sha256": "012137bb6197fdb8ea00401e0926c05dba997178aec747d0f4f1b75d2feae2c3",
+      "densityKgM3": 1.2150568854566925,
+      "referenceBins": 540,
+      "countedBins": 1318,
+      "rejected": {
+        "not-airborne": 580,
+        "airborne-window": 30,
+        "no-climb-rate": 0
+      },
+      "rejectedEscRows": 17
+    },
+    {
+      "file": "stakeholder-pavo-log_37_UnknownDate.bin",
+      "sha256": "64e0b6bbf3ffbd77d1a20bd9c7fde47b92fbc52c2a2d925cfacfe4b222a2b9e9",
+      "densityKgM3": 1.2140930826465268,
+      "referenceBins": 1201,
+      "countedBins": 1204,
+      "rejected": {
+        "not-airborne": 373,
+        "airborne-window": 20,
+        "no-climb-rate": 1
+      },
+      "rejectedEscRows": 14
+    },
+    {
+      "file": "stakeholder-pavo-log_63_UnknownDate.bin",
+      "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2",
+      "densityKgM3": 1.220287768158382,
+      "referenceBins": 3323,
+      "countedBins": 3382,
+      "rejected": {
+        "not-airborne": 275,
+        "airborne-window": 123,
+        "no-climb-rate": 7
+      },
+      "rejectedEscRows": 49
+    }
+  ],
+  "model": {
+    "command": 0.3160648345947267,
+    "hoverInflowMps": 8.301798582782355,
+    "densityKgM3": 1.225000018124288,
+    "transverseMps": [
+      0,
+      2
+    ],
+    "settleS": 0.5,
+    "measureS": 2,
+    "hz": 800
+  },
+  "hoverInflowMedianMps": 8.311678699095957,
+  "deepestDescent": {
+    "file": "stakeholder-pavo-log_34_UnknownDate.bin",
+    "timeS": 94.4,
+    "climbMps": -4.4399999007582664,
+    "scaledClimb": -0.5740224367750923,
+    "ratio": 1.0351551495515958
+  },
+  "binsBeyondJohnsonN": 10,
+  "classes": [
+    {
+      "fromScaledClimb": -0.7,
+      "toScaledClimb": -0.45,
+      "samples": 10,
+      "ratio": 0.9855263180007612,
+      "standardError": 0.016342187913451572,
+      "meanScaledClimb": -0.5302747590495749,
+      "meanClimbMps": -4.131999907642603,
+      "meanTiltDeg": 11.18933691983514,
+      "flights": [
+        "stakeholder-pavo-log_34_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": -0.7,
+        "toScaledClimb": -0.45,
+        "samples": 0,
+        "ratio": null,
+        "standardError": null,
+        "meanScaledClimb": null,
+        "meanClimbMps": null,
+        "meanTiltDeg": null,
+        "flights": []
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": -4.402234243163016,
+          "scaledClimb": -0.5029474206151427,
+          "ratio": 1.1243596073370634,
+          "fluctuationShare": 1
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": -4.402234243163016,
+          "scaledClimb": -0.4976480284457543,
+          "ratio": 1.1401315643811178,
+          "fluctuationShare": 1
+        }
+      ],
+      "modelLow": 1.1243596073370634,
+      "modelHigh": 1.1401315643811178,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": -0.45,
+      "toScaledClimb": -0.3,
+      "samples": 42,
+      "ratio": 0.98019816054953,
+      "standardError": 0.004591594385919958,
+      "meanScaledClimb": -0.33178599050558083,
+      "meanClimbMps": -2.6838094638217065,
+      "meanTiltDeg": 7.3802943497464115,
+      "flights": [
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": -0.45,
+        "toScaledClimb": -0.3,
+        "samples": 18,
+        "ratio": 0.9847078657122518,
+        "standardError": 0.0037633711725213875,
+        "meanScaledClimb": -0.3276231729363151,
+        "meanClimbMps": -2.6344443855600224,
+        "meanTiltDeg": 3.558440666478959,
+        "flights": [
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": -2.754420465766271,
+          "scaledClimb": -0.31626918596915515,
+          "ratio": 1.112982032547796,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": -2.754420465766271,
+          "scaledClimb": -0.31342201178370616,
+          "ratio": 1.1252195637621802,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 1.112982032547796,
+      "modelHigh": 1.1252195637621802,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": -0.3,
+      "toScaledClimb": -0.2,
+      "samples": 163,
+      "ratio": 0.9807916583268449,
+      "standardError": 0.003258108994750381,
+      "meanScaledClimb": -0.23787154822042145,
+      "meanClimbMps": -1.949877257030343,
+      "meanTiltDeg": 7.421955121330186,
+      "flights": [
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_32_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": -0.3,
+        "toScaledClimb": -0.2,
+        "samples": 65,
+        "ratio": 0.9818151267618452,
+        "standardError": 0.004281793882617998,
+        "meanScaledClimb": -0.24628928599592712,
+        "meanClimbMps": -2.0296922623251494,
+        "meanTiltDeg": 2.1421081269625546,
+        "flights": [
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_26_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin",
+          "stakeholder-pavo-log_35_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": -1.9747616819005396,
+          "scaledClimb": -0.22817684160130114,
+          "ratio": 1.098155871114842,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": -1.9747616819005396,
+          "scaledClimb": -0.2264828424737716,
+          "ratio": 1.1070568080271403,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 1.098155871114842,
+      "modelHigh": 1.1070568080271403,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": -0.2,
+      "toScaledClimb": -0.1,
+      "samples": 891,
+      "ratio": 0.9920632833876996,
+      "standardError": 0.0011953458906161156,
+      "meanScaledClimb": -0.13516628585697285,
+      "meanClimbMps": -1.1141862826156361,
+      "meanTiltDeg": 8.415708183902591,
+      "flights": [
+        "stakeholder-pavo-log_12_UnknownDate.bin",
+        "stakeholder-pavo-log_13_UnknownDate.bin",
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_22_UnknownDate.bin",
+        "stakeholder-pavo-log_23_UnknownDate.bin",
+        "stakeholder-pavo-log_24_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_30_UnknownDate.bin",
+        "stakeholder-pavo-log_31_UnknownDate.bin",
+        "stakeholder-pavo-log_32_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin",
+        "stakeholder-pavo-log_36_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": -0.2,
+        "toScaledClimb": -0.1,
+        "samples": 288,
+        "ratio": 0.9862407251920714,
+        "standardError": 0.002137452502011737,
+        "meanScaledClimb": -0.13331012652892887,
+        "meanClimbMps": -1.104027753100834,
+        "meanTiltDeg": 2.3766432480089326,
+        "flights": [
+          "stakeholder-pavo-log_12_UnknownDate.bin",
+          "stakeholder-pavo-log_13_UnknownDate.bin",
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_22_UnknownDate.bin",
+          "stakeholder-pavo-log_23_UnknownDate.bin",
+          "stakeholder-pavo-log_24_UnknownDate.bin",
+          "stakeholder-pavo-log_26_UnknownDate.bin",
+          "stakeholder-pavo-log_32_UnknownDate.bin",
+          "stakeholder-pavo-log_33_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin",
+          "stakeholder-pavo-log_35_UnknownDate.bin",
+          "stakeholder-pavo-log_36_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": -1.122123280367372,
+          "scaledClimb": -0.13216422385262644,
+          "ratio": 1.052792958383196,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": -1.122123280367372,
+          "scaledClimb": -0.13147376363526217,
+          "ratio": 1.0570335036187868,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 1.052792958383196,
+      "modelHigh": 1.0570335036187868,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": -0.1,
+      "toScaledClimb": -0.03,
+      "samples": 5414,
+      "ratio": 0.9865206505963489,
+      "standardError": 0.0004948906577930734,
+      "meanScaledClimb": -0.0546346461961303,
+      "meanClimbMps": -0.45176208816609087,
+      "meanTiltDeg": 7.346447264673482,
+      "flights": [
+        "stakeholder-pavo-log_12_UnknownDate.bin",
+        "stakeholder-pavo-log_13_UnknownDate.bin",
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_22_UnknownDate.bin",
+        "stakeholder-pavo-log_23_UnknownDate.bin",
+        "stakeholder-pavo-log_24_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_29_UnknownDate.bin",
+        "stakeholder-pavo-log_30_UnknownDate.bin",
+        "stakeholder-pavo-log_31_UnknownDate.bin",
+        "stakeholder-pavo-log_32_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin",
+        "stakeholder-pavo-log_36_UnknownDate.bin",
+        "stakeholder-pavo-log_63_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": -0.1,
+        "toScaledClimb": -0.03,
+        "samples": 2370,
+        "ratio": 0.9862299787461131,
+        "standardError": 0.0007503981272282623,
+        "meanScaledClimb": -0.05219861867383848,
+        "meanClimbMps": -0.43188606629596105,
+        "meanTiltDeg": 1.61974246585179,
+        "flights": [
+          "stakeholder-pavo-log_12_UnknownDate.bin",
+          "stakeholder-pavo-log_13_UnknownDate.bin",
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_22_UnknownDate.bin",
+          "stakeholder-pavo-log_23_UnknownDate.bin",
+          "stakeholder-pavo-log_24_UnknownDate.bin",
+          "stakeholder-pavo-log_26_UnknownDate.bin",
+          "stakeholder-pavo-log_29_UnknownDate.bin",
+          "stakeholder-pavo-log_30_UnknownDate.bin",
+          "stakeholder-pavo-log_31_UnknownDate.bin",
+          "stakeholder-pavo-log_32_UnknownDate.bin",
+          "stakeholder-pavo-log_33_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin",
+          "stakeholder-pavo-log_35_UnknownDate.bin",
+          "stakeholder-pavo-log_36_UnknownDate.bin",
+          "stakeholder-pavo-log_63_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": -0.45356582836184994,
+          "scaledClimb": -0.054210233490041046,
+          "ratio": 1.0180022075885888,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": -0.45356582836184994,
+          "scaledClimb": -0.053969610667463114,
+          "ratio": 1.020789479882561,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 1.0180022075885888,
+      "modelHigh": 1.020789479882561,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": 0.03,
+      "toScaledClimb": 0.1,
+      "samples": 2541,
+      "ratio": 0.9748564864611469,
+      "standardError": 0.00056889222648271,
+      "meanScaledClimb": 0.05535163038963225,
+      "meanClimbMps": 0.4603108909312417,
+      "meanTiltDeg": 4.917898094816463,
+      "flights": [
+        "stakeholder-pavo-log_12_UnknownDate.bin",
+        "stakeholder-pavo-log_13_UnknownDate.bin",
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_22_UnknownDate.bin",
+        "stakeholder-pavo-log_23_UnknownDate.bin",
+        "stakeholder-pavo-log_24_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_30_UnknownDate.bin",
+        "stakeholder-pavo-log_31_UnknownDate.bin",
+        "stakeholder-pavo-log_32_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin",
+        "stakeholder-pavo-log_36_UnknownDate.bin",
+        "stakeholder-pavo-log_37_UnknownDate.bin",
+        "stakeholder-pavo-log_63_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": 0.03,
+        "toScaledClimb": 0.1,
+        "samples": 1332,
+        "ratio": 0.9802078125227021,
+        "standardError": 0.0007064445097461398,
+        "meanScaledClimb": 0.053720408732875695,
+        "meanClimbMps": 0.44714713715262955,
+        "meanTiltDeg": 1.6580138910049202,
+        "flights": [
+          "stakeholder-pavo-log_12_UnknownDate.bin",
+          "stakeholder-pavo-log_13_UnknownDate.bin",
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_22_UnknownDate.bin",
+          "stakeholder-pavo-log_23_UnknownDate.bin",
+          "stakeholder-pavo-log_24_UnknownDate.bin",
+          "stakeholder-pavo-log_26_UnknownDate.bin",
+          "stakeholder-pavo-log_30_UnknownDate.bin",
+          "stakeholder-pavo-log_31_UnknownDate.bin",
+          "stakeholder-pavo-log_32_UnknownDate.bin",
+          "stakeholder-pavo-log_33_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin",
+          "stakeholder-pavo-log_35_UnknownDate.bin",
+          "stakeholder-pavo-log_36_UnknownDate.bin",
+          "stakeholder-pavo-log_37_UnknownDate.bin",
+          "stakeholder-pavo-log_63_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": 0.45951808672334177,
+          "scaledClimb": 0.05563372497505473,
+          "ratio": 0.9888294300029828,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": 0.45951808672334177,
+          "scaledClimb": 0.055469281750116325,
+          "ratio": 0.9884578983676694,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 0.9884578983676694,
+      "modelHigh": 0.9888294300029828,
+      "reproduced": true
+    },
+    {
+      "fromScaledClimb": 0.1,
+      "toScaledClimb": 0.2,
+      "samples": 496,
+      "ratio": 0.9467781889877979,
+      "standardError": 0.0014740804015674189,
+      "meanScaledClimb": 0.13389508165441233,
+      "meanClimbMps": 1.1093548139136644,
+      "meanTiltDeg": 5.860590301776818,
+      "flights": [
+        "stakeholder-pavo-log_12_UnknownDate.bin",
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_22_UnknownDate.bin",
+        "stakeholder-pavo-log_24_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_31_UnknownDate.bin",
+        "stakeholder-pavo-log_32_UnknownDate.bin",
+        "stakeholder-pavo-log_33_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": 0.1,
+        "toScaledClimb": 0.2,
+        "samples": 226,
+        "ratio": 0.960544070011677,
+        "standardError": 0.001220210046902493,
+        "meanScaledClimb": 0.13310630180565677,
+        "meanClimbMps": 1.106283161113352,
+        "meanTiltDeg": 1.4832012454851191,
+        "flights": [
+          "stakeholder-pavo-log_12_UnknownDate.bin",
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_22_UnknownDate.bin",
+          "stakeholder-pavo-log_24_UnknownDate.bin",
+          "stakeholder-pavo-log_31_UnknownDate.bin",
+          "stakeholder-pavo-log_32_UnknownDate.bin",
+          "stakeholder-pavo-log_33_UnknownDate.bin",
+          "stakeholder-pavo-log_34_UnknownDate.bin",
+          "stakeholder-pavo-log_35_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": 1.111569999120128,
+          "scaledClimb": 0.13558596890460917,
+          "ratio": 0.9726317501869005,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": 1.111569999120128,
+          "scaledClimb": 0.13523400339388394,
+          "ratio": 0.9716228138529892,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 0.9716228138529892,
+      "modelHigh": 0.9726317501869005,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": 0.2,
+      "toScaledClimb": 0.3,
+      "samples": 70,
+      "ratio": 0.9151110492926916,
+      "standardError": 0.002871543787878852,
+      "meanScaledClimb": 0.23428279235476535,
+      "meanClimbMps": 1.9107142430064934,
+      "meanTiltDeg": 7.271255975918038,
+      "flights": [
+        "stakeholder-pavo-log_14_UnknownDate.bin",
+        "stakeholder-pavo-log_15_UnknownDate.bin",
+        "stakeholder-pavo-log_24_UnknownDate.bin",
+        "stakeholder-pavo-log_26_UnknownDate.bin",
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": 0.2,
+        "toScaledClimb": 0.3,
+        "samples": 18,
+        "ratio": 0.9451339708537854,
+        "standardError": 0.0030124748241154645,
+        "meanScaledClimb": 0.22602100541654846,
+        "meanClimbMps": 1.861111069512036,
+        "meanTiltDeg": 1.356410069535816,
+        "flights": [
+          "stakeholder-pavo-log_14_UnknownDate.bin",
+          "stakeholder-pavo-log_15_UnknownDate.bin",
+          "stakeholder-pavo-log_24_UnknownDate.bin"
+        ]
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": 1.9449685535410839,
+          "scaledClimb": 0.23970337120475887,
+          "ratio": 0.9505758740911693,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": 1.9449685535410839,
+          "scaledClimb": 0.23915899400851354,
+          "ratio": 0.9489905780073346,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 0.9489905780073346,
+      "modelHigh": 0.9505758740911693,
+      "reproduced": false
+    },
+    {
+      "fromScaledClimb": 0.3,
+      "toScaledClimb": 0.7,
+      "samples": 38,
+      "ratio": 0.7899117712886973,
+      "standardError": 0.00740481408462552,
+      "meanScaledClimb": 0.541143988759477,
+      "meanClimbMps": 4.207631484899474,
+      "meanTiltDeg": 9.883766848456736,
+      "flights": [
+        "stakeholder-pavo-log_34_UnknownDate.bin",
+        "stakeholder-pavo-log_35_UnknownDate.bin"
+      ],
+      "level": {
+        "fromScaledClimb": 0.3,
+        "toScaledClimb": 0.7,
+        "samples": 0,
+        "ratio": null,
+        "standardError": null,
+        "meanScaledClimb": null,
+        "meanClimbMps": null,
+        "meanTiltDeg": null,
+        "flights": []
+      },
+      "model": [
+        {
+          "transverseMps": 0,
+          "climbMps": 4.4924683989646175,
+          "scaledClimb": 0.5742899549621749,
+          "ratio": 0.8758135476876343,
+          "fluctuationShare": 0
+        },
+        {
+          "transverseMps": 2,
+          "climbMps": 4.4924683989646175,
+          "scaledClimb": 0.573243881643145,
+          "ratio": 0.873611899710178,
+          "fluctuationShare": 0
+        }
+      ],
+      "modelLow": 0.873611899710178,
+      "modelHigh": 0.8758135476876343,
+      "reproduced": false
+    }
+  ],
+  "status": "NOT_REPRODUCED"
+}

@@ -1,0 +1,673 @@
+{
+  "schemaVersion": 1,
+  "kind": "pavo-systemid-comparison",
+  "task": "TASK-090",
+  "note": "The real log is the stakeholder's flight; the simulated log is native ArduCopter V4.7.2 SITL flying the Pavo profile, simulated data. Metrics are REPORTED with no limit and no verdict (SA-01). Only the swept axis compares like with like; the other axes and the time-domain rows compare two flights with different pilots.",
+  "real": {
+    "file": "stakeholder-pavo-log_33_UnknownDate.bin",
+    "sha256": "922b36fe68d2e08c78298019f1db938063394addc1c1ca9461c0bdb49aab63ac",
+    "firmware": "ArduCopter V4.6.3 (3fc7011a)",
+    "sweep": {
+      "fromS": 76.890591,
+      "toS": 153.895242
+    }
+  },
+  "simulated": {
+    "sha256": "0e6e6d18ad98749868a6ecf05b73c75474169a058a83f409e96f3e897b386593",
+    "firmware": {
+      "id": "arducopter-fb773567",
+      "commit": "fb773567896014da007bca58358704d4a0d8516f",
+      "binarySha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841"
+    },
+    "manifestSha256": "825dcb33c0058db3aef322c382a0def1b23ffa4bffef48920a2010c5da06a863",
+    "hz": 800,
+    "speedup": 4,
+    "sweep": {
+      "fromS": 58.362683999999994,
+      "toS": 135.367684
+    },
+    "heightDuringSweepM": [
+      2.518631940001135,
+      2.9967601474839047
+    ],
+    "wallS": 37.09710641699999,
+    "lockstep": {
+      "steps": 115232,
+      "duplicates": 0,
+      "gaps": 0,
+      "droppedFrames": 0,
+      "restarts": 0,
+      "stale": 0,
+      "invalid": 0,
+      "repliesResent": 0,
+      "clampedPwm": 6188
+    }
+  },
+  "parameters": [
+    {
+      "name": "ATC_ACC_P_MAX",
+      "value": 2042
+    },
+    {
+      "name": "ATC_ACC_R_MAX",
+      "value": 5870.17
+    },
+    {
+      "name": "ATC_ACC_Y_MAX",
+      "value": 340
+    },
+    {
+      "name": "ATC_ANGLE_BOOST",
+      "value": 1
+    },
+    {
+      "name": "ATC_ANGLE_MAX",
+      "value": 30
+    },
+    {
+      "name": "ATC_ANG_PIT_P",
+      "value": 25
+    },
+    {
+      "name": "ATC_ANG_RLL_P",
+      "value": 36
+    },
+    {
+      "name": "ATC_ANG_YAW_P",
+      "value": 9
+    },
+    {
+      "name": "ATC_INPUT_TC",
+      "value": 0.10000000149011612
+    },
+    {
+      "name": "ATC_RATE_FF_ENAB",
+      "value": 1
+    },
+    {
+      "name": "ATC_RATE_P_MAX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RATE_R_MAX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RATE_Y_MAX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_D",
+      "value": 0.0005499999970197678
+    },
+    {
+      "name": "ATC_RAT_PIT_D_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_FLTD",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_PIT_FLTE",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_FLTT",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_PIT_I",
+      "value": 0.10000000149011612
+    },
+    {
+      "name": "ATC_RAT_PIT_IMAX",
+      "value": 0.5
+    },
+    {
+      "name": "ATC_RAT_PIT_NEF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_NTF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_P",
+      "value": 0.05999999865889549
+    },
+    {
+      "name": "ATC_RAT_PIT_PDMX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_PIT_SMAX",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_RLL_D",
+      "value": 0.0007612642366439104
+    },
+    {
+      "name": "ATC_RAT_RLL_D_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_FLTD",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_RLL_FLTE",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_FLTT",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_RLL_I",
+      "value": 0.05109025910496712
+    },
+    {
+      "name": "ATC_RAT_RLL_IMAX",
+      "value": 0.5
+    },
+    {
+      "name": "ATC_RAT_RLL_NEF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_NTF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_P",
+      "value": 0.05109025910496712
+    },
+    {
+      "name": "ATC_RAT_RLL_PDMX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_RLL_SMAX",
+      "value": 50
+    },
+    {
+      "name": "ATC_RAT_YAW_D",
+      "value": 0.009999996051192284
+    },
+    {
+      "name": "ATC_RAT_YAW_D_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_FF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_FLTD",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_FLTE",
+      "value": 2
+    },
+    {
+      "name": "ATC_RAT_YAW_FLTT",
+      "value": 25
+    },
+    {
+      "name": "ATC_RAT_YAW_I",
+      "value": 0.04999995976686478
+    },
+    {
+      "name": "ATC_RAT_YAW_IMAX",
+      "value": 0.5
+    },
+    {
+      "name": "ATC_RAT_YAW_NEF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_NTF",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_P",
+      "value": 0.49999961256980896
+    },
+    {
+      "name": "ATC_RAT_YAW_PDMX",
+      "value": 0
+    },
+    {
+      "name": "ATC_RAT_YAW_SMAX",
+      "value": 50
+    },
+    {
+      "name": "ATC_THR_MIX_MAN",
+      "value": 0.10000000149011612
+    },
+    {
+      "name": "ATC_THR_MIX_MAX",
+      "value": 0.5
+    },
+    {
+      "name": "ATC_THR_MIX_MIN",
+      "value": 0.10000000149011612
+    },
+    {
+      "name": "INS_ACCEL_FILTER",
+      "value": 10
+    },
+    {
+      "name": "INS_GYRO_FILTER",
+      "value": 100
+    },
+    {
+      "name": "INS_HNTCH_ENABLE",
+      "value": 0
+    },
+    {
+      "name": "LOG_BITMASK",
+      "value": 399099
+    },
+    {
+      "name": "MOT_BAT_VOLT_MAX",
+      "value": 13.050000190734863
+    },
+    {
+      "name": "MOT_BAT_VOLT_MIN",
+      "value": 9.899999618530273
+    },
+    {
+      "name": "MOT_HOVER_LEARN",
+      "value": 1
+    },
+    {
+      "name": "MOT_SPIN_ARM",
+      "value": 0.05000000074505806
+    },
+    {
+      "name": "MOT_SPIN_MAX",
+      "value": 0.949999988079071
+    },
+    {
+      "name": "MOT_SPIN_MIN",
+      "value": 0.07999999821186066
+    },
+    {
+      "name": "MOT_THST_EXPO",
+      "value": 0.36000001430511475
+    },
+    {
+      "name": "MOT_THST_HOVER",
+      "value": 0.13000370562076569
+    },
+    {
+      "name": "SID_AXIS",
+      "value": 4
+    },
+    {
+      "name": "SID_F_START_HZ",
+      "value": 0.5
+    },
+    {
+      "name": "SID_F_STOP_HZ",
+      "value": 40
+    },
+    {
+      "name": "SID_MAGNITUDE",
+      "value": 3
+    },
+    {
+      "name": "SID_T_FADE_IN",
+      "value": 1
+    },
+    {
+      "name": "SID_T_FADE_OUT",
+      "value": 1
+    },
+    {
+      "name": "SID_T_REC",
+      "value": 70
+    }
+  ],
+  "capture": {
+    "sha256": "a8b68f5a160951beb2a4a88c06927e809725565c1a08201bfab086a13c21c359",
+    "summary": {
+      "sha256": "a8b68f5a160951beb2a4a88c06927e809725565c1a08201bfab086a13c21c359",
+      "source": "flight-test",
+      "origin": "It holds no SITL parameter and no MirageSITL message",
+      "timeDomain": [
+        "roll",
+        "pitch",
+        "yaw",
+        "roll-rate",
+        "pitch-rate",
+        "yaw-rate",
+        "altitude",
+        "vertical-speed",
+        "battery-voltage",
+        "battery-current",
+        "motor-output"
+      ],
+      "frequencyResponse": [
+        "roll-rate-response",
+        "pitch-rate-response",
+        "yaw-rate-response"
+      ],
+      "skipped": []
+    }
+  },
+  "fidelity": {
+    "schemaVersion": 1,
+    "kind": "fidelity",
+    "status": "REPORTED",
+    "reasons": [
+      "The metrics are reported without a limit or a verdict (SA-01); the user judges them"
+    ],
+    "metrics": {
+      "source": "flight-test",
+      "timeDomain": {
+        "roll": {
+          "unit": "deg",
+          "samples": 770,
+          "rms": 6.411614690857135,
+          "bias": -4.788205540342798,
+          "theil": 0.7785807788443883
+        },
+        "pitch": {
+          "unit": "deg",
+          "samples": 770,
+          "rms": 13.600604732560317,
+          "bias": 9.692437128545945,
+          "theil": 0.9996133560996843
+        },
+        "yaw": {
+          "unit": "deg",
+          "samples": 770,
+          "rms": 170.52857991241007,
+          "bias": -170.5285471264907,
+          "theil": 0.9999970445718055
+        },
+        "roll-rate": {
+          "unit": "deg/s",
+          "samples": 30802,
+          "rms": 26.19846439256156,
+          "bias": -0.26137264027429497,
+          "theil": 0.31716443927872107
+        },
+        "pitch-rate": {
+          "unit": "deg/s",
+          "samples": 30802,
+          "rms": 5.85022674268895,
+          "bias": 0.7270510345024331,
+          "theil": 0.9698414650541667
+        },
+        "yaw-rate": {
+          "unit": "deg/s",
+          "samples": 30802,
+          "rms": 1.3922885779709804,
+          "bias": -0.1771101843886672,
+          "theil": 0.8949008149576686
+        },
+        "altitude": {
+          "unit": "m",
+          "samples": 1925,
+          "rms": 6.171450754448385,
+          "bias": -5.3825860387604285,
+          "theil": 0.5475513789004941
+        },
+        "vertical-speed": {
+          "unit": "m/s",
+          "samples": 1925,
+          "rms": 0.7019241864083557,
+          "bias": 0.2526837683409005,
+          "theil": 0.9671643695148253
+        },
+        "battery-voltage": {
+          "unit": "V",
+          "samples": 770,
+          "rms": 0.6901354328807998,
+          "bias": 0.684328077625721,
+          "theil": 0.028339922922387583
+        },
+        "battery-current": {
+          "unit": "A",
+          "samples": 770,
+          "rms": 0.8602273408009371,
+          "bias": -0.5908904808530158,
+          "theil": 0.09468669514114399
+        },
+        "motor-output": {
+          "unit": "us",
+          "samples": 770,
+          "rms": 117.66165742072664,
+          "bias": 83.35899651948037,
+          "theil": 0.04591907461312361
+        }
+      },
+      "frequencyResponse": {
+        "roll-rate-response": {
+          "cost": 188.2970100573937,
+          "minCoherence": 0.6,
+          "points": 18,
+          "excludedPoints": 0,
+          "measuredSegments": 59,
+          "simulatedSegments": 59
+        },
+        "pitch-rate-response": {
+          "cost": 1434.7059053779785,
+          "minCoherence": 0.6,
+          "points": 16,
+          "excludedPoints": 2,
+          "measuredSegments": 59,
+          "simulatedSegments": 59
+        },
+        "yaw-rate-response": {
+          "cost": 449.01187860704215,
+          "minCoherence": 0.6,
+          "points": 16,
+          "excludedPoints": 2,
+          "measuredSegments": 59,
+          "simulatedSegments": 59
+        }
+      },
+      "bench": null
+    },
+    "inputSha256": "a8b68f5a160951beb2a4a88c06927e809725565c1a08201bfab086a13c21c359",
+    "sourceRevision": "5e765b937e1ffd6e1555868a633271504b410e57",
+    "validatorSha256": "0bb0e909f74cd9158fac33076ae22243d1fbe945f5cb6d517c11deb4ecc1ebc9"
+  },
+  "sweptAxis": "roll-rate-response",
+  "sweptResponse": {
+    "cost": 188.2970100573937,
+    "points": 18,
+    "excluded": 0,
+    "rows": [
+      {
+        "f": 0.781,
+        "measuredDb": 0.52,
+        "simDb": 0.22,
+        "measuredDeg": -4.1,
+        "simDeg": -4.6,
+        "coh": 0.874,
+        "simCoh": 0.999
+      },
+      {
+        "f": 1.172,
+        "measuredDb": 0.4,
+        "simDb": 0.17,
+        "measuredDeg": -7.5,
+        "simDeg": -6.8,
+        "coh": 0.956,
+        "simCoh": 0.999
+      },
+      {
+        "f": 1.563,
+        "measuredDb": 0.29,
+        "simDb": 0.21,
+        "measuredDeg": -10.7,
+        "simDeg": -9.2,
+        "coh": 0.98,
+        "simCoh": 0.999
+      },
+      {
+        "f": 1.953,
+        "measuredDb": 0.21,
+        "simDb": 0.29,
+        "measuredDeg": -13.1,
+        "simDeg": -11.6,
+        "coh": 0.99,
+        "simCoh": 0.999
+      },
+      {
+        "f": 2.344,
+        "measuredDb": 0.2,
+        "simDb": 0.38,
+        "measuredDeg": -15.4,
+        "simDeg": -14.1,
+        "coh": 0.995,
+        "simCoh": 0.999
+      },
+      {
+        "f": 2.734,
+        "measuredDb": 0.24,
+        "simDb": 0.49,
+        "measuredDeg": -16.6,
+        "simDeg": -16.6,
+        "coh": 0.997,
+        "simCoh": 0.999
+      },
+      {
+        "f": 3.125,
+        "measuredDb": 0.23,
+        "simDb": 0.62,
+        "measuredDeg": -18.7,
+        "simDeg": -19.3,
+        "coh": 0.998,
+        "simCoh": 0.999
+      },
+      {
+        "f": 3.516,
+        "measuredDb": 0.27,
+        "simDb": 0.76,
+        "measuredDeg": -21.1,
+        "simDeg": -22,
+        "coh": 0.998,
+        "simCoh": 0.999
+      },
+      {
+        "f": 4.297,
+        "measuredDb": 0.28,
+        "simDb": 1.08,
+        "measuredDeg": -26.9,
+        "simDeg": -27.9,
+        "coh": 0.998,
+        "simCoh": 0.999
+      },
+      {
+        "f": 5.078,
+        "measuredDb": 0.35,
+        "simDb": 1.43,
+        "measuredDeg": -31.4,
+        "simDeg": -34.2,
+        "coh": 0.999,
+        "simCoh": 0.999
+      },
+      {
+        "f": 6.25,
+        "measuredDb": 0.55,
+        "simDb": 2.02,
+        "measuredDeg": -39.5,
+        "simDeg": -45,
+        "coh": 0.998,
+        "simCoh": 0.998
+      },
+      {
+        "f": 7.031,
+        "measuredDb": 0.42,
+        "simDb": 2.37,
+        "measuredDeg": -45,
+        "simDeg": -52.8,
+        "coh": 0.999,
+        "simCoh": 0.999
+      },
+      {
+        "f": 8.594,
+        "measuredDb": 0.79,
+        "simDb": 3,
+        "measuredDeg": -54.4,
+        "simDeg": -70.8,
+        "coh": 0.998,
+        "simCoh": 0.996
+      },
+      {
+        "f": 10.156,
+        "measuredDb": 1.11,
+        "simDb": 3.23,
+        "measuredDeg": -67.9,
+        "simDeg": -92.1,
+        "coh": 0.998,
+        "simCoh": 0.995
+      },
+      {
+        "f": 12.109,
+        "measuredDb": 1.35,
+        "simDb": 2.82,
+        "measuredDeg": -87.2,
+        "simDeg": -121.5,
+        "coh": 0.995,
+        "simCoh": 0.993
+      },
+      {
+        "f": 14.063,
+        "measuredDb": 1.88,
+        "simDb": 1.35,
+        "measuredDeg": -101.6,
+        "simDeg": -148,
+        "coh": 0.998,
+        "simCoh": 0.998
+      },
+      {
+        "f": 16.797,
+        "measuredDb": 0.49,
+        "simDb": -1.44,
+        "measuredDeg": -134.9,
+        "simDeg": -178.7,
+        "coh": 0.994,
+        "simCoh": 0.998
+      },
+      {
+        "f": 19.922,
+        "measuredDb": -1.27,
+        "simDb": -4.76,
+        "measuredDeg": -166.3,
+        "simDeg": 154.7,
+        "coh": 0.985,
+        "simCoh": 0.999
+      }
+    ]
+  },
+  "otherResponses": {
+    "pitch-rate-response": {
+      "cost": 1434.7059053779785,
+      "points": 16,
+      "excluded": 2
+    },
+    "yaw-rate-response": {
+      "cost": 449.01187860704215,
+      "points": 16,
+      "excluded": 2
+    }
+  }
+}
