@@ -4554,6 +4554,41 @@ Open items:
 * Convert DataFlash logs to capture schema 2.
 * Build the simulation replay that produces the simulated series.
 
+SystemId flights of the Pavo20 Pro II (2026-11-08), declared before the simulated flight was flown.
+The real flights are the stakeholder's Pavo SystemId logs of `data/flight-logs/inventory.json`: 33 and
+34 with SID_AXIS 4 (recovery roll), 35 with 5 (recovery pitch) and 36 with 6 (recovery yaw), each with
+SID_MAGNITUDE 3°, SID_F_START_HZ 0.5, SID_F_STOP_HZ 40, SID_T_FADE_IN 1, SID_T_REC 70 and SID_T_FADE_OUT 1
+s, entered from Stabilize with the throttle by hand, on ArduCopter V4.6.3; log 34 swept twice and is
+compared on its complete second sweep. Each is simulated by native ArduCopter V4.7.2 (`fb77356`, the
+TASK-198 build) flying the Pavo profile ("The Pavo20 Pro II profile") in JSON lockstep at 800 Hz:
+`tests/sitl-systemid-pavo.test.ts` flies as `tests/external-sitl-flight.test.ts` does, through the
+launcher, `PhysicsSessionV2` and `SitlJsonLink`, on the synthetic pad (no contact module): a GUIDED
+take-off to 5 m and 5 s of hover, so that ArduPilot learns MOT_THST_HOVER; then Stabilize under RC
+override at 25 Hz, the sticks centred and the throttle from a pilot model holding 5 m (1500 us, plus 30
+us per metre below 5 m and minus 40 us per m/s of climb, within ±150 us), as the real pilot held height
+by hand; after 3 s SYSTEMID with the axis's logged SID_* values, until ArduPilot reports "SystemID
+Finished"; then LAND. Parameters: the real log's attitude controller (every ATC_RAT_* of the three axes,
+ATC_ANG_*_P, ATC_INPUT_TC, ATC_RATE_FF_ENAB, ATC_RATE_*_MAX, ATC_THR_MIX_*, ATC_ANGLE_BOOST), its V4.6
+names under V4.7.2's (ATC_ACCEL_R/P/Y_MAX in cdeg/s² as ATC_ACC_R/P/Y_MAX in deg/s², ANGLE_MAX in cdeg
+as ATC_ANGLE_MAX in degrees), INS_GYRO_FILTER, INS_ACCEL_FILTER, MOT_THST_EXPO, MOT_SPIN_ARM, MOT_SPIN_MIN,
+MOT_SPIN_MAX, MOT_HOVER_LEARN, the starting MOT_THST_HOVER, MOT_BAT_VOLT_MAX and MOT_BAT_VOLT_MIN and
+LOG_BITMASK; the profile's frame parameters; and MOT_PWM_MIN 1000 and MOT_PWM_MAX 2000, the span the
+link maps to ESC duty (the real ESCs take DShot600). Left out, each a stated difference: the harmonic
+notch (the real one follows the ESCs' speed telemetry, which this link does not give, so
+INS_HNTCH_ENABLE 0), ATC_SLEW_YAW (no V4.7.2 name; it limits autonomous yaw only), INS_GYRO_RATE, and the
+real pilot's own sticks during the sweep (the real flights lean 5 to 10° and hold height by hand).
+
+Compared, for each log: `scripts/fidelity-capture.mjs` over the sweep, from the SIDS record to the
+"SystemID Finished" message of each log (`--from`, `--to`, and `--simulated-offset` from the two
+starts), with the script's fixed method: per axis the requested-to-actual rate response of RATE at the
+real log's 400 Hz, Hann segments of 1024 samples with half overlap, 20 points spaced logarithmically
+from 0.78 to 20 Hz and the coherence guideline 0.6; and the time-domain sections it finds.
+`scripts/check-fidelity.mjs` reports RMS, bias, Theil and J as REPORTED, with no limit and no verdict
+(SA-01). The swept axis's response is the comparison; the other axes and the time-domain rows compare
+two flights whose pilots differ, which the report states beside them. The capture's firmware hash is the
+SITL executable's (no binary of the real board's V4.6.3 is held) and its model hash the derived Pavo
+manifest's. The SITL log is simulated, the capture names it by SHA-256, and nothing calls it real data.
+
 ## Sensor-error ownership (TASK-089)
 
 ArduPilot's SITL sensor backends read `sitl_fdm` and add their own errors on
