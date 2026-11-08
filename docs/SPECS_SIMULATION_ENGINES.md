@@ -1180,6 +1180,89 @@ effect on its upper rotor, and transport delay.
 because a wake's reach depends on the flight; `declared`, the manifest's `rotorWakePairs`;
 `off`, none. TASK-177's thrust at full command runs the same coupling.
 
+Measured rotor wakes: NASA MTB2 (TASK-101, 2026-11-08), declared before the model's prediction
+was computed and after a first look at the measured thrusts. The data are NASA Ames's second
+wind-tunnel entry of the Multirotor Test Bed (Conley et al., NASA/TM-20250004795, May 2025, a
+US Government work in the public domain), downloaded with the stakeholder's approval and kept
+outside the repository: the data report PDF and five workbooks, each checked by its SHA-256
+(`MTB2_METHOD.sources` in `packages/analysis/src/mtb2-interference.ts`). Each of four rotors
+stands on its own six-axis load cell, so the tables give every rotor's thrust (`Fz_H`, along
+its shaft, lb, after drift, aerodynamic and weight tares) at each point, with the tunnel speed,
+dynamic pressure, density, model pitch, rotor tilt and RPM.
+
+What the data offer this model. The rotors are public: 24.5 in diameter (R 12.245 in), two blades
+of constant 1.54 in chord, the E387 airfoil, linear twist −16°, collective 6.7° at 0.75 R. Rotors 1
+and 2 are in front, 3 and 4 behind, 33 in (2.7 R) apart along the stream and 32.7 in across; the
+rear rotors stand 4 in above the front ones (concept configuration, dz/R 0.33), level with them
+(equal height, 0) or 7 in above (tall, 0.57). Runs set q 0.48 or 1.90 psf (20 or 40 ft/s), model
+pitch 0, −1, −3, −5 and −10° (nose down), rotor tilt 0 or −3°, and 2000, 2500 and 3000 RPM.
+What this model represents is the one-way wake of a front rotor reaching a rear one, so the
+comparison is the tandem pair (rotors 1 and 3 alone, both starboard, 0° relative phase: runs 113,
+143 and the phase-0 points of 151, one per configuration) against the same rotors alone (rotor 3:
+runs 103, 141, 147; rotor 1: run 102, whose position the three configurations share). Not used:
+the side-by-side pairs, which this model's wakes, going downstream, never reach; the quadrotor
+runs (rotor 3 of the equal-height quadrotor, runs 152 and 153, reads 0.87 to 0.94 lb at its
+wind-off 2000 RPM points against 1.63 lb alone, an offset as large as the effect sought); the
+hover RPM sweeps (no isolated sweep to divide by); the three- and six-blade runs; and the run with
+a rotor tilted −78.7°. MTB2 has no coaxial pair, so it cannot test that part of the model.
+
+What the tables hold that the model cannot use or that is questionable, each found in them: the
+RPM columns do not follow the rotors in the two-rotor runs (in run 113 `RPM_2` reads 2000 on a
+stack without blades while `RPM_3` reads 0 under the rotor giving 4.7 lb and 5.9 in-lb of torque),
+so a point's speed is the largest of its four RPM columns, rounded to the nearest 500; the stacks
+without blades read −0.2 to −1.1 lb; rotor 1, which this model's front rotor matches by
+construction (nothing flows upstream), reads 0.2 to 0.3 lb more in every tandem run than alone
+at the wind-off 2000 RPM points, with its torque about 4 % higher, and 0.2 to 0.6 lb more in
+forward flight (4 to 19 %), nearly constant in pounds across RPM; the rear rotor reads 0.15 to
+0.29 lb more at the same wind-off points. The report notes that the load cells' calibration
+depends on the combination of loads. The rotor-positions workbook has a sign and value slip in
+four rows of the equal-height configuration (rotors 1 and 2 at pitch −10° tilt 0 and at pitch
+−5° tilt −3°).
+
+Measured quantities, per condition (q level: 0 below 0.1 psf, 0.48 below 1.0, else 1.90; pitch
+and tilt rounded to the nearest degree; speed as above; the phase the most negative of the four
+phase columns; repeated points of one run averaged; wind-off points only at pitch 0, tilt 0 and
+2000 RPM, the housekeeping points): the rear rotor's ratio `r = T3_tandem / T3_alone`; the same
+with the front rotor's change taken as an offset common to both rotors of the run,
+`r_c = (T3_tandem − (T1_tandem − T1_alone)) / T3_alone`; and the front rotor's own
+`r_front = T1_tandem / T1_alone`. Which of r and r_c is right depends on the cause of the front
+rotor's offset, which the data do not settle, so the measured interval is between them. The
+data's own scatter s is the RMS of each isolated rear-rotor run over the mean of the isolated runs
+103, 141 and 147 at the conditions two or more of them share. The phase −90° tandem points (runs
+116, 144 and 151) are shown beside the phase-0 ratio, measured only: the model has no blade phase.
+
+The model's prediction is its own flight dynamics (`BetFlightDynamics`, ESC drive, wakes `all`,
+dynamic inflow) on a two-rotor manifest of the tandem: hub positions from the rotor-positions
+workbook at pitch 0 and the run's tilt (the rotor tilts about its own pivot, as the workbook
+shows), body x upstream; the model pitch is the body's attitude and the tunnel speed its forward
+speed through still air at the run's density, with viscosity by Sutherland's law and the speed of
+sound at the tunnel's total temperature; gravity off and the body made 1e8 times heavier, as the
+ground-effect test holds it. The blades: the report's geometry, `theta(r) = 6.7° − 16° (r/R − 0.75)
++ delta`, 16 equal strips from the repository's assumed root cutout of 0.15 R (the report gives
+none), and the catalog's `naca6409-extended-v1` polar standing in for the E387 the catalog does not
+hold (both about 9 % thick; 6 % against 3.2 % camber). One collective offset delta, common to
+both rotors, makes the model's summed thrust equal the measured sum over the isolated rotors'
+forward-flight points (runs 102 and 103, model at each run's conditions with the wakes off); no
+tandem point enters it, and each fitted point's model over measured is shown. A PI governor on
+each rotor's duty holds the condition's RPM; a run lasts 3 s at 800 Hz, thrust is the mean over
+its last 0.5 s, and a run whose speed is not within 0.1 % of the target is an error. Motor, ESC
+and battery are the example cards with KV 300 and 60 A ratings: they only have to reach the speed,
+and at a held speed the rotor's thrust does not depend on them. The model's ratios are
+`r_model = T3(wakes all) / T3(wakes off)` and the same for rotor 1, at the tandem run's mean
+conditions. Not in the model and stated as such: the tunnel's walls and floor (the rotors are about
+4.7 R above the floor; ground effect is off), the test bed's structure and motor housings under the
+rotors (no hull, so no download), blade phase, any effect of the rear rotor on the front one,
+swirl and blade flexibility.
+
+Reporting (SA-01: no fidelity limit and no pass or fail). Each condition lists the measured r, r_c,
+r_front, the phase −90° r where it exists, the model's r_model and r_front_model, and whether
+r_model lies inside the measured interval widened by 2 s (`within` or `outside`), a description of
+where the model falls, not a verdict. Per configuration and speed, the count inside and the means.
+`tests/rotor-wake-mtb2.test.ts` runs it with `MIRAGE_MTB2_DIR` set to the downloaded directory (it
+skips without it), checks every file's SHA-256, and with `MIRAGE_MTB2_OUT` set writes the report
+(`test-results/validation/mtb2-rotor-wake.json`) with the status `SHOWN`; without the data its
+synthetic-table tests of the measurement still run.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,
