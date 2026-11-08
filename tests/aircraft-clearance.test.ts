@@ -7,7 +7,7 @@ import {
 import { validateComponentCard } from '../packages/aircraft/src/components.ts';
 import { deriveVehicleManifest } from '../packages/aircraft/src/derive-manifest.ts';
 import { deriveLayout } from '../packages/aircraft/src/layout.ts';
-import { profileDraft, validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '../packages/aircraft/src/profile.ts';
+import { profileDraft, validateAircraftProfile, withLandingGear, withPropellerPolars, type AircraftProfile, type ProfileGear } from '../packages/aircraft/src/profile.ts';
 import { STANDARD_GEAR, standardLandingGear } from '../packages/aircraft/src/standard-gear.ts';
 import { MemoryBackend, ProjectStore } from '../packages/project/src/store.ts';
 import { prepareVehicle } from '../apps/web/src/sitl/sitl-run.ts';
@@ -264,5 +264,27 @@ describe('run admission', () => {
     });
     const vehicle = await prepareVehicle(fixed.store, fixed.version);
     expect(vehicle.derived.manifest.rotors).toHaveLength(4);
+  });
+});
+
+// TASK-194: on a described gear the aircraft rests level with each support carrying its share, the mean foot depth less the strut
+// under the share minus its foot and the foot under the whole share; parts below that height are on the ground.
+describe('propeller clearance on a described landing gear (TASK-194)', () => {
+  const nothing = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null, footStiffnessNpm: null,
+    unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
+  const legs = (depthM: number, values: Partial<ProfileGear['values']> = {}): ProfileGear => ({
+    kind: 'legs', feetBodyM: [[0.15, 0.15, depthM], [0.15, -0.15, depthM], [-0.15, -0.15, depthM], [-0.15, 0.15, depthM]], positionSource: 'Drawing',
+    values: { ...nothing, ...values },
+    provenance: { ...nothing, ...Object.fromEntries(Object.entries(values).map(([key]) => [key, 'Drawing'])) },
+  });
+  test('rests at the closed-form height, and a gear too short to hold the body off the ground puts it on the ground', () => {
+    const tall = withLandingGear(fixture('quad-x'), legs(0.1, { strutStiffnessNpm: 2000, footStiffnessNpm: 30000, unsprungMassKg: 0.004 }));
+    const share = 1.5 / 4, g = 9.80665, compression = ((share - 0.004) * g) / 2000 + (share * g) / 30000;
+    const report = propellerClearance(tall, radius(SYNTHETIC_R));
+    expect(report.groundClearanceM).toBeCloseTo(0.1 - compression, 15);
+    expect(report.clashes).toEqual([]);
+    // The standard body is 0.4·0.25·0.225 = 0.0225 m half-height: feet 15 mm down cannot hold it up.
+    const short = propellerClearance(withLandingGear(fixture('quad-x'), legs(0.015)), radius(SYNTHETIC_R));
+    expect(short.clashes.map(clash => clash.kind === 'ground' ? clash.part.kind : clash.kind)).toContain('body');
   });
 });

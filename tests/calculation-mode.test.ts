@@ -317,11 +317,12 @@ describe('calculation modes and labels', () => {
       ['another mode', { ...base, calculation: { mode: 'calibrated', measurementSets: [] } }, 'Invalid aircraft profile'],
       ['schema 3 without a sensor configuration', { ...base, schemaVersion: 3 }, 'Schema 3 profiles need a sensor configuration'],
       // Schema 4 (TASK-144) needs propeller polars; no schema 5 exists.
-      ['schema 4 without propeller polars', { ...base, schemaVersion: 4 }, 'Propeller polars appear exactly in schemas 4 to 7'],
-      // Schema 6 (TASK-145) needs its polars list and its calibrations; schema 7 (TASK-196) its body too; no schema 8 exists.
-      ['schema 6 without its fields', { ...base, schemaVersion: 6 }, 'Propeller polars appear exactly in schemas 4 to 7'],
-      ['schema 7 without its fields', { ...base, schemaVersion: 7 }, 'Propeller polars appear exactly in schemas 4 to 7'],
-      ['schema 8', { ...base, schemaVersion: 8 }, '/schemaVersion must be equal to one of the allowed values'],
+      ['schema 4 without propeller polars', { ...base, schemaVersion: 4 }, 'Propeller polars appear exactly in schemas 4 to 8'],
+      // Schema 6 (TASK-145) needs its polars list and its calibrations; schema 7 (TASK-196) its body too, and schema 8 (TASK-194) its landing gear; no schema 9 exists.
+      ['schema 6 without its fields', { ...base, schemaVersion: 6 }, 'Propeller polars appear exactly in schemas 4 to 8'],
+      ['schema 7 without its fields', { ...base, schemaVersion: 7 }, 'Propeller polars appear exactly in schemas 4 to 8'],
+      ['schema 8 without its fields', { ...base, schemaVersion: 8 }, 'Propeller polars appear exactly in schemas 4 to 8'],
+      ['schema 9', { ...base, schemaVersion: 9 }, '/schemaVersion must be equal to one of the allowed values'],
     ];
     for (const [label, input, message] of invalid) expect(() => validateAircraftProfile(input), label).toThrow(message);
   });

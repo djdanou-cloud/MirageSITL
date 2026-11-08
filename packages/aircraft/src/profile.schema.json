@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mirage-sitl.invalid/schemas/aircraft-profile.schema.json",
-  "title": "MirageSITL aircraft profile schemas 1 to 7",
-  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank; and, from schema 7 (TASK-196), a body exactly in schema 7, whose parts have unique names, whose arms all reach out of the body cylinder, and which makes at most 16 hull shapes with the arms.",
+  "title": "MirageSITL aircraft profile schemas 1 to 8",
+  "description": "Multirotor aircraft profile (TASK-138). SI units; positions are body FRD metres from the body reference point. Code checks what the schema cannot express: ascending unique arm and motor IDs, known arms, one single motor or one upper and one lower motor per arm, a pair separation exactly for pairs, unique outputs, distinct arm mounts, and realizable inertia tensors; and, from schema 2 (TASK-140), a calculation exactly in schema 2, no measurement set in preliminary mode, and measurement sets in ascending order without repeats; and, from schema 3 (TASK-143), a sensor configuration exactly in schema 3, which also needs a calculation and never equals the ArduPilot defaults, which are stored as null; and, from schema 4 (TASK-144), propeller polars exactly in schemas 4 and 5: in ascending card order, each for a propeller card that a motor uses and naming a polar-catalog entry, and one or more in schema 4; schemas 4 and 5 hold a sensor configuration or null; and, from schema 5 (TASK-096), stated airframe drag exactly in schema 5, with a source that is not blank; and, from schema 7 (TASK-196), a body exactly in schema 7 and optionally in schema 8, whose parts have unique names, whose arms all reach out of the body cylinder, and which makes at most 16 hull shapes with the arms; and, from schema 8 (TASK-194), a landing gear exactly in schema 8, with each value known exactly with a source, three to eight supports (skids an even four to eight), a rolling coefficient for wheels only, no stated ground clearance, the CG inside the support polygon, a strut travel above zero, a rim inside its foot, a kinetic friction at most the static one and an unsprung mass below a support's share.",
   "definitions": {
     "cardReference": {
       "description": "SHA-256 address of a component-card version in the project store (TASK-136, TASK-139), or null while none is selected.",
@@ -14,6 +14,15 @@
       "minItems": 3,
       "maxItems": 3,
       "items": { "type": "number" }
+    },
+    "gearSource": {
+      "description": "TASK-194: where a landing gear value or position comes from, 1 to 96 characters.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96
+    },
+    "gearSourceOrNull": {
+      "anyOf": [{ "$ref": "#/definitions/gearSource" }, { "type": "null" }]
     },
     "matrix3": {
       "description": "Row-major 3x3 tensor in body FRD axes.",
@@ -38,7 +47,7 @@
     "sensorConfiguration"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2, 3, 4, 5, 6, 7] },
+    "schemaVersion": { "enum": [1, 2, 3, 4, 5, 6, 7, 8] },
     "units": { "const": "SI" },
     "bodyFrame": { "const": "FRD" },
     "arms": {
@@ -199,6 +208,57 @@
           "rpmMin": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
           "rpmMax": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
           "densityKgM3": { "type": "number", "minimum": 0.3, "maximum": 1.6 }
+        }
+      }
+    },
+    "landingGear": {
+      "description": "Schema 8 only (TASK-194): the landing gear in place of the standard supports of decision D-07. Each value is known with its source or not known (null with a null source); one set of values holds for every support.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "feetBodyM", "positionSource", "values", "provenance"],
+      "properties": {
+        "kind": { "enum": ["legs", "skids", "wheels"] },
+        "feetBodyM": {
+          "description": "The bottom of each foot or wheel with the struts fully extended, body FRD metres from the reference point; for skids, skid i runs from support 2i to support 2i + 1.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": { "$ref": "#/definitions/vector3" }
+        },
+        "positionSource": { "$ref": "#/definitions/gearSource" },
+        "values": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strutTravelM", "strutStiffnessNpm", "strutDampingNspm", "footRadiusM", "rimRadiusM", "footStiffnessNpm", "unsprungMassKg", "staticFriction", "kineticFriction", "rollingCoefficient"],
+          "properties": {
+            "strutTravelM": { "type": ["number", "null"], "minimum": 0 },
+            "strutStiffnessNpm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "strutDampingNspm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "footRadiusM": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "rimRadiusM": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "footStiffnessNpm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "unsprungMassKg": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "staticFriction": { "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 10 },
+            "kineticFriction": { "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 10 },
+            "rollingCoefficient": { "type": ["number", "null"], "minimum": 0, "maximum": 10 }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strutTravelM", "strutStiffnessNpm", "strutDampingNspm", "footRadiusM", "rimRadiusM", "footStiffnessNpm", "unsprungMassKg", "staticFriction", "kineticFriction", "rollingCoefficient"],
+          "properties": {
+            "strutTravelM": { "$ref": "#/definitions/gearSourceOrNull" },
+            "strutStiffnessNpm": { "$ref": "#/definitions/gearSourceOrNull" },
+            "strutDampingNspm": { "$ref": "#/definitions/gearSourceOrNull" },
+            "footRadiusM": { "$ref": "#/definitions/gearSourceOrNull" },
+            "rimRadiusM": { "$ref": "#/definitions/gearSourceOrNull" },
+            "footStiffnessNpm": { "$ref": "#/definitions/gearSourceOrNull" },
+            "unsprungMassKg": { "$ref": "#/definitions/gearSourceOrNull" },
+            "staticFriction": { "$ref": "#/definitions/gearSourceOrNull" },
+            "kineticFriction": { "$ref": "#/definitions/gearSourceOrNull" },
+            "rollingCoefficient": { "$ref": "#/definitions/gearSourceOrNull" }
+          }
         }
       }
     },

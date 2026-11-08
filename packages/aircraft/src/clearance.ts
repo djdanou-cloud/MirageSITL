@@ -1,7 +1,8 @@
 import type { HullShape } from '@mirage/physics/vehicle-manifest';
 import { deriveLayout, type AircraftLayout } from './layout.ts';
-import { bodyOf, validateAircraftProfile, type AircraftProfile } from './profile.ts';
+import { bodyOf, landingGearOf, validateAircraftProfile, type AircraftProfile } from './profile.ts';
 import { restingClearanceM, STANDARD_GEAR } from './standard-gear.ts';
+import { gearRestingClearanceM } from './profile-gear.ts';
 import { hullLowestDepthM, profileHull, propellerDisc } from './standard-hull.ts';
 
 // Propeller clearance (TASK-195, S03, S18): whether the propellers of an
@@ -265,7 +266,9 @@ export function propellerClearance(input: unknown, propellerRadiusM: (motorId: n
       clashes.push(part === undefined ? { kind: 'propeller-body', motorId: rotor.motorId, overlapM } : { kind: 'propeller-body', motorId: rotor.motorId, overlapM, part });
     }
   });
-  const groundClearanceM = restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
+  // TASK-194: on a described gear the aircraft rests where its supports put it, so a part below that height is on the ground.
+  const gear = landingGearOf(profile);
+  const groundClearanceM = gear ? gearRestingClearanceM(profile, gear) : restingClearanceM(profile, hullLowestDepthM([...hull, ...discs]));
   const parts: [ClearancePart, HullShape][] = [
     ...hull.map((shape, i): [ClearancePart, HullShape] => {
       const arm = profile.arms[i - 1], name = partNames[i - 1 - profile.arms.length];

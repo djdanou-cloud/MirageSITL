@@ -5,7 +5,8 @@ import { prepareContact } from './contact-support.ts';
 import { standardGearHeights } from './support/standard-gear.ts';
 import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/components';
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
-import { validateAircraftProfile, withPropellerPolars, type AircraftProfile } from '@mirage/aircraft/profile';
+import { validateAircraftProfile, withLandingGear, withPropellerPolars, type AircraftProfile, type GearValues, type ProfileGear } from '@mirage/aircraft/profile';
+import { mapGearValues } from '@mirage/aircraft/profile-gear';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, VALIDITY_FLAG_CALIBRATION_EXTRAPOLATION, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
@@ -168,6 +169,70 @@ describe('the standard landing gear on the ground contact (TASK-095)', () => {
     const pad = buildProfileDynamics(derived.manifest, { syntheticPad: true });
     expect([pad.gear, pad.configuration.syntheticGroundDownM, pad.configuration.initialBody.positionNedM[2]]).toEqual([null, 0, 0]);
   });
+});
+
+// TASK-194: a landing gear the profile describes, flown on the ground contact. Oracle: rigid-plate statics on the manifest's supports
+// (tests/support/standard-gear.ts), whose values the derivation tests in tests/aircraft-profile.test.ts hold to the declared rules.
+// The CG is centred so that equal motor commands lift the quad X without turning it.
+describe('a landing gear the profile describes (TASK-194)', () => {
+  const none: GearValues = { strutTravelM: null, strutStiffnessNpm: null, strutDampingNspm: null, footRadiusM: null, rimRadiusM: null,
+    footStiffnessNpm: null, unsprungMassKg: null, staticFriction: null, kineticFriction: null, rollingCoefficient: null };
+  const gear = (kind: ProfileGear['kind'], feetBodyM: number[][], values: Partial<GearValues>): ProfileGear => ({
+    kind, feetBodyM, positionSource: 'Test frame', values: { ...none, ...values },
+    provenance: mapGearValues(key => (values[key] === undefined || values[key] === null ? null : 'Test value')),
+  });
+  const centred = (p: AircraftProfile) => validateAircraftProfile({ ...p, massProperties: { ...p.massProperties, cgOffsetBodyM: [0, 0, 0.02] } });
+  const GEARS = [
+    ['legs', gear('legs', [[0.16, 0.16, 0.11], [0.16, -0.16, 0.11], [-0.16, -0.16, 0.11], [-0.16, 0.16, 0.11]], { strutStiffnessNpm: 1800, strutTravelM: 0.03 })],
+    ['skids', gear('skids', [[0.17, 0.14, 0.1], [-0.17, 0.14, 0.1], [0.17, -0.14, 0.1], [-0.17, -0.14, 0.1]], { footRadiusM: 0.008 })],
+    // The tricycle's centroid lies on the CG, so its three wheels carry equal loads and leave the ground together on equal commands;
+    // a centroid off the CG pitches an aircraft without attitude control as its wheels unload one after the other.
+    ['wheels', gear('wheels', [[0.2, 0, 0.1], [-0.1, 0.16, 0.1], [-0.1, -0.16, 0.1]], { footRadiusM: 0.025, rollingCoefficient: 0.02 })],
+  ] as const;
+  for (const [kind, described] of GEARS) {
+    it(`a quad X on ${kind} rests at the statics height, takes off on equal commands, lands and rests there again`, async () => {
+      const built = await build(withLandingGear(profileOf('quad-x', centred), described)), { configuration, derived } = built;
+      const { touchM, restM } = standardGearHeights(derived.manifest);
+      expect(derived.manifest.landingGear).toHaveLength(described.feetBodyM.length);
+      for (const hz of kind === 'legs' ? [400, 800, 1200] as const : [400] as const) {
+        const d = profileFlightDynamics(module, built, hz), frame = newActuatorFrameV2(), pilot = newInput(), report = new Float64Array(8);
+        frame.motorMapId = configuration.motorMapId; frame.actuatorFlags = ActuatorFlagV2.Armed; frame.actuatorCount = derived.manifest.rotorCount;
+        const channels = derived.manifest.rotors.map(rotor => rotor.motorChannel);
+        let tick = 0, maxTiltRad = 0, touched = 0;
+        const step = (command: number) => {
+          for (const ch of channels) frame.normalizedActuators[ch] = command;
+          d.useActuators(frame); d.nowMs = ++tick * 1000 / hz; d.stepNow(pilot);
+          const s = d.state;
+          maxTiltRad = Math.max(maxTiltRad, Math.acos(Math.min(1, 1 - 2 * (s.qx * s.qx + s.qy * s.qy))));
+          for (let i = 0; i < d.contactShapeCount; i++) { d.contactShapeStateInto(i, report); touched += report[6]!; }
+          if (d.fault) throw new Error(d.fault);
+        };
+        // A vertical-speed loop with every motor on one command: up at 1 m/s to 1 m above the touch height, down at 0.5 m/s.
+        let integral = 0.4;
+        const fly = (vdRef: number) => {
+          const error = d.state.vd - vdRef;
+          integral = Math.min(1, Math.max(0, integral + (0.6 * error) / hz));
+          step(Math.min(1, Math.max(0, integral + 0.2 * error)));
+        };
+        try {
+          for (let k = 0; k < 2 * hz; k++) step(0);
+          expect(Math.abs(d.state.down + restM), `${kind} ${hz} Hz rest height`).toBeLessThan(1e-4);
+          if (hz === 400) {
+            let k = 0;
+            for (; -d.state.down < touchM + 1 && k < 8 * hz; k++) fly(-1);
+            expect(-d.state.down, `${kind} took off`).toBeGreaterThan(touchM + 1);
+            for (k = 0; -d.state.down > touchM && k < 10 * hz; k++) fly(0.5);
+            expect(-d.state.down, `${kind} touched down`).toBeLessThanOrEqual(touchM);
+            for (k = 0; k < 3 * hz; k++) step(0);
+            expect(Math.abs(d.state.down + restM), `${kind} rest height after landing`).toBeLessThan(1e-4);
+            expect(maxTiltRad, `${kind} tilt`).toBeLessThan((2 * Math.PI) / 180);
+          }
+          // Only the described supports carried the aircraft: no hull or propeller shape touched the ground.
+          expect(touched, `${kind} ${hz} Hz shapes touching`).toBe(0);
+        } finally { d.dispose(); }
+      }
+    }, 600000);
+  }
 });
 
 describe('geometry and component changes change the forces', () => {
