@@ -547,11 +547,14 @@ implementation.
   derived millisecond time constant (bound configuration version 4), and a rotor
   that does not ask for it runs the old model bitwise. TASK-099 adds Johnson's
   descent and vortex ring model with a seeded thrust fluctuation (configuration
-  version 5); only its comparison with descent flight data stays BLOCKED_EXTERNAL
-  (D-11). TASK-100 adds the rotor ground effect, off unless effect
-  `rotor.ground-effect` asks for it, with the closed-form thrust ratio at equal
-  power and the multirotor's neighbours; only its comparison with hover-height
-  sweeps or landing logs stays BLOCKED_EXTERNAL (D-11). TASK-101 adds the rotor
+  version 5); its comparison with the stakeholder's Pavo descents ran on 2026-11-08
+  and is not reproduced (the logs reach only the edge of the vortex ring region),
+  shown for the stakeholder to judge (D-11). TASK-100 adds the rotor ground effect,
+  off unless effect `rotor.ground-effect` asks for it, with the closed-form thrust
+  ratio at equal power, the multirotor's neighbours and, since 2026-11-08, the
+  fountain's lift on the body (Sanchez-Cuevas, K_b 2); its comparison with the
+  stakeholder's Bee35 hover log reproduces the lowest heights and misses 6 to 9
+  radii, shown for the stakeholder to judge (D-11). TASK-101 adds the rotor
   wakes (`packages/physics/src/rotor-wake.ts`): a top-hat tube from every rotor to
   any other in reach, on by default, so a coaxial pair is not twice one rotor,
   and the airframe's download from the hull. Its forward-flight comparison with
