@@ -496,9 +496,8 @@ implementation.
   (accessibility sign-off; TASK-074 HUD freshness, TASK-075 fault ACKs, TASK-078 full-rate recording, and TASK-079 scenario ACK binding are done and do not admit browser READY), TASK-082 (multi-hour integrated soak), and TASK-083 (clean-machine
   release and assistive screen-reader sign-off) remain open.
 * **Physics fidelity program (TASK-087–TASK-123, roadmap Phases 7–13):** registered
-  2026-10-26 from the physics fidelity review. TASK-090 is
-  IN_PROGRESS with a first increment, and TASK-087, TASK-088 and the Phase 1 part of
-  TASK-089 are DONE:
+  2026-10-26 from the physics fidelity review. TASK-087, TASK-088, TASK-090 and the
+  Phase 1 part of TASK-089 are DONE:
   * TASK-087: the strict vehicle manifest v2 (`vehicle-manifest.ts`), an ArduPilot
     profile limited to evidenced names, and an optional `SessionModelPort` for
     `model.load`; the default demo backend is unchanged. The physics Worker
@@ -523,7 +522,9 @@ implementation.
     MirageSITL applies or this run switches off is refused with its reason. Its
     browser-path items stay with the preserved TASK-046 and TASK-047.
   * TASK-090: fidelity metrics and `scripts/check-fidelity.mjs`, which never passes
-    synthetic data; real flight and bench data remain BLOCKED_EXTERNAL.
+    synthetic data. DONE on 2026-11-08: the Pavo's four SystemId flights against
+    SITL and the UIUC and T-Motor static-stand data (capture schema 3, source
+    `bench-test`) are scored as REPORTED, with no verdict (SA-01).
 
   TASK-092 is DONE: `BetFlightDynamics` takes an optional production drive
   (voltage-driven motor, ESC hold and lag, shared battery bus over bound-rotor v2
