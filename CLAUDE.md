@@ -141,6 +141,11 @@ implementation.
   up to seven body parts such as a camera pod, which the Aircraft tab edits and
   both 3D views draw; they replace the standard hull in the manifest, the
   clearance check and the accident report, which names a struck part as the body.
+  TASK-194 is DONE on the user's approval of 2026-11-07, outside the Phase 1
+  acceptance: profile schema 8 adds a landing gear (legs, skids or wheels) that
+  the Aircraft tab describes, each value with its source or assumed by the
+  standard rule and named so, flown in place of the D-07 supports and drawn in
+  both 3D views; a body alone stays schema 7.
   TASK-116 is IN_PROGRESS: five barometer effects stream into ArduPilot's
   SIM_BAROn_GLITCH, its ground-effect compensation was exercised in native SITL,
   and real forum logs (`data/flight-logs/inventory.json`, kept outside the

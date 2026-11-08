@@ -5354,7 +5354,7 @@ values. The derived manifest holds:
 | `massProperties` | The aircraft and the payload: combined mass and CG, both inertias moved to it by the parallel-axis theorem |
 | `datasets` | The synthetic dataset `aircraft-profile-derivation`, whose source SHA-256 is that of the canonical derivation input, then the synthetic datasets `standard-landing-gear` of the gear rules (derivation 3, TASK-095), `standard-hull` of the hull rules (derivation 4, TASK-095) and `standard-hull-drag` of the hull's preliminary drag (derivation 6, TASK-096), without a source; a profile that describes its body (schema 7, TASK-196) has no `standard-hull` dataset |
 | `sensorMounts` | The IMU mount when the sensor configuration states the IMU position or orientation (derivation 2, TASK-147); otherwise empty |
-| `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear") |
+| `landingGear` | The decision D-07 supports; a profile without a ground clearance stands on supports below its standard hull and propeller discs (derivations 3 and 4, TASK-095, and 5, TASK-195; section "Standard landing gear"); a profile that describes its gear (schema 8, TASK-194) gets that gear instead, from the dataset `aircraft-profile-landing-gear` (section "Described landing gear (TASK-194)") |
 | `hull` | The standard hull: a body cylinder and one capsule per arm (derivation 4, TASK-095; section "Standard hull and propeller discs"); for a profile that describes its body (schema 7, TASK-196) that body, from the profile's dataset (section "Described body (TASK-196)") |
 | `airframe.drag` | The standard hull's preliminary drag (derivation 6, TASK-096; section "Airframe drag") |
 | `ardupilot`, `controlSurfaces` | Null or empty; TASK-142 owns `ardupilot` |
@@ -7120,8 +7120,9 @@ speed below 0.02 m/s, body rate below 0.005 rad/s and attitude error below
 
 ### Standard landing gear
 
-Aircraft profiles describe no landing gear, and Phase 1 has no gear editor
-(S18; an editor is TASK-194). Derivation 3 therefore gives every vehicle the
+Until TASK-194, aircraft profiles described no landing gear and Phase 1 had
+no gear editor (S18). A profile without a described gear still stands on the
+standard one (section "Described landing gear (TASK-194)"). Derivation 3 therefore gives every vehicle the
 basic support approximation that decision D-07 fixed on 2026-10-28
 ([phase1-fidelity.md](decisions/phase1-fidelity.md), F-07 and F-08;
 `packages/aircraft/src/standard-gear.ts`, rules version 1). The supports are
@@ -7256,8 +7257,9 @@ Aircraft profile schema 7 (`packages/aircraft/src/profile.ts`) adds an
 optional `body`: the airframe's contact shapes as the user describes them, in
 place of the standard hull. A schema 7 profile holds any content of schema 6
 as well (polars, stated drag, propulsion calibrations, of which it may bind
-none). A profile without a body keeps its lowest schema and derives the same
-bytes as before, so `DERIVATION_VERSION` stays 6. Depths are body FRD z,
+none); schema 8 (TASK-194, below) may hold a body beside a landing gear. A
+profile without a body keeps its lowest schema and derives the same bytes as
+before, so `DERIVATION_VERSION` stays 6. Depths are body FRD z,
 metres below the reference point.
 
 | Field | Meaning | Limits |
@@ -7315,6 +7317,99 @@ pod entered 0.13 m down is listed as the clash above and drawn in the 3D
 scheme below and forward of the body; raised to 0.117 m it clears; the profile
 saves as schema 7 with exactly the entered values, and switching the body off
 saves it back in schema 4; axe finds no violation; the tab fits 390 px.
+
+### Described landing gear (TASK-194)
+
+By the user's request of 2026-11-07, the separate approval that the Phase 1
+disposition of TASK-194 asked for, a profile may describe its landing gear in
+place of the standard supports. Aircraft profile schema 8 is schema 7 (the
+described body of TASK-196, above) with its `body` optional and a required
+`landingGear` section; a profile is schema 8 exactly when it describes its
+gear, with or without a body, and a body alone stays schema 7. A profile
+without a gear keeps its schema and derives the bytes it did, and the
+derivation version stays 6.
+
+The section holds the gear's kind, `legs`, `skids` or `wheels`; the bottom of
+each foot or wheel with the struts fully extended (`feetBodyM`, body FRD metres
+from the reference point; three to eight, and for skids an even four to eight,
+skid i running from support 2i to support 2i + 1) and the source of those
+positions; and one set of values for every support, each known with its source
+(1 to 96 characters) or not known with neither. A value that is not known is
+never written into the profile: the derivation applies the standard gear's
+rule for it (`packages/aircraft/src/profile-gear.ts`) and names it as assumed.
+With N supports and the vehicle mass m (the payload included), each support's
+share is m/N and the rules are:
+
+| Value | Rule when not known | Source |
+| --- | --- | --- |
+| Strut and foot stiffness | Pair k = m·g/(N·δ_s), δ_s = 5 mm; the foot 10·k and the strut 10/9·k; a stated strut alone gives the foot 9 times it; a stated foot alone gives the strut 1/(1/k − 1/k_foot) | F-08, TASK-095 |
+| Strut damping | 2·ζ·√(k_pair·m/N), ζ = 0.7 | F-08 |
+| Strut travel | Five static deflections of the pair under the support's share | TASK-095 |
+| Foot radius, rim radius | 0.01 m; the rim half the foot | TASK-095 |
+| Unsprung mass | 1 % of the support's share | TASK-095 |
+| Static and kinetic friction | 0.6 and 0.5; one stated coefficient gives the other in the ratio 5/6 | F-08 |
+| Rolling coefficient | None: wheels need it, legs and skids have none | — |
+
+Each support becomes one manifest `landingGear` entry in profile order: its
+anchor the foot's centre (the bottom less the foot radius), the strut linear
+with the same damping in compression and rebound, the foot's load curve
+linear to rim contact, the tyre damping 2·ζ·√(k_foot·unsprung). Legs and skids
+slide alike in every direction (rolling, lateral and braking coefficients the
+static friction); wheels roll along their heading on their rolling
+coefficient, since the contact's longitudinal friction is
+μ_rolling + (μ_braking − μ_rolling)·b and no multirotor gear brakes. The
+provenance of `landingGear` is the synthetic dataset
+`aircraft-profile-landing-gear`, whose source SHA-256 is the profile's
+canonical SHA-256 and whose text lists every stated value with its source and
+every assumed value; the standard gear's dataset is then absent.
+
+A gear is refused, with its reason, when the CG seen from above lies outside
+the support polygon of the feet (with a 1 µm margin; three feet on one line
+have none), which is how the DoD's "a foot outside every support polygon" is
+read; when a strut travel is zero; when a rim is not inside its foot (with the
+standard values where one is not known); when the kinetic friction exceeds the
+static; when the unsprung mass reaches a support's share; when a foot
+stiffness alone is not above the standard pair stiffness; when wheels lack
+their rolling coefficient or legs and skids state one; when a value lacks its
+source or a source its value; and when a ground clearance is stated beside it,
+since the resting height then follows from the gear. TASK-195's ground check
+rests the aircraft on the described gear, level and each support carrying an
+equal share: the mean foot depth less the strut's compression under the share
+minus its foot and the foot's under the whole share.
+
+The Aircraft tab's Landing gear section (`apps/web/src/aircraft/LandingGear.tsx`)
+describes it: the kind, a row per support, where the positions come from, and
+a value and a source for each value beside its standard rule and the value
+flown, marked when assumed. The ground clearance field is disabled while a gear
+is described. The 3D scheme draws the feet at their bottom points, a strut
+from the reference plane down to each, the skid runners and the wheels, and
+lists the supports; the Run tab's flight view draws the same gear. The editor
+form also keeps a profile's propulsion calibrations (TASK-145) through a save,
+which dropped them before.
+
+**Verification.** `tests/aircraft-profile.test.ts` holds the derivation to the
+rules computed in the test from the stated values (a 1500 N/m strut gives a
+13,500 N/m foot, damping 2·0.7·√(k_pair·0.375 kg), a 6 mm rim, a 3.75 g foot),
+the dataset text to every stated value with its source and every assumed one,
+a fully stated gear of wheels to its own coefficients and none assumed, and
+fifteen gears to their refusals; the five S19 fixtures still derive their
+recorded bytes. `tests/profile-dynamics.test.ts` flies a quad X with its CG
+centred on legs, skids and a tricycle of wheels whose centroid is the CG: each
+comes to rest within 0.1 mm of rigid-plate statics on the manifest's supports
+(`tests/support/standard-gear.ts`) at 400, 800 and 1200 Hz for the legs and
+400 Hz for the others, takes off on equal motor commands, lands and rests
+there again within 0.1 mm, tilting less than 2 degrees and with no hull or
+propeller contact. `tests/aircraft-clearance.test.ts` holds the resting height
+on a gear to its closed form and puts the body on the ground on a gear too
+short for it. `tests/browser/aircraft-editor.spec.ts` describes a gear through
+the UI alone, sees zero travel, a rim outside its foot and a CG outside the
+support polygon refused with their reasons, finds each drawn foot where the
+profile puts it, and flies the saved version in the physics Worker on the
+example cards: rest within 1 mm of the statics height, a climb of a metre, a
+landing back at that height with no accident and less than 2 degrees of tilt
+on equal pilot throttle. `tests/aircraft-profile.test.ts` and
+`tests/aircraft-editor.test.ts` also hold a body beside a gear to schema 8, and
+the same profile with its gear switched off to schema 7.
 
 ### Propeller clearance
 
