@@ -1194,6 +1194,60 @@ speed at every command up to the full 13.05 V, and above about 5.4 V this 28 mm 
 alternation of about 3e-6 of its speed at 800 Hz, whatever the ESC's update period; a held hover at
 zero climb replaces it.
 
+Logged descent (TASK-099, 2026-11-08), declared before the model's prediction was computed and
+after a first look at the logs. The logs are the Pavo's 18 armed flights of
+`data/flight-logs/inventory.json` (`stakeholder-pavo-log_N_UnknownDate.bin`, N 12 to 63; log 0 never
+armed), each checked by its SHA-256. They hold no GNSS, rangefinder or airspeed: the climb rate is the
+EKF's (`CTUN.CRt`, cm/s stored, m/s by its FMTU), from barometer and accelerometer, and the horizontal
+speed is not known. `measureDescent` (`packages/analysis/src/descent-log.ts`) measures thrust per squared
+rotor speed against the climb rate scaled with the hover inflow, as TASK-100 measures it against height.
+In 0.1 s bins: k = the negated mean of the first IMU's `AccZ` over the mean, over the four motors, of each
+motor's mean squared `ESC.RPM`. An `ESC.RPM` row is rejected when it is not finite or exceeds KV times
+MOT_BAT_VOLT_MAX (8000 × 13.05 = 104,400 rpm, the motor's speed without load at the highest voltage the
+autopilot assumes), which removes the NaN rows and the isolated 540,800 rpm readings of bidirectional
+DShot; a bin needs at least 5 accepted rows of each motor. A bin is airborne when its CTUN rows all have
+`ThO` above 0.05 (MOT_SPIN_ARM) and `Alt` at least 0.5 m (18 rotor radii above the take-off height, so no
+ground effect), its mean rotor speed is at least 8000 rpm, its specific force at least 4.9 m/s² and every
+ATT row's tilt from level at most 30° (ANGLE_MAX). A bin counts when every bin with CTUN rows within 1 s
+of it is airborne: this removes take-offs, landings, the estimator's climb-rate extremes at zero throttle
+(log 22 from 479 s, log 23 at 5 s) and log 22's tumble at 476 s. The climb rate V_z is the bin's mean
+CRt; the hover inflow `v_h = sqrt(m a/(8 rho A))` with m 0.169 kg, a the bin's specific force, A the disk of
+radius 0.02794 m and rho the flight's mean `BARO.Press` over 287.053 J/(kg K) times 288.15 K (the
+barometer's temperature is the board's); x = V_z/v_h. Each flight is its own reference: k over the
+mean k of its counted bins with |x| ≤ 0.03, and a flight counts with at least 20 of them. The ratios are
+reported in classes of x: [−0.7, −0.45), [−0.45, −0.3), [−0.3, −0.2), [−0.2, −0.1), [−0.1, −0.03), descending,
+and (0.03, 0.1], (0.1, 0.2], (0.2, 0.3], (0.3, 0.7], climbing, where momentum theory is established and which is
+the method's control; each with its count, mean ratio, standard error of the mean, mean x and mean tilt,
+and again over the bins with a tilt of at most 5°, where the unknown horizontal speed matters least.
+
+The first look (a pymavlink script over the same bins, before this declaration) gave v_h about 8.4 m/s at
+hover, the deepest counted descent −4.6 m/s in log 34 near 94.5 s at x −0.57, about ten bins below Johnson's
+N (−0.45 at V_x = 0) and none near the region's centre (−0.975) or X (−1.5); ratios of about 0.976 from
+x −0.45 to −0.2, 0.986 from −0.2 to −0.05, 0.98 and 0.97 on both sides close to hover (|x| 0.03 to 0.1), and
+0.944 and 0.91 in climbs of 0.1 to 0.3. Momentum theory and Johnson's curve have the ratio above 1 in such
+descents, so the first look already disagrees in sign there; the climbs fall as momentum theory has them.
+
+The model's prediction is its own flight dynamics with the Pavo profile (`buildProfileDynamics` as a
+profile flight builds it: ESC drive, dynamic inflow with the vortex ring option 32 and its seeded
+fluctuation, rotor wakes, the standard hull's drag; ground effect off), at 800 Hz, held level 20 m up by a
+huge mass with gravity off, as `tests/rotor-ground-effect.test.ts` holds it, on the command that carries
+169 g at zero climb (`hoverCommand`, `tests/support/pavo.ts`), moving at a fixed climb rate V_c and
+transverse speed V_x through still air: after 0.5 s the vertical force and the rotors' mean squared speed
+are averaged over 2 s (about 600 correlation times of the fluctuation), k is their ratio and x the climb
+rate over the hover inflow of that force at the model's air. For each class the model runs at
+V_c = x̄ v_h,0 (x̄ the class's measured mean, v_h,0 the model's at zero climb) and V_x 0 and 2 m/s (about
+0.24 v_h: the descent bins lean 7 to 11° on average, at a speed the logs do not give), each normalized by
+the model at zero climb and the same V_x, and it reports its own x and how many steps carried the
+fluctuation. Declared tolerance, set after the first look as TASK-100's was: a class is reproduced when its
+measured mean lies within the model's range over V_x, widened by two standard errors of the class and by 2
+percentage points, the size of the fall on both sides of hover that neither the climb nor the descent
+effect makes. `tests/descent-logged.test.ts` runs it with `MIRAGE_FORUM_LOG_DIR` (it skips without it) and,
+with `MIRAGE_DESCENT_OUT` set, writes the report: per flight its file, SHA-256, density and counts; per class
+the measured values, the model's runs, `reproduced`; v_h at hover, the deepest descent and the bins past N;
+and the status `REPRODUCED` or `NOT_REPRODUCED`. That status is the declared comparison's, not a fidelity
+verdict (SA-01): the effect stays labeled as not validated (D-11) until the stakeholder judges it. If the
+logs do not reach the vortex ring region, the report says so with these numbers.
+
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
 each rotor's last thrust T and its air, with V >= 0 down through the disk and V_t across
