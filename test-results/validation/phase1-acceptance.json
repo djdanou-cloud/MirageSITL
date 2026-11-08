@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "task": "TASK-191",
   "kind": "phase1-acceptance",
-  "commit": "b3627b7561fac3d67e037b9fe039eeaf233684b0",
+  "commit": "a8987a2da13b56be6a778e75c0cc2b6fae80791f",
   "matrix": {
     "path": "docs/validation/phase1-matrix.json",
-    "sha256": "3c195f93ecd9f1f5277b55cc0734d79c320029e4dccf908bc3bed2a8db4020af"
+    "sha256": "d10f54b14c7b43a7bf20f1f052d47be066d5a3e30620e1edf9a5e8960e3312cb"
   },
   "status": "PASS",
   "counts": {
@@ -587,7 +587,7 @@
       "stated": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/offline-workflow.json",
-        "sha256": "36b43a74b5d55adc8f20175d06823e7a03063698d9fc23a147d07635ec4bf16a"
+        "sha256": "125ac8ca34767930a61d4d1e330c8dd3f5bf5f419ca4c5c55159b77b86ec8e5b"
       },
       "blockedBy": [],
       "verdict": "PASS",
@@ -2502,7 +2502,7 @@
       "verdict": "PASS",
       "evidence": {
         "path": "test-results/validation/phase1-global/offline-workflow.json",
-        "sha256": "36b43a74b5d55adc8f20175d06823e7a03063698d9fc23a147d07635ec4bf16a"
+        "sha256": "125ac8ca34767930a61d4d1e330c8dd3f5bf5f419ca4c5c55159b77b86ec8e5b"
       },
       "device": {
         "model": "Mac17,4",
@@ -2512,8 +2512,8 @@
         "chrome": null,
         "lowPowerMode": false
       },
-      "commit": "060050797e8b44126e027e8f1b557676c90241ed",
-      "uncommittedFiles": 93,
+      "commit": "446eeadac1195d1b7f39781462d30ce12aaad0df",
+      "uncommittedFiles": 0,
       "sources": {
         "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
         "scripts/phase1/global-rules.ts": "6c150a6c449a9d9db250e381498f7e41b9f8e530c1cf65465e3b0602b549db10",
@@ -2521,7 +2521,7 @@
         "tests/browser/run-panel.spec.ts": "966c5fe1b2016cef3d5efeea51fc61a1c9def24fa7ca920ab1f4a54b886be660",
         "tests/browser/parameters-tab.spec.ts": "c6e32156085e0ee3b8be68860158010abf57a470d3b671756ab2656339f960b0",
         "tests/browser/card-editor.spec.ts": "c9da2379d33c762e5e0ec05d29b5d57f4e09a3fdd14878b36af5190458c8d9de",
-        "tests/browser/aircraft-editor.spec.ts": "287b7812219a3328c77cef80c48a428924daa25efa03312a4da6912339ec046e",
+        "tests/browser/aircraft-editor.spec.ts": "3c3e1442c1334140ab6532799226bab76fa17a203da15d6e6ae29d4cfc900c89",
         "tests/browser/logging-tab.spec.ts": "4cf620a0a3d5f11cef93ede548872228baf452f11d5b275a1074c8048d723048",
         "tests/browser/log-viewer.spec.ts": "c33a345b7ed2614f674b9e206373858b33a0fbf423f8b3dd45cfff77fe78ed3f"
       }
@@ -2704,7 +2704,7 @@
     {
       "id": "TASK-100",
       "kind": "task",
-      "status": "BLOCKED_EXTERNAL",
+      "status": "IN_PROGRESS",
       "what": "Rotor ground effect"
     },
     {
@@ -2712,27 +2712,13 @@
       "kind": "task",
       "status": "BLOCKED_EXTERNAL",
       "what": "Rotor–rotor and rotor–airframe interference"
-    },
-    {
-      "id": "TASK-145",
-      "kind": "task",
-      "status": "BLOCKED_EXTERNAL",
-      "what": "Measured-mode propulsion calibration"
-    },
-    {
-      "id": "TASK-184",
-      "kind": "task",
-      "status": "BLOCKED_EXTERNAL",
-      "what": "Fidelity assessment per profile version and regime"
     }
   ],
   "accepted": false,
   "reasons": [
     "TASK-099 is BLOCKED_EXTERNAL: Vortex ring state, windmill brake and descent inflow",
-    "TASK-100 is BLOCKED_EXTERNAL: Rotor ground effect",
-    "TASK-101 is BLOCKED_EXTERNAL: Rotor–rotor and rotor–airframe interference",
-    "TASK-145 is BLOCKED_EXTERNAL: Measured-mode propulsion calibration",
-    "TASK-184 is BLOCKED_EXTERNAL: Fidelity assessment per profile version and regime"
+    "TASK-100 is IN_PROGRESS: Rotor ground effect",
+    "TASK-101 is BLOCKED_EXTERNAL: Rotor–rotor and rotor–airframe interference"
   ],
   "fidelity": "Fidelity comparisons are data without verdicts (SA-01, TASK-133): they are not part of this report's verdicts."
 }
