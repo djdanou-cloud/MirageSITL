@@ -93,6 +93,10 @@ export const EFFECT_CATALOG = {
     fields: [{ key: 'motorIndex', label: 'Motor index', unit: '1', kind: 'integer', min: 0, max: 31, initial: 0 },
       { key: 'mode', label: 'Mode', unit: '', kind: 'enum', options: ['power-cut', 'instant-thrust-loss'], initial: 'power-cut' },
       number('remainingThrustFraction', 'Remaining thrust', '1', 0, 1, 0)] },
+  'esc.desync': { family: 'fault', label: 'ESC desynchronization',
+    meaning: 'An ESC loses commutation sync when its drive outruns the rotor or a heavy load holds a large current: the motor\'s torque collapses until the ESC restarts it (TASK-105). Each motor\'s drive margin m, its duty less the back-EMF share of the voltage, starts one at λ0·(m − m0)/(1 − m0) per second above the threshold m0, from a seeded stream; it lasts the restart time. Every value is an engineering choice: no logged rate exists. Intensity multiplies the rate. Acts on every motor; needs the ESC drive.',
+    fields: [number('marginThreshold', 'Margin threshold m0', '1', 0, 0.95, 0.5), number('ratePerS', 'Rate at full margin λ0', '1/s', 0, 1000, 20),
+      number('recoveryS', 'Restart time', 's', 0.005, 2, 0.2), { key: 'seed', label: 'Seed', unit: '1', kind: 'integer', min: 0, max: 0xffffffff, initial: 1 }] },
   'sensor.imu.frozen': { family: 'delivery', label: 'IMU frozen', meaning: 'ArduPilot keeps receiving the last gyro and accelerometer values MirageSITL sent; the flight itself goes on. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
   'sensor.gnss.frozen': { family: 'delivery', label: 'GNSS position frozen', meaning: 'ArduPilot keeps receiving the last north and east position and ground velocity, from which its GNSS is made, so the fix stops moving. Height and vertical speed go on, because they also feed its barometer. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
   'sensor.mag.frozen': { family: 'delivery', label: 'Magnetometer frozen', meaning: 'ArduPilot keeps receiving the last attitude, from which its magnetometer is made; its IMU still turns. Any intensity above 0 is on. Only on a run with ArduPilot.', fields: [] },
@@ -200,6 +204,8 @@ export type EffectiveControl =
   /** TASK-167: the peak air velocity of the pulse, NED m/s (intensity applied), and its duration, s. */
   | { readonly family: 'environment'; readonly effect: 'wind.discrete-gust'; readonly active: boolean; readonly peakNedMps: Vec3; readonly durationS: number }
   | { readonly family: 'fault'; readonly fault: FaultSetV2 }
+  /** TASK-105: ESC desynchronization, a `fault` effect the session applies to the dynamics itself; the rate is unscaled, with its intensity. */
+  | { readonly family: 'esc'; readonly effect: 'esc.desync'; readonly active: boolean; readonly marginThreshold: number; readonly ratePerS: number; readonly intensity: number; readonly recoveryS: number; readonly seed: number }
   | { readonly family: 'sensor' }
   | { readonly family: 'delivery'; readonly active: boolean; readonly bit: number }
   | { readonly family: 'ardupilot'; readonly active: boolean }
@@ -409,6 +415,11 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
         return { family: 'environment', effect: 'atmosphere', active, temperatureK, pressurePa };
       }
     case 'fault':
+      if (control.effect === 'esc.desync') {
+        scaledNumber(control, 'ratePerS', i);
+        return { family: 'esc', effect: 'esc.desync', active, marginThreshold: numberOf(control, 'marginThreshold'), ratePerS: numberOf(control, 'ratePerS'), intensity: i,
+          recoveryS: numberOf(control, 'recoveryS'), seed: numberOf(control, 'seed') };
+      }
       return { family: 'fault', fault: { protocolVersion: 2, requestId: envelope.requestId, expectedEpoch: envelope.expectedEpoch, atTick: envelope.atTick,
         type: 'fault.set', faultId: control.id, enabled: active, effect: faultEffect(control, i), recovery: envelope.recovery } };
     case 'sensor':

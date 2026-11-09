@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: b0f6f109464f26d9b2e6f24db50b08e463d3cd584b59c17cb5ddab214f6b9eac -->
+<!-- source-sha256: 9270156932e3b80b64568a4b7b9e9af754a0623c77725f284aeebbd222e96b2f -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -567,6 +567,7 @@ export interface EffectSetCommand {
 | `ew.magnetic` | `rotationRad`, рад, ±π по каждой оси; `biasBodyGauss`, Гс, ±2 по каждой оси | Умножает оба | Магнитная модель |
 | `rotor.ground-effect` | Нет | Умножает поправку `(R/4z)^2` и сумму соседей: 0 — влияния нет, 1 — замкнутая формула | Влияние земли на ротор (TASK-100), которому нужен привод ESC |
 | `motor.loss` | `motorIndex`, 0..31 и меньше числа роторов; `mode`, `power-cut` или `instant-thrust-loss`; `remainingThrustFraction`, 0..1 | Умножает потерянную тягу: остаток = 1 − i·(1 − r), ровно r при i = 1 | Таблица отказов моторов |
+| `esc.desync` | `marginThreshold`, 0..0.95; `ratePerS`, 1/с, 0..1000; `recoveryS`, с, 0.005..2; `seed`, uint32 | Умножает частоту при полном запасе, которая должна оставаться не больше 1000 /с | Рассинхронизация ESC (TASK-105, семейство `fault`), которой нужен привод ESC; каждое значение — инженерный выбор |
 | `sensor.imu.accel-noise` | `densityMps2PerSqrtHz`, м/с²/√Гц, 0..0.01 | Умножает плотность | Поле вкладки Sensors |
 | `sensor.imu.gyro-noise` | `densityRadSPerSqrtHz`, рад/с/√Гц, 0..0.001 | Умножает плотность | Поле вкладки Sensors |
 | `sensor.imu.accel-bias` | `biasMps2`, м/с², ±2 по каждой оси | Умножает смещение нуля | Поле вкладки Sensors |
@@ -610,7 +611,8 @@ export interface EffectSetCommand {
 * **Backend, который не может применить воздействие, отклоняет его видимо,** с
   BAD_STATE и причиной, включённое или выключенное. Работающая сессия отклоняет
   каждую запись `sensor.*`: ошибки датчиков задаются на вкладке Sensors до прогона.
-  Demo backend отклоняет воздействия среды и `motor.loss`. Сессия без канала к
+  Demo backend отклоняет воздействия среды и `motor.loss`, а бэкенд без привода
+  ESC — `rotor.ground-effect` и `esc.desync`. Сессия без канала к
   ArduPilot отклоняет воздействия `delivery`, а каждая сессия отклоняет воздействия
   `ardupilot`, которые может записывать только контроллер прогона (TASK-168). В прогоне с
   ArduPilot воздействия `ew.*` тоже доходят до него, в строке состояния и через его параметры,

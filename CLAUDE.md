@@ -160,8 +160,11 @@ implementation.
   error statistics only: GNSS geometry of a four-system sky (the GPS almanac with IGS
   broadcast Galileo, GLONASS and BeiDou records), atmosphere, terrain, code noise,
   multipath and a placed jammer stream into SIM_GPS1_* at the receiver's own rate and
-  lag, flown on native ArduCopter. TASK-105 is IN_PROGRESS: the inductive motor,
-  its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
+  lag, flown on native ArduCopter. TASK-105 is DONE (2026-11-09): the ESC shaper and the
+  motor's heat fly on the ESC drive with G1 passing, HAL mailbox v2 motor speeds
+  drive the browser firmware's notch, and ESC desynchronization is the TASK-166
+  effect `esc.desync`, every value of it an engineering choice; the notch's
+  attenuation of a vibration belongs to the deferred TASK-114.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and

@@ -39,7 +39,7 @@ const command = (c: EffectControl) => ({ protocolVersion: 3, requestId: 1, expec
 
 describe('the effect catalog', () => {
   it('names the effects Phase 1 has models for, each field with a unit and a range, and a starting value inside that range', () => {
-    expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'rotor.ground-effect', 'sensor.battery.current', 'sensor.battery.voltage',
+    expect([...EFFECT_IDS].sort()).toEqual(['atmosphere', 'esc.desync', 'ew.gnss-jamming', 'ew.magnetic', 'ew.position-step', 'ew.velocity-drift', 'motor.loss', 'rotor.ground-effect', 'sensor.battery.current', 'sensor.battery.voltage',
       'sensor.imu.accel-bias', 'sensor.imu.accel-noise', 'sensor.imu.gyro-bias', 'sensor.imu.gyro-noise', 'sensor.imu.latency', 'wind.discrete-gust', 'wind.gust', 'wind.mean', 'wind.turbulence',
       'link.gcs', 'link.pilot', 'baro.position-error', 'baro.ground-cushion', 'baro.prop-wash', 'baro.drift', 'baro.pressure-trend', 'gnss.constellation', 'gnss.atmosphere', 'gnss.terrain', 'gnss.jamming-budget', 'gnss.receiver', 'gnss.code-noise', 'gnss.multipath', 'gnss.jammer', 'sensor.baro.frozen', 'sensor.baro.missing', 'sensor.gnss.frozen', 'sensor.gnss.missing', 'sensor.imu.frozen', 'sensor.imu.missing', 'sensor.mag.frozen', 'sensor.mag.missing'].sort());
     for (const id of EFFECT_IDS) {

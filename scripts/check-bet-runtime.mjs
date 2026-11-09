@@ -365,12 +365,48 @@ if(!allocation){
     const tableGraph={graph:'rotor-map-esc-drive-weather-pad-four-rotor',variant,...await measure(tableRun,1000000),memoryStable:table.escEngine.memoryStable};
     samples.push(tableGraph);table.dispose();console.log(JSON.stringify(tableGraph));
   }
+  // TASK-105: four rotors on the ESC drive on the pad, every ESC shaped (2000 throttle steps, 2 frames late, a 40/s ramp, a 0.05 start
+  // duty) and every motor heated by its two-node network, after every graph above in the same process, as the declared graph asks.
+  {
+    const shaping={latencyFrames:2,rampPerS:40,startDuty:0.05,throttleSteps:2000};
+    const heat={windingHeatCapacityJPerK:8,housingHeatCapacityJPerK:25,windingToHousingKPerW:1.5,housingToAirKPerW:6,airflowCoolingPerMps:0.1};
+    const shapedConfig=padded();shapedConfig.drive={...driven.drive,motors:driven.drive.motors.map(m=>({...m,shaping,heat}))};
+    const shapedHeated=new BetFlightDynamics(modules[0],shapedConfig,400);
+    if(shapedHeated.motorV2?.shaped!==4||shapedHeated.motorV2.heated!==4)throw Error('The shaped and heated vehicle is not shaped and heated');
+    const winding=shapedHeated.motorV2.thermalOutput,startC=winding[0];
+    const shapedRun=n=>{for(let i=0;i<n;i++){shapedHeated.nowMs=0;shapedHeated.stepNow(escPilot);
+      if(shapedHeated.fault||shapedHeated.state.down!==0||!(shapedHeated.electrical[2]>0))throw Error('Shaped and heated ESC allocation step failed');}};
+    shapedRun(100000);await measure(shapedRun,10000);
+    const shapedGraph={graph:'shaped-heated-esc-four-rotor',variant:'scalar',...await measure(shapedRun,1000000),windingRiseK:winding[0]-startC,
+      memoryStable:shapedHeated.escEngine.memoryStable&&shapedHeated.motorV2.memoryStable};
+    if(!(shapedGraph.windingRiseK>0.1))throw Error('The shaped and heated vehicle did not heat');
+    samples.push(shapedGraph);shapedHeated.dispose();console.log(JSON.stringify(shapedGraph));
+    // The same vehicle with ESC desynchronization on (SPECS_SIMULATION_ENGINES "ESC desynchronization"): the throttle steps between 0.05 and
+    // 0.4 every 400 steps, which stays on the pad, so desynchronizations start and end in the measured steps; the control is applied again
+    // every 5 steps while warming and every 1000 measured, alternating two seeds above 2^31.
+    const desynced=new BetFlightDynamics(modules[0],shapedConfig,400),desync=desynced.escDesync;
+    const desyncControls=[0xfffffffe,0x9e3779b9].map(seed=>{const v=new Float64Array(6);v[0]=1;v[1]=0.2;v[2]=50;v[3]=1;v[4]=0.05;v[5]=seed;return v;});
+    const steppedPilot={flags:3,throttle:0.05,roll:0,pitch:0,yaw:0,wallTimeMs:0};
+    let desyncSteps=0,desyncApplications=0,desyncEvery=5;
+    const desyncRun=n=>{for(let i=0;i<n;i++){
+      if(++desyncSteps%desyncEvery===0&&!desynced.setEscDesync(desyncControls[(++desyncApplications)&1]))throw Error('ESC desynchronization refused');
+      steppedPilot.throttle=((desyncSteps/400)|0)%2===1?0.4:0.05;desynced.nowMs=0;desynced.stepNow(steppedPilot);
+      if(desynced.fault||desynced.state.down!==0)throw Error('ESC desynchronization allocation step failed');}};
+    if(!desynced.setEscDesync(desyncControls[0]))throw Error('ESC desynchronization refused');
+    desyncRun(100000);desyncEvery=1000;await measure(desyncRun,10000);
+    const eventsBefore=desync.events.reduce((a,b)=>a+b,0),applicationsBefore=desyncApplications;
+    const desyncGraph={graph:'esc-desync-shaped-heated-esc-four-rotor',variant:'scalar',...await measure(desyncRun,1000000),
+      desynchronizations:desync.events.reduce((a,b)=>a+b,0)-eventsBefore,controlApplications:desyncApplications-applicationsBefore,
+      memoryStable:desynced.escEngine.memoryStable&&desynced.motorV2.memoryStable};
+    if(!(desyncGraph.desynchronizations>0))throw Error('The desynchronization graph started none');
+    samples.push(desyncGraph);desynced.dispose();console.log(JSON.stringify(desyncGraph));
+  }
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000,escShaper:1000000,motorThermal:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step); native counted allocator checks (bound v1, v2, ESC drive, bus, ESC shaper, motor thermal) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step), and TASK-105 every ESC shaped and every motor heated on the ESC drive, without and with ESC desynchronization starting and ending in the measured steps; native counted allocator checks (bound v1, v2, ESC drive, bus, ESC shaper, motor thermal) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }
