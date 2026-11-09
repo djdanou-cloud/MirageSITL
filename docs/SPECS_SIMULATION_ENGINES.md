@@ -7903,6 +7903,97 @@ isolated 540,800 rpm readings in the stakeholder's Pavo logs. The thread's resol
 slim ESCs needed far larger capacitors. A picture of one crash fixes no rate or condition, so a
 desynchronization model still has no data to be compared with.
 
+### ESC desynchronization (TASK-105, design of 2026-11-09)
+
+Recorded before the implementation. A sensorless ESC commutates on the back-EMF zero crossings of the
+floating phase. When the drive outruns the rotor, after a steep throttle step, or a heavy load holds a
+large winding current, it can lose those crossings: commutation falls out of step with the rotor, the
+motor's torque collapses, and the ESC notices and starts the motor again. The evidence above shows that
+sequence once, after two motors were stepped to full output, and gives no rate, threshold or restart
+time. The model therefore supplies the mechanism and its switch; every number in it is an engineering
+choice, labelled so, and nothing in it is fitted or validated.
+
+**Where it lives.** In `BetFlightDynamics` on the ESC drive of TASK-092, as `EscDesync`
+(`packages/physics/src/esc-desync.ts`), one state per rotor, stepped each tick after the ESC shaper and
+before the bus is solved. Without the ESC drive there is no duty, bus voltage or torque constant to
+read, so the effect needs it.
+
+**The condition.** For each rotor the drive margin
+
+```text
+m = d − k·|Ω|/V        (m = 0 when V ≤ 0)
+```
+
+with d the duty the ESC is commanded this tick (after the motor fault's fraction and the ESC shaper), Ω
+the rotor's speed at the end of the last tick, k the drive record's torque constant (the heated one
+when the motor heats) and V the voltage the motors ran on last tick. m·V/R is the winding current the
+drive asks for before its current limit, so m is large in exactly the two conditions named: a steep step,
+where Ω lags d, and a high load, where the steady current is large. It is at most 0 when the ESC brakes
+or is unpowered. The one-tick lag of Ω and V (at most 2.5 ms) lets the condition be read before the bus
+solve, which needs to know which bridges are cut.
+
+**The hazard.** A rotor not in a desynchronization starts one on a tick with probability
+
+```text
+λ = i·λ₀·min(1, max(0, (m − m₀)/(1 − m₀)))        p = 1 − exp(−λ·dt)
+```
+
+so the expected number of desynchronizations in a held condition is λ per second at every tick rate. i is
+the effect's intensity, λ₀ the rate at full margin (`ratePerS`) and m₀ the margin below which none
+starts (`marginThreshold`). Every active tick draws one uniform u for every rotor, in rotor order,
+whether or not it can start one, from that rotor's own stream (`mulberry32-mix32-v1`, stream
+0x00105001 + rotor index, the control's `seed`), and a desynchronization starts when u < p. The draws
+are thus fixed by the tick count and the seed alone.
+
+**What a desynchronization does.** For N = max(1, round(t_r·f)) ticks, t_r the control's `recoveryS`
+and f the tick rate, the rotor's drive record carries the power-cut flag: the bridge neither drives nor
+brakes, the motor's current and torque are zero, and the rotor coasts against its aerodynamic and
+no-load torque. Then the drive restarts as it does after any cut: its duty from 0 behind the ESC's
+command lag τ_cmd, and a shaped ESC's ramp from its own state, the motor still turning. Two engineering
+choices are in this: the collapse is taken at its zero-torque limit, without the current spikes and
+stutter a real desynchronized motor shows, and the restart is a restart of a turning motor, not a start
+from rest. The telemetry artefact of the evidence, impossible `RawRPM` readings, is not modelled: speed
+telemetry stays the rotor's true speed.
+
+**The switch (TASK-166).** Effect `esc.desync`, family `fault`, so the Faults tab and the instructor
+console offer it, with fields `marginThreshold` m₀ in [0, 0.95] (initial 0.5), `ratePerS` λ₀ in
+[0, 1000] /s (initial 20), `recoveryS` t_r in [0.005, 2] s (initial 0.2) and `seed` (uint32, initial 1);
+all three initial values are engineering choices. Intensity multiplies λ₀, and the product must stay
+within [0, 1000]. It acts on every rotor of the ESC drive. Off and intensity 0 reduce to the same
+"not active": the step reads nothing and draws nothing, so an effect that was never on is bitwise
+identical to none, and switching it off ends a running desynchronization at once. A control that turns
+it on, or changes it while on, seeds every rotor's stream from its seed again and leaves a running
+desynchronization to finish. A new epoch starts with it off. A backend without the ESC drive refuses it
+by name. The session applies it at its tick boundary from preallocated slots (`setEscDesync`), so the
+tick allocates nothing. Each rotor's count of desynchronizations and the ticks left in a running one are
+in `BetFlightDynamics.escDesync` for cold readers; they are not yet in the telemetry or the recording.
+
+**Checks, declared before the implementation** (`tests/esc-desync.test.ts`, the dynamics on the ESC
+drive of the held parity quad of `tests/motor-v2-flight.test.ts`):
+
+1. Off is absent: 4,000 ticks at 800 Hz of a throttle stepping between 0.2 and 1.0 every 200 ticks, with
+   ESC shaping, give bitwise the same rotor speeds and drive flags with no control, with the effect off,
+   with intensity 0, and with it switched on and off again before the first step.
+2. The hazard law, on `EscDesync` alone fed a held margin: at 400 and 1200 Hz, with m₀ = 0.2 and
+   λ₀ = 50 /s, for m of 0.25, 0.5, 0.75 and 1, the count n of desynchronizations started over 2,000 s of
+   ticks not in one lies within 4·√μ of μ = λ·T, T those ticks' time; at m = m₀ and below, none in
+   1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
+   does.
+3. The cut: with λ₀ = 1000 /s and m₀ = 0 on a step from 0 to 1, every desynchronization lasts exactly
+   round(t_r·f) ticks at 400, 800 and 1200 Hz, during which that rotor's drive record carries the
+   power-cut flag, its electrical power is 0 and its speed does not rise; on the tick after, the flag is
+   clear.
+4. The condition on the flight, default values: a throttle held at 0.5 after spin-up starts none in 60 s
+   (m stays below 0.5, so p is exactly 0); a step from 0.2 to 1.0 every 2 s starts at least one in 30
+   steps with seed 1.
+5. Seeded replay: two runs with one seed are bitwise identical; another seed gives other ticks.
+6. Through the real session (`tests/effect-controls.test.ts`): off and intensity 0 are bitwise against no
+   control, on starts desynchronizations, and a backend without the ESC drive refuses it.
+7. G1: `node scripts/check-bet-runtime.mjs --allocation` adds the graph
+   `esc-desync-shaped-heated-esc-four-rotor`, the shaped and heated vehicle with the effect on, its
+   throttle stepping so that desynchronizations start and end in the measured steps, and the control
+   applied again every 1,000 steps: 1,000,000 steps with no collection and below 0.01 B a step.
+
 ### Motor heat against wind-tunnel runs (TASK-105, declared 2026-11-08)
 
 Recorded before the network was run on any of these data, after a first look at their summary rows
