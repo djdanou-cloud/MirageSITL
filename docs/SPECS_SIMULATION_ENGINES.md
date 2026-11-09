@@ -8632,6 +8632,169 @@ firmware faster than real time, so its log writer fell behind and the file ended
 4096-byte boundary; the check now paces the firmware to real time, as the application runs it, with the
 limits unchanged.
 
+## Battery v2 (TASK-104)
+
+### Design and checks (declared 2026-11-09, before the implementation)
+
+The stakeholder approved work on this deferred task on 2026-11-09. The TASK-092 pack (linear
+open-circuit voltage, one resistance, charge) stays as it is: a manifest whose battery has no
+`dynamics` builds the shared bus input v1 and runs bit for bit as before. A battery with
+`dynamics` runs the second-order Thevenin pack below through the shared bus input v2.
+
+**Model.** With the discharge current I > 0, the state of charge s, the two branch voltages
+V₁ and V₂ and the pack temperature T:
+
+```text
+V   = U(s, T) − I·R₀(T) − V₁ − V₂               U(s, T) = U_ref(s) + (T − T_ref)·∂U/∂T
+dVₖ/dt = −Vₖ/(Rₖ·Cₖ) + I/Cₖ                     R₀(T) = R₀,ref·g·exp(Θ·(1/T − 1/T_ref))
+ds/dt  = −I/(h·Q)                                 Rₖ → g·Rₖ
+m·c_p·dT/dt = I²·R₀ + Σ Vₖ²/Rₖ − I·T·∂U/∂T − (G₀ + G₁·√v)·(T − T_air)
+```
+
+U_ref(s) is a 21-point table at s = 0, 0.05, …, 1, interpolated linearly; its first and last
+points are the pack's empty and full open-circuit voltages. Θ = E_a/R_gas (K) is the Arrhenius
+activation temperature of the series resistance and T_ref = 298.15 K (25 °C), at which the card's
+resistances are taken. h in (0, 1] is the retained share of the rated capacity Q and g ≥ 1 the growth
+of every resistance: the pack's state of health, a configuration of an aged pack, not aging
+simulated during a flight. The reversible heat −I·T·∂U/∂T follows Bernardi, Pawlikowski and Newman
+(J. Electrochem. Soc. 132, 1985) with I positive on discharge; the contract's +I·T·∂U/∂T is the same
+term with the current positive on charge. G₀ (W/K) is the still-air conductance to the air and
+G₁·√v (W/K) its forced part at the airspeed v, from the laminar flat plate's average Nusselt number
+Nu = 0.664·Re^½·Pr^⅓ (Incropera and DeWitt, Fundamentals of Heat and Mass Transfer, chapter 7). Not modelled: the dependence of R₀ and the branches on charge and current,
+self-discharge, hysteresis, and heat exchanged with the frame or the motors' wash.
+
+**Discretization.** The current is constant over a step (the bus solves for it). With
+aₖ = exp(−dt/(Rₖ·Cₖ)) the branches are integrated exactly, and the terminal voltage at the end of the
+step is that of a linear pack:
+
+```text
+Vₖ' = aₖ·Vₖ + (1 − aₖ)·Rₖ·I
+V   = [U(s, T) − Σ aₖ·Vₖ] − I·[R₀(T) + Σ (1 − aₖ)·Rₖ]  =  U_eff − I·R_eff
+```
+
+So the TASK-092 quadratic and the TASK-197 bus solve run unchanged on U_eff and R_eff, and the
+current limit becomes min(I_max, s·h·Q/dt, U_eff/(2·R_eff)). After the current is known: Vₖ' as
+above, s' = max(0, s − I·dt/(h·Q)), and the temperature with the step's heat q held:
+T' = T_∞ + (T − T_∞)·exp(−dt·G/C) with G = G₀ + G₁·√v and T_∞ = T_air + q/G, or T' = T + q·dt/C when
+G = 0; a heat capacity C = m·c_p of 0 holds the temperature. The branch heat uses Vₖ'. A branch with
+Rₖ = 0 is absent and needs Cₖ = 0. The step reports the source power U·I, the delivered power V·I and
+their difference, I²·R₀ + I·Σ Vₖ', as the internal loss; the heat q differs from that loss by what the
+branch capacitors store. The air temperature in the flight is the atmosphere's, a²/(1.4·287.05) K, as
+TASK-105's motors take it, and v the body's speed relative to the air: an engineering choice under
+F-03, since a pack's place in the rotors' wash is not in the manifest.
+
+**Open-circuit curves.** Card schema 2 names the curve: `linear`, the TASK-092 line between the
+empty and full cell voltages, or `chen-2006`, the shape of the polymer Li-ion cell (850 mAh TCL
+PL-383562, room temperature) of Chen and Rincón-Mora, IEEE Trans. Energy Conversion 21(2), 2006,
+eq. (2), `U(z) = −1.031·e^(−35·z) + 3.685 + 0.2156·z − 0.1178·z² + 0.3201·z³` (V), read from the
+authors' copy (SHA-256 `8b759509…`, kept outside the repository). That curve reaches 3.3 V at
+z_e = 0.02771; the preset maps s to z = z_e + (1 − z_e)·s and scales U(z) between U(z_e) and U(1)
+onto the card's empty and full cell voltages, so the card keeps its meaning and `MOT_BAT_VOLT_*` are
+unchanged. Scaling one cell's shape onto another chemistry or voltage window is an approximation,
+named in the resolved assumptions; the comparison below shows what each curve gives.
+
+**Records.** Shared bus input v2 is 384 bytes; bytes 8–71 keep their v1 meanings (the capacity at
+32 is the rated one, before h). Output v2 is 128 bytes; bytes 0–55 keep their v1 meanings.
+`bet_bus_version` returns 2 and accepts both input versions, with the matching output layout; the
+bus solve reads the version word and takes either. Statuses as v1.
+
+| Byte Offset | Data Type | Units | Field Name (input v2) |
+| ---: | --- | --- | --- |
+| 0 | u32 | version | version (2) |
+| 4 | u32 | — | reserved_zero |
+| 8..71 | — | — | as input v1 |
+| 72 | f64 | V | branch_1_voltage |
+| 80 | f64 | V | branch_2_voltage |
+| 88 | f64 | K | temperature |
+| 96 | f64 | K | air_temperature |
+| 104 | f64 | m/s | airspeed |
+| 112 | f64 | Ω | branch_1_resistance |
+| 120 | f64 | F | branch_1_capacitance |
+| 128 | f64 | Ω | branch_2_resistance |
+| 136 | f64 | F | branch_2_capacitance |
+| 144 | f64 | K | activation_temperature |
+| 152 | f64 | K | reference_temperature |
+| 160 | f64 | J/K | heat_capacity |
+| 168 | f64 | W/K | still_air_conductance |
+| 176 | f64 | W/K at 1 m/s | airflow_conductance |
+| 184 | f64 | V/K | entropic_coefficient |
+| 192 | f64 | 1 | capacity_retention |
+| 200 | f64 | 1 | resistance_growth |
+| 208 | f64[21] | V | open_circuit_table |
+| 376 | u32[2] | — | reserved_zero |
+
+| Byte Offset | Data Type | Units | Field Name (output v2) |
+| ---: | --- | --- | --- |
+| 0..55 | — | — | as output v1 |
+| 56 | f64 | V | branch_1_voltage |
+| 64 | f64 | V | branch_2_voltage |
+| 72 | f64 | K | temperature |
+| 80 | f64 | W | heat |
+| 88 | f64 | V | open_circuit_voltage |
+| 96..127 | u32[8] | — | reserved_zero |
+
+Input checks: every value finite; table points positive and non-decreasing, the first equal to
+`open_circuit_empty` and the last to `open_circuit_full`; Rₖ ≥ 0 with Cₖ > 0 exactly when Rₖ > 0;
+Θ ≥ 0; T_ref, T and T_air in [173.15, 473.15] K; airspeed ≥ 0; heat capacity, conductances ≥ 0;
+h in (0, 1]; g ≥ 1; U_eff > 0.
+
+**Where the values come from.** Card schema 2 adds to the battery card, each value known with its
+source or null: `openCircuitCurve` (`linear` or `chen-2006`), `rcFastResistanceOhm`,
+`rcFastCapacitanceF`, `rcSlowResistanceOhm`, `rcSlowCapacitanceF`, `resistanceActivationK`,
+`heatCapacityJPerK`, `stillAirConductanceWPerK`, `airflowConductanceWPerK`, `entropicCoefficientVPerK`,
+`capacityRetention` and `resistanceGrowth`. A card without them keeps schema 1 and its bytes. The
+resolver gives the manifest's battery `dynamics` when the card names a curve; an unknown branch is
+absent, an unknown activation temperature or entropic coefficient is 0, unknown thermal values hold
+the temperature, unknown health is a new pack, each listed as an assumption. The manifest's
+`battery.dynamics` holds the 21-point table in pack volts and the other values in SI; a manifest
+without it keeps its bytes. The flight keeps the branch voltages and the temperature beside the
+charge; they start at 0 V and the air temperature and return there on reset. The power telemetry
+adds the pack temperature.
+
+**Verification, limits set before the first run.**
+
+1. A current pulse (constant current, then rest) on the linear curve against the closed form
+   V(t) = U(s(t)) − I·R₀ − Σ I·Rₖ·(1 − e^(−t/τₖ)) and the exponential recovery after it: within
+   1e-9 V at every step, at 400, 800, 1200 and 4800 Hz, and the four rates equal at shared instants
+   within 1e-9 V (the discretization is exact for a constant current).
+2. A power demand P: V·I = P within 1e-9 relative, and the state equal to the constant-current
+   step at that current within 1e-12.
+3. Energy: U·I = V·I + I²·R₀ + I·Σ Vₖ' within 1e-9 relative on every step of 10,000 random steps.
+4. Heat: a constant heat against T_∞ + (T₀ − T_∞)·e^(−t·G/C) within 1e-9 K, one 600 s step equal to
+   600 steps of 1 s within 1e-9 K, the steady state T_air + q/G, and C = 0 holding T exactly.
+5. Arrhenius R₀(T) and the entropic shift against their closed forms within 1e-12 relative; h and g
+   against a pack with the scaled capacity and resistances, bit for bit.
+6. Without `dynamics`: the v1 record, outputs and a 4000-step bus trajectory bit for bit as before;
+   with dynamics on the linear curve, no branches, Θ = 0, ∂U/∂T = 0, C = 0, h = g = 1: the v1 values
+   within 1e-12 V.
+7. The `chen-2006` table: each of its 21 points against eq. (2) under the mapping within 1e-12 V;
+   the TASK-197 bus solve on U_eff and R_eff against the same root found with v1 records of those
+   values, bit for bit.
+8. G1: the flight path with a v2 pack allocates nothing over 1,000,000 steps
+   (`node scripts/check-bet-runtime.mjs --allocation`, a new graph).
+9. Native ArduCopter (V4.7.2, the TASK-152 home, Node harness of TASK-172) on the S19 quad with a v2
+   pack, in two flights from the same start: `BATT_LOW_VOLT` set between the pack's loaded voltage in a
+   5 m/s climb and its resting voltage there, `BATT_FS_LOW_ACT 0` (warn only). With `BATT_FS_VOLTSRC 0`
+   the autopilot reports the low battery during the climb; with `BATT_FS_VOLTSRC 1` (its sag-compensated
+   resting voltage) it does not, and it does once the resting voltage falls below the threshold in a
+   long hover. The check reads the autopilot's own report (`SYS_STATUS`/`BATTERY_STATUS` and its
+   STATUSTEXT), not the model.
+
+**Comparison with measured discharges (shown, not judged: SA-01).** The stakeholder's Pavo20 Pro II
+logs hold the pack's voltage and current (BAT.Volt, BAT.Curr, 10 Hz) and no temperature, so heat is
+not compared. On each log the logged current drives the pack as a held current from the first sample
+above 0.5 A to the last; samples below 3.0 V per cell (sensor drop-outs) are excluded and counted; the
+starting charge is the one whose open-circuit voltage equals the first sample's voltage plus its
+current times R₀. Models are run: (A) TASK-092: the linear curve and the card's 0.0771 Ω;
+(B) the linear curve with R₀, R₁, τ₁, R₂, τ₂ fitted; (C) `chen-2006` with the same five fitted. The
+fits minimise the RMS voltage error on log 34 alone (the card's resistance source), by Nelder–Mead
+on the logarithms of the five values, from R₀ = 0.0771 Ω, R₁ = R₂ = 0.02 Ω, τ₁ = 10 s, τ₂ = 100 s;
+the other logs are not used in the fit. Shown per log and model: the RMS and the largest voltage
+error, beside the logged voltage's own step (its smallest non-zero change). The paper's own
+cell gives a second, independent set (its eq. (3)–(7) at s ≥ 0.2: R₀ 0.0745 Ω, R₁ 0.0467 Ω with
+C₁ 703.6 F, R₂ 0.0498 Ω with C₂ 4475 F, per cell), run as (D) with `chen-2006`. The script is
+`scripts/check-battery-logs.mjs --dir DIRECTORY`, its report `test-results/validation/battery-logs.json`.
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of
