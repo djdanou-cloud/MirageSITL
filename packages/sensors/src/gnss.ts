@@ -19,8 +19,12 @@ import { geodeticToEcefInto } from './geodesy.ts';
 //   excess path delay.
 // * Jamming: (C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c) (Kaplan and Hegarty, Understanding GPS, 2nd ed., section 9.2); a satellite
 //   whose effective C/N0 falls below the tracking threshold is lost.
-// * Position error: the weighted least-squares solution δx = (GᵀG)⁻¹Gᵀδρ of the satellites' remaining biases δρ, in local
+// * Position error: the least-squares solution δx = (GᵀG)⁻¹Gᵀδρ of the satellites' remaining biases δρ, in local
 //   east, north, up; the accuracy the receiver reports is the user range error times HDOP.
+// * Since 2026-11-09 (SPECS_SIMULATION_ENGINES "Receiver timing, tracking noise, multipath and jammers"): each satellite's code
+//   tracking noise from its C/N0 by the DLL thermal-noise formula, a synthetic elevation-dependent multipath error (RTCA DO-229's
+//   airborne form), both seeded unit Gauss–Markov processes per sky satellite, and a placed jammer whose received power lowers
+//   every satellite's C/N0 by the same 10·log10(1 + J/(N0·Q·R_c)) dB.
 //
 // Configuration-time and control-loop code, never in a physics step.
 
@@ -264,11 +268,16 @@ export interface SatelliteView {
 
 /** Every healthy satellite of the sky above the mask, with its elevation and azimuth at the receiver. */
 export function visibleSatellites(almanac: readonly SkySatellite[], receiver: ReceiverPosition, week: number, secondsOfWeek: number, maskRad: number): SatelliteView[] {
+  return visibleIndexed(almanac, receiver, week, secondsOfWeek, maskRad, null);
+}
+/** As `visibleSatellites`; `indices`, when given, receives each view's index in the sky. */
+function visibleIndexed(almanac: readonly SkySatellite[], receiver: ReceiverPosition, week: number, secondsOfWeek: number, maskRad: number, indices: number[] | null): SatelliteView[] {
   const r = new Float64Array(3), s = new Float64Array(3);
   geodeticToEcefInto(receiver.latRad, receiver.lonRad, receiver.heightM, r);
   const sl = Math.sin(receiver.latRad), cl = Math.cos(receiver.latRad), so = Math.sin(receiver.lonRad), co = Math.cos(receiver.lonRad);
   const views: SatelliteView[] = [];
-  for (const satellite of almanac) {
+  for (let index = 0; index < almanac.length; index++) {
+    const satellite = almanac[index]!;
     if (satellite.health !== 0) continue;
     satelliteEcefInto(satellite, week, secondsOfWeek, s);
     const dx = s[0]! - r[0]!, dy = s[1]! - r[1]!, dz = s[2]! - r[2]!, range = Math.hypot(dx, dy, dz);
@@ -278,6 +287,7 @@ export function visibleSatellites(almanac: readonly SkySatellite[], receiver: Re
     let azimuthRad = Math.atan2(east, north);
     if (azimuthRad < 0) azimuthRad += 2 * Math.PI;
     views.push({ system: satellite.system, prn: satellite.prn, elevationRad, azimuthRad, lineOfSight: [east, north, up] });
+    indices?.push(index);
   }
   return views;
 }
@@ -429,6 +439,18 @@ export interface GnssEffects {
   readonly terrain: { readonly heightAt: TerrainHeight; readonly nlosExcessM: number } | null;
   /** Jamming at the receiver: J/S dB, the spectral separation Q, and the tracking threshold, dB-Hz. */
   readonly jamming: { readonly jammingToSignalDb: number; readonly spectralSeparation: number; readonly thresholdDbHz: number } | null;
+  /**
+   * A placed jammer: the power it delivers at the receiver, dBW (`jammerReceivedPowerDbW`), Q and the tracking threshold. Each
+   * satellite's own J/S, J − C_i with C_i = (C/N0)_i + N0, enters the link budget. Absent or null: none.
+   */
+  readonly jammer?: { readonly receivedPowerDbW: number; readonly spectralSeparation: number; readonly thresholdDbHz: number } | null;
+  /**
+   * Code tracking noise: the DLL's noise bandwidth B_n (Hz) and correlator spacing D (chips), σ multiplied by `scale`, and one unit
+   * process value per sky satellite (`GnssRangeProcess.values`). Absent or null: none.
+   */
+  readonly codeNoise?: { readonly bandwidthHz: number; readonly spacingChips: number; readonly scale: number; readonly unit: Float64Array } | null;
+  /** Multipath: σ = a + b·e^(−θ/θ₀), m, and one unit process value per sky satellite. Absent or null: none. */
+  readonly multipath?: { readonly floorM: number; readonly lowElevationM: number; readonly elevationScaleRad: number; readonly unit: Float64Array } | null;
 }
 /** The receiver's position for a solution: geodetic, and its local east, north and height for the terrain. */
 export interface GnssReceiver extends ReceiverPosition { readonly eastM: number; readonly northM: number }
@@ -453,6 +475,60 @@ export function openSkyCn0DbHz(elevationRad: number): number {
 }
 const NO_ERROR: readonly [number, number, number] = Object.freeze<[number, number, number]>([0, 0, 0]);
 
+/** The C/A code's chip length, m: c/R_c. */
+export const CA_CHIP_LENGTH_M = SPEED_OF_LIGHT_MPS / CA_CHIP_RATE;
+/** The coherent integration time of the DLL noise formula, s: one C/A navigation data bit at 50 bit/s. */
+export const DLL_INTEGRATION_S = 0.02;
+/**
+ * The thermal-noise code tracking jitter of a noncoherent early-minus-late power DLL, m (Kaplan and Hegarty, eds., Understanding GPS,
+ * 2nd ed., chapter 5): λ_c·√((B_n·D/(2·c/n0))·(1 + 2/(T·c/n0·(2 − D)))), c/n0 the carrier-to-noise density as a ratio.
+ */
+export function dllJitterM(cn0DbHz: number, bandwidthHz: number, spacingChips: number): number {
+  const cn0 = 10 ** (cn0DbHz / 10);
+  return CA_CHIP_LENGTH_M * Math.sqrt(((bandwidthHz * spacingChips) / (2 * cn0)) * (1 + 2 / (DLL_INTEGRATION_S * cn0 * (2 - spacingChips))));
+}
+/** The multipath σ at elevation θ, m: a + b·e^(−θ/θ₀), the form of RTCA DO-229's airborne model (a 0.13 m, b 0.53 m, θ₀ 10°). */
+export function multipathSigmaM(elevationRad: number, floorM: number, lowElevationM: number, elevationScaleRad: number): number {
+  return floorM + lowElevationM * Math.exp(-elevationRad / elevationScaleRad);
+}
+/** GPS L1, Hz, and its wavelength, m. */
+export const GPS_L1_HZ = 1575.42e6, GPS_L1_WAVELENGTH_M = SPEED_OF_LIGHT_MPS / GPS_L1_HZ;
+/** The receiver's noise density N0 = k·290 K, dBW/Hz: thermal noise at the reference temperature, no noise figure. */
+export const RECEIVER_NOISE_DENSITY_DBW_HZ = 10 * Math.log10(1.380649e-23 * 290);
+/** The C/N0 every satellite loses to a jammer delivering J dBW: 10·log10(1 + J/(N0·Q·R_c)), dB. */
+export function jammerCn0LossDb(receivedPowerDbW: number, spectralSeparation: number, chipRate = CA_CHIP_RATE): number {
+  return 10 * Math.log10(1 + 10 ** ((receivedPowerDbW - RECEIVER_NOISE_DENSITY_DBW_HZ) / 10) / (spectralSeparation * chipRate));
+}
+
+/** The random streams of the per-satellite code noise and multipath processes. */
+export const GNSS_CODE_NOISE_STREAM = 0x00117002, GNSS_MULTIPATH_STREAM = 0x00117003;
+/**
+ * One unit first-order Gauss–Markov process per sky satellite, x ← φ·x + √(1 − φ²)·w, starting from its stationary distribution and
+ * advanced a whole number of epochs at a time, one draw per satellite per epoch in sky order. Seeded, so a seed repeats it.
+ * Control-loop code: it allocates nothing after construction.
+ */
+export class GnssRangeProcess {
+  readonly values: Float64Array;
+  private readonly draw = new Float64Array(1);
+  private readonly random: SeededRandom;
+  constructor(count: number, seed: number, stream: number) {
+    if (!Number.isInteger(count) || count < 1) throw new Error('Invalid GNSS range process');
+    this.values = new Float64Array(count);
+    this.random = new SeededRandom(seed >>> 0, stream);
+    for (let i = 0; i < count; i++) { this.random.nextGaussianInto(this.draw, 0); this.values[i] = this.draw[0]!; }
+  }
+  /** Advances every satellite `epochs` epochs with the per-epoch coefficient φ = e^(−Δt/τ). */
+  advance(epochs: number, phi: number): void {
+    const scale = Math.sqrt(1 - phi * phi), values = this.values;
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      for (let i = 0; i < values.length; i++) {
+        this.random.nextGaussianInto(this.draw, 0);
+        values[i] = phi * values[i]! + scale * this.draw[0]!;
+      }
+    }
+  }
+}
+
 /**
  * One GNSS v2 solution at GPS time (week, seconds of week), one receiver clock per system among the tracked satellites. With the
  * constellation off it reports the satellites above 5° and no error, as the other effects alone change nothing a stock SITL
@@ -460,13 +536,16 @@ const NO_ERROR: readonly [number, number, number] = Object.freeze<[number, numbe
  */
 export function gnssSolution(almanac: readonly SkySatellite[], receiver: GnssReceiver, week: number, secondsOfWeek: number, effects: GnssEffects): GnssSolution {
   const mask = effects.constellation?.maskRad ?? (5 * Math.PI) / 180;
-  const views = visibleSatellites(almanac, receiver, week, secondsOfWeek, mask);
+  const indices: number[] = [];
+  const views = visibleIndexed(almanac, receiver, week, secondsOfWeek, mask, indices);
   const visibleBySystem: Record<GnssSystem, number> = { G: 0, E: 0, R: 0, C: 0 };
   for (const view of views) visibleBySystem[view.system]++;
   const lines: (readonly [number, number, number])[] = [], biases: number[] = [], systems: GnssSystem[] = [];
   let nonLineOfSight = 0;
   const secondsOfDay = ((secondsOfWeek % 86400) + 86400) % 86400;
-  for (const view of views) {
+  const jammer = effects.jammer ?? null, codeNoise = effects.codeNoise ?? null, multipath = effects.multipath ?? null;
+  for (let v = 0; v < views.length; v++) {
+    const view = views[v]!, index = indices[v]!;
     let bias = 0;
     const terrain = effects.terrain;
     if (terrain && !lineOfSightClear(terrain.heightAt, receiver.eastM, receiver.northM, receiver.heightM, view)) {
@@ -476,11 +555,21 @@ export function gnssSolution(almanac: readonly SkySatellite[], receiver: GnssRec
     }
     const jamming = effects.jamming;
     if (jamming && effectiveCn0DbHz(openSkyCn0DbHz(view.elevationRad), jamming.jammingToSignalDb, jamming.spectralSeparation) < jamming.thresholdDbHz) continue;
+    // A placed jammer: this satellite's own J/S against its received power C_i = (C/N0)_i + N0.
+    let cn0DbHz = 0;
+    if (jammer || codeNoise) {
+      const open = openSkyCn0DbHz(view.elevationRad);
+      cn0DbHz = jamming ? effectiveCn0DbHz(open, jamming.jammingToSignalDb, jamming.spectralSeparation)
+        : jammer ? effectiveCn0DbHz(open, jammer.receivedPowerDbW - (open + RECEIVER_NOISE_DENSITY_DBW_HZ), jammer.spectralSeparation) : open;
+      if (jammer && cn0DbHz < jammer.thresholdDbHz) continue;
+    }
     const atmosphere = effects.atmosphere;
     if (atmosphere) {
       bias += atmosphere.ionosphereResidual * SPEED_OF_LIGHT_MPS * klobucharDelayS(DEFAULT_KLOBUCHAR, receiver, view.elevationRad, view.azimuthRad, secondsOfDay);
       bias += atmosphere.troposphereResidual * saastamoinenDelayM(receiver, view.elevationRad);
     }
+    if (codeNoise) bias += codeNoise.scale * dllJitterM(cn0DbHz, codeNoise.bandwidthHz, codeNoise.spacingChips) * (codeNoise.unit[index] ?? 0);
+    if (multipath) bias += multipathSigmaM(view.elevationRad, multipath.floorM, multipath.lowElevationM, multipath.elevationScaleRad) * (multipath.unit[index] ?? 0);
     lines.push(view.lineOfSight);
     biases.push(bias);
     systems.push(view.system);

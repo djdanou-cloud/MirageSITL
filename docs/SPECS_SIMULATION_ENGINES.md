@@ -7181,6 +7181,13 @@ without a fix, `SIM_GPS1_LCKTIME` held off. ArduPilot's receiver keeps its own r
 | `gnss.atmosphere` | `ionosphereResidual` 0..2, `troposphereResidual` 0..2 | both |
 | `gnss.terrain` | `nlosExcessM` 0..200 m | the excess |
 | `gnss.jamming-budget` | `jammingToSignalDb` −30..80 dB, `spectralSeparation` Q 1..2, `thresholdDbHz` 15..40 | J/S (by 10·log10 i dB) |
+| `gnss.receiver` | none: the run's `SIM_GPS1_HZ` and `SIM_GPS1_LAG_MS` | nothing; above 0 is on |
+| `gnss.code-noise` | `dllBandwidthHz` 0.05..10 Hz, `correlatorSpacingChips` 0.05..1 | σ |
+| `gnss.multipath` | `floorM` 0..5 m, `lowElevationM` 0..20 m, `elevationScaleDeg` 1..45°, `correlationS` 0.1..600 s | a and b |
+| `gnss.jammer` | `positionNedM` ±20 km, `eirpDbW` −90..30 dBW, `spectralSeparation` Q 1..2, `thresholdDbHz` 15..40 | EIRP (by 10·log10 i dB) |
+
+The last four were added on 2026-11-09; "Receiver timing, tracking noise, multipath and jammers" below
+gives their design and checks.
 
 GNSS effects and `ew.gnss-jamming` write the same receiver parameters, so each is refused while
 the other is on. The stream also carries the Sensors tab's horizontal GNSS error (mapping 4):
@@ -7432,6 +7439,147 @@ look like such a limit. Its HDOP comes within 0.05 of the Here4's and lies below
 from the sky's epoch IDOT turns the Galileo and BeiDou inclinations by up to 7.6° at the farthest log
 (193 weeks; `inclinationDriftDeg` in the report), 3.1° at the Here4 logs: their planes then differ
 from the real ones by that much.
+
+### Receiver timing, tracking noise, multipath and jammers (TASK-117, declared 2026-11-09)
+
+Recorded before the implementation. Four more effects of family `gnss`, each off by default; off, the
+stream and every solution are bit for bit what they were without the effect, and the existing tests
+of `tests/gnss-errors.test.ts` and `tests/run-controller.test.ts` must pass unchanged. All of them
+change only what ArduPilot's simulated receiver reports, never the truth the physics integrates
+("EW changes observations, not truth").
+
+* `gnss.receiver`, receiver timing (no fields; any intensity above 0 is on). The stream follows the
+  receiver ArduPilot simulates: its solutions fall on the receiver's epochs t_k = k/R of simulated
+  time, R = `SIM_GPS1_HZ` as the run holds it, and the position error of epoch k is written at
+  t_k + L, L = `SIM_GPS1_LAG_MS`. The reason is in `libraries/SITL/SIM_GPS.cpp` at V4.7.2: the
+  satellites, accuracy and lock enter the receiver's sample before its lag buffer and so come out L
+  later by themselves, while `SIM_GPS1_GLTCH` is added after the buffer, to the position of t − L;
+  written L after its epoch, an error lands on the position of its own epoch. Defaults are the run's
+  values: ArduPilot's SITL receiver 5 Hz and 100 ms, which the Sensors tab's GNSS update rate and
+  latency set. For reference, ArduPilot sets a real u-blox to 5 Hz (`GPS1_RATE_MS` 200,
+  `AP_GPS_Params.cpp`) and its EKF assumes 120 ms of lag for the u-blox 7, M8, M9, M10 and F9
+  (`AP_GPS_UBLOX::get_lag`, "based on flight logs" for the 7 and 8 series); the SITL default lies 20 ms
+  below that. Writes leave at the first status at or after their time (statuses come every 80 lockstep
+  frames, 67 ms at 1200 Hz), and PARAM_SET takes its own moment. Pending errors wait in a bounded
+  ring of 64; a lag of more than 62 epochs, or a run whose list lacks either parameter, is refused.
+  Off: one solution every 0.2 s, written at once, as before.
+* `gnss.code-noise`, code tracking noise: `dllBandwidthHz` B_n 0.05..10 Hz (default 0.5),
+  `correlatorSpacingChips` D 0.05..1 (default 1); intensity multiplies σ. Each tracked satellite's
+  pseudorange gains σ_i·n_i, with the thermal-noise jitter of a noncoherent early-minus-late power DLL
+  (Kaplan and Hegarty, eds., Understanding GPS: Principles and Applications, 2nd ed., 2006, chapter 5):
+  σ_i = λ_c·√((B_n·D/(2·c/n0))·(1 + 2/(T·c/n0·(2 − D)))), λ_c = c/R_c = 293.05 m, T = 20 ms (one C/A
+  data bit), c/n0 the satellite's effective C/N0 as a ratio: open sky by elevation (45 dB-Hz at the
+  zenith, 35 at the horizon, as before) lowered by whichever jamming is on. n_i is a unit first-order
+  Gauss–Markov process per sky satellite with τ = 1/(4·B_n), the time constant of a first-order loop
+  of noise bandwidth B_n, advanced once per epoch. Defaults are an engineering choice, a standard
+  1-chip correlator and a carrier-aided loop of 0.5 Hz: σ = 0.825279 m at 45 dB-Hz, 1.472569 m at
+  40, 2.646522 m at 35, 6.278575 m at 28. The receiver's reported accuracy stays the constellation's σ·HDOP.
+* `gnss.multipath`, multipath: `floorM` a 0..5 m (default 0.13), `lowElevationM` b 0..20 m (default
+  0.53), `elevationScaleDeg` θ₀ 1..45° (default 10), `correlationS` τ 0.1..600 s (default 10);
+  intensity multiplies a and b. Each tracked satellite's pseudorange gains σ_mp(θ)·m_i with
+  σ_mp(θ) = a + b·e^(−θ/θ₀), the airborne multipath model of RTCA DO-229 (the GPS/SBAS airborne
+  equipment MOPS), whose defaults these are (0.66 m at the horizon, 0.130 m at the zenith), and m_i a
+  unit first-order Gauss–Markov process per sky satellite. Synthetic: the 10 s correlation time is a
+  modelling choice no measurement here fits, and a drone near the ground sees worse multipath than an
+  airliner's antenna.
+* `gnss.jammer`, a jammer placed in the world: `positionNedM` north, east, down from the home, ±20 km
+  (default [300, 0, −2]), `eirpDbW` −90..30 dBW (default −50, an engineering choice whose free-space
+  radius of total loss, 87 m, fits a test field), `spectralSeparation` Q 1..2 (default 1.5),
+  `thresholdDbHz` 15..40 (default 28); intensity multiplies the radiated power (10·log10 i dB). The
+  power received at the vehicle's true position is J = EIRP − 20·log10(4π·max(d, 1 m)/λ), λ = c/1575.42
+  MHz = 0.1903 m, free space with an isotropic receiving antenna; terrain does not shield it. Each
+  satellite's own J/S, J − C_i with C_i = (C/N0)_i + N0 and N0 = k·290 K = −203.98 dBW/Hz, enters the
+  same link budget, so every satellite loses the same 10·log10(1 + J/(N0·Q·R_c)) dB. With the defaults
+  the first (horizon) satellites go at J = −136.08 dBW and the last (zenith) at −125.20 dBW, 10.9 dB
+  apart, so the losses spread over a factor 3.5 in distance. The EW engine (`packages/ew/src/engine.ts`)
+  has no placed jammer to couple: its `ew.gnss-jamming` is a commanded severity preset and its hazard
+  volumes are dimensionless exposure, never an RF link budget (section 5). The emitter therefore lives
+  in the EW package (`packages/ew/src/gnss-emitter.ts`) and is evaluated by the stream; it and
+  `gnss.jamming-budget` both set the jamming, so each is refused while the other is on.
+
+The noise processes take the run's seed (the profile version's SHA-256, as the horizontal wander) with
+streams 0x00117002 (code) and 0x00117003 (multipath), one draw per sky satellite per epoch in sky order,
+tracked or not, so a seed repeats them whatever the statuses' spacing. Without `gnss.receiver` the
+epochs are the 0.2 s grid of simulated time.
+
+Checks, limits set now (`tests/gnss-errors.test.ts`, `tests/run-controller.test.ts`):
+
+1. The DLL jitter equals the values above within 1e-6 m, falls as C/N0 rises and with D, and the
+   multipath σ equals 0.66 m at 0°, 0.32498 m at 10° and 0.130065 m at 90° within 1e-5 m.
+2. Each unit process over 1,000,000 epochs of 0.2 s (τ 0.5 s and 10 s): variance within 5 % of 1 and
+   lag-one correlation within 0.005 of e^(−0.2/τ); a seed repeats it; advancing ten epochs at once
+   equals ten single steps bit for bit.
+3. With every new effect absent or null, a solution equals the former one bit for bit.
+4. The noise reaches the least-squares solution: at a fixed time and place with B_n 10 Hz (nearly
+   white per epoch), the variance of the east and north errors over 200,000 epochs lies within 3 % of
+   Σ σ_i²·x_i², x_i the error a unit bias on satellite i alone gives.
+5. The jammer: J/S and the C/N0 drop against the closed forms within 1e-9 dB; approaching it in a
+   straight line the tracked count never rises, all satellites are tracked beyond 350.2 m and none
+   within 100.1 m at the defaults with EIRP −48.8 dBW, and the fix is lost in between.
+6. The stream: with `gnss.receiver` at 10 Hz and 100 ms, the count and accuracy are written once per
+   epoch, and each offset written at t equals the one a run with 0 ms lag wrote at its epoch t − 0.1 s;
+   a jammer near the vehicle holds the lock off, and refuses `gnss.jamming-budget` (and the reverse);
+   each new effect off writes nothing.
+
+The native flight, `tests/browser/gnss-flight.spec.ts`, needs the TASK-152 installation. A quad X on
+stock ArduCopter V4.7.2 at ArduPilot's Canberra test home, effects set on the Faults tab after READY:
+the constellation (mask 10°, σ 1.5 m), receiver timing, code noise and multipath at their defaults, and
+a jammer 400 m north and 2 m up at −48.8 dBW, which in free space loses the first satellites 350 m from
+it and the last 100 m from it. A stored route takes off to 10 m and flies north and back at 5 m/s. Its
+own DataFlash log is the evidence:
+
+* Run 1, to 250 m north (150 m from the jammer, where only satellites above about 41° stay): GPS.NSats
+  takes at least three values, each one the stream wrote (PARM `SIM_GPS1_NUMSATS`), the smallest at
+  least 10 below the largest; GPA.HAcc follows the accuracy written (each sample within 0.01 m of a
+  written value) and its largest is at least 1.3 times its smallest; ArduPilot logs at least 100 offset writes
+  (PARM `SIM_GPS1_GLTCH_X`), and its GPS position less the simulator's at the same time less the lag
+  is within 0.5 m of the offset in force for 95 % of the samples while armed; the fix holds (GPS.Status
+  3 or more throughout) and the vehicle lands within 5 m of the pad and disarms, with no accident.
+* Run 2, to 330 m north: GPS.Status falls below 3 at a north distance within 30 m of the one the model
+  gives for the route, ArduCopter's own failsafe brings it down, and it disarms with no accident.
+
+Result (2026-11-09). `tests/gnss-errors.test.ts` 20 passed (5 new); on the first run check 4 stopped at
+vitest's default 5 s test timeout before it finished, and passed once given 300 s, its limits unchanged.
+`tests/run-controller.test.ts` 138 (2 new; the 136 before pass unchanged with the new stream code),
+`tests/control-v3.test.ts` 58 (the catalog and schema list the four effects), and 225 more in 13
+effect, EW and schedule test files that read the catalog (one test skipped, as before).
+
+1. The DLL jitter and the multipath σ equal the declared values within their tolerances.
+2. Variance 0.9990 (τ 0.5 s) and 0.9905 (τ 10 s); lag-one correlation 0.66988 against 0.67032 and
+   0.98001 against 0.98020; ten epochs at once equal ten single ones bit for bit.
+3. Bit for bit, at three times.
+4. 37 satellites; the east and north variances 0.9997 and 1.0005 of their predictions (σ 2.21 and 2.42 m
+   at B_n 10 Hz, so about 0.5 m at the default 0.5 Hz).
+5. Approaching at 1 m steps (40 satellites tracked in the clear): the first satellite goes 275.1 m from
+   the jammer and the fix 110.3 m from it. The first loss comes later than 350.2 m because the 10° mask
+   leaves no satellite on the horizon: the lowest has an open-sky C/N0 of 36.7 dB-Hz, not 35.
+6. 30 solutions in 3 s at 10 Hz; all 58 comparable offsets equal the 0 ms run's 0.1 s earlier, bit for
+   bit; the lock held off at 60 m and back at 2 km; each jamming refused while the other is on.
+
+The native flight passed on its second run (`npx --no-install playwright test
+tests/browser/gnss-flight.spec.ts`, exit 0, 3.1 min, under the SITL lock; report
+`test-results/validation/task-117-gnss-flight.json`). The first run flew both routes but its analysis
+stopped on the first log: ArduPilot logs from arming, so the log held no ARM record of the arming
+itself; the test now takes the first SIM record as that moment, as `barometer-ground-effect.spec.ts`
+does, and keeps copies of the logs.
+
+* Run 1: GPS.NSats took 19 values, 19 to 37, every one written by the stream; GPA.HAcc 0.70 to 1.34 m
+  (1.91 times), each within 0.0093 m of a written accuracy, 702 samples; 1,421 offset writes, and
+  the GPS position less the truth 0.1 s earlier within 0.5 m of the offset in force for 98.7 % of 700
+  samples (95th percentile 0.071 m); the fix held, the route reached 247.7 m north, the task finished,
+  and the aircraft landed 0.60 m from the pad with no accident.
+* Run 2: GPS.Status fell below 3 at 284.67 m north, where the model loses the fix at 284.5 m; ArduCopter
+  switched to LAND (mode 9) by itself, the task ended early, and the aircraft disarmed with no accident.
+  Without a fix it drifted on past the route's end and landed 381.6 m north of the pad. Its log also
+  shows one count, 3, that the stream never wrote: SIM_GPS.cpp's lag buffer interpolates between its
+  samples, and the counts fell fast near the jammer. Its smallest HAcc, 0.30 m, is the receiver's own
+  value, restored while there is no fix and so no accuracy to write.
+
+ArduPilot therefore receives the varying count, accuracy and offsets, keeps flying on them, and loses
+its fix where the link budget says, and its own failsafe lands it. The logged open-sky and urban error
+statistics of the DoD remain BLOCKED_EXTERNAL: the logs hold the receivers' reports, not their errors
+("Logged receiver statistics"). Not modelled: per-system ionosphere and chip rates, which systems a
+receiver tracks, and terrain shielding a jammer.
 
 ## Electromechanical drive (TASK-092)
 

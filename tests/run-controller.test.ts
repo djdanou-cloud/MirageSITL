@@ -161,6 +161,7 @@ function parameterList(expected: readonly { readonly name: string; readonly valu
     else if (change.value !== null) list.push([parameter.name, change.value]);
   }
   list.push(...OTHER_PARAMETERS);
+  // TASK-117's receiver timing reads ArduPilot's receiver's update rate and lag; the tests that need them have the Sensors tab set both.
   return list.map(([name, value], index) => paramValue(name, value, list.length, index));
 }
 
@@ -1621,6 +1622,97 @@ describe('effect controls in a run (TASK-168)', () => {
     } finally {
       fixture = original;
     }
+  });
+
+  test('receiver timing writes one solution per receiver epoch and each position error its lag later (TASK-117, check 6)', async () => {
+    const gnss = (effect: EffectControl['effect'], parameters: EffectControl['parameters'], enabled = true): EffectControl =>
+      ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity: 1, parameters });
+    /**
+     * One run at 10 Hz and the given lag: the offset and count in force after each status 0.05 s apart, and the solutions made. Both
+     * runs share one profile, so one seed: the Sensors tab sets 10 Hz and 100 ms, and the run without lag has ArduPilot report 0 ms.
+     */
+    const original = fixture;
+    fixture = await storedProfile({ ...ARDUPILOT_OWNED, gnss: { ...ARDUPILOT_OWNED.gnss, updateRateHz: 10, latencyUs: 100_000 } });
+    const run = (await preparedRun(fixture.store, fixture.stored)).run;
+    const flight = async (lagMs: number): Promise<{ offsets: Map<string, number>; counts: number[]; solutions: number; writesOff: number }> => {
+      {
+        expect(run.parameters).toContainEqual(expect.objectContaining({ name: 'SIM_GPS1_LAG_MS', value: 100 }));
+        expect(run.parameters).toContainEqual(expect.objectContaining({ name: 'SIM_GPS1_HZ', value: 10 }));
+        // The autopilot's list holds what this run's profile sets.
+        const h: Harness = { ...harness(() => Promise.resolve(run), null, catalog), run };
+        await reach(h, 'flying');
+        if (lagMs !== 100) {
+          const list = parameterList(run.parameters), names = list.map(frame => frame);
+          const index = run.parameters.findIndex(parameter => parameter.name === 'SIM_GPS1_LAG_MS');
+          expect(index).toBeGreaterThanOrEqual(0);
+          mav(h, paramValue('SIM_GPS1_LAG_MS', lagMs, names.length, index));
+        }
+        // Never on: nothing is written.
+        h.physics.sent.length = 0;
+        for (const effect of ['gnss.receiver', 'gnss.code-noise', 'gnss.multipath', 'gnss.jammer'] as const) {
+          expect(h.controller.setEffect({ ...gnss(effect, initialEffectParameters(effect)), intensity: 0 })).toBeNull();
+          expect(h.controller.setEffect(gnss(effect, initialEffectParameters(effect), false))).toBeNull();
+        }
+        const writesOff = paramSets(h).length;
+        expect(h.controller.gnssReceiver).toBeNull();
+        let at = Math.round((h.controller.view.status?.simTimeS ?? 0) * 20) / 20;
+        status(h, { ready: true, reason: '', simTimeS: at });
+        for (const effect of ['gnss.constellation', 'gnss.code-noise', 'gnss.receiver'] as const) expect(h.controller.setEffect(gnss(effect, initialEffectParameters(effect)))).toBeNull();
+        const start = h.controller.gnssReceiver?.solutions ?? NaN;
+        const offsets = new Map<string, number>(), counts: number[] = [];
+        for (let step = 1; step <= 60; step++) {
+          at = Math.round((at + 0.05) * 20) / 20;
+          status(h, { ready: true, reason: '', simTimeS: at });
+          offsets.set(at.toFixed(2), h.controller.gnssReceiver?.values.get('SIM_GPS1_GLTCH_X') ?? NaN);
+          counts.push(h.controller.gnssReceiver?.values.get('SIM_GPS1_NUMSATS') ?? NaN);
+        }
+        return { offsets, counts, solutions: (h.controller.gnssReceiver?.solutions ?? NaN) - start, writesOff };
+      }
+    };
+    let lagged: Awaited<ReturnType<typeof flight>>, prompt: Awaited<ReturnType<typeof flight>>;
+    try { lagged = await flight(100); prompt = await flight(0); } finally { fixture = original; }
+    expect([lagged.writesOff, prompt.writesOff]).toEqual([0, 0]);
+    // 60 statuses 0.05 s apart span 3 s: 30 epochs of 0.1 s, one solution each.
+    expect([lagged.solutions, prompt.solutions]).toEqual([30, 30]);
+    // Each offset in force at t is the one the run without lag had at t − 0.1 s.
+    let compared = 0;
+    for (const [time, value] of lagged.offsets) {
+      const earlier = prompt.offsets.get((Number(time) - 0.1).toFixed(2));
+      if (earlier === undefined) continue;
+      expect(value, time).toBe(earlier);
+      compared++;
+    }
+    expect(compared).toBe(58);
+    // Code noise moves the offset at every epoch: epochs 500 to 530 are in force over these statuses, 31 values.
+    expect(new Set(prompt.offsets.values()).size).toBe(31);
+    expect(new Set(lagged.counts).size).toBe(1);
+  });
+
+  test('a placed jammer near the vehicle holds the lock off, and excludes the jamming link budget both ways (TASK-117, check 6)', async () => {
+    const h = harness(undefined, null, catalog);
+    await reach(h, 'flying');
+    const gnss = (effect: EffectControl['effect'], parameters: EffectControl['parameters'], enabled = true): EffectControl =>
+      ({ schemaVersion: 1, id: effect.replaceAll('.', '-'), effect, enabled, intensity: 1, parameters });
+    const jammer = (north: number) => gnss('gnss.jammer', { positionNedM: [north, 0, -2], eirpDbW: -48.8, spectralSeparation: 1.5, thresholdDbHz: 28 });
+    expect(h.controller.setEffect(gnss('gnss.constellation', { maskDeg: 10, uereM: 1.5 }))).toBeNull();
+    h.physics.sent.length = 0;
+    // 60 m away: inside the 100 m where the zenith satellites go too.
+    expect(h.controller.setEffect(jammer(60))).toBeNull();
+    expect(paramSets(h)).toContainEqual({ name: 'SIM_GPS1_LCKTIME', value: 32767 });
+    expect(paramSets(h)).toContainEqual({ name: 'SIM_GPS1_NUMSATS', value: 0 });
+    expect(h.controller.gnssReceiver?.fixLost).toBe(true);
+    // The truth the session flies is untouched: nothing goes to the session.
+    expect(h.physics.effectsSent).toEqual([]);
+    expect(h.controller.setEffect(gnss('gnss.jamming-budget', { jammingToSignalDb: 60, spectralSeparation: 1.5, thresholdDbHz: 28 }))).toContain('sets the same jamming');
+    // Moved 2 km away: every satellite and the lock come back.
+    h.physics.sent.length = 0;
+    expect(h.controller.setEffect(jammer(2000))).toBeNull();
+    expect(paramSets(h)).toContainEqual({ name: 'SIM_GPS1_LCKTIME', value: 0 });
+    expect(h.controller.gnssReceiver?.fixLost).toBe(false);
+    expect(h.controller.setEffect(jammer(2000))).toBeNull();
+    h.controller.setEffect(gnss('gnss.jammer', initialEffectParameters('gnss.jammer'), false));
+    expect(h.controller.setEffect(gnss('gnss.jamming-budget', { jammingToSignalDb: 0, spectralSeparation: 1.5, thresholdDbHz: 28 }))).toBeNull();
+    expect(h.controller.setEffect(jammer(60))).toContain('sets the same jamming');
   });
 
   test('a barometer effect is refused while ArduPilot\'s parameters cannot be written', () => {
