@@ -51,7 +51,8 @@ export const SOAK_CRITERIA = Object.freeze({
 
 test.skip(process.env.MIRAGE_SOAK !== "1", "A multi-hour soak: MIRAGE_SOAK=1");
 test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 installation in .cache/task-152/home");
-test.use({ trace: "off", screenshot: "off", video: "off" });
+// A step that cannot find its control fails after two minutes with the control's name, instead of waiting out the hours-long test timeout.
+test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 120_000 });
 
 /** Resident bytes of this run's process tree, grouped by kind: Chrome's renderer, GPU and other helpers, ArduPilot, Node, Python. */
 function memoryByProcess(): Record<string, number> {
@@ -111,6 +112,8 @@ async function frameWindow(page: Page, seconds: number): Promise<{ count: number
         if (now - start >= seconds * 1000) resolve(); else globalThis.requestAnimationFrame(frame);
       };
       globalThis.requestAnimationFrame(frame);
+      // A hidden or occluded page draws no frames: end the window anyway, and the short count shows it.
+      globalThis.setTimeout(resolve, seconds * 1000 + 5_000);
     });
     const sorted = [...intervals].sort((a, b) => a - b), at = (q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))] ?? Number.NaN;
     return { count: sorted.length, medianMs: at(0.5), p99Ms: at(0.99), maxMs: sorted.at(-1) ?? Number.NaN };
@@ -120,8 +123,9 @@ async function frameWindow(page: Page, seconds: number): Promise<{ count: number
 test("the whole application flies the 16-motor circuit at real time for hours without failing, leaking or losing data", async ({ page, browser }) => {
   test.setTimeout((MINUTES + 60) * 60_000);
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
-  execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe" });
-  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe" });
+  // Bounded: a build waiting on another build's lock fails after ten minutes instead of hanging the soak.
+  execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { stdio: "pipe", timeout: 600_000 });
+  execFileSync(process.execPath, ["scripts/build-contact.mjs"], { stdio: "pipe", timeout: 600_000 });
   const startedAt = new Date().toISOString();
   const home = mkdtempSync(join(tmpdir(), "mirage-soak-"));
   copyFileSync(join(HOME, "token"), join(home, "token"));
