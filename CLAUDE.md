@@ -156,11 +156,14 @@ implementation.
   DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
   Components tab (laboratory sets bind whatever the battery, 2026-11-07), and since 2026-11-08 its
   static solve takes the flight's own rotor binding (`flightRotorDefinition`; calibration record
-  schema 2, schema 1 fits refused on binding). TASK-117 and TASK-105 are IN_PROGRESS: GNSS geometry
+  schema 2, schema 1 fits refused on binding). TASK-117 is IN_PROGRESS: GNSS geometry
   of a four-system sky (the GPS almanac with IGS broadcast Galileo, GLONASS and
   BeiDou records, one receiver clock per system), atmosphere, terrain and jamming
-  stream into SIM_GPS1_*, and the inductive motor,
-  its thermal network, the ESC shaper and HAL mailbox v2 motor speeds exist natively.
+  stream into SIM_GPS1_*. TASK-105 is DONE (2026-11-09): the ESC shaper and the
+  motor's heat fly on the ESC drive with G1 passing, HAL mailbox v2 motor speeds
+  drive the browser firmware's notch, and ESC desynchronization is the TASK-166
+  effect `esc.desync`, every value of it an engineering choice; the notch's
+  attenuation of a vibration belongs to the deferred TASK-114.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and

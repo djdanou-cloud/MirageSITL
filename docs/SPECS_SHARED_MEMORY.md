@@ -572,6 +572,7 @@ with the refusal of the model that owns the range.
 | `ew.magnetic` | `rotationRad`, rad, ±π per axis; `biasBodyGauss`, G, ±2 per axis | Multiplies both | Magnetic model |
 | `rotor.ground-effect` | None | Multiplies the correction `(R/4z)^2` and the neighbours' sum: 0 is none, 1 the closed form | Rotor ground effect (TASK-100), which needs the ESC drive |
 | `motor.loss` | `motorIndex`, 0..31 and below the rotor count; `mode`, `power-cut` or `instant-thrust-loss`; `remainingThrustFraction`, 0..1 | Multiplies the thrust lost: remaining = 1 − i·(1 − r), exactly r at i = 1 | Motor fault table |
+| `esc.desync` | `marginThreshold`, 0..0.95; `ratePerS`, 1/s, 0..1000; `recoveryS`, s, 0.005..2; `seed`, uint32 | Multiplies the rate at full margin, which must stay at most 1000 /s | ESC desynchronization (TASK-105, family `fault`), which needs the ESC drive; every value an engineering choice |
 | `sensor.imu.accel-noise` | `densityMps2PerSqrtHz`, m/s²/√Hz, 0..0.01 | Multiplies the density | Sensors tab field |
 | `sensor.imu.gyro-noise` | `densityRadSPerSqrtHz`, rad/s/√Hz, 0..0.001 | Multiplies the density | Sensors tab field |
 | `sensor.imu.accel-bias` | `biasMps2`, m/s², ±2 per axis | Multiplies the bias | Sensors tab field |
@@ -614,7 +615,8 @@ with the refusal of the model that owns the range.
 * **A backend that cannot apply an effect rejects it visibly,** with BAD_STATE
   and the reason, on or off. A running session rejects every `sensor.*` control:
   sensor errors are set on the Sensors tab, before the run. The demo backend
-  rejects the environment effects and `motor.loss`. A session without a link to
+  rejects the environment effects and `motor.loss`, and a backend without the ESC
+  drive `rotor.ground-effect` and `esc.desync`. A session without a link to
   ArduPilot rejects the `delivery` effects, and every session rejects the `ardupilot`
   effects, which only the run controller can write (TASK-168). On a run with ArduPilot the
   `ew.*` effects also reach it, on the state line and through its parameters, and the run

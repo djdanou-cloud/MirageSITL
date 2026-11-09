@@ -7875,7 +7875,7 @@ cards that know two command-path values and all five thermal values shape and he
 `resolveComponents`, the manifest and `buildProfileDynamics`, an incomplete network does not heat and says
 so, and cards without schema-2 values derive neither section. Cards: `tests/component-cards.test.ts` and
 `tests/card-editor.test.ts`, 25 passed, and `tests/browser/card-editor.spec.ts`, 3 passed, where an ESC card
-given a latency and throttle steps in the Components tab is stored as schema 2. G1: the declared graph `shaped-heated-esc-four-rotor` did not pass, and it is not in the check. In the check's process, after its twenty other vehicles, the first vehicle with ESC shaping and motor heat allocated 0.28 B a step net with 15 collections over 1,000,000 steps (about 16 B a step by a sampling heap profile), also with a 500,000-step warm-up and with a harness that stores no double; an identical vehicle measured right after it in the same process, the shaping alone, the heat alone, and the first such vehicle in a fresh process allocated nothing (0 collections, 0.002 B a step). V8's traces show no deoptimization of the step after the warm-up and no megamorphic access in it, so the site that boxes in that first optimized code is not found. The native records allocate nothing over 1,000,000 steps each, which `scripts/check-bet-runtime.mjs --allocation` now runs. G1 of the flight path with them stays open. A second look (2026-11-08, baseline 1bff607) did not reproduce it: a copy of the check's allocation part, outside the repository, ran its 21 samples and then four-rotor vehicles on the ESC drive with shaping and heat on every motor on the synthetic pad, two identical ones per process at 0.3 duty after 100,000 warm-up steps, in two processes: shaping (2, 40/s, 0.05, 2000) with the network of `tests/wasm-motor-v2.test.ts`, without and with a weather, and the shaping and network of `tests/motor-v2-flight.test.ts`; all six allocated 2,048 B over 1,000,000 steps (0.002 B a step, the measurement's own) with no collection. The first run's graph is not in the repository, so whether its configuration differed is not known; G1 stays open until the declared graph is in the check and passes there. The
+given a latency and throttle steps in the Components tab is stored as schema 2. G1: the declared graph `shaped-heated-esc-four-rotor` did not pass, and it is not in the check. In the check's process, after its twenty other vehicles, the first vehicle with ESC shaping and motor heat allocated 0.28 B a step net with 15 collections over 1,000,000 steps (about 16 B a step by a sampling heap profile), also with a 500,000-step warm-up and with a harness that stores no double; an identical vehicle measured right after it in the same process, the shaping alone, the heat alone, and the first such vehicle in a fresh process allocated nothing (0 collections, 0.002 B a step). V8's traces show no deoptimization of the step after the warm-up and no megamorphic access in it, so the site that boxes in that first optimized code is not found. The native records allocate nothing over 1,000,000 steps each, which `scripts/check-bet-runtime.mjs --allocation` now runs. G1 of the flight path with them stays open. A second look (2026-11-08, baseline 1bff607) did not reproduce it: a copy of the check's allocation part, outside the repository, ran its 21 samples and then four-rotor vehicles on the ESC drive with shaping and heat on every motor on the synthetic pad, two identical ones per process at 0.3 duty after 100,000 warm-up steps, in two processes: shaping (2, 40/s, 0.05, 2000) with the network of `tests/wasm-motor-v2.test.ts`, without and with a weather, and the shaping and network of `tests/motor-v2-flight.test.ts`; all six allocated 2,048 B over 1,000,000 steps (0.002 B a step, the measurement's own) with no collection. The first run's graph is not in the repository, so whether its configuration differed is not known; G1 stays open until the declared graph is in the check and passes there. G1, 2026-11-09 (baseline 01c446d): the declared graph is now in the check, measured after its 21 other samples as the first run was: every ESC shaped (2 latency frames, a 40/s ramp, a 0.05 start duty, 2000 throttle steps) and every motor heated by the network of `tests/wasm-motor-v2.test.ts`, on the pad at 0.3 duty after 100,000 warm-up steps. `node scripts/check-bet-runtime.mjs --allocation`, exit 0, twice, before and with the desynchronization code: 2,048 B over 1,000,000 steps (0.002 B a step, the measurement's own) with no collection, the windings 13.2 K above the air at the end. The same graph added to the check of the first run's code (317b54d, its tree exported outside the repository with the same WASM, the native allocator checks skipped as unchanged) gave the same 2,048 B and no collection. With the six probes of the second look, the 0.28 B a step was not reproduced in nine measurements of identical vehicles; its cause was not found, and no code was changed for it. The declared graph passes and stays in the check, so a return of it would fail there. The
 motor temperatures are in `motorV2.thermalOutput` for cold readers and not yet in the telemetry or the
 recording; a step that would take a winding beyond 250 °C faults the session (`Motor thermal step failed`).
 
@@ -7891,7 +7891,9 @@ compared with an unshaped ESC; (5) a heated motor was expected to turn slower, b
 so the check is only that the heat reaches the rotor.
 
 Not yet: G1 of the flight path, as above; desynchronization; and thrust-stand temperature runs
-(BLOCKED_EXTERNAL).
+(BLOCKED_EXTERNAL). (2026-11-09: G1 of the flight path passes, as above; desynchronization is modelled,
+below; the thrust-stand runs were replaced by the wind-tunnel comparison, "Motor heat against wind-tunnel
+runs".)
 
 Desynchronization evidence (2026-11-08). The one public case found, discuss.ardupilot.org topic 136849
 (X500 V2 class quads on AM32 ESCs, crashing in AutoTune), has no logs left: its three Proton Drive shares
@@ -7981,8 +7983,8 @@ drive of the held parity quad of `tests/motor-v2-flight.test.ts`):
    ticks not in one lies within 4·√μ of μ = N·p, N those ticks; the mean wait from a tick that can start
    one to the start, in seconds, lies within 4 standard errors of dt/p and within one tick plus 4 standard
    errors of 1/λ (amended before the first run from μ = λ·T, as above, and from "within one tick of 1/λ",
-   which the sampling noise alone can break); at m = m₀ and below, none in 1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
-   does.
+   which the sampling noise alone can break); at m = m₀ and below, none in 1,000,000 ticks. Intensity 2
+   with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50 does.
 3. The cut: with λ₀ = 1000 /s and m₀ = 0 on a step from 0 to 1, every desynchronization lasts exactly
    round(t_r·f) ticks at 400, 800 and 1200 Hz, during which that rotor's drive record carries the
    power-cut flag, its electrical power is 0 and its speed does not rise; on the tick after, the flag is
@@ -7992,12 +7994,30 @@ drive of the held parity quad of `tests/motor-v2-flight.test.ts`):
    (m stays below 0.5, so p is exactly 0); a step from 0.2 to 1.0 every 2 s starts at least one in 30
    steps with seed 1.
 5. Seeded replay: two runs with one seed are bitwise identical; another seed gives other ticks.
-6. Through the real session (`tests/effect-controls.test.ts`): off and intensity 0 are bitwise against no
-   control, on starts desynchronizations, and a backend without the ESC drive refuses it.
+6. Through the real session: off and intensity 0 are bitwise against no control, on starts
+   desynchronizations, and a backend without the ESC drive refuses it. (Declared in
+   `tests/effect-controls.test.ts`, whose harness has no ESC drive; written in `tests/esc-desync.test.ts`
+   on the session of `tests/rotor-ground-effect.test.ts`, the same check.)
 7. G1: `node scripts/check-bet-runtime.mjs --allocation` adds the graph
    `esc-desync-shaped-heated-esc-four-rotor`, the shaped and heated vehicle with the effect on, its
    throttle stepping so that desynchronizations start and end in the measured steps, and the control
    applied again every 1,000 steps: 1,000,000 steps with no collection and below 0.01 B a step.
+
+**Result (2026-11-09, baseline 01c446d), as declared, after the three amendments made before the first
+run.** `tests/esc-desync.test.ts`, 10 passed on its first run: the seven checks and three more written
+with them, an independent transcription of the step with the repository's `SeededRandom` (equal on every
+tick of 100,000 at 1200 Hz for four rotors, one below its threshold, with seed 0xfffffffe), and the
+refusal of values outside the ranges, which changes nothing. The hazard law: at 400 Hz and m = 1,
+94,011 started against μ = 94,002.5 (4·√μ = 1,226), a mean wait of 0.02127 s against dt/p = 0.02128 s and
+1/λ = 0.02000 s; at 400 Hz and m = 0.25, 6,307 against 6,225.6 (316); at 1200 Hz, 98,245 against 97,945.3
+(1,252) and 6,231 against 6,241.9 (316). Through the session, off and intensity 0 are bitwise a climb
+without the control, on starts desynchronizations, and the runtime fixture's `flightConfiguration()`,
+without the ESC drive, refuses it by name. G1: `node scripts/check-bet-runtime.mjs --allocation`, exit 0, the graph
+`esc-desync-shaped-heated-esc-four-rotor` 2,712 B over 1,000,000 steps (0.0027 B a step) with no
+collection, 750 desynchronizations started and 1,000 controls applied in the measured steps; every one of
+the check's 23 samples had no collection and at most 0.0045 B a step, and the allocating control made 30.
+Not modelled: the current spikes and stutter of a desynchronized motor, a restart from rest, the telemetry
+artefact, and any comparison with data, of which there is none.
 
 ### Motor heat against wind-tunnel runs (TASK-105, declared 2026-11-08)
 
