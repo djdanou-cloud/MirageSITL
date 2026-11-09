@@ -77,13 +77,16 @@ export interface PropulsionFitInput {
   readonly kvRpmPerV: number | null;
 }
 
-/** The section polar with its lift and drag coefficients scaled; angle, Reynolds and Mach axes and confidence unchanged. */
+/**
+ * The section polar with its lift and drag coefficients scaled; angle, Reynolds and Mach axes, confidence and an extended polar's
+ * rotational lift augmentation (TASK-097) unchanged. Until 2026-11-09 the augmentation was dropped, so a rotor on an extended polar
+ * was fitted and flown without it.
+ */
 export function scaledPolar(polar: BoundPolar, scales: PolarScales): BoundPolar {
   for (const value of [scales.lift, scales.drag]) {
     if (!(value >= POLAR_SCALE_RANGE[0] && value <= POLAR_SCALE_RANGE[1])) throw new Error(`A polar scale must be ${POLAR_SCALE_RANGE[0]} to ${POLAR_SCALE_RANGE[1]}`);
   }
-  return { alphaRad: polar.alphaRad, reynolds: polar.reynolds, mach: polar.mach, confidence: polar.confidence,
-    cl: polar.cl.map(value => value * scales.lift), cd: polar.cd.map(value => value * scales.drag) };
+  return { ...polar, cl: polar.cl.map(value => value * scales.lift), cd: polar.cd.map(value => value * scales.drag) };
 }
 
 interface Air { readonly densityKgM3: number; readonly viscosityPaS: number; readonly soundMps: number }
