@@ -7954,6 +7954,35 @@ statistics of the DoD remain BLOCKED_EXTERNAL: the logs hold the receivers' repo
 ("Logged receiver statistics"). Not modelled: per-system ionosphere and chip rates, which systems a
 receiver tracks, and terrain shielding a jammer.
 
+### Logged urban position errors: smartLoc (TASK-117, declared 2026-11-09)
+
+Recorded before any statistic was computed. The stakeholder approved the download on 2026-11-09. smartLoc (TU Chemnitz,
+Reisdorf et al. 2016, CC BY-NC-SA 4.0, kept outside the repository) recorded a u-blox EVK-M8T beside a NovAtel SPAN (RTK and
+IMU) on a car in four urban scenarios, the reference transferred to the u-blox antenna: Berlin Potsdamer Platz (week 1900, 284 s),
+Berlin Gendarmenmarkt (1900, 1194 s), Frankfurt Main Tower (1913, 1170 s) and Frankfurt Westend Tower (1913, 715 s), with about
+49, 37, 46 and 32 % of the tracked signals labelled non-line-of-sight by the authors. Archives by SHA-256:
+`49dcdad2…` (berlin1_potsdamer_platz.zip), `6379d886…` (berlin2_gendarmenmarkt.zip), `3cfa14cf…` (frankfurt1_maintower.zip),
+`46d56859…` (frankfurt2_westendtower.zip). It has no open-sky scenario, so the DoD's open-sky statistics stay open.
+
+**Measured.** In each scenario's `NAV-POSLLH.csv`, every epoch holds the receiver's own fix and the reference at the same time.
+The error is the receiver's position less the reference, in the reference's local east, north and up, from geodetic coordinates
+on WGS 84 (both heights above the ellipsoid). Statistics per scenario: the horizontal error's 50th and 95th percentiles, the
+absolute vertical error's 50th and 95th percentiles, the receiver's reported horizontal accuracy `hAcc` at its 50th percentile,
+and the non-line-of-sight share of `RXM-RAWX.csv`'s labelled measurements.
+
+**Model.** The GNSS v2 model with the run's defaults of every effect that applies, at intensity 1: `gnss.constellation`
+(mask 10°, σ 1.5 m), `gnss.atmosphere` (residuals 0.5 and 0.1), `gnss.code-noise` (B_n 0.5 Hz, D 1 chip, correlated over
+1/(4·B_n)) and `gnss.multipath` (a 0.13 m, b 0.53 m, θ₀ 10°, 10 s), at the scenario's first reference position and at the same
+GPS seconds of week in the sky's own week 2444 (MirageSITL holds no 2016 orbits), every second over the scenario's duration,
+seed 117. `gnss.terrain` stays off: MirageSITL has no building model, so it has nothing to mask in a street. The same
+statistics are computed from the model's error and its reported accuracy σ·HDOP.
+
+**Shown, not judged (SA-01).** No limit applies; the report states each statistic of both and their ratio. Expected beforehand,
+and stated as such: without buildings the model has no non-line-of-sight signal and only DO-229's airborne multipath, so in
+these streets it should report errors well below the measured ones. The script is
+`scripts/check-gnss-urban.mjs --dir DIRECTORY` (exit 2 BLOCKED_EXTERNAL without the data), its report
+`test-results/validation/gnss-urban.json`, and `tests/gnss-urban.test.ts` checks the error's geometry on a hand case.
+
 ## Electromechanical drive (TASK-092)
 
 The production drive replaces the ideal torque-source ESC with an ESC, a
