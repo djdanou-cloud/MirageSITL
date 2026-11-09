@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
 import { readDataFlash, type DataFlashColumn, type DataFlashLog } from "../../packages/dataflash/src/reader";
@@ -26,7 +26,9 @@ import { seedQuadProject } from "../support/run-tab";
 const HOME = join(process.cwd(), ".cache/task-152/home");
 const ORIGIN = "http://127.0.0.1:5173";
 const FIRMWARE_ID = "arducopter-fb773567";
-const EVIDENCE = join(process.cwd(), "test-results/validation/task-117-gnss-flight.json");
+// The tracked evidence is rewritten only on request (MIRAGE_GNSS_FLIGHT_EVIDENCE=1); an ordinary browser run writes its copy under
+// test-results/browser/, which holds no tracked files, so the suite leaves tracked evidence unchanged.
+const EVIDENCE = join(process.cwd(), process.env.MIRAGE_GNSS_FLIGHT_EVIDENCE === "1" ? "test-results/validation" : "test-results/browser", "task-117-gnss-flight.json");
 const LOG_COPIES = join(process.cwd(), "test-results/browser/task-117-gnss-logs");
 const HOME_LAT_DEG = -35.363261, HOME_LON_DEG = 149.16523, HOME_ALT_M = 584;
 const JAMMER = { positionNedM: [400, 0, -2] as const, eirpDbW: -48.8 };
@@ -286,7 +288,7 @@ test("the GNSS stream reaches ArduPilot's receiver in flight, and a jammer on th
   } finally {
     await launcher.close();
     rmSync(home, { recursive: true, force: true });
-    mkdirSync(join(process.cwd(), "test-results/validation"), { recursive: true });
+    mkdirSync(dirname(EVIDENCE), { recursive: true });
     writeFileSync(EVIDENCE, `${JSON.stringify(evidence, null, 2)}\n`);
   }
 });

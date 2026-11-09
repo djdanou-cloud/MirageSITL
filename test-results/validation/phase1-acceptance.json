@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "TASK-191",
   "kind": "phase1-acceptance",
-  "commit": "c12135076576c48455f9102fba754620793c3f21",
+  "commit": "bd0a86b50682ff3815e1332fd0f32859a03bca80",
   "matrix": {
     "path": "docs/validation/phase1-matrix.json",
     "sha256": "5482fc9f57319ff5eaa1d3da60e7775f340d6082b72d9c1315b17aae51044919"
