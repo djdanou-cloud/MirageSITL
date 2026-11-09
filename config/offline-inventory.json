@@ -315,6 +315,19 @@
       "status": "ready"
     },
     {
+      "id": "harrington-coaxial-rotors",
+      "category": "reference-data",
+      "item": "Static-thrust C_T and C_Q of two coaxial rotors and the same rotors alone, digitized from figures 4 and 8 of NACA TN 2318 (tests/fixtures/rotors/harrington-coaxial.json, written by scripts/digitize-harrington.mjs)",
+      "version": "NACA TN 2318, March 1951; the PDF without its 436-byte NTRS wrapper, SHA-256 78e327b96dd4aaf8ab07dce706cb424bfb2c6c239f0fe9a62a847a920d056acf",
+      "source": "R. D. Harrington, NACA TN 2318, downloaded from NASA NTRS on 2026-11-09 with the stakeholder's approval; the report and its page images stay outside the repository",
+      "license": "Public domain (United States Government work)",
+      "licenseStatus": "reviewed",
+      "neededFor": "The measured coaxial-rotor comparison of the rotor wakes (TASK-101)",
+      "installDownload": false,
+      "status": "ready",
+      "files": [{ "path": "tests/fixtures/rotors/harrington-coaxial.json", "sha256": "9f0dd22b72b2bc0e845b2d5bab7590cb6b1ee5ad758211bae03f3547442c0bf8", "bytes": 48855 }]
+    },
+    {
       "id": "jsbsim-wasm",
       "category": "native-artifact",
       "item": "JSBSim WebAssembly flight-dynamics artifact",

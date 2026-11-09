@@ -1,0 +1,2196 @@
+{
+  "schemaVersion": 1,
+  "kind": "harrington-coaxial",
+  "task": "TASK-101",
+  "source": {
+    "report": "Harrington, R. D.: Full-Scale-Tunnel Investigation of the Static-Thrust Performance of a Coaxial Helicopter Rotor. NACA TN 2318, March 1951",
+    "license": "US Government work (NACA), public domain",
+    "pdf": {
+      "file": "NACA-TN-2318-clean.pdf",
+      "sha256": "78e327b96dd4aaf8ab07dce706cb424bfb2c6c239f0fe9a62a847a920d056acf",
+      "note": "The NTRS download NACA-TN-2318.pdf with its 436-byte wrapper before %PDF removed"
+    },
+    "pageImages": [
+      {
+        "file": "p11.png",
+        "sha256": "7cb0559faf3354abe91043ba505b900a2eb51a37b6de95cd3727af6124e1f970",
+        "content": "figure 1(a), report page 9"
+      },
+      {
+        "file": "p19.png",
+        "sha256": "e3b98ebd714f60362255ff7fb637df75aa973a5d7dfa0a55427c0170d8fa5d7f",
+        "content": "figure 4, report page 17"
+      },
+      {
+        "file": "p23.png",
+        "sha256": "287cef900e09e039a0180729b0b536afe3d9cb3eefac4f77aeaacbc0a5f54a66",
+        "content": "figure 8, report page 21"
+      }
+    ],
+    "rendering": "Each PDF page rendered at 1.6 times its point size (1805 by about 2380 pixels)"
+  },
+  "definitions": {
+    "ct": "C_T = T / (rho pi R^2 (Omega R)^2), T the thrust of the whole configuration (both rotors of a coaxial one), on one disk area",
+    "cq": "C_Q = Q / (rho pi R^2 (Omega R)^2 R), Q the torque of the whole configuration",
+    "check": "The report figure of merit M = 0.707 C_T^1.5 / C_Q gives its stated maxima (0.635 coaxial, 0.615 single, rotor 1) with these definitions"
+  },
+  "method": {
+    "calibration": "Grid lines found in the page image: darkness centroid in 40-pixel bands within 5 pixels of the expected line, fitted by a straight line; a value is interpolated between the neighbouring lines at the point",
+    "reading": "Symbol centres read by eye from 4 to 12 times enlarged crops; the centre dot where visible, the outline centre where the dot is hidden or outlines overlap",
+    "readingUncertaintyPx": {
+      "dot": 2,
+      "outline": 4
+    },
+    "uncertainty": "uCq, uCt: the reading uncertainty combined with the largest grid-line fit RMS, times the local value per pixel; one standard uncertainty of the digitization only, not of the measurement",
+    "notIncluded": "The accuracy with which the 1951 draftsman placed each symbol, and the measurement itself"
+  },
+  "calibration": {
+    "fig8": {
+      "x": {
+        "lines": 21,
+        "maxLineRmsPx": 0.324,
+        "maxSkewPxPer1000": 3.89,
+        "uniformSpacingRmsPx": 0.393,
+        "positions": [
+          {
+            "value": 0,
+            "a": 434.606,
+            "b": -0.003887,
+            "rmsPx": 0.324,
+            "bands": 27
+          },
+          {
+            "value": 0.00005,
+            "a": 494.094,
+            "b": -0.002611,
+            "rmsPx": 0.235,
+            "bands": 27
+          },
+          {
+            "value": 0.0001,
+            "a": 555.253,
+            "b": -0.002637,
+            "rmsPx": 0.236,
+            "bands": 27
+          },
+          {
+            "value": 0.00015000000000000001,
+            "a": 616.493,
+            "b": -0.002593,
+            "rmsPx": 0.309,
+            "bands": 27
+          },
+          {
+            "value": 0.0002,
+            "a": 677.571,
+            "b": -0.002645,
+            "rmsPx": 0.296,
+            "bands": 27
+          },
+          {
+            "value": 0.00025,
+            "a": 738.843,
+            "b": -0.002603,
+            "rmsPx": 0.264,
+            "bands": 27
+          },
+          {
+            "value": 0.00030000000000000003,
+            "a": 799.897,
+            "b": -0.002587,
+            "rmsPx": 0.203,
+            "bands": 27
+          },
+          {
+            "value": 0.00035,
+            "a": 861.134,
+            "b": -0.002598,
+            "rmsPx": 0.234,
+            "bands": 27
+          },
+          {
+            "value": 0.0004,
+            "a": 922.311,
+            "b": -0.002599,
+            "rmsPx": 0.228,
+            "bands": 27
+          },
+          {
+            "value": 0.00045000000000000004,
+            "a": 983.688,
+            "b": -0.002707,
+            "rmsPx": 0.25,
+            "bands": 27
+          },
+          {
+            "value": 0.0005,
+            "a": 1044.48,
+            "b": -0.002544,
+            "rmsPx": 0.253,
+            "bands": 21
+          },
+          {
+            "value": 0.00055,
+            "a": 1105.622,
+            "b": -0.002481,
+            "rmsPx": 0.24,
+            "bands": 21
+          },
+          {
+            "value": 0.0006000000000000001,
+            "a": 1166.833,
+            "b": -0.002701,
+            "rmsPx": 0.191,
+            "bands": 25
+          },
+          {
+            "value": 0.0006500000000000001,
+            "a": 1228.074,
+            "b": -0.002682,
+            "rmsPx": 0.224,
+            "bands": 21
+          },
+          {
+            "value": 0.0007,
+            "a": 1289.124,
+            "b": -0.00269,
+            "rmsPx": 0.224,
+            "bands": 21
+          },
+          {
+            "value": 0.00075,
+            "a": 1350.519,
+            "b": -0.002792,
+            "rmsPx": 0.239,
+            "bands": 21
+          },
+          {
+            "value": 0.0008,
+            "a": 1411.68,
+            "b": -0.002746,
+            "rmsPx": 0.252,
+            "bands": 21
+          },
+          {
+            "value": 0.0008500000000000001,
+            "a": 1472.895,
+            "b": -0.002592,
+            "rmsPx": 0.212,
+            "bands": 19
+          },
+          {
+            "value": 0.0009000000000000001,
+            "a": 1534.228,
+            "b": -0.002701,
+            "rmsPx": 0.214,
+            "bands": 19
+          },
+          {
+            "value": 0.00095,
+            "a": 1595.631,
+            "b": -0.002848,
+            "rmsPx": 0.291,
+            "bands": 25
+          },
+          {
+            "value": 0.001,
+            "a": 1656.922,
+            "b": -0.003287,
+            "rmsPx": 0.235,
+            "bands": 26
+          }
+        ]
+      },
+      "y": {
+        "lines": 19,
+        "maxLineRmsPx": 0.366,
+        "maxSkewPxPer1000": 2.25,
+        "uniformSpacingRmsPx": 0.45,
+        "positions": [
+          {
+            "value": 0,
+            "a": 1553.748,
+            "b": -0.001843,
+            "rmsPx": 0.233,
+            "bands": 30
+          },
+          {
+            "value": 0.0005,
+            "a": 1494.017,
+            "b": -0.002255,
+            "rmsPx": 0.207,
+            "bands": 27
+          },
+          {
+            "value": 0.001,
+            "a": 1433,
+            "b": -0.002005,
+            "rmsPx": 0.228,
+            "bands": 30
+          },
+          {
+            "value": 0.0015,
+            "a": 1372.135,
+            "b": -0.001757,
+            "rmsPx": 0.228,
+            "bands": 15
+          },
+          {
+            "value": 0.002,
+            "a": 1310.528,
+            "b": -0.000378,
+            "rmsPx": 0.366,
+            "bands": 18
+          },
+          {
+            "value": 0.0025,
+            "a": 1250.412,
+            "b": -0.001353,
+            "rmsPx": 0.205,
+            "bands": 15
+          },
+          {
+            "value": 0.003,
+            "a": 1190.318,
+            "b": -0.001522,
+            "rmsPx": 0.294,
+            "bands": 30
+          },
+          {
+            "value": 0.0035,
+            "a": 1129.451,
+            "b": -0.001502,
+            "rmsPx": 0.234,
+            "bands": 30
+          },
+          {
+            "value": 0.004,
+            "a": 1068.619,
+            "b": -0.001303,
+            "rmsPx": 0.235,
+            "bands": 30
+          },
+          {
+            "value": 0.0045000000000000005,
+            "a": 1007.722,
+            "b": -0.001188,
+            "rmsPx": 0.227,
+            "bands": 30
+          },
+          {
+            "value": 0.005,
+            "a": 946.99,
+            "b": -0.001341,
+            "rmsPx": 0.214,
+            "bands": 30
+          },
+          {
+            "value": 0.0055,
+            "a": 886.007,
+            "b": -0.001231,
+            "rmsPx": 0.208,
+            "bands": 30
+          },
+          {
+            "value": 0.006,
+            "a": 825.399,
+            "b": -0.001318,
+            "rmsPx": 0.268,
+            "bands": 30
+          },
+          {
+            "value": 0.006500000000000001,
+            "a": 764.529,
+            "b": -0.001201,
+            "rmsPx": 0.191,
+            "bands": 30
+          },
+          {
+            "value": 0.007,
+            "a": 704.004,
+            "b": -0.001191,
+            "rmsPx": 0.351,
+            "bands": 30
+          },
+          {
+            "value": 0.0075,
+            "a": 644.565,
+            "b": -0.001117,
+            "rmsPx": 0.211,
+            "bands": 30
+          },
+          {
+            "value": 0.008,
+            "a": 583.564,
+            "b": -0.00101,
+            "rmsPx": 0.18,
+            "bands": 30
+          },
+          {
+            "value": 0.0085,
+            "a": 522.749,
+            "b": -0.00075,
+            "rmsPx": 0.163,
+            "bands": 30
+          },
+          {
+            "value": 0.009000000000000001,
+            "a": 462.334,
+            "b": -0.000929,
+            "rmsPx": 0.294,
+            "bands": 30
+          }
+        ]
+      }
+    },
+    "fig4": {
+      "x": {
+        "lines": 17,
+        "maxLineRmsPx": 0.444,
+        "maxSkewPxPer1000": 7.29,
+        "uniformSpacingRmsPx": 0.648,
+        "positions": [
+          {
+            "value": 0,
+            "a": 382.798,
+            "b": -0.007287,
+            "rmsPx": 0.333,
+            "bands": 25
+          },
+          {
+            "value": 0.00005,
+            "a": 454.628,
+            "b": -0.006005,
+            "rmsPx": 0.329,
+            "bands": 25
+          },
+          {
+            "value": 0.0001,
+            "a": 528.288,
+            "b": -0.005828,
+            "rmsPx": 0.371,
+            "bands": 25
+          },
+          {
+            "value": 0.00015000000000000001,
+            "a": 601.501,
+            "b": -0.005385,
+            "rmsPx": 0.43,
+            "bands": 25
+          },
+          {
+            "value": 0.0002,
+            "a": 675.533,
+            "b": -0.005796,
+            "rmsPx": 0.402,
+            "bands": 25
+          },
+          {
+            "value": 0.00025,
+            "a": 749.482,
+            "b": -0.006034,
+            "rmsPx": 0.429,
+            "bands": 25
+          },
+          {
+            "value": 0.00030000000000000003,
+            "a": 823.617,
+            "b": -0.006474,
+            "rmsPx": 0.412,
+            "bands": 25
+          },
+          {
+            "value": 0.00035,
+            "a": 895.761,
+            "b": -0.004196,
+            "rmsPx": 0.42,
+            "bands": 15
+          },
+          {
+            "value": 0.0004,
+            "a": 969.308,
+            "b": -0.003902,
+            "rmsPx": 0.367,
+            "bands": 16
+          },
+          {
+            "value": 0.00045000000000000004,
+            "a": 1044.271,
+            "b": -0.005484,
+            "rmsPx": 0.265,
+            "bands": 13
+          },
+          {
+            "value": 0.0005,
+            "a": 1118.133,
+            "b": -0.005425,
+            "rmsPx": 0.297,
+            "bands": 13
+          },
+          {
+            "value": 0.00055,
+            "a": 1191.486,
+            "b": -0.005196,
+            "rmsPx": 0.444,
+            "bands": 15
+          },
+          {
+            "value": 0.0006000000000000001,
+            "a": 1265.46,
+            "b": -0.005382,
+            "rmsPx": 0.245,
+            "bands": 15
+          },
+          {
+            "value": 0.0006500000000000001,
+            "a": 1338.93,
+            "b": -0.00521,
+            "rmsPx": 0.276,
+            "bands": 13
+          },
+          {
+            "value": 0.0007,
+            "a": 1412.812,
+            "b": -0.005155,
+            "rmsPx": 0.289,
+            "bands": 13
+          },
+          {
+            "value": 0.00075,
+            "a": 1486.495,
+            "b": -0.005034,
+            "rmsPx": 0.297,
+            "bands": 13
+          },
+          {
+            "value": 0.0008,
+            "a": 1560.782,
+            "b": -0.0062,
+            "rmsPx": 0.191,
+            "bands": 19
+          }
+        ]
+      },
+      "y": {
+        "lines": 15,
+        "maxLineRmsPx": 0.436,
+        "maxSkewPxPer1000": 3.76,
+        "uniformSpacingRmsPx": 0.515,
+        "positions": [
+          {
+            "value": 0,
+            "a": 1531.121,
+            "b": 0.003107,
+            "rmsPx": 0.34,
+            "bands": 29
+          },
+          {
+            "value": 0.0005,
+            "a": 1458.483,
+            "b": 0.002019,
+            "rmsPx": 0.31,
+            "bands": 29
+          },
+          {
+            "value": 0.001,
+            "a": 1384.983,
+            "b": 0.002251,
+            "rmsPx": 0.323,
+            "bands": 29
+          },
+          {
+            "value": 0.0015,
+            "a": 1311.408,
+            "b": 0.002616,
+            "rmsPx": 0.392,
+            "bands": 11
+          },
+          {
+            "value": 0.002,
+            "a": 1237.66,
+            "b": 0.003399,
+            "rmsPx": 0.436,
+            "bands": 12
+          },
+          {
+            "value": 0.0025,
+            "a": 1164.576,
+            "b": 0.003486,
+            "rmsPx": 0.336,
+            "bands": 11
+          },
+          {
+            "value": 0.003,
+            "a": 1092.041,
+            "b": 0.001338,
+            "rmsPx": 0.407,
+            "bands": 13
+          },
+          {
+            "value": 0.0035,
+            "a": 1018.26,
+            "b": 0.002554,
+            "rmsPx": 0.203,
+            "bands": 29
+          },
+          {
+            "value": 0.004,
+            "a": 945.168,
+            "b": 0.002749,
+            "rmsPx": 0.262,
+            "bands": 29
+          },
+          {
+            "value": 0.0045000000000000005,
+            "a": 870.545,
+            "b": 0.003015,
+            "rmsPx": 0.254,
+            "bands": 29
+          },
+          {
+            "value": 0.005,
+            "a": 797.315,
+            "b": 0.002962,
+            "rmsPx": 0.221,
+            "bands": 29
+          },
+          {
+            "value": 0.0055,
+            "a": 723.194,
+            "b": 0.003661,
+            "rmsPx": 0.291,
+            "bands": 29
+          },
+          {
+            "value": 0.006,
+            "a": 651.131,
+            "b": 0.003511,
+            "rmsPx": 0.258,
+            "bands": 29
+          },
+          {
+            "value": 0.006500000000000001,
+            "a": 577.992,
+            "b": 0.003764,
+            "rmsPx": 0.224,
+            "bands": 29
+          },
+          {
+            "value": 0.007,
+            "a": 504.766,
+            "b": 0.003375,
+            "rmsPx": 0.291,
+            "bands": 29
+          }
+        ]
+      }
+    },
+    "fig1a": {
+      "x": {
+        "lines": 17,
+        "maxLineRmsPx": 0.494,
+        "maxSkewPxPer1000": 1.64,
+        "uniformSpacingRmsPx": 0.499,
+        "positions": [
+          {
+            "value": 0,
+            "a": 422.93,
+            "b": -0.001644,
+            "rmsPx": 0.267,
+            "bands": 28
+          },
+          {
+            "value": 10,
+            "a": 492.999,
+            "b": 0.000077,
+            "rmsPx": 0.188,
+            "bands": 28
+          },
+          {
+            "value": 20,
+            "a": 564.84,
+            "b": -0.00006,
+            "rmsPx": 0.176,
+            "bands": 28
+          },
+          {
+            "value": 30,
+            "a": 636.78,
+            "b": -0.000053,
+            "rmsPx": 0.165,
+            "bands": 28
+          },
+          {
+            "value": 40,
+            "a": 708.523,
+            "b": -0.000067,
+            "rmsPx": 0.155,
+            "bands": 28
+          },
+          {
+            "value": 50,
+            "a": 780.55,
+            "b": -0.000126,
+            "rmsPx": 0.17,
+            "bands": 28
+          },
+          {
+            "value": 60,
+            "a": 852.428,
+            "b": -0.000276,
+            "rmsPx": 0.176,
+            "bands": 28
+          },
+          {
+            "value": 70,
+            "a": 924.408,
+            "b": -0.000268,
+            "rmsPx": 0.174,
+            "bands": 26
+          },
+          {
+            "value": 80,
+            "a": 996.532,
+            "b": -0.000301,
+            "rmsPx": 0.247,
+            "bands": 26
+          },
+          {
+            "value": 90,
+            "a": 1068.356,
+            "b": -0.00029,
+            "rmsPx": 0.187,
+            "bands": 27
+          },
+          {
+            "value": 100,
+            "a": 1140.247,
+            "b": -0.000307,
+            "rmsPx": 0.157,
+            "bands": 26
+          },
+          {
+            "value": 110,
+            "a": 1212.444,
+            "b": -0.000306,
+            "rmsPx": 0.243,
+            "bands": 27
+          },
+          {
+            "value": 120,
+            "a": 1284.159,
+            "b": -0.000268,
+            "rmsPx": 0.232,
+            "bands": 28
+          },
+          {
+            "value": 130,
+            "a": 1356.123,
+            "b": -0.000272,
+            "rmsPx": 0.18,
+            "bands": 28
+          },
+          {
+            "value": 140,
+            "a": 1427.874,
+            "b": -0.000174,
+            "rmsPx": 0.175,
+            "bands": 28
+          },
+          {
+            "value": 150,
+            "a": 1500.848,
+            "b": -0.001353,
+            "rmsPx": 0.494,
+            "bands": 28
+          },
+          {
+            "value": 160,
+            "a": 1571.624,
+            "b": -0.000405,
+            "rmsPx": 0.289,
+            "bands": 28
+          }
+        ]
+      },
+      "y": {
+        "lines": 17,
+        "maxLineRmsPx": 0.369,
+        "maxSkewPxPer1000": 5.73,
+        "uniformSpacingRmsPx": 0.39,
+        "positions": [
+          {
+            "value": 0,
+            "a": 1755.238,
+            "b": -0.005732,
+            "rmsPx": 0.369,
+            "bands": 28
+          },
+          {
+            "value": 1,
+            "a": 1682.495,
+            "b": -0.00446,
+            "rmsPx": 0.251,
+            "bands": 28
+          },
+          {
+            "value": 2,
+            "a": 1610.845,
+            "b": -0.004374,
+            "rmsPx": 0.261,
+            "bands": 28
+          },
+          {
+            "value": 3,
+            "a": 1538.671,
+            "b": -0.004025,
+            "rmsPx": 0.3,
+            "bands": 28
+          },
+          {
+            "value": 4,
+            "a": 1467.409,
+            "b": -0.004029,
+            "rmsPx": 0.243,
+            "bands": 28
+          },
+          {
+            "value": 5,
+            "a": 1395.606,
+            "b": -0.003701,
+            "rmsPx": 0.287,
+            "bands": 28
+          },
+          {
+            "value": 6,
+            "a": 1324.203,
+            "b": -0.003773,
+            "rmsPx": 0.236,
+            "bands": 28
+          },
+          {
+            "value": 7,
+            "a": 1252.465,
+            "b": -0.003501,
+            "rmsPx": 0.275,
+            "bands": 28
+          },
+          {
+            "value": 8,
+            "a": 1180.741,
+            "b": -0.003391,
+            "rmsPx": 0.283,
+            "bands": 28
+          },
+          {
+            "value": 9,
+            "a": 1109.06,
+            "b": -0.00297,
+            "rmsPx": 0.245,
+            "bands": 28
+          },
+          {
+            "value": 10,
+            "a": 1037.579,
+            "b": -0.003027,
+            "rmsPx": 0.273,
+            "bands": 28
+          },
+          {
+            "value": 11,
+            "a": 965.975,
+            "b": -0.002789,
+            "rmsPx": 0.237,
+            "bands": 28
+          },
+          {
+            "value": 12,
+            "a": 894.383,
+            "b": -0.00238,
+            "rmsPx": 0.247,
+            "bands": 28
+          },
+          {
+            "value": 13,
+            "a": 822.316,
+            "b": -0.00245,
+            "rmsPx": 0.19,
+            "bands": 28
+          },
+          {
+            "value": 14,
+            "a": 750.95,
+            "b": -0.00232,
+            "rmsPx": 0.154,
+            "bands": 28
+          },
+          {
+            "value": 15,
+            "a": 680.199,
+            "b": -0.00204,
+            "rmsPx": 0.277,
+            "bands": 28
+          },
+          {
+            "value": 16,
+            "a": 608.049,
+            "b": -0.001698,
+            "rmsPx": 0.164,
+            "bands": 28
+          }
+        ]
+      }
+    }
+  },
+  "rotors": [
+    {
+      "rotor": 1,
+      "figure": 4,
+      "radiusIn": 150,
+      "blades": 2,
+      "hubSpacingFt": 2.33,
+      "hub": "teetering (seesaw flapping), rigid in plane",
+      "twist": "none",
+      "airfoil": "NACA four-digit symmetrical, thickness tapered (figure 1(a))",
+      "solidityCoaxial": 0.054,
+      "soliditySingle": 0.027,
+      "rootOverTipChord": 2.92,
+      "chord": {
+        "from": "figure 1(a), the chord line sampled and fitted by c = c0 + slope r",
+        "c0In": 12.394,
+        "slopeInPerIn": -0.05368,
+        "rmsIn": 0.0041,
+        "samples": [
+          {
+            "px": [
+              600,
+              960.09
+            ],
+            "radiusIn": 24.895,
+            "chordIn": 11.059
+          },
+          {
+            "px": [
+              650,
+              986.57
+            ],
+            "radiusIn": 31.85,
+            "chordIn": 10.6864
+          },
+          {
+            "px": [
+              700,
+              1013.13
+            ],
+            "radiusIn": 38.821,
+            "chordIn": 10.3126
+          },
+          {
+            "px": [
+              750,
+              1040.32
+            ],
+            "radiusIn": 45.773,
+            "chordIn": 9.93
+          },
+          {
+            "px": [
+              800,
+              1066.04
+            ],
+            "radiusIn": 52.731,
+            "chordIn": 9.5683
+          },
+          {
+            "px": [
+              850,
+              1093.04
+            ],
+            "radiusIn": 59.704,
+            "chordIn": 9.1886
+          },
+          {
+            "px": [
+              900,
+              1119.12
+            ],
+            "radiusIn": 66.651,
+            "chordIn": 8.8215
+          },
+          {
+            "px": [
+              950,
+              1146.2
+            ],
+            "radiusIn": 73.593,
+            "chordIn": 8.4393
+          },
+          {
+            "px": [
+              1000,
+              1172.52
+            ],
+            "radiusIn": 80.532,
+            "chordIn": 8.0678
+          },
+          {
+            "px": [
+              1050,
+              1198.91
+            ],
+            "radiusIn": 87.493,
+            "chordIn": 7.6965
+          },
+          {
+            "px": [
+              1100,
+              1225.27
+            ],
+            "radiusIn": 94.452,
+            "chordIn": 7.326
+          },
+          {
+            "px": [
+              1150,
+              1252.21
+            ],
+            "radiusIn": 101.404,
+            "chordIn": 6.9471
+          },
+          {
+            "px": [
+              1200,
+              1278.33
+            ],
+            "radiusIn": 108.331,
+            "chordIn": 6.579
+          },
+          {
+            "px": [
+              1250,
+              1305.06
+            ],
+            "radiusIn": 115.289,
+            "chordIn": 6.2021
+          },
+          {
+            "px": [
+              1300,
+              1331.76
+            ],
+            "radiusIn": 122.251,
+            "chordIn": 5.8257
+          },
+          {
+            "px": [
+              1350,
+              1357.89
+            ],
+            "radiusIn": 129.2,
+            "chordIn": 5.4576
+          },
+          {
+            "px": [
+              1400,
+              1384.37
+            ],
+            "radiusIn": 136.156,
+            "chordIn": 5.0847
+          },
+          {
+            "px": [
+              1450,
+              1410.17
+            ],
+            "radiusIn": 143.137,
+            "chordIn": 4.7206
+          }
+        ]
+      },
+      "rootCutoutIn": {
+        "value": 20,
+        "uncertaintyIn": 2,
+        "from": "figure 1(a): the chord and thickness lines start at 20 in, dashed inboard"
+      }
+    },
+    {
+      "rotor": 2,
+      "figure": 8,
+      "radiusIn": 150,
+      "blades": 2,
+      "hubSpacingFt": 2,
+      "hub": "rigid",
+      "twist": "none",
+      "airfoil": "NACA four-digit symmetrical, t/c about 30 % at the root to 15 % at the tip (figure 1(b))",
+      "solidityCoaxial": 0.152,
+      "soliditySingle": 0.076,
+      "chord": {
+        "from": "report text and figure 1(b): constant 18 in",
+        "c0In": 18,
+        "slopeInPerIn": 0
+      },
+      "rootCutoutIn": {
+        "value": 30,
+        "uncertaintyIn": 2,
+        "from": "figure 1(b): the chord and thickness lines are dashed inboard of about 30 in"
+      }
+    }
+  ],
+  "series": [
+    {
+      "id": "r2-coaxial-392",
+      "figure": 8,
+      "rotor": 2,
+      "configuration": "coaxial",
+      "solidity": 0.152,
+      "tipSpeedFps": 392,
+      "symbol": "circle",
+      "points": [
+        {
+          "px": [
+            1301,
+            720.5
+          ],
+          "centre": "outline",
+          "cq": 0.00071126,
+          "ct": 0.0068509,
+          "uCq": 0.00000328,
+          "uCt": 0.0000332
+        },
+        {
+          "px": [
+            1296.5,
+            727.5
+          ],
+          "centre": "outline",
+          "cq": 0.00070761,
+          "ct": 0.0067931,
+          "uCq": 0.00000328,
+          "uCt": 0.0000332
+        },
+        {
+          "px": [
+            1141.8,
+            858.3
+          ],
+          "centre": "dot",
+          "cq": 0.00058139,
+          "ct": 0.0057166,
+          "uCq": 0.00000167,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            1102.5,
+            894.3
+          ],
+          "centre": "dot",
+          "cq": 0.00054926,
+          "ct": 0.0054207,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            944.5,
+            1046.3
+          ],
+          "centre": "dot",
+          "cq": 0.00042033,
+          "ct": 0.0041735,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            919.3,
+            1067
+          ],
+          "centre": "outline",
+          "cq": 0.00039981,
+          "ct": 0.0040035,
+          "uCq": 0.00000328,
+          "uCt": 0.000033
+        },
+        {
+          "px": [
+            772.5,
+            1286.8
+          ],
+          "centre": "dot",
+          "cq": 0.0002803,
+          "ct": 0.0021925,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            754.3,
+            1305.3
+          ],
+          "centre": "outline",
+          "cq": 0.00026544,
+          "ct": 0.0020406,
+          "uCq": 0.00000329,
+          "uCt": 0.000033
+        }
+      ]
+    },
+    {
+      "id": "r2-coaxial-327",
+      "figure": 8,
+      "rotor": 2,
+      "configuration": "coaxial",
+      "solidity": 0.152,
+      "tipSpeedFps": 327,
+      "symbol": "square",
+      "points": [
+        {
+          "px": [
+            1599.3,
+            497
+          ],
+          "centre": "dot",
+          "cq": 0.00095416,
+          "ct": 0.0087022,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            1623.8,
+            488
+          ],
+          "centre": "dot",
+          "cq": 0.0009742,
+          "ct": 0.0087762,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            1375,
+            648.8
+          ],
+          "centre": "dot",
+          "cq": 0.00077148,
+          "ct": 0.0074514,
+          "uCq": 0.00000166,
+          "uCt": 0.0000171
+        },
+        {
+          "px": [
+            1414.3,
+            647.5
+          ],
+          "centre": "dot",
+          "cq": 0.00080359,
+          "ct": 0.007462,
+          "uCq": 0.00000166,
+          "uCt": 0.0000171
+        },
+        {
+          "px": [
+            1218.8,
+            773.8
+          ],
+          "centre": "dot",
+          "cq": 0.00064412,
+          "ct": 0.0064116,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            1206.8,
+            799
+          ],
+          "centre": "dot",
+          "cq": 0.00063438,
+          "ct": 0.0062043,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            1034,
+            949
+          ],
+          "centre": "outline",
+          "cq": 0.00049338,
+          "ct": 0.0049721,
+          "uCq": 0.0000033,
+          "uCt": 0.000033
+        },
+        {
+          "px": [
+            1044,
+            942.5
+          ],
+          "centre": "outline",
+          "cq": 0.00050157,
+          "ct": 0.0050254,
+          "uCq": 0.00000328,
+          "uCt": 0.000033
+        },
+        {
+          "px": [
+            905.8,
+            1080.3
+          ],
+          "centre": "dot",
+          "cq": 0.0003888,
+          "ct": 0.003894,
+          "uCq": 0.00000166,
+          "uCt": 0.0000168
+        },
+        {
+          "px": [
+            918.3,
+            1091.5
+          ],
+          "centre": "dot",
+          "cq": 0.00039904,
+          "ct": 0.0038015,
+          "uCq": 0.00000166,
+          "uCt": 0.0000168
+        },
+        {
+          "px": [
+            759.3,
+            1282
+          ],
+          "centre": "dot",
+          "cq": 0.00026948,
+          "ct": 0.002232,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            744.3,
+            1316.3
+          ],
+          "centre": "dot",
+          "cq": 0.00025727,
+          "ct": 0.00195,
+          "uCq": 0.00000166,
+          "uCt": 0.0000168
+        }
+      ]
+    },
+    {
+      "id": "r2-single-lower-262",
+      "figure": 8,
+      "rotor": 2,
+      "configuration": "single-lower",
+      "solidity": 0.076,
+      "tipSpeedFps": 262,
+      "symbol": "diamond",
+      "points": [
+        {
+          "px": [
+            1083,
+            847.5
+          ],
+          "centre": "dot",
+          "cq": 0.00053323,
+          "ct": 0.0058062,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            967,
+            948.3
+          ],
+          "centre": "dot",
+          "cq": 0.00043848,
+          "ct": 0.0049786,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            903.8,
+            1003.8
+          ],
+          "centre": "dot",
+          "cq": 0.000387,
+          "ct": 0.0045234,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            870.5,
+            1044
+          ],
+          "centre": "dot",
+          "cq": 0.00035987,
+          "ct": 0.0041931,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            780.8,
+            1161.3
+          ],
+          "centre": "dot",
+          "cq": 0.00028682,
+          "ct": 0.0032287,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            736.5,
+            1189.5
+          ],
+          "centre": "outline",
+          "cq": 0.00025062,
+          "ct": 0.0029975,
+          "uCq": 0.00000329,
+          "uCt": 0.0000334
+        },
+        {
+          "px": [
+            739,
+            1190.5
+          ],
+          "centre": "outline",
+          "cq": 0.00025267,
+          "ct": 0.0029892,
+          "uCq": 0.00000329,
+          "uCt": 0.0000334
+        },
+        {
+          "px": [
+            684,
+            1265.3
+          ],
+          "centre": "dot",
+          "cq": 0.00020797,
+          "ct": 0.0023699,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            649.5,
+            1323.8
+          ],
+          "centre": "outline",
+          "cq": 0.00017986,
+          "ct": 0.0018887,
+          "uCq": 0.00000329,
+          "uCt": 0.0000331
+        },
+        {
+          "px": [
+            648.8,
+            1338
+          ],
+          "centre": "outline",
+          "cq": 0.00017932,
+          "ct": 0.0017717,
+          "uCq": 0.00000329,
+          "uCt": 0.0000331
+        },
+        {
+          "px": [
+            603.8,
+            1407
+          ],
+          "centre": "dot",
+          "cq": 0.00014262,
+          "ct": 0.0012041,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            595.8,
+            1431.5
+          ],
+          "centre": "dot",
+          "cq": 0.00013615,
+          "ct": 0.0010025,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        },
+        {
+          "px": [
+            585,
+            1447.8
+          ],
+          "centre": "dot",
+          "cq": 0.00012738,
+          "ct": 0.0008688,
+          "uCq": 0.00000166,
+          "uCt": 0.0000167
+        }
+      ]
+    },
+    {
+      "id": "r2-single-lower-392",
+      "figure": 8,
+      "rotor": 2,
+      "configuration": "single-lower",
+      "solidity": 0.076,
+      "tipSpeedFps": 392,
+      "symbol": "triangle",
+      "points": [
+        {
+          "px": [
+            721.3,
+            1227.5
+          ],
+          "centre": "dot",
+          "cq": 0.0002383,
+          "ct": 0.0026821,
+          "uCq": 0.00000166,
+          "uCt": 0.0000169
+        },
+        {
+          "px": [
+            668.3,
+            1296.3
+          ],
+          "centre": "dot",
+          "cq": 0.00019521,
+          "ct": 0.002115,
+          "uCq": 0.00000167,
+          "uCt": 0.0000167
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-500",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "coaxial",
+      "solidity": 0.054,
+      "tipSpeedFps": 500,
+      "symbol": "circle",
+      "points": [
+        {
+          "px": [
+            1059.3,
+            716
+          ],
+          "centre": "dot",
+          "cq": 0.00046282,
+          "ct": 0.0055767,
+          "uCq": 0.00000139,
+          "uCt": 0.0000142
+        },
+        {
+          "px": [
+            997.3,
+            770.3
+          ],
+          "centre": "dot",
+          "cq": 0.00042102,
+          "ct": 0.0052041,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            952.3,
+            811
+          ],
+          "centre": "dot",
+          "cq": 0.00039062,
+          "ct": 0.0049259,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            899.3,
+            859.3
+          ],
+          "centre": "dot",
+          "cq": 0.00035484,
+          "ct": 0.0045952,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            830.3,
+            915
+          ],
+          "centre": "dot",
+          "cq": 0.00030849,
+          "ct": 0.0042181,
+          "uCq": 0.00000138,
+          "uCt": 0.0000138
+        },
+        {
+          "px": [
+            776.8,
+            973.3
+          ],
+          "centre": "outline",
+          "cq": 0.00027252,
+          "ct": 0.0038218,
+          "uCq": 0.00000273,
+          "uCt": 0.0000276
+        },
+        {
+          "px": [
+            783.8,
+            985
+          ],
+          "centre": "dot",
+          "cq": 0.00027731,
+          "ct": 0.0037417,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            728.3,
+            1050.8
+          ],
+          "centre": "dot",
+          "cq": 0.00023993,
+          "ct": 0.0032896,
+          "uCq": 0.00000139,
+          "uCt": 0.0000141
+        },
+        {
+          "px": [
+            711.3,
+            1075.3
+          ],
+          "centre": "dot",
+          "cq": 0.0002285,
+          "ct": 0.0031213,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            681.3,
+            1091.8
+          ],
+          "centre": "dot",
+          "cq": 0.00020821,
+          "ct": 0.0030079,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            647.5,
+            1153.8
+          ],
+          "centre": "dot",
+          "cq": 0.00018549,
+          "ct": 0.0025881,
+          "uCq": 0.00000139,
+          "uCt": 0.0000139
+        },
+        {
+          "px": [
+            637,
+            1168.8
+          ],
+          "centre": "dot",
+          "cq": 0.00017841,
+          "ct": 0.0024863,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            587,
+            1232
+          ],
+          "centre": "outline",
+          "cq": 0.00014467,
+          "ct": 0.0020524,
+          "uCq": 0.00000273,
+          "uCt": 0.0000276
+        },
+        {
+          "px": [
+            598,
+            1233
+          ],
+          "centre": "outline",
+          "cq": 0.00015213,
+          "ct": 0.0020458,
+          "uCq": 0.00000274,
+          "uCt": 0.0000276
+        },
+        {
+          "px": [
+            556.3,
+            1310.5
+          ],
+          "centre": "dot",
+          "cq": 0.00012416,
+          "ct": 0.0015161,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            525.5,
+            1383
+          ],
+          "centre": "dot",
+          "cq": 0.00010357,
+          "ct": 0.0010216,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            506.8,
+            1436.3
+          ],
+          "centre": "dot",
+          "cq": 0.00009113,
+          "ct": 0.0006581,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            494.3,
+            1499.3
+          ],
+          "centre": "dot",
+          "cq": 0.00008292,
+          "ct": 0.0002279,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            486.3,
+            1530.5
+          ],
+          "centre": "outline",
+          "cq": 0.00007764,
+          "ct": 0.0000146,
+          "uCq": 0.00000272,
+          "uCt": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-450",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "coaxial",
+      "solidity": 0.054,
+      "tipSpeedFps": 450,
+      "symbol": "square",
+      "points": [
+        {
+          "px": [
+            1165.7,
+            617
+          ],
+          "centre": "dot",
+          "cq": 0.00053464,
+          "ct": 0.0062624,
+          "uCq": 0.00000139,
+          "uCt": 0.0000141
+        },
+        {
+          "px": [
+            1054.3,
+            699.3
+          ],
+          "centre": "dot",
+          "cq": 0.00045938,
+          "ct": 0.0056921,
+          "uCq": 0.00000139,
+          "uCt": 0.0000142
+        },
+        {
+          "px": [
+            957.3,
+            788.7
+          ],
+          "centre": "dot",
+          "cq": 0.00039395,
+          "ct": 0.0050779,
+          "uCq": 0.00000139,
+          "uCt": 0.0000139
+        },
+        {
+          "px": [
+            888,
+            861.3
+          ],
+          "centre": "outline",
+          "cq": 0.0003472,
+          "ct": 0.0045814,
+          "uCq": 0.00000272,
+          "uCt": 0.0000275
+        },
+        {
+          "px": [
+            750.8,
+            1000
+          ],
+          "centre": "dot",
+          "cq": 0.00025499,
+          "ct": 0.0036383,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            667.5,
+            1110
+          ],
+          "centre": "outline",
+          "cq": 0.00019891,
+          "ct": 0.0028846,
+          "uCq": 0.00000273,
+          "uCt": 0.0000272
+        },
+        {
+          "px": [
+            584,
+            1238
+          ],
+          "centre": "outline",
+          "cq": 0.00014266,
+          "ct": 0.0020113,
+          "uCq": 0.00000273,
+          "uCt": 0.0000276
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-327",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "coaxial",
+      "solidity": 0.054,
+      "tipSpeedFps": 327,
+      "symbol": "diamond",
+      "points": [
+        {
+          "px": [
+            1151.7,
+            655.7
+          ],
+          "centre": "outline",
+          "cq": 0.00052525,
+          "ct": 0.0059964,
+          "uCq": 0.00000274,
+          "uCt": 0.0000279
+        },
+        {
+          "px": [
+            1081,
+            712.3
+          ],
+          "centre": "dot",
+          "cq": 0.00047749,
+          "ct": 0.0056028,
+          "uCq": 0.00000139,
+          "uCt": 0.0000142
+        },
+        {
+          "px": [
+            987.7,
+            795.7
+          ],
+          "centre": "dot",
+          "cq": 0.00041458,
+          "ct": 0.0050309,
+          "uCq": 0.00000139,
+          "uCt": 0.0000139
+        },
+        {
+          "px": [
+            911,
+            890.7
+          ],
+          "centre": "dot",
+          "cq": 0.00036286,
+          "ct": 0.004383,
+          "uCq": 0.00000139,
+          "uCt": 0.0000138
+        },
+        {
+          "px": [
+            850.7,
+            971.7
+          ],
+          "centre": "dot",
+          "cq": 0.00032244,
+          "ct": 0.0038341,
+          "uCq": 0.00000138,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            767.5,
+            1070.3
+          ],
+          "centre": "dot",
+          "cq": 0.00026661,
+          "ct": 0.0031563,
+          "uCq": 0.00000139,
+          "uCt": 0.0000141
+        },
+        {
+          "px": [
+            708.3,
+            1140.5
+          ],
+          "centre": "dot",
+          "cq": 0.00022672,
+          "ct": 0.0026792,
+          "uCq": 0.00000139,
+          "uCt": 0.0000138
+        },
+        {
+          "px": [
+            662,
+            1195
+          ],
+          "centre": "dot",
+          "cq": 0.00019551,
+          "ct": 0.0023075,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            611.3,
+            1281.3
+          ],
+          "centre": "dot",
+          "cq": 0.00016136,
+          "ct": 0.0017164,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        }
+      ]
+    },
+    {
+      "id": "r1-single-lower-500",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "single-lower",
+      "solidity": 0.027,
+      "tipSpeedFps": 500,
+      "symbol": "triangle",
+      "points": [
+        {
+          "px": [
+            723.1,
+            1025
+          ],
+          "centre": "dot",
+          "cq": 0.0002363,
+          "ct": 0.0034664,
+          "uCq": 0.00000139,
+          "uCt": 0.0000141
+        },
+        {
+          "px": [
+            660.8,
+            1077.5
+          ],
+          "centre": "dot",
+          "cq": 0.00019423,
+          "ct": 0.0031057,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            632,
+            1120
+          ],
+          "centre": "dot",
+          "cq": 0.00017483,
+          "ct": 0.0028165,
+          "uCq": 0.00000139,
+          "uCt": 0.0000139
+        },
+        {
+          "px": [
+            608.3,
+            1145.5
+          ],
+          "centre": "dot",
+          "cq": 0.00015881,
+          "ct": 0.0026435,
+          "uCq": 0.00000139,
+          "uCt": 0.0000139
+        },
+        {
+          "px": [
+            545.8,
+            1230.5
+          ],
+          "centre": "dot",
+          "cq": 0.00011673,
+          "ct": 0.0020617,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            530.5,
+            1258.8
+          ],
+          "centre": "dot",
+          "cq": 0.00010647,
+          "ct": 0.0018682,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            504.5,
+            1307.5
+          ],
+          "centre": "dot",
+          "cq": 0.00008906,
+          "ct": 0.0015356,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            473,
+            1378
+          ],
+          "centre": "dot",
+          "cq": 0.00006803,
+          "ct": 0.0010548,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            455,
+            1423.3
+          ],
+          "centre": "dot",
+          "cq": 0.00005603,
+          "ct": 0.0007459,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            436,
+            1482.6
+          ],
+          "centre": "dot",
+          "cq": 0.00004341,
+          "ct": 0.0003411,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            424.6,
+            1506
+          ],
+          "centre": "dot",
+          "cq": 0.00003578,
+          "ct": 0.0001809,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            421,
+            1536
+          ],
+          "centre": "outline",
+          "cq": 0.00003347,
+          "ct": -0.0000244,
+          "uCq": 0.00000273,
+          "uCt": 0.0000275
+        },
+        {
+          "px": [
+            434,
+            1536
+          ],
+          "centre": "outline",
+          "cq": 0.00004227,
+          "ct": -0.0000241,
+          "uCq": 0.00000273,
+          "uCt": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "r1-single-upper-500",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "single-upper",
+      "solidity": 0.027,
+      "tipSpeedFps": 500,
+      "symbol": "right-triangle",
+      "points": [
+        {
+          "px": [
+            564.5,
+            1210.8
+          ],
+          "centre": "dot",
+          "cq": 0.00012934,
+          "ct": 0.002197,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            526,
+            1270
+          ],
+          "centre": "dot",
+          "cq": 0.00010347,
+          "ct": 0.0017917,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            490.3,
+            1325.3
+          ],
+          "centre": "outline",
+          "cq": 0.00007952,
+          "ct": 0.0014141,
+          "uCq": 0.00000272,
+          "uCt": 0.0000274
+        },
+        {
+          "px": [
+            476.8,
+            1350.8
+          ],
+          "centre": "dot",
+          "cq": 0.00007049,
+          "ct": 0.0012402,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            461.3,
+            1392.5
+          ],
+          "centre": "dot",
+          "cq": 0.00006017,
+          "ct": 0.0009559,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        },
+        {
+          "px": [
+            444.5,
+            1426.3
+          ],
+          "centre": "outline",
+          "cq": 0.00004894,
+          "ct": 0.0007254,
+          "uCq": 0.00000273,
+          "uCt": 0.0000274
+        },
+        {
+          "px": [
+            432.4,
+            1472.6
+          ],
+          "centre": "outline",
+          "cq": 0.00004092,
+          "ct": 0.0004094,
+          "uCq": 0.00000273,
+          "uCt": 0.0000275
+        },
+        {
+          "px": [
+            421,
+            1518.3
+          ],
+          "centre": "outline",
+          "cq": 0.00003339,
+          "ct": 0.0000966,
+          "uCq": 0.00000273,
+          "uCt": 0.0000275
+        },
+        {
+          "px": [
+            424.7,
+            1528.3
+          ],
+          "centre": "outline",
+          "cq": 0.00003594,
+          "ct": 0.0000283,
+          "uCq": 0.00000273,
+          "uCt": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "r1-single-unidentified-500",
+      "figure": 4,
+      "rotor": 1,
+      "configuration": "single",
+      "solidity": 0.027,
+      "tipSpeedFps": 500,
+      "symbol": "triangle-hidden",
+      "points": [
+        {
+          "px": [
+            745.9,
+            1017.1
+          ],
+          "centre": "outline",
+          "cq": 0.00025173,
+          "ct": 0.003521,
+          "uCq": 0.00000273,
+          "uCt": 0.0000276
+        },
+        {
+          "px": [
+            657,
+            1097.5
+          ],
+          "centre": "outline",
+          "cq": 0.00019173,
+          "ct": 0.002969,
+          "uCq": 0.00000273,
+          "uCt": 0.0000272
+        },
+        {
+          "px": [
+            577,
+            1189.5
+          ],
+          "centre": "dot",
+          "cq": 0.00013773,
+          "ct": 0.0023431,
+          "uCq": 0.00000139,
+          "uCt": 0.000014
+        }
+      ]
+    }
+  ]
+}

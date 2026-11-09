@@ -1,0 +1,6230 @@
+{
+  "schemaVersion": 1,
+  "kind": "harrington-coaxial",
+  "task": "TASK-101",
+  "status": "NOT_REPRODUCED",
+  "performanceStatus": "NOT_REPRODUCED",
+  "source": "Harrington, Full-Scale-Tunnel Investigation of the Static-Thrust Performance of a Coaxial Helicopter Rotor, NACA TN 2318, 1951 (public domain), figures 4 and 8 digitized",
+  "fixture": {
+    "file": "tests/fixtures/rotors/harrington-coaxial.json",
+    "sha256": "9f0dd22b72b2bc0e845b2d5bab7590cb6b1ee5ad758211bae03f3547442c0bf8"
+  },
+  "method": {
+    "fixture": {
+      "file": "tests/fixtures/rotors/harrington-coaxial.json",
+      "sha256": "9f0dd22b72b2bc0e845b2d5bab7590cb6b1ee5ad758211bae03f3547442c0bf8"
+    },
+    "pdfSha256": "78e327b96dd4aaf8ab07dce706cb424bfb2c6c239f0fe9a62a847a920d056acf",
+    "metrePerInch": 0.0254,
+    "metrePerFoot": 0.3048,
+    "air": {
+      "densityKgM3": 1.225,
+      "temperatureK": 288.15
+    },
+    "polar": "naca0012-extended-v1",
+    "collectiveDeg": {
+      "from": 0,
+      "to": 20,
+      "step": 0.5
+    },
+    "sweepBeyond": 1.1,
+    "trim": {
+      "torqueTolerance": 0.005,
+      "maxIterations": 8,
+      "firstStepDeg": 0.5
+    },
+    "run": {
+      "hz": 800,
+      "seconds": 10,
+      "averageS": 1,
+      "speedTolerance": 0.001,
+      "steadyTolerance": 0.002
+    },
+    "bladeMassKg": 40,
+    "fitPowers": [
+      0,
+      1.5,
+      2
+    ],
+    "performance": {
+      "minCt": 0.001,
+      "tolerance": 0.05,
+      "standardErrors": 2,
+      "minFitPoints": 5
+    },
+    "performanceConfigurations": [
+      {
+        "id": "r2-coaxial-392",
+        "rotor": 2,
+        "kind": "coaxial",
+        "tipSpeedFps": 392,
+        "series": [
+          "r2-coaxial-392"
+        ]
+      },
+      {
+        "id": "r2-coaxial-327",
+        "rotor": 2,
+        "kind": "coaxial",
+        "tipSpeedFps": 327,
+        "series": [
+          "r2-coaxial-327"
+        ]
+      },
+      {
+        "id": "r2-single-262",
+        "rotor": 2,
+        "kind": "single",
+        "tipSpeedFps": 262,
+        "series": [
+          "r2-single-lower-262"
+        ]
+      },
+      {
+        "id": "r2-single-392",
+        "rotor": 2,
+        "kind": "single",
+        "tipSpeedFps": 392,
+        "series": [
+          "r2-single-lower-392"
+        ]
+      },
+      {
+        "id": "r1-coaxial-500",
+        "rotor": 1,
+        "kind": "coaxial",
+        "tipSpeedFps": 500,
+        "series": [
+          "r1-coaxial-500"
+        ]
+      },
+      {
+        "id": "r1-coaxial-450",
+        "rotor": 1,
+        "kind": "coaxial",
+        "tipSpeedFps": 450,
+        "series": [
+          "r1-coaxial-450"
+        ]
+      },
+      {
+        "id": "r1-coaxial-327",
+        "rotor": 1,
+        "kind": "coaxial",
+        "tipSpeedFps": 327,
+        "series": [
+          "r1-coaxial-327"
+        ]
+      },
+      {
+        "id": "r1-single-500",
+        "rotor": 1,
+        "kind": "single",
+        "tipSpeedFps": 500,
+        "series": [
+          "r1-single-lower-500",
+          "r1-single-upper-500",
+          "r1-single-unidentified-500"
+        ]
+      }
+    ],
+    "interference": {
+      "minCt": 0.002,
+      "tolerance": 0.02,
+      "standardErrors": 2
+    },
+    "interferenceConfigurations": [
+      {
+        "id": "r2-392",
+        "rotor": 2,
+        "tipSpeedFps": 392,
+        "coaxial": "r2-coaxial-392",
+        "single": [
+          "r2-single-lower-262",
+          "r2-single-lower-392"
+        ]
+      },
+      {
+        "id": "r2-327",
+        "rotor": 2,
+        "tipSpeedFps": 327,
+        "coaxial": "r2-coaxial-327",
+        "single": [
+          "r2-single-lower-262",
+          "r2-single-lower-392"
+        ]
+      },
+      {
+        "id": "r1-500",
+        "rotor": 1,
+        "tipSpeedFps": 500,
+        "coaxial": "r1-coaxial-500",
+        "single": [
+          "r1-single-lower-500",
+          "r1-single-upper-500",
+          "r1-single-unidentified-500"
+        ]
+      }
+    ]
+  },
+  "model": {
+    "dynamics": "BetFlightDynamics, ESC drive (stand-in), dynamic inflow, rotor wakes all (coaxial) and off",
+    "strips": 16,
+    "polarSha256": "6c379b3664d984820ac5e0d049911dd1f4e1bd0b85c307a8409bb8533bc1ce43",
+    "drive": {
+      "kvRpmPerV": 1,
+      "resistanceOhm": 0.02,
+      "currentLimitA": 5000,
+      "escUpdateRateHz": 800,
+      "brakeCurrentLimitA": 5000,
+      "battery": {
+        "openCircuitFullV": 1000,
+        "openCircuitEmptyV": 950,
+        "internalResistanceOhm": 0.001,
+        "capacityAh": 100000,
+        "currentLimitA": 1000000
+      }
+    },
+    "heightM": 2000,
+    "heavy": 100000000
+  },
+  "interference": [
+    {
+      "id": "r2-392",
+      "rotor": 2,
+      "tipSpeedFps": 392,
+      "coaxial": "r2-coaxial-392",
+      "single": [
+        "r2-single-lower-262",
+        "r2-single-lower-392"
+      ],
+      "points": 8,
+      "used": 8,
+      "measuredMean": 1.1155100714809882,
+      "modelMean": 1.1981453050056716,
+      "modelWakesOffMean": 0.9999947744358042,
+      "measuredInducedMean": 1.3166569100895378,
+      "modelInducedMean": 1.328029659840413,
+      "standardError": 0.007535517367480585,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0068509,
+          "cq": 0.00071126,
+          "singleCq": 0.00029178086094689033,
+          "kappa": 1.2188256585641217,
+          "kappaInduced": 1.3910615061535194,
+          "modelCoaxialCq": 0.0005551050461092071,
+          "modelSingleCq": 0.0002232700492515787,
+          "modelKappa": 1.243124745056422,
+          "modelKappaWakesOff": 0.9999623226187175
+        },
+        {
+          "ct": 0.0067931,
+          "cq": 0.00070761,
+          "singleCq": 0.0002893545621499454,
+          "kappa": 1.222738626863799,
+          "kappaInduced": 1.3996202296611289,
+          "modelCoaxialCq": 0.0005493534829094112,
+          "modelSingleCq": 0.00022098364026539046,
+          "modelKappa": 1.24297319532266,
+          "modelKappaWakesOff": 0.9999625235139166
+        },
+        {
+          "ct": 0.0057166,
+          "cq": 0.00058139,
+          "singleCq": 0.00024642642272826895,
+          "kappa": 1.179642169786904,
+          "kappaInduced": 1.377716103191709,
+          "modelCoaxialCq": 0.0004459901415324328,
+          "modelSingleCq": 0.00018147000428538345,
+          "modelKappa": 1.2288260621602773,
+          "modelKappaWakesOff": 0.9999859109864327
+        },
+        {
+          "ct": 0.0054207,
+          "cq": 0.00054926,
+          "singleCq": 0.00023539925262342664,
+          "kappa": 1.166656210414277,
+          "kappaInduced": 1.370853267828135,
+          "modelCoaxialCq": 0.0004198027302067122,
+          "modelSingleCq": 0.0001712078352367502,
+          "modelKappa": 1.2260032656396804,
+          "modelKappaWakesOff": 0.9999866137320682
+        },
+        {
+          "ct": 0.0041735,
+          "cq": 0.00042033,
+          "singleCq": 0.00019279734877224395,
+          "kappa": 1.0900824173068524,
+          "kappaInduced": 1.2991402625876916,
+          "modelCoaxialCq": 0.00031648308197959266,
+          "modelSingleCq": 0.00013186536140204837,
+          "modelKappa": 1.200023564242385,
+          "modelKappaWakesOff": 1.0000061698862845
+        },
+        {
+          "ct": 0.0040035,
+          "cq": 0.00039981,
+          "singleCq": 0.00018749737173588205,
+          "kappa": 1.0661749450098743,
+          "kappaInduced": 1.2565640337801471,
+          "modelCoaxialCq": 0.00030350164311267034,
+          "modelSingleCq": 0.00012689420714078687,
+          "modelKappa": 1.1958845480469438,
+          "modelKappaWakesOff": 1.0000064371642843
+        },
+        {
+          "ct": 0.0021925,
+          "cq": 0.0002803,
+          "singleCq": 0.000139425007573571,
+          "kappa": 1.0051998736743581,
+          "kappaInduced": 1.2774378987461044,
+          "modelCoaxialCq": 0.0001843524991025446,
+          "modelSingleCq": 0.00008178519888402808,
+          "modelKappa": 1.1270529485656542,
+          "modelKappaWakesOff": 1.0000241292954262
+        },
+        {
+          "ct": 0.0020406,
+          "cq": 0.00026544,
+          "singleCq": 0.00013615649877317512,
+          "kappa": 0.9747606702277205,
+          "kappaInduced": 1.1608619787678676,
+          "modelCoaxialCq": 0.0001764245324383707,
+          "modelSingleCq": 0.00007867145540319383,
+          "modelKappa": 1.1212741110113518,
+          "modelKappaWakesOff": 1.000024088289305
+        }
+      ],
+      "coaxialFit": {
+        "coefficients": [
+          0.00020061979129681624,
+          0.506600809618112,
+          4.832710693364121
+        ],
+        "rmsRelative": 0.012002853357785833,
+        "points": 8,
+        "ctMin": 0.0020406,
+        "ctMax": 0.0068509
+      },
+      "singleFit": {
+        "coefficients": [
+          0.00010823749983585806,
+          0.7859518208998039,
+          2.213604020125157
+        ],
+        "rmsRelative": 0.020356001590976506,
+        "points": 15,
+        "ctMin": 0.0008688,
+        "ctMax": 0.0058062
+      }
+    },
+    {
+      "id": "r2-327",
+      "rotor": 2,
+      "tipSpeedFps": 327,
+      "coaxial": "r2-coaxial-327",
+      "single": [
+        "r2-single-lower-262",
+        "r2-single-lower-392"
+      ],
+      "points": 11,
+      "used": 11,
+      "measuredMean": 1.1616189888281907,
+      "modelMean": 1.220922731061828,
+      "modelWakesOffMean": 0.9999824594778294,
+      "measuredInducedMean": 1.3928184325847761,
+      "modelInducedMean": 1.3209584611569947,
+      "standardError": 0.008235131208936536,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0087022,
+          "cq": 0.00095416,
+          "singleCq": 0.0003757224554887162,
+          "kappa": 1.2697670661697458,
+          "kappaInduced": 1.431509926700075,
+          "modelCoaxialCq": 0.0007546657797921451,
+          "modelSingleCq": 0.00030053278174977033,
+          "modelKappa": 1.2555465254044982,
+          "modelKappaWakesOff": 0.9999414993369838
+        },
+        {
+          "ct": 0.0087762,
+          "cq": 0.0009742,
+          "singleCq": 0.00037932165531344187,
+          "kappa": 1.2841344362411857,
+          "kappaInduced": 1.449466379057655,
+          "modelCoaxialCq": 0.0007632183163815767,
+          "modelSingleCq": 0.0003038301005171489,
+          "modelKappa": 1.2559952339852167,
+          "modelKappaWakesOff": 0.9999412695348232
+        },
+        {
+          "ct": 0.0074514,
+          "cq": 0.00077148,
+          "singleCq": 0.00031769841969662933,
+          "kappa": 1.2141703454752582,
+          "kappaInduced": 1.3919893479595173,
+          "modelCoaxialCq": 0.0006168273388812526,
+          "modelSingleCq": 0.00024690747252129,
+          "modelKappa": 1.2491062594876825,
+          "modelKappaWakesOff": 0.9999678872513565
+        },
+        {
+          "ct": 0.007462,
+          "cq": 0.00080359,
+          "singleCq": 0.0003181674260337395,
+          "kappa": 1.2628414071445275,
+          "kappaInduced": 1.465357392495002,
+          "modelCoaxialCq": 0.0006179358902484264,
+          "modelSingleCq": 0.0002473252245839677,
+          "modelKappa": 1.2492374995067177,
+          "modelKappaWakesOff": 0.9999678611221832
+        },
+        {
+          "ct": 0.0064116,
+          "cq": 0.00064412,
+          "singleCq": 0.00027364650369676773,
+          "kappa": 1.1769198423849774,
+          "kappaInduced": 1.3777204622526071,
+          "modelCoaxialCq": 0.0005112635786540511,
+          "modelSingleCq": 0.00020661068047119122,
+          "modelKappa": 1.237263188640771,
+          "modelKappaWakesOff": 0.9999792381539924
+        },
+        {
+          "ct": 0.0062043,
+          "cq": 0.00063438,
+          "singleCq": 0.00026533673305222154,
+          "kappa": 1.1954243815068497,
+          "kappaInduced": 1.4195955301248806,
+          "modelCoaxialCq": 0.000491402252446095,
+          "modelSingleCq": 0.0001989233609091229,
+          "modelKappa": 1.2351547103373886,
+          "modelKappaWakesOff": 0.9999797825121842
+        },
+        {
+          "ct": 0.0049721,
+          "cq": 0.00049338,
+          "singleCq": 0.0002193413805544433,
+          "kappa": 1.1246851796793922,
+          "kappaInduced": 1.3727456527491297,
+          "modelCoaxialCq": 0.00038054329702091536,
+          "modelSingleCq": 0.00015635849207039807,
+          "modelKappa": 1.2168936013068654,
+          "modelKappaWakesOff": 0.9999985053007655
+        },
+        {
+          "ct": 0.0050254,
+          "cq": 0.00050157,
+          "singleCq": 0.00022120699251382652,
+          "kappa": 1.1337119010120114,
+          "kappaInduced": 1.3863244451883658,
+          "modelCoaxialCq": 0.0003849216355966805,
+          "modelSingleCq": 0.00015804718299055936,
+          "modelKappa": 1.2177427914664984,
+          "modelKappaWakesOff": 0.9999984233091058
+        },
+        {
+          "ct": 0.003894,
+          "cq": 0.0003888,
+          "singleCq": 0.00018415078055820182,
+          "kappa": 1.0556566711839643,
+          "kappaInduced": 1.3202876796562366,
+          "modelCoaxialCq": 0.0002950811183750374,
+          "modelSingleCq": 0.0001236935267747321,
+          "modelKappa": 1.1927912723857919,
+          "modelKappaWakesOff": 1.0000060689347348
+        },
+        {
+          "ct": 0.0038015,
+          "cq": 0.00039904,
+          "singleCq": 0.00018136527204368398,
+          "kappa": 1.1001003541181975,
+          "kappaInduced": 1.4405931710951505,
+          "modelCoaxialCq": 0.0002880925314596209,
+          "modelSingleCq": 0.00012099763929443216,
+          "modelKappa": 1.1904882324132986,
+          "modelKappaWakesOff": 1.0000062143753972
+        },
+        {
+          "ct": 0.002232,
+          "cq": 0.00026948,
+          "singleCq": 0.00014029610567954868,
+          "kappa": 0.9603972921939871,
+          "kappaInduced": 1.2654127711539187,
+          "modelCoaxialCq": 0.00018663467208088045,
+          "modelSingleCq": 0.00008258677619045615,
+          "modelKappa": 1.1299307267453809,
+          "modelKappaWakesOff": 1.0000203044245968
+        }
+      ],
+      "coaxialFit": {
+        "coefficients": [
+          0.0001883452614800085,
+          0.6502801782467855,
+          3.2067023313697076
+        ],
+        "rmsRelative": 0.016480724441119476,
+        "points": 12,
+        "ctMin": 0.00195,
+        "ctMax": 0.0087762
+      },
+      "singleFit": {
+        "coefficients": [
+          0.00010823749983585806,
+          0.7859518208998039,
+          2.213604020125157
+        ],
+        "rmsRelative": 0.020356001590976506,
+        "points": 15,
+        "ctMin": 0.0008688,
+        "ctMax": 0.0058062
+      }
+    },
+    {
+      "id": "r1-500",
+      "rotor": 1,
+      "tipSpeedFps": 500,
+      "coaxial": "r1-coaxial-500",
+      "single": [
+        "r1-single-lower-500",
+        "r1-single-upper-500",
+        "r1-single-unidentified-500"
+      ],
+      "points": 14,
+      "used": 14,
+      "measuredMean": 1.273835603646486,
+      "modelMean": 1.2351873581200927,
+      "modelWakesOffMean": 0.9999895037076817,
+      "measuredInducedMean": 1.3956149172671466,
+      "modelInducedMean": 1.308364781373344,
+      "standardError": 0.015838704579142084,
+      "reproduced": true,
+      "rows": [
+        {
+          "ct": 0.0055767,
+          "cq": 0.00046282,
+          "singleCq": 0.00017432575910505306,
+          "kappa": 1.3274572913836937,
+          "kappaInduced": 1.3936887483074596,
+          "modelCoaxialCq": 0.00035816043506965576,
+          "modelSingleCq": 0.00014221503448971998,
+          "modelKappa": 1.2592214190108901,
+          "modelKappaWakesOff": 0.9999601900838956
+        },
+        {
+          "ct": 0.0052041,
+          "cq": 0.00042102,
+          "singleCq": 0.00015883524618671144,
+          "kappa": 1.325335560298403,
+          "kappaInduced": 1.3993455689159984,
+          "modelCoaxialCq": 0.0003259902606691894,
+          "modelSingleCq": 0.00012968322053266045,
+          "modelKappa": 1.2568713952746469,
+          "modelKappaWakesOff": 0.9999669899037394
+        },
+        {
+          "ct": 0.0049259,
+          "cq": 0.00039062,
+          "singleCq": 0.00014780751074209723,
+          "kappa": 1.3213807540591611,
+          "kappaInduced": 1.401436617378971,
+          "modelCoaxialCq": 0.00030255577522070917,
+          "modelSingleCq": 0.00012056749113493098,
+          "modelKappa": 1.2547153978766514,
+          "modelKappaWakesOff": 0.9999732363275691
+        },
+        {
+          "ct": 0.0045952,
+          "cq": 0.00035484,
+          "singleCq": 0.00013530326456072313,
+          "kappa": 1.3112765650999882,
+          "kappaInduced": 1.3977108618814222,
+          "modelCoaxialCq": 0.00027554341808656456,
+          "modelSingleCq": 0.0001099919834717273,
+          "modelKappa": 1.2525613657898584,
+          "modelKappaWakesOff": 0.9999791140073485
+        },
+        {
+          "ct": 0.0042181,
+          "cq": 0.00030849,
+          "singleCq": 0.00012185482180311894,
+          "kappa": 1.2658095733725987,
+          "kappaInduced": 1.346090748532835,
+          "modelCoaxialCq": 0.00024590186541154676,
+          "modelSingleCq": 0.00009837977686099258,
+          "modelKappa": 1.2497581985726502,
+          "modelKappaWakesOff": 0.9999800186302361
+        },
+        {
+          "ct": 0.0038218,
+          "cq": 0.00027252,
+          "singleCq": 0.00010866489666537094,
+          "kappa": 1.2539468050994154,
+          "kappaInduced": 1.3428771267244493,
+          "modelCoaxialCq": 0.0002161442703181441,
+          "modelSingleCq": 0.00008674218410844721,
+          "modelKappa": 1.2459005531144756,
+          "modelKappaWakesOff": 0.9999856928996823
+        },
+        {
+          "ct": 0.0037417,
+          "cq": 0.00027731,
+          "singleCq": 0.00010611775833991319,
+          "kappa": 1.3066144834671733,
+          "kappaInduced": 1.4270691452403235,
+          "modelCoaxialCq": 0.00021042632470266116,
+          "modelSingleCq": 0.0000845204113799364,
+          "modelKappa": 1.2448254881105116,
+          "modelKappaWakesOff": 0.9999912207619281
+        },
+        {
+          "ct": 0.0032896,
+          "cq": 0.00023993,
+          "singleCq": 0.00009250094486550254,
+          "kappa": 1.2969056713359037,
+          "kappaInduced": 1.4404512177535969,
+          "modelCoaxialCq": 0.00017887674330651634,
+          "modelSingleCq": 0.00007231868356746894,
+          "modelKappa": 1.2367256598333625,
+          "modelKappaWakesOff": 0.9999961461911653
+        },
+        {
+          "ct": 0.0031213,
+          "cq": 0.0002285,
+          "singleCq": 0.00008776550223137319,
+          "kappa": 1.3017643276148143,
+          "kappaInduced": 1.462259821274985,
+          "modelCoaxialCq": 0.0001675150600258638,
+          "modelSingleCq": 0.00006795821827639243,
+          "modelKappa": 1.2324856674770694,
+          "modelKappaWakesOff": 0.9999964225350007
+        },
+        {
+          "ct": 0.0030079,
+          "cq": 0.00020821,
+          "singleCq": 0.00008467820395081959,
+          "kappa": 1.2294190847560174,
+          "kappaInduced": 1.3440565419768031,
+          "modelCoaxialCq": 0.00016031947239845832,
+          "modelSingleCq": 0.00006512763167965448,
+          "modelKappa": 1.2308099363034357,
+          "modelKappaWakesOff": 1.0000001609107245
+        },
+        {
+          "ct": 0.0025881,
+          "cq": 0.00018549,
+          "singleCq": 0.0000739844433334503,
+          "kappa": 1.2535743437575824,
+          "kappaInduced": 1.4256198658432213,
+          "modelCoaxialCq": 0.00013450987409616128,
+          "modelSingleCq": 0.000055184852602354236,
+          "modelKappa": 1.2187209691887713,
+          "modelKappaWakesOff": 1.0000044838568922
+        },
+        {
+          "ct": 0.0024863,
+          "cq": 0.00017841,
+          "singleCq": 0.00007156816318798419,
+          "kappa": 1.2464341129685008,
+          "kappaInduced": 1.4228594256720317,
+          "modelCoaxialCq": 0.00012845123369464636,
+          "modelSingleCq": 0.00005291063854814286,
+          "modelKappa": 1.2138507228349726,
+          "modelKappaWakesOff": 1.0000045794040775
+        },
+        {
+          "ct": 0.0020524,
+          "cq": 0.00014467,
+          "singleCq": 0.00006206301533009806,
+          "kappa": 1.1655089527195506,
+          "kappaInduced": 1.2891429026970704,
+          "modelCoaxialCq": 0.00010480979212168969,
+          "modelSingleCq": 0.000043737871501820225,
+          "modelKappa": 1.1981583525083959,
+          "modelKappaWakesOff": 1.000007396729205
+        },
+        {
+          "ct": 0.0020458,
+          "cq": 0.00015213,
+          "singleCq": 0.00006192851955092275,
+          "kappa": 1.2282709251179995,
+          "kappaInduced": 1.4460002495408861,
+          "modelCoaxialCq": 0.00010446934007143535,
+          "modelSingleCq": 0.000043600909943229126,
+          "modelKappa": 1.1980178877856034,
+          "modelKappaWakesOff": 1.0000073996660779
+        }
+      ],
+      "coaxialFit": {
+        "coefficients": [
+          0.00008016276664689596,
+          0.5034001058519476,
+          5.547516746246654
+        ],
+        "rmsRelative": 0.020857894599568983,
+        "points": 19,
+        "ctMin": 0.0000146,
+        "ctMax": 0.0055767
+      },
+      "singleFit": {
+        "coefficients": [
+          0.00003704358838443295,
+          0.496878380591032,
+          8.247392912238354
+        ],
+        "rmsRelative": 0.05738110059311296,
+        "points": 25,
+        "ctMin": -0.0000244,
+        "ctMax": 0.003521
+      }
+    }
+  ],
+  "performance": [
+    {
+      "id": "r2-coaxial-392",
+      "rotor": 2,
+      "kind": "coaxial",
+      "tipSpeedFps": 392,
+      "points": 8,
+      "used": 8,
+      "outsideModelRange": 0,
+      "meanRatio": 0.7403275718051104,
+      "minRatio": 0.6576971070372623,
+      "maxRatio": 0.7804530637308539,
+      "scatterRelative": 0.012002853357785833,
+      "scatterFrom": "r2-coaxial-392",
+      "standardError": 0.004243649501439042,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0068509,
+          "cq": 0.00071126,
+          "uCt": 0.0000332,
+          "uCq": 0.00000328,
+          "modelCq": 0.0005551050461092071,
+          "ratio": 0.7804530637308539
+        },
+        {
+          "ct": 0.0067931,
+          "cq": 0.00070761,
+          "uCt": 0.0000332,
+          "uCq": 0.00000328,
+          "modelCq": 0.0005493534829094112,
+          "ratio": 0.7763506492409818
+        },
+        {
+          "ct": 0.0057166,
+          "cq": 0.00058139,
+          "uCt": 0.0000167,
+          "uCq": 0.00000167,
+          "modelCq": 0.0004459901415324328,
+          "ratio": 0.7671101008487122
+        },
+        {
+          "ct": 0.0054207,
+          "cq": 0.00054926,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0004198027302067122,
+          "ratio": 0.7643060303075269
+        },
+        {
+          "ct": 0.0041735,
+          "cq": 0.00042033,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00031648308197959266,
+          "ratio": 0.7529395522080096
+        },
+        {
+          "ct": 0.0040035,
+          "cq": 0.00039981,
+          "uCt": 0.000033,
+          "uCq": 0.00000328,
+          "modelCq": 0.00030350164311267034,
+          "ratio": 0.7591146872581235
+        },
+        {
+          "ct": 0.0021925,
+          "cq": 0.0002803,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0001843524991025446,
+          "ratio": 0.6576971070372623
+        },
+        {
+          "ct": 0.0020406,
+          "cq": 0.00026544,
+          "uCt": 0.000033,
+          "uCq": 0.00000329,
+          "modelCq": 0.0001764245324383707,
+          "ratio": 0.6646493838094135
+        }
+      ]
+    },
+    {
+      "id": "r2-coaxial-327",
+      "rotor": 2,
+      "kind": "coaxial",
+      "tipSpeedFps": 327,
+      "points": 12,
+      "used": 12,
+      "outsideModelRange": 0,
+      "meanRatio": 0.7575849416733135,
+      "minRatio": 0.6675792325697203,
+      "maxRatio": 0.799537692333246,
+      "scatterRelative": 0.016480724441119476,
+      "scatterFrom": "r2-coaxial-327",
+      "standardError": 0.004757575346260187,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0087022,
+          "cq": 0.00095416,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0007546657797921451,
+          "ratio": 0.7909216271821761
+        },
+        {
+          "ct": 0.0087762,
+          "cq": 0.0009742,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0007632183163815767,
+          "ratio": 0.7834308318431294
+        },
+        {
+          "ct": 0.0074514,
+          "cq": 0.00077148,
+          "uCt": 0.0000171,
+          "uCq": 0.00000166,
+          "modelCq": 0.0006168273388812526,
+          "ratio": 0.799537692333246
+        },
+        {
+          "ct": 0.007462,
+          "cq": 0.00080359,
+          "uCt": 0.0000171,
+          "uCq": 0.00000166,
+          "modelCq": 0.0006179358902484264,
+          "ratio": 0.7689691139118536
+        },
+        {
+          "ct": 0.0064116,
+          "cq": 0.00064412,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0005112635786540511,
+          "ratio": 0.7937396426970923
+        },
+        {
+          "ct": 0.0062043,
+          "cq": 0.00063438,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.000491402252446095,
+          "ratio": 0.7746181349445048
+        },
+        {
+          "ct": 0.0049721,
+          "cq": 0.00049338,
+          "uCt": 0.000033,
+          "uCq": 0.0000033,
+          "modelCq": 0.00038054329702091536,
+          "ratio": 0.7712985873381883
+        },
+        {
+          "ct": 0.0050254,
+          "cq": 0.00050157,
+          "uCt": 0.000033,
+          "uCq": 0.00000328,
+          "modelCq": 0.0003849216355966805,
+          "ratio": 0.7674335299094454
+        },
+        {
+          "ct": 0.003894,
+          "cq": 0.0003888,
+          "uCt": 0.0000168,
+          "uCq": 0.00000166,
+          "modelCq": 0.0002950811183750374,
+          "ratio": 0.7589534937629563
+        },
+        {
+          "ct": 0.0038015,
+          "cq": 0.00039904,
+          "uCt": 0.0000168,
+          "uCq": 0.00000166,
+          "modelCq": 0.0002880925314596209,
+          "ratio": 0.7219640423506939
+        },
+        {
+          "ct": 0.002232,
+          "cq": 0.00026948,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00018663467208088045,
+          "ratio": 0.6925733712367539
+        },
+        {
+          "ct": 0.00195,
+          "cq": 0.00025727,
+          "uCt": 0.0000168,
+          "uCq": 0.00000166,
+          "modelCq": 0.00017174810916321194,
+          "ratio": 0.6675792325697203
+        }
+      ]
+    },
+    {
+      "id": "r2-single-262",
+      "rotor": 2,
+      "kind": "single",
+      "tipSpeedFps": 262,
+      "points": 13,
+      "used": 12,
+      "outsideModelRange": 0,
+      "meanRatio": 0.7253728017086529,
+      "minRatio": 0.5728493155917049,
+      "maxRatio": 0.8294684569070938,
+      "scatterRelative": 0.021194812970925018,
+      "scatterFrom": "r2-single-262",
+      "standardError": 0.006118415487093666,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0058062,
+          "cq": 0.00053323,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00044229746527656963,
+          "ratio": 0.8294684569070938
+        },
+        {
+          "ct": 0.0049786,
+          "cq": 0.00043848,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00035870853256903586,
+          "ratio": 0.818072734375652
+        },
+        {
+          "ct": 0.0045234,
+          "cq": 0.000387,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00031597323952924696,
+          "ratio": 0.8164683191970207
+        },
+        {
+          "ct": 0.0041931,
+          "cq": 0.00035987,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.0002865980892193838,
+          "ratio": 0.7963933898890816
+        },
+        {
+          "ct": 0.0032287,
+          "cq": 0.00028682,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00020838124573950464,
+          "ratio": 0.7265227171728075
+        },
+        {
+          "ct": 0.0029975,
+          "cq": 0.00025062,
+          "uCt": 0.0000334,
+          "uCq": 0.00000329,
+          "modelCq": 0.00019126248225449644,
+          "ratio": 0.7631572989166724
+        },
+        {
+          "ct": 0.0029892,
+          "cq": 0.00025267,
+          "uCt": 0.0000334,
+          "uCq": 0.00000329,
+          "modelCq": 0.0001906479245688322,
+          "ratio": 0.7545332828148661
+        },
+        {
+          "ct": 0.0023699,
+          "cq": 0.00020797,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00014905936608438665,
+          "ratio": 0.716734942945553
+        },
+        {
+          "ct": 0.0018887,
+          "cq": 0.00017986,
+          "uCt": 0.0000331,
+          "uCq": 0.00000329,
+          "modelCq": 0.00012036420766124,
+          "ratio": 0.6692105396488379
+        },
+        {
+          "ct": 0.0017717,
+          "cq": 0.00017932,
+          "uCt": 0.0000331,
+          "uCq": 0.00000329,
+          "modelCq": 0.00011413986456349793,
+          "ratio": 0.6365149707980031
+        },
+        {
+          "ct": 0.0012041,
+          "cq": 0.00014262,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00008622058616340164,
+          "ratio": 0.6045476522465407
+        },
+        {
+          "ct": 0.0010025,
+          "cq": 0.00013615,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00007799343431781062,
+          "ratio": 0.5728493155917049
+        },
+        {
+          "ct": 0.0008688,
+          "cq": 0.00012738,
+          "uCt": 0.0000167,
+          "uCq": 0.00000166,
+          "modelCq": 0.00007292101374089708,
+          "ratio": 0.5724683132430294
+        }
+      ]
+    },
+    {
+      "id": "r2-single-392",
+      "rotor": 2,
+      "kind": "single",
+      "tipSpeedFps": 392,
+      "points": 2,
+      "used": 2,
+      "outsideModelRange": 0,
+      "meanRatio": 0.697100502559217,
+      "minRatio": 0.6839687472046543,
+      "maxRatio": 0.7102322579137798,
+      "scatterRelative": 0.020356001590976506,
+      "scatterFrom": "r2-single-lower-262 and -392 together",
+      "standardError": 0.014393866762823636,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0026821,
+          "cq": 0.0002383,
+          "uCt": 0.0000169,
+          "uCq": 0.00000166,
+          "modelCq": 0.0001692483470608537,
+          "ratio": 0.7102322579137798
+        },
+        {
+          "ct": 0.002115,
+          "cq": 0.00019521,
+          "uCt": 0.0000167,
+          "uCq": 0.00000167,
+          "modelCq": 0.00013351753914182056,
+          "ratio": 0.6839687472046543
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-500",
+      "rotor": 1,
+      "kind": "coaxial",
+      "tipSpeedFps": 500,
+      "points": 19,
+      "used": 16,
+      "outsideModelRange": 0,
+      "meanRatio": 0.7350028422846189,
+      "minRatio": 0.5704555922183792,
+      "maxRatio": 0.7971145431344508,
+      "scatterRelative": 0.020857894599568983,
+      "scatterFrom": "r1-coaxial-500",
+      "standardError": 0.005214473649892246,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0055767,
+          "cq": 0.00046282,
+          "uCt": 0.0000142,
+          "uCq": 0.00000139,
+          "modelCq": 0.00035816043506965576,
+          "ratio": 0.7738655094197653
+        },
+        {
+          "ct": 0.0052041,
+          "cq": 0.00042102,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.0003259902606691894,
+          "ratio": 0.7742868763222398
+        },
+        {
+          "ct": 0.0049259,
+          "cq": 0.00039062,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00030255577522070917,
+          "ratio": 0.7745526988395606
+        },
+        {
+          "ct": 0.0045952,
+          "cq": 0.00035484,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00027554341808656456,
+          "ratio": 0.7765286272307648
+        },
+        {
+          "ct": 0.0042181,
+          "cq": 0.00030849,
+          "uCt": 0.0000138,
+          "uCq": 0.00000138,
+          "modelCq": 0.00024590186541154676,
+          "ratio": 0.7971145431344508
+        },
+        {
+          "ct": 0.0038218,
+          "cq": 0.00027252,
+          "uCt": 0.0000276,
+          "uCq": 0.00000273,
+          "modelCq": 0.0002161442703181441,
+          "ratio": 0.793131771312726
+        },
+        {
+          "ct": 0.0037417,
+          "cq": 0.00027731,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00021042632470266116,
+          "ratio": 0.7588126093637487
+        },
+        {
+          "ct": 0.0032896,
+          "cq": 0.00023993,
+          "uCt": 0.0000141,
+          "uCq": 0.00000139,
+          "modelCq": 0.00017887674330651634,
+          "ratio": 0.7455372121306896
+        },
+        {
+          "ct": 0.0031213,
+          "cq": 0.0002285,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.0001675150600258638,
+          "ratio": 0.733107483701811
+        },
+        {
+          "ct": 0.0030079,
+          "cq": 0.00020821,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00016031947239845832,
+          "ratio": 0.7699893011788979
+        },
+        {
+          "ct": 0.0025881,
+          "cq": 0.00018549,
+          "uCt": 0.0000139,
+          "uCq": 0.00000139,
+          "modelCq": 0.00013450987409616128,
+          "ratio": 0.725159707241152
+        },
+        {
+          "ct": 0.0024863,
+          "cq": 0.00017841,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00012845123369464636,
+          "ratio": 0.7199777685928276
+        },
+        {
+          "ct": 0.0020524,
+          "cq": 0.00014467,
+          "uCt": 0.0000276,
+          "uCq": 0.00000273,
+          "modelCq": 0.00010480979212168969,
+          "ratio": 0.724474957639384
+        },
+        {
+          "ct": 0.0020458,
+          "cq": 0.00015213,
+          "uCt": 0.0000276,
+          "uCq": 0.00000274,
+          "modelCq": 0.00010446934007143535,
+          "ratio": 0.686710971349736
+        },
+        {
+          "ct": 0.0015161,
+          "cq": 0.00012416,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00007900795538834356,
+          "ratio": 0.6363398468777671
+        },
+        {
+          "ct": 0.0010216,
+          "cq": 0.00010357,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00005908208568605753,
+          "ratio": 0.5704555922183792
+        },
+        {
+          "ct": 0.0006581,
+          "cq": 0.00009113,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00004731481753270926,
+          "ratio": 0.5192013336191075
+        },
+        {
+          "ct": 0.0002279,
+          "cq": 0.00008292,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00003712962971306504,
+          "ratio": 0.4477765281363367
+        },
+        {
+          "ct": 0.0000146,
+          "cq": 0.00007764,
+          "uCt": 0.0000275,
+          "uCq": 0.00000272,
+          "modelCq": 0.0000342505767461672,
+          "ratio": 0.4411460168233797
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-450",
+      "rotor": 1,
+      "kind": "coaxial",
+      "tipSpeedFps": 450,
+      "points": 7,
+      "used": 7,
+      "outsideModelRange": 0,
+      "meanRatio": 0.7805237759620776,
+      "minRatio": 0.7203443694402035,
+      "maxRatio": 0.8016758841656668,
+      "scatterRelative": 0.00842817248498657,
+      "scatterFrom": "r1-coaxial-450",
+      "standardError": 0.0031855497717188175,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0062624,
+          "cq": 0.00053464,
+          "uCt": 0.0000141,
+          "uCq": 0.00000139,
+          "modelCq": 0.0004201275232550714,
+          "ratio": 0.7858138621410135
+        },
+        {
+          "ct": 0.0056921,
+          "cq": 0.00045938,
+          "uCt": 0.0000142,
+          "uCq": 0.00000139,
+          "modelCq": 0.00036827386766802403,
+          "ratio": 0.8016758841656668
+        },
+        {
+          "ct": 0.0050779,
+          "cq": 0.00039395,
+          "uCt": 0.0000139,
+          "uCq": 0.00000139,
+          "modelCq": 0.00031541993732181624,
+          "ratio": 0.8006598231293723
+        },
+        {
+          "ct": 0.0045814,
+          "cq": 0.0003472,
+          "uCt": 0.0000275,
+          "uCq": 0.00000272,
+          "modelCq": 0.0002746091125963492,
+          "ratio": 0.7909248634687478
+        },
+        {
+          "ct": 0.0036383,
+          "cq": 0.00025499,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00020320961536355033,
+          "ratio": 0.7969317046297906
+        },
+        {
+          "ct": 0.0028846,
+          "cq": 0.00019891,
+          "uCt": 0.0000272,
+          "uCq": 0.00000273,
+          "modelCq": 0.00015262681059396172,
+          "ratio": 0.7673159247597492
+        },
+        {
+          "ct": 0.0020113,
+          "cq": 0.00014266,
+          "uCt": 0.0000276,
+          "uCq": 0.00000273,
+          "modelCq": 0.00010276432774433943,
+          "ratio": 0.7203443694402035
+        }
+      ]
+    },
+    {
+      "id": "r1-coaxial-327",
+      "rotor": 1,
+      "kind": "coaxial",
+      "tipSpeedFps": 327,
+      "points": 9,
+      "used": 9,
+      "outsideModelRange": 0,
+      "meanRatio": 0.6829899883621242,
+      "minRatio": 0.5614681139565134,
+      "maxRatio": 0.7616692656367458,
+      "scatterRelative": 0.01776884082437943,
+      "scatterFrom": "r1-coaxial-327",
+      "standardError": 0.00592294694145981,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0059964,
+          "cq": 0.00052525,
+          "uCt": 0.0000279,
+          "uCq": 0.00000274,
+          "modelCq": 0.00039909149531959455,
+          "ratio": 0.7598124613414461
+        },
+        {
+          "ct": 0.0056028,
+          "cq": 0.00047749,
+          "uCt": 0.0000142,
+          "uCq": 0.00000139,
+          "modelCq": 0.00036368945764888975,
+          "ratio": 0.7616692656367458
+        },
+        {
+          "ct": 0.0050309,
+          "cq": 0.00041458,
+          "uCt": 0.0000139,
+          "uCq": 0.00000139,
+          "modelCq": 0.0003145281696553976,
+          "ratio": 0.7586670115668812
+        },
+        {
+          "ct": 0.004383,
+          "cq": 0.00036286,
+          "uCt": 0.0000138,
+          "uCq": 0.00000139,
+          "modelCq": 0.0002620239261755805,
+          "ratio": 0.722107496487848
+        },
+        {
+          "ct": 0.0038341,
+          "cq": 0.00032244,
+          "uCt": 0.000014,
+          "uCq": 0.00000138,
+          "modelCq": 0.00022029944538795633,
+          "ratio": 0.6832261673116125
+        },
+        {
+          "ct": 0.0031563,
+          "cq": 0.00026661,
+          "uCt": 0.0000141,
+          "uCq": 0.00000139,
+          "modelCq": 0.0001730843481527068,
+          "ratio": 0.6492042614782145
+        },
+        {
+          "ct": 0.0026792,
+          "cq": 0.00022672,
+          "uCt": 0.0000138,
+          "uCq": 0.00000139,
+          "modelCq": 0.00014290793909126708,
+          "ratio": 0.6303278894286657
+        },
+        {
+          "ct": 0.0023075,
+          "cq": 0.00019551,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00012129972735628813,
+          "ratio": 0.6204272280511899
+        },
+        {
+          "ct": 0.0017164,
+          "cq": 0.00016136,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.000090598494868023,
+          "ratio": 0.5614681139565134
+        }
+      ]
+    },
+    {
+      "id": "r1-single-500",
+      "rotor": 1,
+      "kind": "single",
+      "tipSpeedFps": 500,
+      "points": 25,
+      "used": 15,
+      "outsideModelRange": 2,
+      "meanRatio": 0.7884282952113402,
+      "minRatio": 0.6603685385311837,
+      "maxRatio": 0.8470548101119295,
+      "scatterRelative": 0.05738110059311296,
+      "scatterFrom": "r1-single-500",
+      "standardError": 0.014815736465611934,
+      "reproduced": false,
+      "rows": [
+        {
+          "ct": 0.0034664,
+          "cq": 0.0002363,
+          "uCt": 0.0000141,
+          "uCq": 0.00000139,
+          "modelCq": 0.00019098005396661762,
+          "ratio": 0.8082101310478952
+        },
+        {
+          "ct": 0.0031057,
+          "cq": 0.00019423,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00016452345576804006,
+          "ratio": 0.8470548101119295
+        },
+        {
+          "ct": 0.0028165,
+          "cq": 0.00017483,
+          "uCt": 0.0000139,
+          "uCq": 0.00000139,
+          "modelCq": 0.00014417306243772913,
+          "ratio": 0.8246471568822806
+        },
+        {
+          "ct": 0.0026435,
+          "cq": 0.00015881,
+          "uCt": 0.0000139,
+          "uCq": 0.00000139,
+          "modelCq": 0.00013245956722912391,
+          "ratio": 0.8340757334495555
+        },
+        {
+          "ct": 0.0020617,
+          "cq": 0.00011673,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00009559674112840245,
+          "ratio": 0.8189560620954549
+        },
+        {
+          "ct": 0.0018682,
+          "cq": 0.00010647,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00008437461926723057,
+          "ratio": 0.7924731780523205
+        },
+        {
+          "ct": 0.0015356,
+          "cq": 0.00008906,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00006666704564872147,
+          "ratio": 0.7485632792355881
+        },
+        {
+          "ct": 0.0010548,
+          "cq": 0.00006803,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.000044924871676276426,
+          "ratio": 0.6603685385311837
+        },
+        {
+          "ct": 0.0007459,
+          "cq": 0.00005603,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00003354962501449849,
+          "ratio": 0.5987796718632606
+        },
+        {
+          "ct": 0.0003411,
+          "cq": 0.00004341,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.000022211067831452763,
+          "ratio": 0.5116578629682738
+        },
+        {
+          "ct": 0.0001809,
+          "cq": 0.00003578,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.000019139783014173893,
+          "ratio": 0.5349296538338147
+        },
+        {
+          "ct": -0.0000244,
+          "cq": 0.00003347,
+          "uCt": 0.0000275,
+          "uCq": 0.00000273,
+          "modelCq": null,
+          "ratio": null
+        },
+        {
+          "ct": -0.0000241,
+          "cq": 0.00004227,
+          "uCt": 0.0000275,
+          "uCq": 0.00000273,
+          "modelCq": null,
+          "ratio": null
+        },
+        {
+          "ct": 0.002197,
+          "cq": 0.00012934,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00010379634313738676,
+          "ratio": 0.8025076785015212
+        },
+        {
+          "ct": 0.0017917,
+          "cq": 0.00010347,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00008016590356081702,
+          "ratio": 0.7747743651378856
+        },
+        {
+          "ct": 0.0014141,
+          "cq": 0.00007952,
+          "uCt": 0.0000274,
+          "uCq": 0.00000272,
+          "modelCq": 0.000060757446999696536,
+          "ratio": 0.7640524019076527
+        },
+        {
+          "ct": 0.0012402,
+          "cq": 0.00007049,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00005277883242908739,
+          "ratio": 0.7487421255367767
+        },
+        {
+          "ct": 0.0009559,
+          "cq": 0.00006017,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00004105972360329564,
+          "ratio": 0.6823952734468279
+        },
+        {
+          "ct": 0.0007254,
+          "cq": 0.00004894,
+          "uCt": 0.0000274,
+          "uCq": 0.00000273,
+          "modelCq": 0.000032854712016447864,
+          "ratio": 0.6713263591427843
+        },
+        {
+          "ct": 0.0004094,
+          "cq": 0.00004092,
+          "uCt": 0.0000275,
+          "uCq": 0.00000273,
+          "modelCq": 0.000023729392327584207,
+          "ratio": 0.5798971732058702
+        },
+        {
+          "ct": 0.0000966,
+          "cq": 0.00003339,
+          "uCt": 0.0000275,
+          "uCq": 0.00000273,
+          "modelCq": 0.000017946881095329358,
+          "ratio": 0.5374926952779083
+        },
+        {
+          "ct": 0.0000283,
+          "cq": 0.00003594,
+          "uCt": 0.0000275,
+          "uCq": 0.00000273,
+          "modelCq": 0.000017245192388422655,
+          "ratio": 0.47983284330613957
+        },
+        {
+          "ct": 0.003521,
+          "cq": 0.00025173,
+          "uCt": 0.0000276,
+          "uCq": 0.00000273,
+          "modelCq": 0.00019515777068259194,
+          "ratio": 0.7752662403471654
+        },
+        {
+          "ct": 0.002969,
+          "cq": 0.00019173,
+          "uCt": 0.0000272,
+          "uCq": 0.00000273,
+          "modelCq": 0.0001547804962590932,
+          "ratio": 0.807283660663919
+        },
+        {
+          "ct": 0.0023431,
+          "cq": 0.00013773,
+          "uCt": 0.000014,
+          "uCq": 0.00000139,
+          "modelCq": 0.00011286271995231779,
+          "ratio": 0.819449066668974
+        }
+      ]
+    }
+  ],
+  "sweeps": {
+    "2|coaxial|392": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 1.1958437323112203e-8,
+        "cq": 0.00010285512162753366,
+        "thrustN": [
+          0.000005708787819743125,
+          0.009531304850906952
+        ],
+        "torqueNm": [
+          156.2624722151412,
+          156.26548252850998
+        ],
+        "unsteady": 3.533948214556009e-9,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0.12101316274183543,
+        "ct": 0.00006475522312718363,
+        "cq": 0.00010329901849748767,
+        "thrustN": [
+          29.808559921930147,
+          21.834595709573595
+        ],
+        "torqueNm": [
+          156.91974169561723,
+          156.95700138602112
+        ],
+        "unsteady": 0.00007126786165878585,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0.16599307433928606,
+        "ct": 0.00023205354168388234,
+        "cq": 0.00010622207610146264,
+        "thrustN": [
+          123.65824696783656,
+          61.40755607614986
+        ],
+        "torqueNm": [
+          161.35823318181886,
+          161.4003032073941
+        ],
+        "unsteady": 0.00005473868894823042,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0.22204536523888008,
+        "ct": 0.0005017653226858814,
+        "cq": 0.00011253384591280012,
+        "thrustN": [
+          255.88552650653963,
+          144.2790261973841
+        ],
+        "torqueNm": [
+          171.05245281349735,
+          170.88455635923046
+        ],
+        "unsteady": 0.000005107415204097521,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0.2653628171641689,
+        "ct": 0.0008420826562527533,
+        "cq": 0.00012309920587467294,
+        "thrustN": [
+          421.9913182017828,
+          249.58085805161062
+        ],
+        "torqueNm": [
+          187.23117437092282,
+          186.8089554152658
+        ],
+        "unsteady": 0.000001062493757786522,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0.3034743060683218,
+        "ct": 0.0012399952615690765,
+        "cq": 0.00013825522590578792,
+        "thrustN": [
+          613.724349412801,
+          375.18844932549325
+        ],
+        "torqueNm": [
+          210.2819395917808,
+          209.8101501537311
+        ],
+        "unsteady": 0.0000014448699222422538,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0.3353740969080417,
+        "ct": 0.0016856184934418504,
+        "cq": 0.00015821808364113987,
+        "thrustN": [
+          827.3947721320368,
+          516.9085116308597
+        ],
+        "torqueNm": [
+          240.61008209090033,
+          240.1396686532784
+        ],
+        "unsteady": 0.0000015998381211870908,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0.3622383604324143,
+        "ct": 0.0021722720779507763,
+        "cq": 0.00018317778831493592,
+        "thrustN": [
+          1059.5379068702505,
+          672.8781167050277
+        ],
+        "torqueNm": [
+          278.5134959145662,
+          278.07696485628577
+        ],
+        "unsteady": 0.000001732064954710917,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0.38679095457257984,
+        "ct": 0.0026949016672703106,
+        "cq": 0.00021352883549631042,
+        "thrustN": [
+          1306.2308225599315,
+          842.9892856594894
+        ],
+        "torqueNm": [
+          324.58016854881095,
+          324.2327362977344
+        ],
+        "unsteady": 0.0000018420979450843742,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0.405799120564405,
+        "ct": 0.0032477783517973102,
+        "cq": 0.0002491928304095849,
+        "thrustN": [
+          1567.617296378024,
+          1022.5293593137161
+        ],
+        "torqueNm": [
+          378.73956266525755,
+          378.43931574645353
+        ],
+        "unsteady": 0.000001924223127242375,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0.420709540072562,
+        "ct": 0.0038272205054998044,
+        "cq": 0.0002900406932223982,
+        "thrustN": [
+          1841.7400824373867,
+          1210.51943756836
+        ],
+        "torqueNm": [
+          440.7378249171614,
+          440.558344130076
+        ],
+        "unsteady": 0.000001991291134642725,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0.4324612190983616,
+        "ct": 0.004429845705798128,
+        "cq": 0.0003360580002655718,
+        "thrustN": [
+          2126.594701934293,
+          1406.26647201769
+        ],
+        "torqueNm": [
+          510.62623940737916,
+          510.49471065919124
+        ],
+        "unsteady": 0.000002049357119223642,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0.4418920161934201,
+        "ct": 0.005053334190619627,
+        "cq": 0.0003874350123965519,
+        "thrustN": [
+          2419.1556901373006,
+          1610.9458861052087
+        ],
+        "torqueNm": [
+          588.6638905401711,
+          588.567443475377
+        ],
+        "unsteady": 0.0000021026260027320458,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0.44825403782906315,
+        "ct": 0.005695564752365302,
+        "cq": 0.0004440204023834606,
+        "thrustN": [
+          2720.1858351534697,
+          1822.1032003084154
+        ],
+        "torqueNm": [
+          674.6205362041838,
+          674.5469729750257
+        ],
+        "unsteady": 0.000002148995846304996,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0.45971398051531964,
+        "ct": 0.0063568492918006664,
+        "cq": 0.0005059430414013797,
+        "thrustN": [
+          3024.39298475498,
+          2045.2793118444858
+        ],
+        "torqueNm": [
+          766.7903201130457,
+          770.530733853667
+        ],
+        "unsteady": 0.0000021854459142341387,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0.4632712577965363,
+        "ct": 0.007034742814699865,
+        "cq": 0.0005733988794582495,
+        "thrustN": [
+          3341.999428398117,
+          2268.3020158720374
+        ],
+        "torqueNm": [
+          869.4878912498784,
+          872.7994763372001
+        ],
+        "unsteady": 0.0000022396597229335804,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0.4672940900481188,
+        "ct": 0.007730182043700974,
+        "cq": 0.0006463793137977938,
+        "thrustN": [
+          3666.7341197460833,
+          2498.189407254821
+        ],
+        "torqueNm": [
+          980.5354679183625,
+          983.5048423587667
+        ],
+        "unsteady": 0.0000022900867009377374,
+        "flags": 2,
+        "trimIterations": 2
+      }
+    ],
+    "2|coaxial|327": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 1.1627565383572834e-8,
+        "cq": 0.00010288009931171425,
+        "thrustN": [
+          0.0000040940977728528684,
+          0.00644873456376978
+        ],
+        "torqueNm": [
+          108.76373602754134,
+          108.76552969173113
+        ],
+        "unsteady": 3.3183337856477563e-9,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0.11200535138522208,
+        "ct": 0.00006110784512438972,
+        "cq": 0.00010317876394695867,
+        "thrustN": [
+          21.633068292452144,
+          12.279314737009104
+        ],
+        "torqueNm": [
+          109.24983563215756,
+          108.91092273815124
+        ],
+        "unsteady": 0.00010356658759214099,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0.15314042246178283,
+        "ct": 0.00022616863859514758,
+        "cq": 0.00010618507632065571,
+        "thrustN": [
+          88.13673494397057,
+          37.377715570642316
+        ],
+        "torqueNm": [
+          112.43730855442809,
+          112.07998884227214
+        ],
+        "unsteady": 0.00006064537543248871,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0.22174263319726195,
+        "ct": 0.000500739496230095,
+        "cq": 0.0001125249601237384,
+        "thrustN": [
+          177.55559979911877,
+          100.33457454746011
+        ],
+        "torqueNm": [
+          119.01299726700861,
+          118.90932296862952
+        ],
+        "unsteady": 0.000005045892288446652,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0.26462152543368556,
+        "ct": 0.0008398115996481327,
+        "cq": 0.0001230332858100656,
+        "thrustN": [
+          292.7697116317355,
+          173.29177086844
+        ],
+        "torqueNm": [
+          130.2141013152378,
+          129.92698039495633
+        ],
+        "unsteady": 8.848973181735884e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0.30246109995623854,
+        "ct": 0.0012360616682537825,
+        "cq": 0.00013809479633951252,
+        "thrustN": [
+          425.66163238271025,
+          260.30261699574754
+        ],
+        "torqueNm": [
+          146.156232991412,
+          145.83084564362414
+        ],
+        "unsteady": 0.0000012105228075063514,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0.33408296320689956,
+        "ct": 0.0016797778828839764,
+        "cq": 0.0001579230163261388,
+        "thrustN": [
+          573.7144331178239,
+          358.4943750349438
+        ],
+        "torqueNm": [
+          167.11913965102133,
+          166.7926471000984
+        ],
+        "unsteady": 0.0000013401608703948258,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0.360749919150122,
+        "ct": 0.0021642538074510623,
+        "cq": 0.00018270975364413178,
+        "thrustN": [
+          734.4941014059539,
+          466.57925654782144
+        ],
+        "torqueNm": [
+          193.31281743646161,
+          193.00794641632862
+        ],
+        "unsteady": 0.0000014513269925049488,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0.38507458464474414,
+        "ct": 0.0026844010377107454,
+        "cq": 0.00021284481182316144,
+        "thrustN": [
+          905.3251792319561,
+          584.4088609309467
+        ],
+        "torqueNm": [
+          225.1421841526396,
+          224.8960247941107
+        ],
+        "unsteady": 0.000001535516231344434,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0.4037723645828246,
+        "ct": 0.0032345163655691594,
+        "cq": 0.00024823614660493087,
+        "thrustN": [
+          1086.33450901486,
+          708.6912958653434
+        ],
+        "torqueNm": [
+          262.54254032987757,
+          262.3269636962234
+        ],
+        "unsteady": 0.0000016138468553202072,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0.41849507456609036,
+        "ct": 0.0038108462898002,
+        "cq": 0.00028874953335635846,
+        "thrustN": [
+          1276.086051113439,
+          838.7795595716764
+        ],
+        "torqueNm": [
+          305.3297999305084,
+          305.20104513915817
+        ],
+        "unsteady": 0.0000016703653550742807,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0.4300399923259792,
+        "ct": 0.004410249076456842,
+        "cq": 0.0003343899466948691,
+        "thrustN": [
+          1473.1986091782614,
+          974.3113130915319
+        ],
+        "torqueNm": [
+          353.5641699209307,
+          353.4685804697126
+        ],
+        "unsteady": 0.0000017202874803527032,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0.43924695100229455,
+        "ct": 0.005030341554416302,
+        "cq": 0.00038532756051835285,
+        "thrustN": [
+          1675.6523275682894,
+          1115.9838484450831
+        ],
+        "torqueNm": [
+          407.40337454695924,
+          407.3316604431609
+        ],
+        "unsteady": 0.0000017687090570215763,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0.44538364921750173,
+        "ct": 0.0056688901449244555,
+        "cq": 0.00044142410582188353,
+        "thrustN": [
+          1883.9196888469392,
+          1262.0851371655765
+        ],
+        "torqueNm": [
+          466.70043432775157,
+          466.6449091158304
+        ],
+        "unsteady": 0.0000018100794329266028,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0.44845717042220046,
+        "ct": 0.006324101758360163,
+        "cq": 0.0005025852177733166,
+        "thrustN": [
+          2097.9443366719165,
+          1411.6764433412575
+        ],
+        "torqueNm": [
+          531.3569587948383,
+          531.307192333685
+        ],
+        "unsteady": 0.0000018434606167656704,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0.4606060061426236,
+        "ct": 0.0070005976504159155,
+        "cq": 0.000569682285960814,
+        "thrustN": [
+          2313.937563441106,
+          1571.1110847130674
+        ],
+        "torqueNm": [
+          601.0573537001518,
+          603.4765669907949
+        ],
+        "unsteady": 0.000001885634934839124,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0.4644923806552123,
+        "ct": 0.007691989909750861,
+        "cq": 0.000641988308068287,
+        "thrustN": [
+          2538.563053891691,
+          1730.1803439120893
+        ],
+        "torqueNm": [
+          677.6067313040833,
+          679.8107500313486
+        ],
+        "unsteady": 0.00000191916301958668,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0.46733464861400736,
+        "ct": 0.008399321507976027,
+        "cq": 0.0007196606529652947,
+        "thrustN": [
+          2767.8944274182886,
+          1893.3894087046087
+        ],
+        "torqueNm": [
+          759.7342210907182,
+          761.9133521074062
+        ],
+        "unsteady": 0.0000019580558386124057,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0.47414606064477954,
+        "ct": 0.009133011021816805,
+        "cq": 0.0008044566855653705,
+        "thrustN": [
+          3006.1938791792236,
+          2062.257973054964
+        ],
+        "torqueNm": [
+          849.5588247704069,
+          851.3811368330526
+        ],
+        "unsteady": 0.0000020322681566485038,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0.4886287165666645,
+        "ct": 0.009894681449383838,
+        "cq": 0.0008966242160378122,
+        "thrustN": [
+          3254.1184040485737,
+          2237.0297398596226
+        ],
+        "torqueNm": [
+          947.500919052459,
+          948.3176961806373
+        ],
+        "unsteady": 0.0000020637211131533736,
+        "flags": 2,
+        "trimIterations": 2
+      }
+    ],
+    "2|single|262": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 1.7088337664417436e-11,
+        "cq": 0.0000514800148177187,
+        "thrustN": [
+          0.000006087910201202577
+        ],
+        "torqueNm": [
+          69.8766473671741
+        ],
+        "unsteady": 0.0000011082129677264518,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00006206705709585037,
+        "cq": 0.000051927539114818766,
+        "thrustN": [
+          22.112078861829435
+        ],
+        "torqueNm": [
+          70.48409663878616
+        ],
+        "unsteady": 0.0000011259272740815618,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00021109085638963717,
+        "cq": 0.00005411418564711185,
+        "thrustN": [
+          75.20346351099661
+        ],
+        "torqueNm": [
+          73.45215189732912
+        ],
+        "unsteady": 0.0000012082692374404402,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0004155911072865411,
+        "cq": 0.00005861035294510975,
+        "thrustN": [
+          148.05895057462078
+        ],
+        "torqueNm": [
+          79.55504635034201
+        ],
+        "unsteady": 0.000001367456983314419,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0006597516395489694,
+        "cq": 0.00006561729530410096,
+        "thrustN": [
+          235.0438536391529
+        ],
+        "torqueNm": [
+          89.06595349061034
+        ],
+        "unsteady": 0.0000018241384454482408,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0009341650270338741,
+        "cq": 0.00007520473293409695,
+        "thrustN": [
+          332.8066725991001
+        ],
+        "torqueNm": [
+          102.07950838386512
+        ],
+        "unsteady": 0.0000028495110974102192,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0012326781516979813,
+        "cq": 0.00008738684009934224,
+        "thrustN": [
+          439.1552907781934
+        ],
+        "torqueNm": [
+          118.61495053805233
+        ],
+        "unsteady": 0.0000034013830164863515,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0015505795668992492,
+        "cq": 0.00010241369479895003,
+        "thrustN": [
+          552.4112029645406
+        ],
+        "torqueNm": [
+          139.0117245395017
+        ],
+        "unsteady": 0.000003821356738645248,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0018848717365836487,
+        "cq": 0.00012014144016245625,
+        "thrustN": [
+          671.5065036399371
+        ],
+        "torqueNm": [
+          163.07456557190298
+        ],
+        "unsteady": 0.000004310968394736622,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0022333708223859407,
+        "cq": 0.00014042067939688477,
+        "thrustN": [
+          795.6631761383277
+        ],
+        "torqueNm": [
+          190.60068918053904
+        ],
+        "unsteady": 0.000004860546417914763,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.0025939287292338115,
+        "cq": 0.00016323446062953102,
+        "thrustN": [
+          924.1159377462301
+        ],
+        "torqueNm": [
+          221.5670856668211
+        ],
+        "unsteady": 0.000005453777023049512,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.0029627729123675676,
+        "cq": 0.00018869118121771976,
+        "thrustN": [
+          1055.5207774986925
+        ],
+        "torqueNm": [
+          256.1208887183187
+        ],
+        "unsteady": 0.000006120179684497181,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.003340052617026656,
+        "cq": 0.0002166261381024632,
+        "thrustN": [
+          1189.930865710467
+        ],
+        "torqueNm": [
+          294.03853785283076
+        ],
+        "unsteady": 0.000006849080161620076,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0037254807512031064,
+        "cq": 0.00024694886086653716,
+        "thrustN": [
+          1327.2439227081904
+        ],
+        "torqueNm": [
+          335.19723262644516
+        ],
+        "unsteady": 0.000007627456168432935,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004121650614174895,
+        "cq": 0.00028024375543748894,
+        "thrustN": [
+          1468.3838402965246
+        ],
+        "torqueNm": [
+          380.3902192908561
+        ],
+        "unsteady": 0.000008510822952826778,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.004527255255922713,
+        "cq": 0.00031631610577875546,
+        "thrustN": [
+          1612.885003019585
+        ],
+        "torqueNm": [
+          429.3531991024647
+        ],
+        "unsteady": 0.000009446142546006907,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.004940575772621553,
+        "cq": 0.00035496457663882614,
+        "thrustN": [
+          1760.1350324023992
+        ],
+        "torqueNm": [
+          481.812888722826
+        ],
+        "unsteady": 0.000010428235605714206,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0,
+        "ct": 0.005372963206564196,
+        "cq": 0.00039753847252225224,
+        "thrustN": [
+          1914.177863836299
+        ],
+        "torqueNm": [
+          539.6007732894376
+        ],
+        "unsteady": 0.000011692909434729224,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0,
+        "ct": 0.005830755157369199,
+        "cq": 0.00044483433224498415,
+        "thrustN": [
+          2077.271337493629
+        ],
+        "torqueNm": [
+          603.7980386116741
+        ],
+        "unsteady": 0.000012955080732401698,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0,
+        "ct": 0.006299708542671219,
+        "cq": 0.0004952474220281597,
+        "thrustN": [
+          2244.341197077729
+        ],
+        "torqueNm": [
+          672.2264915673176
+        ],
+        "unsteady": 0.000014070066847889816,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0,
+        "ct": 0.006783888806677752,
+        "cq": 0.000549539473488511,
+        "thrustN": [
+          2416.835802317553
+        ],
+        "torqueNm": [
+          745.9200722975293
+        ],
+        "unsteady": 0.000014476034412403567,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "2|single|392": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 1.758884445078087e-11,
+        "cq": 0.00005142487913579323,
+        "thrustN": [
+          0.000014027338601068724
+        ],
+        "torqueNm": [
+          156.25582907440037
+        ],
+        "unsteady": 0.000001660465425823432,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00006225913825445553,
+        "cq": 0.00005187354488362317,
+        "thrustN": [
+          49.652495122915155
+        ],
+        "torqueNm": [
+          157.61911158708241
+        ],
+        "unsteady": 0.00000167667177297659,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00021208374170267208,
+        "cq": 0.00005407554383701071,
+        "thrustN": [
+          169.13961943792663
+        ],
+        "torqueNm": [
+          164.3099425262607
+        ],
+        "unsteady": 0.000001814044425008099,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.00041797144445892507,
+        "cq": 0.00005861494258028989,
+        "thrustN": [
+          333.3378150014368
+        ],
+        "torqueNm": [
+          178.1030233598683
+        ],
+        "unsteady": 0.00000205964291033478,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.000664012055785839,
+        "cq": 0.0000657011243209945,
+        "thrustN": [
+          529.558492020931
+        ],
+        "torqueNm": [
+          199.6345704001346
+        ],
+        "unsteady": 0.000002771936790880285,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.000940715885199499,
+        "cq": 0.00007540872309722905,
+        "thrustN": [
+          750.2334955092089
+        ],
+        "torqueNm": [
+          229.13136111628046
+        ],
+        "unsteady": 0.000004338196874882125,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.001241865750944876,
+        "cq": 0.00008775504872222942,
+        "thrustN": [
+          990.4045399616142
+        ],
+        "torqueNm": [
+          266.6459918385124
+        ],
+        "unsteady": 0.000005137632077895918,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0015627224712905937,
+        "cq": 0.00010297362939637793,
+        "thrustN": [
+          1246.2920646983569
+        ],
+        "torqueNm": [
+          312.88804408737377
+        ],
+        "unsteady": 0.000005782241583344341,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0019002038519242675,
+        "cq": 0.00012095536517935902,
+        "thrustN": [
+          1515.4379786577542
+        ],
+        "torqueNm": [
+          367.5260148913831
+        ],
+        "unsteady": 0.000006527779240258533,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0022521146940516932,
+        "cq": 0.000141536577913781,
+        "thrustN": [
+          1796.091581619246
+        ],
+        "torqueNm": [
+          430.0625639675866
+        ],
+        "unsteady": 0.000007360360288539705,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.0026163975540776496,
+        "cq": 0.00016469106685156783,
+        "thrustN": [
+          2086.612035033382
+        ],
+        "torqueNm": [
+          500.41807972565226
+        ],
+        "unsteady": 0.000008257414894678645,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.002989069989283276,
+        "cq": 0.00019054052633008057,
+        "thrustN": [
+          2383.8232878476347
+        ],
+        "torqueNm": [
+          578.9623336464891
+        ],
+        "unsteady": 0.000009241369115367501,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.0033703695833556292,
+        "cq": 0.00021891238975058628,
+        "thrustN": [
+          2687.9148165257902
+        ],
+        "torqueNm": [
+          665.1709777381723
+        ],
+        "unsteady": 0.000010311716803148006,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0037598659175892934,
+        "cq": 0.00024972719662529985,
+        "thrustN": [
+          2998.5433567484038
+        ],
+        "torqueNm": [
+          758.8025693656635
+        ],
+        "unsteady": 0.000011453761646463083,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004159857601987237,
+        "cq": 0.00028349751056324296,
+        "thrustN": [
+          3317.542081178789
+        ],
+        "torqueNm": [
+          861.4145465151366
+        ],
+        "unsteady": 0.000012404077175804193,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "1|coaxial|500": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 2.4837512692851215e-9,
+        "cq": 0.00003414295549349045,
+        "thrustN": [
+          4.4111432308186507e-7,
+          0.0032222148799233062
+        ],
+        "torqueNm": [
+          84.39174492630747,
+          84.39251132313336
+        ],
+        "unsteady": 5.751965427577537e-10,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0.08683378642191919,
+        "ct": 0.000049899993619723756,
+        "cq": 0.000034510828522435385,
+        "thrustN": [
+          44.61306022918126,
+          20.131954901273705
+        ],
+        "torqueNm": [
+          85.30639955179905,
+          85.29642138555548
+        ],
+        "unsteady": 0.000004499798053281268,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0.12813468349361445,
+        "ct": 0.00017955880528059965,
+        "cq": 0.00003621540909688567,
+        "thrustN": [
+          150.476009547615,
+          82.50072500361789
+        ],
+        "torqueNm": [
+          89.59464808894576,
+          89.43469488439251
+        ],
+        "unsteady": 1.3440680827673322e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0.15479325744448186,
+        "ct": 0.00035730118587170586,
+        "cq": 0.00003957684336942291,
+        "thrustN": [
+          291.00216521084684,
+          172.59450110278485
+        ],
+        "torqueNm": [
+          97.95689932612905,
+          97.68955178545173
+        ],
+        "unsteady": 3.3779754995745086e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0.1701783436093126,
+        "ct": 0.0005668339654691064,
+        "cq": 0.000044647322359801993,
+        "thrustN": [
+          455.4832159047291,
+          279.98128053123816
+        ],
+        "torqueNm": [
+          110.53786492081777,
+          110.17428459909017
+        ],
+        "unsteady": 6.024281341826404e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0.17918046062321136,
+        "ct": 0.0008002756230111026,
+        "cq": 0.00005147028226870393,
+        "thrustN": [
+          636.926729603289,
+          401.42725752148647
+        ],
+        "torqueNm": [
+          127.45028867193382,
+          126.99087454683824
+        ],
+        "unsteady": 9.273752610431554e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0.18264480894353155,
+        "ct": 0.0010523730700545985,
+        "cq": 0.00006014043525871127,
+        "thrustN": [
+          831.5384575619569,
+          533.9108224101715
+        ],
+        "torqueNm": [
+          148.92265240005565,
+          148.379045376735
+        ],
+        "unsteady": 0.0000012300948227705433,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0.1796225588152781,
+        "ct": 0.0013194712723206738,
+        "cq": 0.00007051772700660322,
+        "thrustN": [
+          1037.778571895049,
+          674.2294126944532
+        ],
+        "torqueNm": [
+          174.5824179599002,
+          174.01898261013403
+        ],
+        "unsteady": 0.000001285426382208807,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0.17313232704555598,
+        "ct": 0.0015982265589305697,
+        "cq": 0.00008255409663513099,
+        "thrustN": [
+          1252.2213391416706,
+          821.4703640418827
+        ],
+        "torqueNm": [
+          204.32770358532966,
+          203.77498109738758
+        ],
+        "unsteady": 0.0000012987660126418328,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0.1641553664830093,
+        "ct": 0.0018865848442309514,
+        "cq": 0.0000962564421603536,
+        "thrustN": [
+          1472.223034503528,
+          975.6122344347345
+        ],
+        "torqueNm": [
+          238.17608503170712,
+          237.66356513255386
+        ],
+        "unsteady": 0.0000013117805041873962,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0.14979195451503396,
+        "ct": 0.0021826800525523433,
+        "cq": 0.00011153011196997618,
+        "thrustN": [
+          1699.2682354163453,
+          1132.749221713235
+        ],
+        "torqueNm": [
+          275.9283894206881,
+          275.4160013489015
+        ],
+        "unsteady": 0.0000013245852244176683,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0.13793903429924415,
+        "ct": 0.0024879948779794004,
+        "cq": 0.0001285456913771504,
+        "thrustN": [
+          1931.5959538591135,
+          1296.5661027571643
+        ],
+        "torqueNm": [
+          317.98404391348214,
+          317.4761438663777
+        ],
+        "unsteady": 0.0000013482578506753765,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0.12801890405800093,
+        "ct": 0.0028018441223557526,
+        "cq": 0.00014724457712746075,
+        "thrustN": [
+          2169.075430325933,
+          1466.3045955387265
+        ],
+        "torqueNm": [
+          364.1559775215781,
+          363.7413609575412
+        ],
+        "unsteady": 0.0000013686923685414266,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0.1148312860381353,
+        "ct": 0.0031249992021241766,
+        "cq": 0.00016774978606674563,
+        "thrustN": [
+          2415.1690472370415,
+          1639.5032270041866
+        ],
+        "torqueNm": [
+          414.9124092243452,
+          414.35156222159696
+        ],
+        "unsteady": 0.000001393647107753994,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0.1172335013573816,
+        "ct": 0.0034658193252326036,
+        "cq": 0.00019078910899361136,
+        "thrustN": [
+          2672.9004376965563,
+          1823.9843984009035
+        ],
+        "torqueNm": [
+          471.81783741856003,
+          471.34005228575404
+        ],
+        "unsteady": 0.0000014369373941008866,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0.12468472192070573,
+        "ct": 0.0038172452897509636,
+        "cq": 0.00021580364644472634,
+        "thrustN": [
+          2938.874574006286,
+          2013.9838548352243
+        ],
+        "torqueNm": [
+          533.5452020167664,
+          533.2709953535814
+        ],
+        "unsteady": 0.0000014734902867503537,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0.12560112812582974,
+        "ct": 0.004184765486091816,
+        "cq": 0.00024328863363208021,
+        "thrustN": [
+          3219.6346211022174,
+          2210.07959329359
+        ],
+        "torqueNm": [
+          601.5789354263794,
+          601.1081334059942
+        ],
+        "unsteady": 0.0000015753532293257734,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0.1251071729146014,
+        "ct": 0.0045711415696459284,
+        "cq": 0.00027357826866772236,
+        "thrustN": [
+          3515.8631268220506,
+          2415.172300931097
+        ],
+        "torqueNm": [
+          676.4345940869753,
+          675.9880041477743
+        ],
+        "unsteady": 0.000001644564709395065,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0.13405476734152966,
+        "ct": 0.004969484653699887,
+        "cq": 0.000306115872684602,
+        "thrustN": [
+          3814.526304708043,
+          2633.357464945755
+        ],
+        "torqueNm": [
+          754.8594042708611,
+          758.4114628813832
+        ],
+        "unsteady": 0.0000016956000559698142,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0.11373631909637116,
+        "ct": 0.005369953615111517,
+        "cq": 0.00034003980664882986,
+        "thrustN": [
+          4124.407176339432,
+          2843.083250927597
+        ],
+        "torqueNm": [
+          839.0230213170679,
+          841.9493780931833
+        ],
+        "unsteady": 0.0000017056265822001222,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0.07478469481370897,
+        "ct": 0.005771646611013007,
+        "cq": 0.00037524685281752296,
+        "thrustN": [
+          4435.710328750241,
+          3052.9749353883362
+        ],
+        "torqueNm": [
+          926.2280417092968,
+          928.7889008681615
+        ],
+        "unsteady": 0.0000017606485286140737,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 10.5,
+        "differentialDeg": 0.01680039392555943,
+        "ct": 0.006168786481758943,
+        "cq": 0.0004112763423946747,
+        "thrustN": [
+          4745.578819243506,
+          3258.3936218047284
+        ],
+        "torqueNm": [
+          1016.2607481212075,
+          1016.8664516340508
+        ],
+        "unsteady": 0.0000017489000084350811,
+        "flags": 2,
+        "trimIterations": 2
+      }
+    ],
+    "1|coaxial|450": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": -2.956500897761571e-9,
+        "cq": 0.00003420438790367275,
+        "thrustN": [
+          -0.002985484727354824,
+          -0.00012171293013045383
+        ],
+        "torqueNm": [
+          68.4799533978852,
+          68.48128187299008
+        ],
+        "unsteady": 0.00001048930153041086,
+        "flags": 10,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0.09437558939181728,
+        "ct": 0.000051265892638911183,
+        "cq": 0.00003459517490428187,
+        "thrustN": [
+          34.85292163569693,
+          19.02606137654785
+        ],
+        "torqueNm": [
+          69.18567989570688,
+          69.34034512596816
+        ],
+        "unsteady": 0.000015131863655315492,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0.1277223595214288,
+        "ct": 0.00017857939383626126,
+        "cq": 0.0000362609304208519,
+        "thrustN": [
+          121.15296238478535,
+          66.5288592671381
+        ],
+        "torqueNm": [
+          72.660649267296,
+          72.5353950647435
+        ],
+        "unsteady": 1.1950666644651672e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0.1540977554073374,
+        "ct": 0.0003550154046023981,
+        "cq": 0.000039586208044581654,
+        "thrustN": [
+          234.081448584666,
+          139.029560579219
+        ],
+        "torqueNm": [
+          79.35860454176294,
+          79.15251890312527
+        ],
+        "unsteady": 3.007251707184948e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0.169118301310049,
+        "ct": 0.0005627751658236426,
+        "cq": 0.00004459448660619036,
+        "thrustN": [
+          366.19374863368574,
+          225.26681147136995
+        ],
+        "torqueNm": [
+          89.42434465363593,
+          89.14093150040746
+        ],
+        "unsteady": 5.40043404831978e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0.1779307000088951,
+        "ct": 0.0007942371553740502,
+        "cq": 0.000051333522086426735,
+        "thrustN": [
+          511.80776826275246,
+          322.91270502574787
+        ],
+        "torqueNm": [
+          102.95414786900469,
+          102.59557912366071
+        ],
+        "unsteady": 8.267610820416814e-7,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0.1809226774712508,
+        "ct": 0.0010440771902060987,
+        "cq": 0.00005989331979547119,
+        "thrustN": [
+          668.0363259674888,
+          429.2588590472369
+        ],
+        "torqueNm": [
+          120.12553900054387,
+          119.69933628920039
+        ],
+        "unsteady": 0.0000011064588789393477,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0.17764724334034143,
+        "ct": 0.0013087401960063874,
+        "cq": 0.00007013205552419566,
+        "thrustN": [
+          833.4928065062212,
+          541.9556076223118
+        ],
+        "torqueNm": [
+          140.62802766380332,
+          140.1948007780907
+        ],
+        "unsteady": 0.0000011595604121494946,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0.17103131067031366,
+        "ct": 0.0015847493773144443,
+        "cq": 0.00008200640964181079,
+        "thrustN": [
+          1005.4003197043701,
+          660.125828599112
+        ],
+        "torqueNm": [
+          164.4013334091921,
+          163.9687925414354
+        ],
+        "unsteady": 0.000001179123210680285,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0.16180209410777285,
+        "ct": 0.001870290236920009,
+        "cq": 0.00009552103095182378,
+        "thrustN": [
+          1181.8329133043567,
+          783.7884896947994
+        ],
+        "torqueNm": [
+          191.44339521562338,
+          191.04198734146783
+        ],
+        "unsteady": 0.0000011879381137701782,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0.14716165272988949,
+        "ct": 0.0021634851252434447,
+        "cq": 0.00011058167319239266,
+        "thrustN": [
+          1363.9284198417567,
+          909.8324025138252
+        ],
+        "torqueNm": [
+          221.6003171635922,
+          221.1909001462732
+        ],
+        "unsteady": 0.0000012102662021285083,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0.1357854027504662,
+        "ct": 0.002466048998993455,
+        "cq": 0.00012737982360809037,
+        "thrustN": [
+          1550.2438129147256,
+          1041.5029637717766
+        ],
+        "torqueNm": [
+          255.22579758815743,
+          254.82858598517262
+        ],
+        "unsteady": 0.0000012241057854499464,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0.12594231869020284,
+        "ct": 0.0027770406809309537,
+        "cq": 0.00014582868849593843,
+        "thrustN": [
+          1740.8540914600353,
+          1177.7360242321397
+        ],
+        "torqueNm": [
+          292.125790081105,
+          291.8015518545498
+        ],
+        "unsteady": 0.0000012445411112200865,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0.11312884874094406,
+        "ct": 0.0030975707114678313,
+        "cq": 0.00016608729837309878,
+        "thrustN": [
+          1938.6138286151656,
+          1316.8441569061965
+        ],
+        "torqueNm": [
+          332.7468463397968,
+          332.30003617451274
+        ],
+        "unsteady": 0.0000012802362531675685,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0.11661426726730402,
+        "ct": 0.003435688174109953,
+        "cq": 0.0001888549247028208,
+        "thrustN": [
+          2145.727469440009,
+          1465.0822726351769
+        ],
+        "torqueNm": [
+          378.2911469963115,
+          377.92188161281285
+        ],
+        "unsteady": 0.0000012349880974776482,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0.12422259643651784,
+        "ct": 0.0037841366572919487,
+        "cq": 0.00021354188542342737,
+        "thrustN": [
+          2359.500537961004,
+          1617.5185669515963
+        ],
+        "torqueNm": [
+          427.6536835451155,
+          427.4108913369848
+        ],
+        "unsteady": 0.0000013419979342086735,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0.12481116922571721,
+        "ct": 0.004149542715717634,
+        "cq": 0.00024075522682700826,
+        "thrustN": [
+          2585.823491483004,
+          1775.2269015593897
+        ],
+        "torqueNm": [
+          482.2135761862165,
+          481.8186803647589
+        ],
+        "unsteady": 0.000001438465339250181,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0.12451438842382284,
+        "ct": 0.00453283826768802,
+        "cq": 0.00027066157571529613,
+        "thrustN": [
+          2823.9128972701437,
+          1939.9701284388075
+        ],
+        "torqueNm": [
+          542.0659900090437,
+          541.717290732707
+        ],
+        "unsteady": 0.0000014895650909883503,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0.13263353640656977,
+        "ct": 0.004927451464000469,
+        "cq": 0.00030273930589563706,
+        "thrustN": [
+          3063.8938560379443,
+          2114.7163218261344
+        ],
+        "torqueNm": [
+          604.7554201871811,
+          607.4735312859568
+        ],
+        "unsteady": 0.0000015334284914818107,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0.11106759692046869,
+        "ct": 0.0053238893998938525,
+        "cq": 0.00033615327908601055,
+        "thrustN": [
+          3312.279556569764,
+          2282.9755222441513
+        ],
+        "torqueNm": [
+          671.8458300457115,
+          674.1793773687881
+        ],
+        "unsteady": 0.000001559899595010153,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0.07101553528369126,
+        "ct": 0.0057218056146880435,
+        "cq": 0.0003708652157381105,
+        "thrustN": [
+          3562.1659888698423,
+          2451.287619473596
+        ],
+        "torqueNm": [
+          741.5245079301053,
+          743.4942616300578
+        ],
+        "unsteady": 0.0000015708700011050084,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 10.5,
+        "differentialDeg": 0,
+        "ct": 0.006112077710052552,
+        "cq": 0.0004061028379977416,
+        "thrustN": [
+          3814.495920627205,
+          2609.1224666070584
+        ],
+        "torqueNm": [
+          814.592618495997,
+          811.5246638157182
+        ],
+        "unsteady": 0.000001546007564183695,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 11,
+        "differentialDeg": -0.07598951979271196,
+        "ct": 0.006489098693281299,
+        "cq": 0.0004412779316384831,
+        "thrustN": [
+          4048.16507497765,
+          2771.691551947222
+        ],
+        "torqueNm": [
+          884.719993898228,
+          882.2454239250568
+        ],
+        "unsteady": 0.0000015153899376022698,
+        "flags": 2,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 11.5,
+        "differentialDeg": -0.15089080356787682,
+        "ct": 0.006854857368007982,
+        "cq": 0.0004764825910328438,
+        "thrustN": [
+          4269.348877300356,
+          2934.9096260497463
+        ],
+        "torqueNm": [
+          953.6285696089,
+          954.3033709332169
+        ],
+        "unsteady": 0.0000014925407148567639,
+        "flags": 2,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 12,
+        "differentialDeg": -0.23787988666519896,
+        "ct": 0.0072100836459290385,
+        "cq": 0.0005117109246048179,
+        "thrustN": [
+          4485.656328987618,
+          3091.9348036668634
+        ],
+        "torqueNm": [
+          1023.675397745097,
+          1025.317861625661
+        ],
+        "unsteady": 0.0000014822789257755028,
+        "flags": 2,
+        "trimIterations": 3
+      }
+    ],
+    "1|coaxial|327": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 2.436689600208203e-9,
+        "cq": 0.000036066020821699714,
+        "thrustN": [
+          -7.165517494301679e-7,
+          0.0013529807595456867
+        ],
+        "torqueNm": [
+          38.12866177776459,
+          38.12918672258535
+        ],
+        "unsteady": 6.660233475841437e-10,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0.07695139643209697,
+        "ct": 0.00004705389928509433,
+        "cq": 0.00003638021124706262,
+        "thrustN": [
+          19.49691523452601,
+          6.616096365123499
+        ],
+        "torqueNm": [
+          38.53817066706054,
+          38.384000689767646
+        ],
+        "unsteady": 0.000034339419997087006,
+        "flags": 0,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0.12738860905203117,
+        "ct": 0.00017561219334398005,
+        "cq": 0.00003808835969945263,
+        "thrustN": [
+          62.86477665672945,
+          34.592890288730416
+        ],
+        "torqueNm": [
+          40.295749417974946,
+          40.2381242205843
+        ],
+        "unsteady": 0.000001794531125251134,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0.15327414761203342,
+        "ct": 0.0003484700928218601,
+        "cq": 0.0000413257112371168,
+        "thrustN": [
+          121.21272385967877,
+          72.17408830131996
+        ],
+        "torqueNm": [
+          43.73467534603346,
+          43.64424128762872
+        ],
+        "unsteady": 2.1377140521309036e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0.16751924480680458,
+        "ct": 0.0005514766578182009,
+        "cq": 0.000046180338697795106,
+        "thrustN": [
+          189.39301387508138,
+          116.65423389010506
+        ],
+        "torqueNm": [
+          48.885538300311346,
+          48.75798299408558
+        ],
+        "unsteady": 3.832258134292418e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0.17673157428678146,
+        "ct": 0.0007778196643774699,
+        "cq": 0.00005273382574617761,
+        "thrustN": [
+          264.2974778250609,
+          167.36098707170953
+        ],
+        "torqueNm": [
+          55.83319061168415,
+          55.66699718199208
+        ],
+        "unsteady": 5.873150178776328e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0.17971025610241892,
+        "ct": 0.0010220723743657345,
+        "cq": 0.0000611032577538797,
+        "thrustN": [
+          344.7273390370529,
+          222.48150426807527
+        ],
+        "torqueNm": [
+          64.69831876950217,
+          64.49816219794242
+        ],
+        "unsteady": 7.99537289820683e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0.17662280596704766,
+        "ct": 0.0012805077039802042,
+        "cq": 0.00007110204671594792,
+        "thrustN": [
+          429.8525643239638,
+          280.77743784852686
+        ],
+        "torqueNm": [
+          75.26931419370787,
+          75.06856569911925
+        ],
+        "unsteady": 8.280649048714384e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0.17392841527994493,
+        "ct": 0.00155191522056478,
+        "cq": 0.00008279398369912463,
+        "thrustN": [
+          518.7999490989008,
+          342.45025121661723
+        ],
+        "torqueNm": [
+          87.63439977089347,
+          87.4248643724612
+        ],
+        "unsteady": 8.631352245244426e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0.17156191210436045,
+        "ct": 0.0018363831362318056,
+        "cq": 0.00009629148196394681,
+        "thrustN": [
+          611.5074581073212,
+          407.61093378114236
+        ],
+        "torqueNm": [
+          101.90128895583493,
+          101.69703090619767
+        ],
+        "unsteady": 8.892075982617531e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0.16180450197501525,
+        "ct": 0.002132169458265493,
+        "cq": 0.00011153664870383698,
+        "thrustN": [
+          708.5890510283742,
+          474.67879033769265
+        ],
+        "torqueNm": [
+          118.03377449408897,
+          117.79886423864697
+        ],
+        "unsteady": 9.17214115162591e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0.15926015623076686,
+        "ct": 0.002442022499842173,
+        "cq": 0.00012879045734258009,
+        "thrustN": [
+          809.5036128016518,
+          545.720138640657
+        ],
+        "torqueNm": [
+          136.27207765719325,
+          136.04194424976373
+        ],
+        "unsteady": 9.522727032208907e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0.15978427415273927,
+        "ct": 0.0027640457659123675,
+        "cq": 0.00014795820124060313,
+        "thrustN": [
+          914.051438313111,
+          619.8822057267957
+        ],
+        "torqueNm": [
+          156.5092477924316,
+          156.33297425601688
+        ],
+        "unsteady": 9.78037170711735e-7,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0.15206125964251715,
+        "ct": 0.0030990252566632757,
+        "cq": 0.00016921885155090288,
+        "thrustN": [
+          1023.7577400598437,
+          696.0759774267376
+        ],
+        "torqueNm": [
+          179.02321534382364,
+          178.77243969581158
+        ],
+        "unsteady": 0.0000010136322108988378,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0.15054690552229683,
+        "ct": 0.003448609271897984,
+        "cq": 0.00019281242428836963,
+        "thrustN": [
+          1137.5948625370338,
+          776.2438489847034
+        ],
+        "torqueNm": [
+          203.95193071022013,
+          203.72987905902184
+        ],
+        "unsteady": 0.0000010162278123390192,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0.14993746406303152,
+        "ct": 0.0038088668937170654,
+        "cq": 0.00021841413005753074,
+        "thrustN": [
+          1254.929312931172,
+          858.8378127195955
+        ],
+        "torqueNm": [
+          230.99277582565685,
+          230.82117702981475
+        ],
+        "unsteady": 0.0000010609895494662306,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0.14107158025047012,
+        "ct": 0.004178939906320202,
+        "cq": 0.00024606448416828635,
+        "thrustN": [
+          1376.0275533245358,
+          943.1151314760768
+        ],
+        "torqueNm": [
+          260.22680779942294,
+          260.05094190579393
+        ],
+        "unsteady": 0.0000011041247617637157,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0.12303101232303491,
+        "ct": 0.004555989297885022,
+        "cq": 0.0002755533361532643,
+        "thrustN": [
+          1499.6578540183386,
+          1028.731998168134
+        ],
+        "torqueNm": [
+          291.4000570478076,
+          291.228801969396
+        ],
+        "unsteady": 0.000001130972246530626,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0.10916249784469478,
+        "ct": 0.004939474547635387,
+        "cq": 0.0003068012551964676,
+        "thrustN": [
+          1622.6803590096847,
+          1118.528301609251
+        ],
+        "torqueNm": [
+          323.692502262629,
+          325.00683033097147
+        ],
+        "unsteady": 0.0000011458447117264326,
+        "flags": 0,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0.0664985640108785,
+        "ct": 0.005316348020229246,
+        "cq": 0.0003386530974269995,
+        "thrustN": [
+          1747.2581605305259,
+          1203.1000394906494
+        ],
+        "torqueNm": [
+          357.5804694165148,
+          358.4662694879896
+        ],
+        "unsteady": 0.0000011399839425936126,
+        "flags": 0,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0,
+        "ct": 0.005686739911764822,
+        "cq": 0.00037102593990891684,
+        "thrustN": [
+          1872.9472700188728,
+          1282.9634539585134
+        ],
+        "torqueNm": [
+          392.98448153439,
+          391.51126449635893
+        ],
+        "unsteady": 0.0000011321898002439637,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10.5,
+        "differentialDeg": -0.062294742550997095,
+        "ct": 0.006049986371649807,
+        "cq": 0.0004039482118934548,
+        "thrustN": [
+          1990.6067753488646,
+          1366.891046849512
+        ],
+        "torqueNm": [
+          427.5115517820488,
+          426.59491287670926
+        ],
+        "unsteady": 0.000001098593787537127,
+        "flags": 0,
+        "trimIterations": 2
+      },
+      {
+        "collectiveDeg": 11,
+        "differentialDeg": -0.13505382946746375,
+        "ct": 0.006403055390504604,
+        "cq": 0.0004370182313129722,
+        "thrustN": [
+          2103.261260368379,
+          1450.1755917562318
+        ],
+        "torqueNm": [
+          461.8329444008811,
+          462.1966354581089
+        ],
+        "unsteady": 0.0000010746285953400394,
+        "flags": 0,
+        "trimIterations": 3
+      },
+      {
+        "collectiveDeg": 11.5,
+        "differentialDeg": -0.21639306975902772,
+        "ct": 0.006745502800978034,
+        "cq": 0.0004701458251786854,
+        "thrustN": [
+          2213.3396599344787,
+          1530.1416588980053
+        ],
+        "torqueNm": [
+          496.75069355547237,
+          497.32373666951804
+        ],
+        "unsteady": 0.000001053208476033192,
+        "flags": 0,
+        "trimIterations": 3
+      }
+    ],
+    "1|single|500": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 3.085641239435594e-12,
+        "cq": 0.00001707107099727833,
+        "thrustN": [
+          0.000004003605498020889
+        ],
+        "torqueNm": [
+          84.39011738497524
+        ],
+        "unsteady": 6.994339531996019e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.000047360233569043386,
+        "cq": 0.000017362464287590024,
+        "thrustN": [
+          61.44968802001442
+        ],
+        "torqueNm": [
+          85.83060779016769
+        ],
+        "unsteady": 7.214853923187547e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00014338481815166432,
+        "cq": 0.00001850216061951636,
+        "thrustN": [
+          186.0411505247304
+        ],
+        "torqueNm": [
+          91.46464839980236
+        ],
+        "unsteady": 8.003835674230686e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.00026330641428406885,
+        "cq": 0.000020540393983444176,
+        "thrustN": [
+          341.6388770178684
+        ],
+        "torqueNm": [
+          101.54056882080997
+        ],
+        "unsteady": 9.225968333748114e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0003984070580378583,
+        "cq": 0.000023441778593645507,
+        "thrustN": [
+          516.9313488905641
+        ],
+        "torqueNm": [
+          115.88344091878007
+        ],
+        "unsteady": 0.00000107247701897073,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0005441154918548934,
+        "cq": 0.00002725401983541703,
+        "thrustN": [
+          705.9873802253301
+        ],
+        "torqueNm": [
+          134.72909424936975
+        ],
+        "unsteady": 0.0000012589081955782788,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0006978403453432741,
+        "cq": 0.00003192048946802126,
+        "thrustN": [
+          905.4446797137754
+        ],
+        "torqueNm": [
+          157.79758950113566
+        ],
+        "unsteady": 0.0000017001298513543221,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0008580200001913409,
+        "cq": 0.00003735029064739612,
+        "thrustN": [
+          1113.2770547000775
+        ],
+        "torqueNm": [
+          184.63958197243323
+        ],
+        "unsteady": 0.000002328451421062196,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0010223352690503693,
+        "cq": 0.00004357747163079093,
+        "thrustN": [
+          1326.475370146755
+        ],
+        "torqueNm": [
+          215.4233877859243
+        ],
+        "unsteady": 0.0000029715620604010685,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0011900789617955414,
+        "cq": 0.000050539422419337985,
+        "thrustN": [
+          1544.1220500984477
+        ],
+        "torqueNm": [
+          249.83949706441567
+        ],
+        "unsteady": 0.0000032835917135688518,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.0013613657294710023,
+        "cq": 0.00005819252211183251,
+        "thrustN": [
+          1766.3658537989522
+        ],
+        "torqueNm": [
+          287.6722717343526
+        ],
+        "unsteady": 0.0000036307951251801517,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.0015377586299140185,
+        "cq": 0.00006677203854109701,
+        "thrustN": [
+          1995.2348417593905
+        ],
+        "torqueNm": [
+          330.08474838824156
+        ],
+        "unsteady": 0.0000040565641350097784,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.0017181600730811725,
+        "cq": 0.00007612003891412715,
+        "thrustN": [
+          2229.3048958960285
+        ],
+        "torqueNm": [
+          376.29619294881223
+        ],
+        "unsteady": 0.000004480849267600732,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0019059325233645565,
+        "cq": 0.00008645050768196293,
+        "thrustN": [
+          2472.938798702517
+        ],
+        "torqueNm": [
+          427.36442853833256
+        ],
+        "unsteady": 0.000005058267697490435,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.00210808288592689,
+        "cq": 0.00009832021532064199,
+        "thrustN": [
+          2735.2279778682446
+        ],
+        "torqueNm": [
+          486.0418264721281
+        ],
+        "unsteady": 0.000005687627258969609,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.002317716366408109,
+        "cq": 0.00011123088775700021,
+        "thrustN": [
+          3007.226469045258
+        ],
+        "torqueNm": [
+          549.8651899579932
+        ],
+        "unsteady": 0.000006259867707482279,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.0025376668406962483,
+        "cq": 0.00012537079660887636,
+        "thrustN": [
+          3292.6112137477753
+        ],
+        "torqueNm": [
+          619.7652318622464
+        ],
+        "unsteady": 0.0000070235312064634825,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0,
+        "ct": 0.0027676521064082674,
+        "cq": 0.00014077535228305808,
+        "thrustN": [
+          3591.0160556367737
+        ],
+        "torqueNm": [
+          695.9170020435381
+        ],
+        "unsteady": 0.00000777535694895713,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0,
+        "ct": 0.0030018110921655357,
+        "cq": 0.00015706273552960204,
+        "thrustN": [
+          3894.8362811389275
+        ],
+        "torqueNm": [
+          776.4329931892972
+        ],
+        "unsteady": 0.000008471333956894574,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0,
+        "ct": 0.0032292202320647694,
+        "cq": 0.00017339398790117768,
+        "thrustN": [
+          4189.898613023874
+        ],
+        "torqueNm": [
+          857.1658496939413
+        ],
+        "unsteady": 0.000009153082128628175,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0,
+        "ct": 0.0034512939246930216,
+        "cq": 0.0001898242132464211,
+        "thrustN": [
+          4478.038227484855
+        ],
+        "torqueNm": [
+          938.3879752047379
+        ],
+        "unsteady": 0.000009957026938363476,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10.5,
+        "differentialDeg": 0,
+        "ct": 0.0036637471306237,
+        "cq": 0.0002060800614108704,
+        "thrustN": [
+          4753.695304537959
+        ],
+        "torqueNm": [
+          1018.7480746415296
+        ],
+        "unsteady": 0.00001064125500551082,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 11,
+        "differentialDeg": 0,
+        "ct": 0.0038607422869206785,
+        "cq": 0.00022163117670786846,
+        "thrustN": [
+          5009.295633013809
+        ],
+        "torqueNm": [
+          1095.6243571479788
+        ],
+        "unsteady": 0.000011311215659163208,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 11.5,
+        "differentialDeg": 0,
+        "ct": 0.0040484449286142185,
+        "cq": 0.00023690563699829136,
+        "thrustN": [
+          5252.838967010253
+        ],
+        "torqueNm": [
+          1171.1330076184256
+        ],
+        "unsteady": 0.000011970503331689466,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "2|single|327": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 1.7300097455989425e-11,
+        "cq": 0.00005143765279432243,
+        "thrustN": [
+          0.000009600854611375009
+        ],
+        "torqueNm": [
+          108.7595649652166
+        ],
+        "unsteady": 0.0000013848063412646994,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00006213966125277061,
+        "cq": 0.00005188557611567438,
+        "thrustN": [
+          34.48499956764353
+        ],
+        "torqueNm": [
+          109.70665222407978
+        ],
+        "unsteady": 0.0000014022787649947688,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00021147541852743857,
+        "cq": 0.000054077940224091954,
+        "thrustN": [
+          117.36030692146251
+        ],
+        "torqueNm": [
+          114.3421780273255
+        ],
+        "unsteady": 0.0000015102879599160346,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0004165264078768,
+        "cq": 0.00005859049184724657,
+        "thrustN": [
+          231.15531541024123
+        ],
+        "torqueNm": [
+          123.88349892777954
+        ],
+        "unsteady": 0.0000017106039612579949,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0006614423653437176,
+        "cq": 0.00006562774758610442,
+        "thrustN": [
+          367.07376940658264
+        ],
+        "torqueNm": [
+          138.76304400113085
+        ],
+        "unsteady": 0.0000022817107417347223,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0009367831249172278,
+        "cq": 0.00007526138697200186,
+        "thrustN": [
+          519.8767584762935
+        ],
+        "torqueNm": [
+          159.13237216180246
+        ],
+        "unsteady": 0.0000035641146972596784,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0012363694832042051,
+        "cq": 0.00008750681128250736,
+        "thrustN": [
+          686.1350745986248
+        ],
+        "torqueNm": [
+          185.0240478141039
+        ],
+        "unsteady": 0.000004245397272329781,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0015554774449313548,
+        "cq": 0.00010260789777746519,
+        "thrustN": [
+          863.2270914407156
+        ],
+        "torqueNm": [
+          216.95372406004796
+        ],
+        "unsteady": 0.000004772716371079814,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.001891075086041124,
+        "cq": 0.0001204336937935735,
+        "thrustN": [
+          1049.4702137791592
+        ],
+        "torqueNm": [
+          254.6445151284257
+        ],
+        "unsteady": 0.000005387997650083126,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0022409713574726266,
+        "cq": 0.00014082895817315867,
+        "thrustN": [
+          1243.6484980386704
+        ],
+        "torqueNm": [
+          297.7681797605899
+        ],
+        "unsteady": 0.0000060673016676354345,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.002603056903114248,
+        "cq": 0.0001637726945051156,
+        "thrustN": [
+          1444.5913369502343
+        ],
+        "torqueNm": [
+          346.28032325410925
+        ],
+        "unsteady": 0.00000681750926304374,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.0029734664179915425,
+        "cq": 0.00018937939740414807,
+        "thrustN": [
+          1650.1536426319135
+        ],
+        "torqueNm": [
+          400.4230325894449
+        ],
+        "unsteady": 0.000007648661231334742,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.003352377635204467,
+        "cq": 0.00021748177668410985,
+        "thrustN": [
+          1860.4340498866104
+        ],
+        "torqueNm": [
+          459.8425901111024
+        ],
+        "unsteady": 0.000008542835633684299,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0037394511701372636,
+        "cq": 0.00024799135548149264,
+        "thrustN": [
+          2075.2442141144584
+        ],
+        "torqueNm": [
+          524.3519207432153
+        ],
+        "unsteady": 0.000009507104792464781,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004137089528432178,
+        "cq": 0.0002814608697412266,
+        "thrustN": [
+          2295.917429170445
+        ],
+        "torqueNm": [
+          595.1197272439671
+        ],
+        "unsteady": 0.000010596633394972119,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.004544252744060494,
+        "cq": 0.0003177459214244011,
+        "thrustN": [
+          2521.8765559828853
+        ],
+        "torqueNm": [
+          671.8406950159251
+        ],
+        "unsteady": 0.000011710756262380618,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.004959142434386535,
+        "cq": 0.0003566148934762627,
+        "thrustN": [
+          2752.123565198388
+        ],
+        "torqueNm": [
+          754.0250940024735
+        ],
+        "unsteady": 0.000012850720378410912,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ]
+  },
+  "sweepsWakesOff": {
+    "2|coaxial|392": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 6.236526986037726e-13,
+        "cq": 0.00010285305933378975,
+        "thrustN": [
+          1.8805358862992865e-7,
+          3.0931777618212166e-7
+        ],
+        "torqueNm": [
+          156.26121241209358,
+          156.2604759986058
+        ],
+        "unsteady": 5.488810517206844e-10,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00012452240199748013,
+        "cq": 0.000103750361080091,
+        "thrustN": [
+          49.65414017367841,
+          49.654140171829724
+        ],
+        "torqueNm": [
+          157.62408151981336,
+          157.62408151975683
+        ],
+        "unsteady": 1.1617948198417745e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00042418228916955885,
+        "cq": 0.00010815469457586516,
+        "thrustN": [
+          169.14552329240576,
+          169.14552325724327
+        ],
+        "torqueNm": [
+          164.3154223004376,
+          164.3154222992385
+        ],
+        "unsteady": 6.655624579637548e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0008359721522658608,
+        "cq": 0.00011723411958336388,
+        "thrustN": [
+          333.3494838879909,
+          333.3494837490346
+        ],
+        "torqueNm": [
+          178.10945649047187,
+          178.10945648465838
+        ],
+        "unsteady": 0.000001565763298525741,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0013280745247650494,
+        "cq": 0.00013140755590508157,
+        "thrustN": [
+          529.578594518468,
+          529.5785941753933
+        ],
+        "torqueNm": [
+          199.64263343415615,
+          199.64263341770726
+        ],
+        "unsteady": 0.000002059203642650752,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0018815140185290977,
+        "cq": 0.00015082444413495202,
+        "thrustN": [
+          750.2662923388641,
+          750.2662916635672
+        ],
+        "torqueNm": [
+          229.1419926927438,
+          229.14199265830132
+        ],
+        "unsteady": 0.0000021951869757117254,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0024838601668515188,
+        "cq": 0.00017551961979596126,
+        "thrustN": [
+          990.455845663947,
+          990.4558445186229
+        ],
+        "torqueNm": [
+          266.6604585868067,
+          266.6604585262882
+        ],
+        "unsteady": 0.0000023068395995909044,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.003125640548375165,
+        "cq": 0.00020596049147799547,
+        "thrustN": [
+          1246.3700631760037,
+          1246.3700614129257
+        ],
+        "torqueNm": [
+          312.90814768438946,
+          312.9081475835651
+        ],
+        "unsteady": 0.000002390266392460572,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0038006945890770717,
+        "cq": 0.00024192915002165026,
+        "thrustN": [
+          1515.5523747786099,
+          1515.552372256216
+        ],
+        "torqueNm": [
+          367.55399865870857,
+          367.5539985141905
+        ],
+        "unsteady": 0.0000024600321302722656,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.004504637039867353,
+        "cq": 0.0002830986115503096,
+        "thrustN": [
+          1796.2541330669087,
+          1796.2541296684428
+        ],
+        "torqueNm": [
+          430.10123701336335,
+          430.10123682382505
+        ],
+        "unsteady": 0.0000024924137687542032,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.005233356984922616,
+        "cq": 0.000329416858595028,
+        "thrustN": [
+          2086.836082909134,
+          2086.836078458106
+        ],
+        "torqueNm": [
+          500.4708345368864,
+          500.47083429737376
+        ],
+        "unsteady": 0.00000251851466995854,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.005978894412425505,
+        "cq": 0.00038112779891744857,
+        "thrustN": [
+          2384.124116339798,
+          2384.1241107236788
+        ],
+        "torqueNm": [
+          579.0333512536819,
+          579.0333509649648
+        ],
+        "unsteady": 0.0000025422468796743165,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.00674172879001063,
+        "cq": 0.00043788674171312187,
+        "thrustN": [
+          2688.309424288661,
+          2688.3094173258833
+        ],
+        "torqueNm": [
+          665.2651111781526,
+          665.265110848182
+        ],
+        "unsteady": 0.0000025654670822199254,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0075210043968270265,
+        "cq": 0.000499535220022796,
+        "thrustN": [
+          2999.050782273228,
+          2999.050773893427
+        ],
+        "torqueNm": [
+          758.9253613169305,
+          758.9253609644276
+        ],
+        "unsteady": 0.0000025914017848847,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.008321325540374321,
+        "cq": 0.0005670995175814228,
+        "thrustN": [
+          3318.1841892166135,
+          3318.184178749556
+        ],
+        "torqueNm": [
+          861.5732966601059,
+          861.5732961874467
+        ],
+        "unsteady": 0.000002655500460989134,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "2|coaxial|327": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 9.83139642025408e-13,
+        "cq": 0.00010287807144765447,
+        "thrustN": [
+          2.817264247695865e-7,
+          2.638763262004874e-7
+        ],
+        "torqueNm": [
+          108.7624890058611,
+          108.76248900587252
+        ],
+        "unsteady": 1.6124523938287894e-10,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00012428297901659755,
+        "cq": 0.00010377388101714006,
+        "thrustN": [
+          34.4860138116619,
+          34.48601452658485
+        ],
+        "torqueNm": [
+          109.7095370598708,
+          109.7095370810889
+        ],
+        "unsteady": 1.0026067582478449e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.0004229628563639254,
+        "cq": 0.0001081588846954862,
+        "thrustN": [
+          117.36364202017177,
+          117.3636420058478
+        ],
+        "torqueNm": [
+          114.34535408862753,
+          114.34535408812259
+        ],
+        "unsteady": 5.592323225587884e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0008330765306448623,
+        "cq": 0.00011718450055728802,
+        "thrustN": [
+          231.1618957872073,
+          231.1618957306487
+        ],
+        "torqueNm": [
+          123.88721692010513,
+          123.88721691780388
+        ],
+        "unsteady": 0.0000013000816716076002,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0013229253326135528,
+        "cq": 0.00013125988344056403,
+        "thrustN": [
+          367.0850355838371,
+          367.08503544421023
+        ],
+        "torqueNm": [
+          138.76768323258284,
+          138.76768322620558
+        ],
+        "unsteady": 0.000001725248787215855,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0018736327206904236,
+        "cq": 0.00015052853852613903,
+        "thrustN": [
+          519.8952027387713,
+          519.8952024614414
+        ],
+        "torqueNm": [
+          159.13846641327433,
+          159.1384664001315
+        ],
+        "unsteady": 0.0000018482735443246564,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.002472842970174805,
+        "cq": 0.00017502143315163688,
+        "thrustN": [
+          686.1639334290367,
+          686.1639329654589
+        ],
+        "torqueNm": [
+          185.03230506917265,
+          185.03230504625492
+        ],
+        "unsteady": 0.0000019420250467644568,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.003111112751968199,
+        "cq": 0.00020522660247080992,
+        "thrustN": [
+          863.2708947452924,
+          863.2708940392516
+        ],
+        "torqueNm": [
+          216.9651489802044,
+          216.96514894184335
+        ],
+        "unsteady": 0.000002011826317326872,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.00378238154133718,
+        "cq": 0.00024088237833662284,
+        "thrustN": [
+          1049.5344136015892,
+          1049.534412565625
+        ],
+        "torqueNm": [
+          254.66036310591508,
+          254.6603630522776
+        ],
+        "unsteady": 0.0000020702973611886507,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0044822714132801604,
+        "cq": 0.0002816785616388472,
+        "thrustN": [
+          1243.739704289324,
+          1243.7397028845126
+        ],
+        "torqueNm": [
+          297.7900055754387,
+          297.79000550508397
+        ],
+        "unsteady": 0.0000021131425737040774,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.005206566816813845,
+        "cq": 0.0003275734906242094,
+        "thrustN": [
+          1444.7170366292441,
+          1444.7170348268614
+        ],
+        "torqueNm": [
+          346.3100316677491,
+          346.31003158008235
+        ],
+        "unsteady": 0.0000021239169038238926,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.005947541131209308,
+        "cq": 0.0003787965298568554,
+        "thrustN": [
+          1650.322429584144,
+          1650.3224273091068
+        ],
+        "torqueNm": [
+          400.4629251330139,
+          400.462925029236
+        ],
+        "unsteady": 0.00000214169956222457,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.006705554730204904,
+        "cq": 0.00043501350723015105,
+        "thrustN": [
+          1860.6558795727753,
+          1860.6558767538786
+        ],
+        "torqueNm": [
+          459.89539989351647,
+          459.8953997768651
+        ],
+        "unsteady": 0.000002163394406349523,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.007479930383198045,
+        "cq": 0.0004960477777242152,
+        "thrustN": [
+          2075.5294687611663,
+          2075.5294653802093
+        ],
+        "torqueNm": [
+          524.4207071876023,
+          524.4207070658133
+        ],
+        "unsteady": 0.0000021863759285448424,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.008275484087441796,
+        "cq": 0.0005630059066667331,
+        "thrustN": [
+          2296.279539225904,
+          2296.279535038913
+        ],
+        "torqueNm": [
+          595.2087056839515,
+          595.2087055231293
+        ],
+        "unsteady": 0.000002234541866761084,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.009090134416341475,
+        "cq": 0.0006355990903568956,
+        "thrustN": [
+          2522.328536887447,
+          2522.328531930988
+        ],
+        "torqueNm": [
+          671.954072625898,
+          671.9540724586036
+        ],
+        "unsteady": 0.00000226494428382237,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.009920291907665368,
+        "cq": 0.0007133650008294403,
+        "thrustN": [
+          2752.680458666149,
+          2752.68045282031
+        ],
+        "torqueNm": [
+          754.1680358550855,
+          754.1680356739973
+        ],
+        "unsteady": 0.0000022903810568508594,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "1|coaxial|500": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": -5.603768970927325e-12,
+        "cq": 0.000034142608407608344,
+        "thrustN": [
+          -0.000003625313422564562,
+          -0.0000036455513728983467
+        ],
+        "torqueNm": [
+          84.39129399014692,
+          84.39124645491995
+        ],
+        "unsteady": 1.4985013230273125e-10,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00009472155899186102,
+        "cq": 0.000034725397672225855,
+        "thrustN": [
+          61.45039635234539,
+          61.45039634948353
+        ],
+        "torqueNm": [
+          85.83176726145132,
+          85.831767261411
+        ],
+        "unsteady": 8.69084825464335e-8,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.0002867723647909176,
+        "cq": 0.00003700484817215548,
+        "thrustN": [
+          186.04292061482548,
+          186.04292058992598
+        ],
+        "torqueNm": [
+          91.46595082471313,
+          91.4659508243874
+        ],
+        "unsteady": 3.3549851016496867e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0005266179553194168,
+        "cq": 0.00004108142978945322,
+        "thrustN": [
+          341.6422029748499,
+          341.64220290040515
+        ],
+        "torqueNm": [
+          101.54215521812854,
+          101.54215521736558
+        ],
+        "unsteady": 6.831075322878792e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0007968231353620426,
+        "cq": 0.00004688439162475342,
+        "thrustN": [
+          516.9372001212371,
+          516.9371999608776
+        ],
+        "torqueNm": [
+          115.88550340189784,
+          115.88550340114594
+        ],
+        "unsteady": 0.000001096711830802005,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0010882464338162067,
+        "cq": 0.00005450917355894948,
+        "thrustN": [
+          705.9974034227556,
+          705.9974031497908
+        ],
+        "torqueNm": [
+          134.73189688270793,
+          134.73189688270034
+        ],
+        "unsteady": 0.000001428763322062176,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0013957057087405364,
+        "cq": 0.00006384255632099105,
+        "thrustN": [
+          905.4609100590934,
+          905.4609096349716
+        ],
+        "torqueNm": [
+          157.80148831993284,
+          157.80148832313864
+        ],
+        "unsteady": 0.0000014677716237089327,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0017160787118064582,
+        "cq": 0.00007470277912724496,
+        "thrustN": [
+          1113.302168503568,
+          1113.302167900282
+        ],
+        "torqueNm": [
+          184.6450143390184,
+          184.64501434952376
+        ],
+        "unsteady": 0.0000014941176783650062,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0020447282350800934,
+        "cq": 0.0000871579828652298,
+        "thrustN": [
+          1326.5128006194695,
+          1326.5127998324494
+        ],
+        "torqueNm": [
+          215.43090073677567,
+          215.43090075809113
+        ],
+        "unsteady": 0.0000014752833891225012,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.002380240111300706,
+        "cq": 0.00010108299087334805,
+        "thrustN": [
+          1544.1753685961112,
+          1544.1753676048847
+        ],
+        "torqueNm": [
+          249.84974474184204,
+          249.849744781944
+        ],
+        "unsteady": 0.0000014136612926906314,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.002722844121744901,
+        "cq": 0.0001163905864957151,
+        "thrustN": [
+          1766.4389424846588,
+          1766.4389413595327
+        ],
+        "torqueNm": [
+          287.6859704295777,
+          287.68597050070537
+        ],
+        "unsteady": 0.0000014336453334671348,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.00307566762421859,
+        "cq": 0.00013355140168962103,
+        "thrustN": [
+          1995.3323887305608,
+          1995.3323871785483
+        ],
+        "torqueNm": [
+          330.10285239618634,
+          330.10285248581494
+        ],
+        "unsteady": 0.0000014294851909824838,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.0034365163067474947,
+        "cq": 0.00015224962290143199,
+        "thrustN": [
+          2229.432152159953,
+          2229.4321503640017
+        ],
+        "torqueNm": [
+          376.31978514373606,
+          376.3197852822726
+        ],
+        "unsteady": 0.0000014506562977884194,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0038121164274690497,
+        "cq": 0.0001729133065257514,
+        "thrustN": [
+          2473.1018778741827,
+          2473.1018754246234
+        ],
+        "torqueNm": [
+          427.39480805628426,
+          427.3948082215371
+        ],
+        "unsteady": 0.0000015538627602529006,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004216487494034231,
+        "cq": 0.00019665631581715002,
+        "thrustN": [
+          2735.436689297974,
+          2735.4366861551134
+        ],
+        "torqueNm": [
+          486.08108902520166,
+          486.08108924144676
+        ],
+        "unsteady": 0.0000016362134380030918,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.00463583826556575,
+        "cq": 0.00022248208497349057,
+        "thrustN": [
+          3007.489549950522,
+          3007.489546520116
+        ],
+        "torqueNm": [
+          549.9153875859024,
+          549.9153878974543
+        ],
+        "unsteady": 0.0000016448020407249021,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.005075840361620508,
+        "cq": 0.000250767354317945,
+        "thrustN": [
+          3292.9399110201975,
+          3292.939906312404
+        ],
+        "torqueNm": [
+          619.8289037286479,
+          619.8289041129898
+        ],
+        "unsteady": 0.0000017499392358597756,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0,
+        "ct": 0.005535931582109127,
+        "cq": 0.00028158316822850786,
+        "thrustN": [
+          3591.4230456957744,
+          3591.4230397758047
+        ],
+        "torqueNm": [
+          695.9972398189658,
+          695.9972403026403
+        ],
+        "unsteady": 0.0000018389741549094677,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0,
+        "ct": 0.006004387215318043,
+        "cq": 0.0003141657989824705,
+        "thrustN": [
+          3895.332573209706,
+          3895.332567071301
+        ],
+        "torqueNm": [
+          776.5326679207527,
+          776.5326686249803
+        ],
+        "unsteady": 0.0000017818717338977547,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0,
+        "ct": 0.00645935650093893,
+        "cq": 0.0003468369622800526,
+        "thrustN": [
+          4190.492863184511,
+          4190.492856583418
+        ],
+        "torqueNm": [
+          857.286924393728,
+          857.2869253242086
+        ],
+        "unsteady": 0.0000017776489624082469,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "1|coaxial|450": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": 2.517916356649481e-10,
+        "cq": 0.00003420405238555817,
+        "thrustN": [
+          0.000003090866189990823,
+          0.0002615349220598716
+        ],
+        "torqueNm": [
+          68.47994620142717,
+          68.47994558708159
+        ],
+        "unsteady": 5.032709050390911e-7,
+        "flags": 10,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00009419867564844401,
+        "cq": 0.00003478318361713938,
+        "thrustN": [
+          49.500053347209594,
+          49.500053345586956
+        ],
+        "torqueNm": [
+          69.63942474554325,
+          69.63942474552361
+        ],
+        "unsteady": 7.298708856310211e-8,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.00028475099611587664,
+        "cq": 0.00003703831149778089,
+        "thrustN": [
+          149.63256544543847,
+          149.63256543104748
+        ],
+        "torqueNm": [
+          74.15441710691626,
+          74.15441710673849
+        ],
+        "unsteady": 2.980009230219938e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0005224617260364261,
+        "cq": 0.000041063008251895535,
+        "thrustN": [
+          274.54614551766,
+          274.54614547536056
+        ],
+        "torqueNm": [
+          82.212263962215,
+          82.21226396185811
+        ],
+        "unsteady": 6.048523588495411e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0007901081306694412,
+        "cq": 0.00004678548761281161,
+        "thrustN": [
+          415.1904934115168,
+          415.1904933264901
+        ],
+        "torqueNm": [
+          93.66924200002322,
+          93.66924199996997
+        ],
+        "unsteady": 9.699449197016357e-7,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0010786526654951315,
+        "cq": 0.000054308394450424095,
+        "thrustN": [
+          566.816509076544,
+          566.816508919381
+        ],
+        "torqueNm": [
+          108.73085655227486,
+          108.73085655263972
+        ],
+        "unsteady": 0.0000012739623802909337,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.0013830078019916006,
+        "cq": 0.00006350738482476116,
+        "thrustN": [
+          726.750769209234,
+          726.750768972917
+        ],
+        "torqueNm": [
+          127.14815856933903,
+          127.14815857214911
+        ],
+        "unsteady": 0.000001308421015440316,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0017000947188558358,
+        "cq": 0.00007420808328188522,
+        "thrustN": [
+          893.3753973742278,
+          893.3753970199664
+        ],
+        "torqueNm": [
+          148.5720308903531,
+          148.572030897078
+        ],
+        "unsteady": 0.0000013361206857606165,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.0020252232636948633,
+        "cq": 0.00008648864215255143,
+        "thrustN": [
+          1064.2257857189052,
+          1064.2257852490948
+        ],
+        "torqueNm": [
+          173.15894232495594,
+          173.1589423377253
+        ],
+        "unsteady": 0.0000013465443446045334,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0023571982200720955,
+        "cq": 0.00010020834953129501,
+        "thrustN": [
+          1238.6738651349663,
+          1238.673864547286
+        ],
+        "torqueNm": [
+          200.62717351182334,
+          200.62717353586032
+        ],
+        "unsteady": 0.0000013262453953458697,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.0026963474890863972,
+        "cq": 0.00011530136607233609,
+        "thrustN": [
+          1416.8919429584937,
+          1416.8919422444842
+        ],
+        "torqueNm": [
+          230.84490747397132,
+          230.84490751354141
+        ],
+        "unsteady": 0.0000013414511430892018,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.0030459607991486165,
+        "cq": 0.00013224189129902543,
+        "thrustN": [
+          1600.608724320028,
+          1600.60872340768
+        ],
+        "torqueNm": [
+          264.7615392519159,
+          264.76153930730635
+        ],
+        "unsteady": 0.0000013401104481677463,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.0034035656040640144,
+        "cq": 0.00015068609625981438,
+        "thrustN": [
+          1788.5249215889883,
+          1788.5249205058333
+        ],
+        "torqueNm": [
+          301.6886887682442,
+          301.6886888495081
+        ],
+        "unsteady": 0.0000013422944861614332,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.003777037265210223,
+        "cq": 0.00017115758539832139,
+        "thrustN": [
+          1984.778924416018,
+          1984.7789229584293
+        ],
+        "torqueNm": [
+          342.6746646911063,
+          342.6746647891367
+        ],
+        "unsteady": 0.000001421714149907692,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004178514242912011,
+        "cq": 0.0001946172185102974,
+        "thrustN": [
+          2195.749319521189,
+          2195.7493175917557
+        ],
+        "torqueNm": [
+          389.643204749053,
+          389.64320487356264
+        ],
+        "unsteady": 0.0000014933603172703034,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.004594784882156455,
+        "cq": 0.00022012171661963984,
+        "thrustN": [
+          2414.4935715812085,
+          2414.493569191154
+        ],
+        "torqueNm": [
+          440.70576975347393,
+          440.70576991812993
+        ],
+        "unsteady": 0.000001557169447305648,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.005032461154250481,
+        "cq": 0.0002481103252530829,
+        "thrustN": [
+          2644.4861767255643,
+          2644.486173883063
+        ],
+        "torqueNm": [
+          496.74177333352526,
+          496.74177355929464
+        ],
+        "unsteady": 0.0000016113000355587529,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0,
+        "ct": 0.005488767714183773,
+        "cq": 0.00027851453737609436,
+        "thrustN": [
+          2884.268730934101,
+          2884.2687275429676
+        ],
+        "torqueNm": [
+          557.6140575198395,
+          557.6140578216908
+        ],
+        "unsteady": 0.0000016718586869842782,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0,
+        "ct": 0.005952269632327507,
+        "cq": 0.00031058130452719907,
+        "thrustN": [
+          3127.8323425027647,
+          3127.832338558163
+        ],
+        "torqueNm": [
+          621.8149436902964,
+          621.8149440786678
+        ],
+        "unsteady": 0.0000016573380149493652,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0,
+        "ct": 0.006401777978174238,
+        "cq": 0.0003426794129197561,
+        "thrustN": [
+          3364.042531819706,
+          3364.042528051494
+        ],
+        "torqueNm": [
+          686.0785780654437,
+          686.078578620948
+        ],
+        "unsteady": 0.0000015620800592191044,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0,
+        "ct": 0.006841091949319749,
+        "cq": 0.000375026581702755,
+        "thrustN": [
+          3594.895723819606,
+          3594.895719631193
+        ],
+        "torqueNm": [
+          750.8408563767515,
+          750.8408570574784
+        ],
+        "unsteady": 0.0000015956615946370216,
+        "flags": 2,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10.5,
+        "differentialDeg": 0,
+        "ct": 0.0072589613970317135,
+        "cq": 0.0004068699907134259,
+        "thrustN": [
+          3814.4801253523724,
+          3814.48012153001
+        ],
+        "torqueNm": [
+          814.5945569296185,
+          814.5945577737627
+        ],
+        "unsteady": 0.000001473523867634566,
+        "flags": 2,
+        "trimIterations": 0
+      }
+    ],
+    "1|coaxial|327": [
+      {
+        "collectiveDeg": 0,
+        "differentialDeg": 0,
+        "ct": -1.2007562911252557e-11,
+        "cq": 0.000036065655961460904,
+        "thrustN": [
+          -0.000003322958427458548,
+          -0.000003340753498081866
+        ],
+        "torqueNm": [
+          38.1285356329965,
+          38.12854140833845
+        ],
+        "unsteady": 1.52110768425473e-10,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 0.5,
+        "differentialDeg": 0,
+        "ct": 0.00009283899836889833,
+        "cq": 0.00003663947216631969,
+        "thrustN": [
+          25.76094521270832,
+          25.7609452123907
+        ],
+        "torqueNm": [
+          38.73517585159906,
+          38.73517585159596
+        ],
+        "unsteady": 5.570261376545768e-8,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1,
+        "differentialDeg": 0,
+        "ct": 0.0002794293402342097,
+        "cq": 0.00003883976323454376,
+        "thrustN": [
+          77.53599296749476,
+          77.53599296553155
+        ],
+        "torqueNm": [
+          41.061319117662826,
+          41.06131911765167
+        ],
+        "unsteady": 1.388158346051159e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 1.5,
+        "differentialDeg": 0,
+        "ct": 0.0005115970486108377,
+        "cq": 0.000042741195592714445,
+        "thrustN": [
+          141.95783853884092,
+          141.9578385302503
+        ],
+        "torqueNm": [
+          45.18590551402835,
+          45.18590551400222
+        ],
+        "unsteady": 4.302978741703322e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2,
+        "differentialDeg": 0,
+        "ct": 0.0007725887907104358,
+        "cq": 0.000048268143163269684,
+        "thrustN": [
+          214.37777076215983,
+          214.37777074436343
+        ],
+        "torqueNm": [
+          51.028983304338546,
+          51.02898330441991
+        ],
+        "unsteady": 6.88097744283764e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 2.5,
+        "differentialDeg": 0,
+        "ct": 0.0010538632628066653,
+        "cq": 0.0000556133728121501,
+        "thrustN": [
+          292.4257505250592,
+          292.42575049434834
+        ],
+        "torqueNm": [
+          58.79434522933021,
+          58.79434522961157
+        ],
+        "unsteady": 9.240747388504961e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3,
+        "differentialDeg": 0,
+        "ct": 0.001350534064161296,
+        "cq": 0.00006460294283722606,
+        "thrustN": [
+          374.74590040564567,
+          374.74590035823917
+        ],
+        "torqueNm": [
+          68.29810047315225,
+          68.29810047399874
+        ],
+        "unsteady": 9.49074583101299e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 3.5,
+        "differentialDeg": 0,
+        "ct": 0.0016596498890751165,
+        "cq": 0.0000750554926377083,
+        "thrustN": [
+          460.5192927355365,
+          460.51929266781195
+        ],
+        "torqueNm": [
+          79.34851497545084,
+          79.34851497730746
+        ],
+        "unsteady": 9.715833319901262e-7,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4,
+        "differentialDeg": 0,
+        "ct": 0.001984043559679868,
+        "cq": 0.00008738274415661109,
+        "thrustN": [
+          550.5319783902202,
+          550.531978294313
+        ],
+        "torqueNm": [
+          92.38086034158562,
+          92.3808603446952
+        ],
+        "unsteady": 0.000001000959225531771,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 4.5,
+        "differentialDeg": 0,
+        "ct": 0.0023203923079254322,
+        "cq": 0.00010135351428196133,
+        "thrustN": [
+          643.8619564044753,
+          643.8619562778626
+        ],
+        "torqueNm": [
+          107.15073025259753,
+          107.15073025791888
+        ],
+        "unsteady": 0.0000010253109060758748,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5,
+        "differentialDeg": 0,
+        "ct": 0.0026682354767367956,
+        "cq": 0.00011691898045231377,
+        "thrustN": [
+          740.381403759042,
+          740.3814035902152
+        ],
+        "torqueNm": [
+          123.60650959590046,
+          123.60650960377843
+        ],
+        "unsteady": 0.0000010665419632898485,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 5.5,
+        "differentialDeg": 0,
+        "ct": 0.0030361853985115396,
+        "cq": 0.00013481232711543787,
+        "thrustN": [
+          842.4800685832687,
+          842.4800683636855
+        ],
+        "torqueNm": [
+          142.52331948560527,
+          142.5233194971184
+        ],
+        "unsteady": 0.0000011103601934471389,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6,
+        "differentialDeg": 0,
+        "ct": 0.003416974050851069,
+        "cq": 0.0001545224327558188,
+        "thrustN": [
+          948.1412215935932,
+          948.1412213083759
+        ],
+        "torqueNm": [
+          163.36080328934392,
+          163.36080330529683
+        ],
+        "unsteady": 0.0000011483152868305146,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 6.5,
+        "differentialDeg": 0,
+        "ct": 0.0038119020729207526,
+        "cq": 0.0001762269971058298,
+        "thrustN": [
+          1057.7257638706576,
+          1057.7257635028834
+        ],
+        "torqueNm": [
+          186.30682480562618,
+          186.3068248265462
+        ],
+        "unsteady": 0.0000011997390420076429,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7,
+        "differentialDeg": 0,
+        "ct": 0.004225737304410868,
+        "cq": 0.0002004116739884725,
+        "thrustN": [
+          1172.5566745271894,
+          1172.5566740711292
+        ],
+        "torqueNm": [
+          211.87481627099308,
+          211.87481629937386
+        ],
+        "unsteady": 0.0000012399483233162345,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 7.5,
+        "differentialDeg": 0,
+        "ct": 0.004651032028676949,
+        "cq": 0.00022649847778105671,
+        "thrustN": [
+          1290.5673627383014,
+          1290.5673622153638
+        ],
+        "torqueNm": [
+          239.45373245215546,
+          239.45373249266834
+        ],
+        "unsteady": 0.000001247143494878755,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8,
+        "differentialDeg": 0,
+        "ct": 0.005079955801651039,
+        "cq": 0.00025402967653702087,
+        "thrustN": [
+          1409.5850385935803,
+          1409.5850379797462
+        ],
+        "torqueNm": [
+          268.55966006211986,
+          268.55966011540437
+        ],
+        "unsteady": 0.0000012438692238705552,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 8.5,
+        "differentialDeg": 0,
+        "ct": 0.005510784298182759,
+        "cq": 0.00028284729929239986,
+        "thrustN": [
+          1529.1312367089217,
+          1529.1312360225886
+        ],
+        "torqueNm": [
+          299.0255925161767,
+          299.0255925875359
+        ],
+        "unsteady": 0.000001245772306327133,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9,
+        "differentialDeg": 0,
+        "ct": 0.005939910848345586,
+        "cq": 0.0003126599859659161,
+        "thrustN": [
+          1648.2051790391945,
+          1648.205178347431
+        ],
+        "torqueNm": [
+          330.54350451863763,
+          330.543504615923
+        ],
+        "unsteady": 0.0000011897309007788537,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 9.5,
+        "differentialDeg": 0,
+        "ct": 0.006350695859587811,
+        "cq": 0.0003421486753817295,
+        "thrustN": [
+          1762.1897150969494,
+          1762.1897143644767
+        ],
+        "torqueNm": [
+          361.7188872713611,
+          361.7188873879223
+        ],
+        "unsteady": 0.0000011482711106194393,
+        "flags": 0,
+        "trimIterations": 0
+      },
+      {
+        "collectiveDeg": 10,
+        "differentialDeg": 0,
+        "ct": 0.006749829762635962,
+        "cq": 0.00037172320866191166,
+        "thrustN": [
+          1872.941304171178,
+          1872.9413033953124
+        ],
+        "torqueNm": [
+          392.98502397954246,
+          392.98502412142375
+        ],
+        "unsteady": 0.0000011161716473872816,
+        "flags": 0,
+        "trimIterations": 0
+      }
+    ]
+  }
+}
