@@ -4943,7 +4943,14 @@ peak is still higher (4.7 to 5.4 dB against 1.9 to 2.4 dB), and above it the loo
 16.8 Hz −160° and −156° against −135° and −125° in roll, −191° against −159° in pitch). In yaw the
 simulated response is flatter than before and than the aircraft's (J 11.7 against 7.9). The cross-axis
 responses barely move (J 1403 instead of 1435 for pitch in log 33's roll sweep). The other candidates
-named above remain as they were. Reported, not judged; nothing is tuned to these numbers.
+named above remain as they were. Reported, not judged; nothing is tuned to these numbers. The reports
+are assembled from the three files the test writes for each log (`-run.json`, `-capture.json`,
+`-fidelity.json` in `MIRAGE_SYSTEMID_OUT`) by `node --experimental-transform-types --no-warnings
+scripts/pavo/assemble-systemid.mjs --in RUN_DIR --out test-results/validation`, which recomputes the swept
+axis's response point by point and reproduces both the 2026-11-08 and the 2026-11-09 reports byte for byte
+from their run files; a fresh flight of the same log is not bit-identical (log 34 flown again: J 90.15
+against 90.25; its sweep began 2.5 ms of simulated time later and its lockstep counted 119,232 steps
+against 126,432).
 
 Capture schema 3 and the bench-test captures (2026-11-08), declared before either capture was written.
 An exploratory run of the two prediction paths came first: it showed the T-Motor predictions with and
