@@ -8695,8 +8695,10 @@ named in the resolved assumptions; the comparison below shows what each curve gi
 
 **Records.** Shared bus input v2 is 384 bytes; bytes 8–71 keep their v1 meanings (the capacity at
 32 is the rated one, before h). Output v2 is 128 bytes; bytes 0–55 keep their v1 meanings.
-`bet_bus_version` returns 2 and accepts both input versions, with the matching output layout; the
-bus solve reads the version word and takes either. Statuses as v1.
+`bet_bus_version` still returns 1 and the new `bet_bus_v2_version` returns 2; `bet_bus_step` takes
+both input versions, with the matching output layout, and the bus solve reads the version word and
+takes either. (Corrected before the first run: the declaration had `bet_bus_version` return 2, which
+would have changed the version the v1 records and their checks name.) Statuses as v1.
 
 | Byte Offset | Data Type | Units | Field Name (input v2) |
 | ---: | --- | --- | --- |
@@ -8756,7 +8758,11 @@ adds the pack temperature.
 1. A current pulse (constant current, then rest) on the linear curve against the closed form
    V(t) = U(s(t)) − I·R₀ − Σ I·Rₖ·(1 − e^(−t/τₖ)) and the exponential recovery after it: within
    1e-9 V at every step, at 400, 800, 1200 and 4800 Hz, and the four rates equal at shared instants
-   within 1e-9 V (the discretization is exact for a constant current).
+   within 1e-9 V (the discretization is exact for a constant current). Corrected after the first run,
+   limits unchanged: the open-circuit voltage is held at the charge the step starts from, as the
+   discretization above and TASK-092 hold it, so the closed form takes U at that charge and the rates are
+   compared on their branch voltages; the first run took U at the step's end charge and differed by exactly
+   one step's fall of U, I·dt·dU/ds/Q = 1.875e-5 V at 400 Hz.
 2. A power demand P: V·I = P within 1e-9 relative, and the state equal to the constant-current
    step at that current within 1e-12.
 3. Energy: U·I = V·I + I²·R₀ + I·Σ Vₖ' within 1e-9 relative on every step of 10,000 random steps.

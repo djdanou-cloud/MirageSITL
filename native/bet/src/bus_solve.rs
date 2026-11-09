@@ -12,7 +12,7 @@
 //! every ESC's effective duty falling by one shared factor: the winding sees `d·V` either way.
 //! Regeneration beyond what the pack absorbs does not hold the motors back: the excess is not
 //! stored, as in [`crate::battery::Battery::step`].
-use crate::battery::{Battery, BatteryError};
+use crate::battery::{Battery, BatteryError, PackAir, PackState};
 use crate::motor::DriveMotor;
 
 /// Solved to this voltage.
@@ -78,8 +78,15 @@ fn root(mut f: impl FnMut(f64) -> Result<(f64, f64), BatteryError>, mut low: f64
 
 /// Solves the bus for one step of `loads`, at most 32, at a charge. Changes nothing.
 pub fn solve(battery: &Battery, soc: f64, house_w: f64, dt: f64, loads: &[MotorLoad]) -> Result<BusSolution, BatteryError> {
+    solve_at(battery, &PackState { soc, ..PackState::default() }, &PackAir::default(), house_w, dt, loads)
+}
+
+/// [`solve`] from a pack's state (TASK-104): a dynamic pack is the linear pack of its step, so the
+/// same search runs on its effective open-circuit voltage and resistance. Changes nothing.
+pub fn solve_at(battery: &Battery, state: &PackState, air: &PackAir, house_w: f64, dt: f64, loads: &[MotorLoad]) -> Result<BusSolution, BatteryError> {
     if loads.len() > 32 { return Err(BatteryError); }
-    let limits = battery.limits(soc, house_w, dt)?;
+    let soc = state.soc;
+    let limits = battery.limits_at(state, air, house_w, dt)?;
     let (open, rb) = (limits.open_circuit_v, limits.resistance_ohm);
     // A depleted pack is a hard cut.
     if soc == 0.0 {

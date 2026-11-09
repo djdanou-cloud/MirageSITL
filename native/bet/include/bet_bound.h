@@ -90,6 +90,8 @@ int32_t bet_body_step_v2(uint32_t input, uint32_t output, double dt);
 #define BET_BUS_FLAG_POWER_LIMITED 1
 #define BET_BUS_FLAG_CHARGE_LIMITED 2
 uint32_t bet_bus_version(void);
+/* TASK-104: version 2 records (384-byte input, dynamic pack); bet_bus_step and the bus solve take both versions. */
+uint32_t bet_bus_v2_version(void);
 int32_t bet_bus_step(uint32_t input, uint32_t output, double dt);
 /* TASK-197: the bus and ESC rotors solved together for one step. table: count pairs of u32 (arena, v2 input record). */
 #define BET_BUS_SOLUTION_VERSION 1

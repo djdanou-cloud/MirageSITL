@@ -152,8 +152,11 @@ fn the_bus_record_steps_the_battery_and_closes_its_power_budget() {
     assert_eq!(bus_abi::step(&bad, &mut out, 0.0025), -3);
     assert_eq!(bus_abi::step(&bus_input(1.5, 10.0), &mut out, 0.0025), -3);
     let mut version = bus_input(0.8, 10.0);
-    version[0] = 2;
+    version[0] = 3;
     assert_eq!(bus_abi::step(&version, &mut out, 0.0025), -7);
+    // TASK-104: version 2 is a 384-byte record, so a 128-byte record naming it is refused by its length.
+    version[0] = 2;
+    assert_eq!(bus_abi::step(&version, &mut out, 0.0025), -2);
     assert_eq!(bus_abi::step(&bus_input(0.8, 10.0)[..127], &mut out, 0.0025), -2);
     assert_eq!(out, previous);
 }

@@ -264,14 +264,28 @@ mod wasm_exports {
         crate::bound_v2::step(arena,input,out,dt)
     }
 
+    /// The length of the bus input record at `ptr` by its version word (TASK-104); an unknown
+    /// version takes the v1 length, which the record's own version check then refuses.
+    fn bus_input_bytes(ptr: u32) -> Option<u32> {
+        if !caller_region(ptr, 8) { return None; }
+        // SAFETY: the version word is in caller memory.
+        let head = unsafe { bytes(ptr, 8) };
+        let version = u32::from_le_bytes([head[0], head[1], head[2], head[3]]);
+        Some(crate::bus_abi::input_bytes(version).unwrap_or(crate::bus_abi::INPUT_BYTES))
+    }
+
     /// Shared battery bus record version (TASK-092).
     #[no_mangle]
     pub extern "C" fn bet_bus_version() -> u32 { crate::bus_abi::VERSION }
 
+    /// Shared battery bus record version 2 (TASK-104), accepted beside version 1.
+    #[no_mangle]
+    pub extern "C" fn bet_bus_v2_version() -> u32 { crate::bus_abi::VERSION_V2 }
+
     /// One shared-bus step over validated, disjoint caller-owned records.
     #[no_mangle]
     pub extern "C" fn bet_bus_step(input_ptr: u32, out_ptr: u32, dt: f64) -> i32 {
-        let il = crate::bus_abi::INPUT_BYTES;
+        let Some(il) = bus_input_bytes(input_ptr) else { return abi::STATUS_BAD_POINTER; };
         let ol = crate::bus_abi::OUTPUT_BYTES;
         if !caller_region(input_ptr, il) || !caller_region(out_ptr, ol)
             || abi::regions_overlap(input_ptr, il, out_ptr, ol) {
@@ -292,7 +306,8 @@ mod wasm_exports {
     #[no_mangle]
     pub extern "C" fn bet_bound_bus_solve_v2(table:u32,count:u32,bus:u32,op:u32,dt:f64)->i32 {
         if count==0 || count>32 {return -3;}
-        let (tl,il,ol)=(count*8,crate::bus_abi::INPUT_BYTES,crate::bus_abi::SOLUTION_BYTES);
+        let Some(il)=bus_input_bytes(bus) else {return -2;};
+        let (tl,ol)=(count*8,crate::bus_abi::SOLUTION_BYTES);
         let n=crate::bound_v2::INPUT_BYTES;
         if !caller_region(table,tl) || !caller_region(bus,il) || !caller_region(op,ol)
             || abi::regions_overlap(table,tl,op,ol) || abi::regions_overlap(bus,il,op,ol) {return -2;}
