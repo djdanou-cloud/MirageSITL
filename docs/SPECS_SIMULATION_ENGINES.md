@@ -7983,6 +7983,23 @@ these streets it should report errors well below the measured ones. The script i
 `scripts/check-gnss-urban.mjs --dir DIRECTORY` (exit 2 BLOCKED_EXTERNAL without the data), its report
 `test-results/validation/gnss-urban.json`, and `tests/gnss-urban.test.ts` checks the error's geometry on a hand case.
 
+Result (2026-11-09; Apple M5, macOS 27.2, Node 24): `node scripts/check-gnss-urban.mjs --dir DIRECTORY` exit 0, every archive matching
+its SHA-256, report `test-results/validation/gnss-urban.json`; `tests/gnss-urban.test.ts` 3 passed after one correction to its own
+hand case before any comparison (its oracle left out the 100 m height in the radii, (M + h) and (N + h), and missed by exactly
+1.75 and 1.12 mm; the limit then went to 1e-5 m). Measured against model, metres, 50th/95th percentiles:
+
+| Scenario | NLOS share | Horizontal, measured | Horizontal, model | Vertical, measured | Vertical, model | hAcc p50, receiver / model |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Berlin Potsdamer Platz | 48 % | 3.93 / 13.37 | 0.69 / 1.58 | 5.82 / 24.39 | 4.62 / 5.98 | 1.36 / 0.71 |
+| Berlin Gendarmenmarkt | 37 % | 4.51 / 12.85 | 0.61 / 1.28 | 8.04 / 26.61 | 4.51 / 6.40 | 1.18 / 0.70 |
+| Frankfurt Main Tower | 48 % | 5.25 / 17.56 | 0.82 / 1.59 | 14.76 / 38.25 | 4.03 / 5.71 | 1.12 / 0.70 |
+| Frankfurt Westend Tower | 33 % | 2.62 / 33.74 | 0.65 / 1.42 | 3.99 / 49.35 | 3.99 / 5.73 | 0.90 / 0.70 |
+
+As expected beforehand, the model without buildings reports a median horizontal error 4 to 8 times and a 95th percentile 8 to 24
+times below the receiver's in these streets; its vertical median is close to the receiver's in three scenarios, its 95th percentile
+4 to 9 times below. The receiver's own accuracy estimate is also above the model's, 0.90 to 1.36 m against 0.70 m, and both are far
+below the errors measured. The user judges these numbers (SA-01). Open-sky statistics remain BLOCKED_EXTERNAL: smartLoc has none.
+
 ## Electromechanical drive (TASK-092)
 
 The production drive replaces the ideal torque-source ESC with an ESC, a

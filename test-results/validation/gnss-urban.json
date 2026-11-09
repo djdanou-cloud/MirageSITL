@@ -1,0 +1,250 @@
+{
+  "schema": "mirage-gnss-urban/1",
+  "task": "TASK-117",
+  "status": "REPORTED",
+  "judged": false,
+  "declared": "SPECS_SIMULATION_ENGINES, Logged urban position errors: smartLoc (2026-11-09)",
+  "dataset": {
+    "name": "smartLoc GNSS dataset, TU Chemnitz (Reisdorf et al. 2016)",
+    "license": "CC BY-NC-SA 4.0",
+    "receiver": "u-blox EVK-M8T",
+    "reference": "NovAtel SPAN, RTK and IMU"
+  },
+  "model": {
+    "maskDeg": 10,
+    "uereM": 1.5,
+    "ionosphereResidual": 0.5,
+    "troposphereResidual": 0.1,
+    "dllBandwidthHz": 0.5,
+    "correlatorSpacingChips": 1,
+    "multipathFloorM": 0.13,
+    "multipathLowElevationM": 0.53,
+    "multipathElevationScaleDeg": 10,
+    "multipathCorrelationS": 10,
+    "skyWeek": 2444,
+    "stepS": 1,
+    "seed": 117
+  },
+  "scenarios": [
+    {
+      "scenario": "berlin1_potsdamer_platz",
+      "archiveSha256": "49dcdad2d99871a07c40c2a387426d58ad4ddc0a236490f060cbc745abc9abbb",
+      "gpsWeek": 1900,
+      "startSecondsOfWeek": 126641.5,
+      "durationS": 283.9,
+      "epochs": 1377,
+      "nonLineOfSight": {
+        "labelled": 21305,
+        "share": 0.483
+      },
+      "measured": {
+        "horizontalM": {
+          "p50": 3.926,
+          "p95": 13.366,
+          "samples": 1377
+        },
+        "verticalAbsM": {
+          "p50": 5.82,
+          "p95": 24.393,
+          "samples": 1377
+        },
+        "reportedAccuracyM": {
+          "p50": 1.363,
+          "p95": 2.262,
+          "samples": 1377
+        }
+      },
+      "model": {
+        "samples": 284,
+        "fixes": 284,
+        "horizontalM": {
+          "p50": 0.694,
+          "p95": 1.583,
+          "samples": 284
+        },
+        "verticalAbsM": {
+          "p50": 4.623,
+          "p95": 5.978,
+          "samples": 284
+        },
+        "reportedAccuracyM": {
+          "p50": 0.708,
+          "p95": 0.708,
+          "samples": 284
+        }
+      },
+      "modelOverMeasured": {
+        "horizontalP50": 0.1768,
+        "horizontalP95": 0.1184,
+        "verticalP50": 0.7943,
+        "verticalP95": 0.2451,
+        "reportedAccuracyP50": 0.5193
+      }
+    },
+    {
+      "scenario": "berlin2_gendarmenmarkt",
+      "archiveSha256": "6379d886a3c21eaa951c43b9c1a0ee6e200de93f9bd0c62a0fe163352a9748d1",
+      "gpsWeek": 1900,
+      "startSecondsOfWeek": 130925.9,
+      "durationS": 1193.6,
+      "epochs": 5925,
+      "nonLineOfSight": {
+        "labelled": 83029,
+        "share": 0.3657
+      },
+      "measured": {
+        "horizontalM": {
+          "p50": 4.505,
+          "p95": 12.847,
+          "samples": 5925
+        },
+        "verticalAbsM": {
+          "p50": 8.043,
+          "p95": 26.61,
+          "samples": 5925
+        },
+        "reportedAccuracyM": {
+          "p50": 1.177,
+          "p95": 1.824,
+          "samples": 5925
+        }
+      },
+      "model": {
+        "samples": 1194,
+        "fixes": 1194,
+        "horizontalM": {
+          "p50": 0.606,
+          "p95": 1.278,
+          "samples": 1194
+        },
+        "verticalAbsM": {
+          "p50": 4.511,
+          "p95": 6.401,
+          "samples": 1194
+        },
+        "reportedAccuracyM": {
+          "p50": 0.696,
+          "p95": 0.697,
+          "samples": 1194
+        }
+      },
+      "modelOverMeasured": {
+        "horizontalP50": 0.1344,
+        "horizontalP95": 0.0995,
+        "verticalP50": 0.5609,
+        "verticalP95": 0.2406,
+        "reportedAccuracyP50": 0.5915
+      }
+    },
+    {
+      "scenario": "frankfurt1_maintower",
+      "archiveSha256": "3cfa14cf8d236fa2dd8d63c849a27ac2f2bbd5f77b5ea6b839414c330fccf0ab",
+      "gpsWeek": 1913,
+      "startSecondsOfWeek": 383114.2,
+      "durationS": 1169.8,
+      "epochs": 5796,
+      "nonLineOfSight": {
+        "labelled": 88014,
+        "share": 0.4831
+      },
+      "measured": {
+        "horizontalM": {
+          "p50": 5.253,
+          "p95": 17.563,
+          "samples": 5796
+        },
+        "verticalAbsM": {
+          "p50": 14.764,
+          "p95": 38.249,
+          "samples": 5796
+        },
+        "reportedAccuracyM": {
+          "p50": 1.124,
+          "p95": 2.183,
+          "samples": 5796
+        }
+      },
+      "model": {
+        "samples": 1170,
+        "fixes": 1170,
+        "horizontalM": {
+          "p50": 0.815,
+          "p95": 1.589,
+          "samples": 1170
+        },
+        "verticalAbsM": {
+          "p50": 4.027,
+          "p95": 5.714,
+          "samples": 1170
+        },
+        "reportedAccuracyM": {
+          "p50": 0.702,
+          "p95": 0.792,
+          "samples": 1170
+        }
+      },
+      "modelOverMeasured": {
+        "horizontalP50": 0.1552,
+        "horizontalP95": 0.0905,
+        "verticalP50": 0.2728,
+        "verticalP95": 0.1494,
+        "reportedAccuracyP50": 0.6248
+      }
+    },
+    {
+      "scenario": "frankfurt2_westendtower",
+      "archiveSha256": "46d5685908e9f6b61175845e4615659e6d6639d8f23a2ebdbec3c15e86c82860",
+      "gpsWeek": 1913,
+      "startSecondsOfWeek": 314680.6,
+      "durationS": 715.2,
+      "epochs": 3531,
+      "nonLineOfSight": {
+        "labelled": 53921,
+        "share": 0.3316
+      },
+      "measured": {
+        "horizontalM": {
+          "p50": 2.622,
+          "p95": 33.737,
+          "samples": 3531
+        },
+        "verticalAbsM": {
+          "p50": 3.988,
+          "p95": 49.354,
+          "samples": 3531
+        },
+        "reportedAccuracyM": {
+          "p50": 0.895,
+          "p95": 1.235,
+          "samples": 3531
+        }
+      },
+      "model": {
+        "samples": 716,
+        "fixes": 716,
+        "horizontalM": {
+          "p50": 0.648,
+          "p95": 1.422,
+          "samples": 716
+        },
+        "verticalAbsM": {
+          "p50": 3.991,
+          "p95": 5.732,
+          "samples": 716
+        },
+        "reportedAccuracyM": {
+          "p50": 0.703,
+          "p95": 0.736,
+          "samples": 716
+        }
+      },
+      "modelOverMeasured": {
+        "horizontalP50": 0.247,
+        "horizontalP95": 0.0421,
+        "verticalP50": 1.0008,
+        "verticalP95": 0.1161,
+        "reportedAccuracyP50": 0.7857
+      }
+    }
+  ]
+}

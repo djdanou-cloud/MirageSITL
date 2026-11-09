@@ -156,8 +156,8 @@ implementation.
   DONE: T-Motor's datasheet, on a laboratory supply, is fitted and bound in the
   Components tab (laboratory sets bind whatever the battery, 2026-11-07), and since 2026-11-08 its
   static solve takes the flight's own rotor binding (`flightRotorDefinition`; calibration record
-  schema 2, schema 1 fits refused on binding). TASK-117 is BLOCKED_EXTERNAL on logged
-  error statistics only: GNSS geometry of a four-system sky (the GPS almanac with IGS
+  schema 2, schema 1 fits refused on binding). TASK-117 is BLOCKED_EXTERNAL on logged open-sky
+  error statistics only (its urban comparison on smartLoc is shown): GNSS geometry of a four-system sky (the GPS almanac with IGS
   broadcast Galileo, GLONASS and BeiDou records), atmosphere, terrain, code noise,
   multipath and a placed jammer stream into SIM_GPS1_* at the receiver's own rate and
   lag, flown on native ArduCopter. TASK-105 is DONE (2026-11-09): the ESC shaper and the
