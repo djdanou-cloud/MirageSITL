@@ -1543,6 +1543,124 @@ suggest a wake that descends less near the rotor and reaches less far above its 
 comparison cannot separate. The phase −90° points differ from phase 0 by −0.045 to +0.098 in r,
 on average +0.005 to +0.022 per configuration, an effect the model does not have.
 
+Measured coaxial rotors: NACA TN 2318 (TASK-101, 2026-11-09), declared before the model's prediction
+was computed and after a first look at the report's figures. The data are Harrington's static-thrust
+tests of two coaxial rotors and the same rotors alone in the Langley full-scale tunnel (R. D.
+Harrington, NACA TN 2318, March 1951, a US Government work in the public domain), downloaded with
+the stakeholder's approval and kept outside the repository: the PDF without the 436-byte wrapper the
+NTRS download carries before `%PDF` (SHA-256 `78e327b9…`), rendered at 1.6 times its point size into
+page images, of which pages 11, 19 and 23 (figures 1(a), 4 and 8) are read, each checked by its
+SHA-256. Rotor 1: two two-blade rotors of 25 ft diameter, hubs 2.33 ft apart (9.5 % of the diameter),
+teetering, untwisted, NACA four-digit symmetrical sections tapered in planform (root over tip chord
+2.92) and thickness, solidity 0.054 coaxial and 0.027 single; figure 4 gives C_T against C_Q for the
+coaxial pair at tip speeds 500, 450 and 327 ft/s and for the lower and the upper rotor alone at 500
+ft/s, yaw trimmed. Rotor 2: rigid, constant chord 18 in, radius 150 in, untwisted, thickness from
+about 30 % at the root to 15 % at the tip, hubs 2.0 ft apart (8 %), solidity 0.152 and 0.076; figure 8
+gives the coaxial pair at 392 and 327 ft/s and the lower rotor alone at 262 and 392 ft/s. The report's
+coefficients are the configuration's whole thrust and torque on one disk area,
+`C_T = T/(rho pi R^2 (Omega R)^2)` and `C_Q = Q/(rho pi R^2 (Omega R)^2 R)`: its figure of merit
+`M = 0.707 C_T^1.5/C_Q` gives its stated maxima (0.635 coaxial, 0.615 single) only so.
+
+Digitization (`scripts/digitize-harrington.mjs`, which writes `tests/fixtures/rotors/harrington-coaxial.json`
+from the page images and checks their SHA-256). The axes are calibrated from the grid lines in the
+image: each line's position is the darkness centroid in 40-pixel bands within 5 pixels of where it is
+expected, fitted by a straight line along it (the scan is skewed by up to 7 pixels per 1000), with a
+largest fit RMS of 0.49 pixels; a point's value is interpolated between its two neighbouring lines at
+its own height. Every plotted symbol was read by eye from 4 to 12 times enlarged crops of the same
+images, at its centre dot, or at the outline's centre where the dot is hidden or outlines overlap (27
+of 95), and the script marks every reading on the plots for checking (`--overlay`). Figure 8 gives 35
+points (coaxial 392 ft/s 8, coaxial 327 ft/s 12, lower alone 262 ft/s 13, lower alone 392 ft/s 2) and
+figure 4 60 (coaxial 500 ft/s 19, 450 ft/s 7, 327 ft/s 9; lower alone 13, upper alone 9, and 3 hidden
+triangles whose kind is not told apart, all three taken as one single rotor as the report's one curve
+takes them). The standard uncertainty of a reading, 2 pixels at a dot and 4 at an outline combined with
+the line fit, is 1.4e-6 to 3.3e-6 in C_Q and 1.4e-5 to 3.3e-5 in C_T; it covers the digitization only,
+not where the draftsman of 1951 put a symbol, nor the measurement. Checks against the report's text,
+in `tests/rotor-wake-harrington.test.ts`: rotor 1's coaxial point nearest zero thrust reads C_Q
+7.76e-5 against the stated profile torque coefficient 0.0000777; the largest figures of merit are
+0.636 coaxial and 0.630 single against the stated 0.635 and 0.615; rotor 1's chord line, sampled at
+18 columns of figure 1(a), is `c = 12.394 − 0.05368 r` in inches (RMS 0.004 in), whose thrust-weighted
+chord gives the stated solidity 0.027 (its root over tip chord is 2.85 against the caption's 2.92). The
+root cutouts are read from figures 1(a) and 1(b): the chord lines start at 20 in for rotor 1 and are
+dashed inboard of about 30 in for rotor 2 (each ±2 in).
+
+What is compared (`HARRINGTON_METHOD` in `packages/analysis/src/harrington-coaxial.ts`). Interference,
+the item of TASK-101: at each coaxial point with C_T ≥ 0.002,
+`kappa = C_Q,coaxial(C_T) / (2 C_Q,single(C_T/2))`, the pair's torque over that of two lone rotors at
+the same thrust per rotor and tip speed, so the blades' own drag largely divides out. The measured
+single rotor's C_Q comes from a least-squares fit `C_Q = a0 + a1 C_T^1.5 + a2 C_T^2` to its points,
+used only inside their C_T range: rotor 2 at 392 and 327 ft/s against the lower rotor's points at 262
+and 392 ft/s together (the report draws one curve through them), rotor 1 at 500 ft/s against its lower
+and upper rotors at 500 ft/s. Rotor 1 at 450 and 327 ft/s has no single rotor at its tip speed, and the
+report finds a scale effect between 327 and 450 ft/s, so those two enter only the performance
+comparison. The model's kappa is its coaxial C_Q at the measured C_T over twice its single rotor's C_Q
+at half of it, at the coaxial tip speed. Also shown, without a tolerance: the induced share
+`(C_Q,c − a0,c)/(2 (C_Q,s − a0,s))`, each curve less its own C_Q at zero thrust (the model's from its
+zero-collective run), and the model's kappa with the wakes off. Performance: at each measured point the
+model's C_Q at the measured C_T over the measured C_Q, per configuration (coaxial 392 and 327, single
+262 and 392 for rotor 2; coaxial 500, 450 and 327 and single 500 for rotor 1), summarized over the
+points at C_T ≥ 0.001.
+
+The model's prediction runs through the repository's own flight dynamics, `BetFlightDynamics` built by
+`buildProfileDynamics` with dynamic inflow as flight uses it, on a vehicle manifest of the rig: the
+coaxial pair on one axis with the upper hub half the hub spacing above the body origin and the lower
+one as far below it (upper rotor clockwise from above, as rotor 1's report states; rotor 2's sense is
+not stated and is taken the same), or the lower rotor alone. Each blade is the report's: radius 150 in,
+16 equal strips from the root cutout to the tip, the chord of figure 1 at each strip's middle, no twist,
+and the catalog's `naca0012-extended-v1` polar, the one symmetrical four-digit section the catalog holds
+(it holds no thicker one; rotor 1 is 8 to 30 % thick and rotor 2 15 to 30 %). The blades' Reynolds
+numbers at three-quarter radius, 0.8e6 to 2.8e6, lie mostly above the table's largest node (1e6), where
+the lookup holds that row and sets the outside-validity flag (2), so the model's section drag is that
+of a smooth 12 % section at 1e6. Air: the report states none, the coefficients carry density out, and
+the model runs in ISA sea-level air (1.225 kg/m³, 288.15 K, viscosity by Sutherland's law). The coaxial
+pair runs with the wakes `all` (the TASK-101 coupler: the upper rotor's wake reaches the lower one) and
+again `off`; the single rotor with them off. Each run holds the tip speed by a PI governor on the duty
+(as the MTB2 comparison does) on a stand-in drive able to reach it (KV 1 rpm/V, 0.02 Ω, a 1000 V bus,
+limits far above the load), which at a held speed does not change the rotor's loads; gravity off, the
+body 1e8 times heavier, 2000 m up with the ground effect switched off, still air; 4 s at 800 Hz, and the
+loads are the mean of the last second. Each run's speed must be within 0.1 % of the target and its mean
+thrust and torque must change by under 0.2 % between the two halves of that second, or the test fails.
+Shaft inertia: each blade a uniform bar of an assumed 40 kg, which shapes only the governor's transient.
+The thrust is the rotors' axial force and the torque their aerodynamic shaft torque (`BOUND_V2` output
+byte 80), each made a coefficient with the rotor's own mean speed. The collective, the same at every
+strip, sweeps from 0° in steps of 0.5° to 20° at most, stopping at the first collective whose C_T is
+above 1.1 times the largest C_T the configuration needs; a coaxial run is trimmed in yaw, as the
+measurements were, by differential collective (added to the lower rotor and taken from the upper) found
+by the secant method until the two shaft torques agree within 0.5 %. The model's C_Q at a measured C_T
+is linear in C_T between the two sweep points around it; a measured C_T outside the sweep is reported
+as outside the model's range and left out of the means.
+
+Tolerances, set before the run (SA-01: MirageSITL draws no fidelity verdict; `REPRODUCED` and
+`NOT_REPRODUCED` say only whether the declared comparison falls inside these bands, for the
+stakeholder to judge). Interference, per configuration: the model's mean kappa over the used points
+lies within `2 SE + 0.02` of the measured mean, with `SE = kappa_mean sqrt(s_c^2/N_c + s_s^2/N_s)`
+from the relative residual RMS s and point count N of the coaxial and the single fit (the data's own
+scatter about their curves, the digitization included). The 0.02 is the size of the report's measured
+effect of yaw control: the largest differential collective changed the coaxial C_Q by about 2 % at a
+given C_T (its figures 5 and 9), which bounds how much the torque split, which the model sets by its
+own trim, can move a point. The report's status is `REPRODUCED` when all three configurations are.
+Performance, per configuration: the mean of the model-over-measured C_Q lies within `2 s/sqrt(N) + 0.05`
+of 1, s the relative residual RMS of the configuration's own fit (of rotor 2's two single series
+together where a series has fewer than 5 points). The 0.05 stands for what the report quantifies and
+the model leaves out: the yaw trim (2 %) and the scale effect between tip speeds, which the report
+calls relatively small above 450 ft/s. A prior expectation, from the inputs alone: the report's coaxial
+profile torque coefficient 0.0000777 at 500 ft/s means a mean section drag coefficient of
+`8 C_Q0/sigma` = 0.0115, against the polar's 0.0054 at zero lift and Re 1e6, so at low thrust the
+model's C_Q is expected below the measured one; that is reported, not corrected.
+
+What the comparison cannot show, and is stated with it: rotor 1's teetering hub (the model's rotor is
+rigid; in steady axial hover a teeter is not excited), the blades' thickness and the Reynolds clamp
+above, the tunnel (the static tests ran inside the Langley full-scale tunnel, whose walls and
+recirculation the report does not quantify, nor the rotor's height above its floor), the rig's
+structure and drive housings under the rotors (no hull, so no download), the effect of the lower rotor
+on the upper one, swirl and blade elasticity, none of which the model has. The report's own analysis,
+which treats a coaxial pair as one rotor of equal solidity, is not reproduced: this compares the
+measurements with the repository's model. `tests/rotor-wake-harrington.test.ts` runs the comparison
+with `MIRAGE_HARRINGTON=1` (it skips without it, because it builds the BET WASM and runs several hundred
+rotor runs) and with `MIRAGE_HARRINGTON_OUT` set writes the report
+(`test-results/validation/harrington-coaxial.json`): each point measured and modelled, each sweep with
+its differential collective and flags, the fits, the means, the standard errors and the statuses; its
+measurement tests and the fixture's checks against the report's text run always.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,
