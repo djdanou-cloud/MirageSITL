@@ -12,6 +12,7 @@ export const FAMILY_LABELS: Readonly<Partial<Record<EffectFamily, string>>> = {
 };
 export const EFFECT_PATHS: Readonly<Partial<Record<EffectId, string>>> = {
   "motor.loss": "Changes the physical thrust of one motor in the physics, on its tick.",
+  "esc.desync": "Cuts a motor's drive in the physics, from a seeded draw on each tick, while its drive margin is above the threshold; the motor restarts after the restart time. Needs the ESC drive.",
   "ew.gnss-jamming": "Written to ArduPilot's simulated receiver as parameters: fewer satellites, worse accuracy, and no fix at high severity. Each write takes a moment and is logged.",
   "ew.position-step": "Added to the north and east position on the state line, on its tick. A vertical offset is refused, because the height there also feeds the barometer.",
   "ew.velocity-drift": "Added to the north and east position and velocity on the state line, on each tick. A vertical drift is refused, because the height there also feeds the barometer.",

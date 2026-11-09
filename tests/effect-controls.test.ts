@@ -109,8 +109,9 @@ const TICKS = 300;
 
 describe('an effect that is off or at zero intensity', () => {
   it('names every effect in the catalog that is not a sensor error', () => {
-    // The rotor ground effect needs the ESC drive, which this harness does not have: tests/rotor-ground-effect.test.ts holds it to the same rule.
-    expect(APPLICABLE.map(([id]) => id).sort()).toEqual(EFFECT_IDS.filter(id => id !== 'rotor.ground-effect').filter(id => EFFECT_CATALOG[id].family === 'environment' || EFFECT_CATALOG[id].family === 'fault').sort());
+    // The rotor ground effect and ESC desynchronization need the ESC drive, which this harness does not have: tests/rotor-ground-effect.test.ts
+    // and tests/esc-desync.test.ts hold them to the same rule.
+    expect(APPLICABLE.map(([id]) => id).sort()).toEqual(EFFECT_IDS.filter(id => id !== 'rotor.ground-effect' && id !== 'esc.desync').filter(id => EFFECT_CATALOG[id].family === 'environment' || EFFECT_CATALOG[id].family === 'fault').sort());
   });
 
   const runOf = (send: (h: ReturnType<typeof harness>) => void) => {

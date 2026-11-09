@@ -8,6 +8,7 @@ import { BOUND_V2, BOUND_V2_DRIVE_DOUBLES, BOUND_V2_INPUT_DOUBLES, BOUND_V2_OUTP
 import type { RotorMapTable } from '../../wasm-bet/src/rotor-map.ts';
 import { BetBus, type BusBattery } from '../../wasm-bet/src/bus.ts';
 import { BetMotorV2, ThermalInput, ThermalOutput, type EscShaping, type MotorHeat } from '../../wasm-bet/src/motor-v2.ts';
+import { EscDesync } from './esc-desync.ts';
 import { BetRigidBodyBackend, newBodyTruth, type BodyTruth } from '../../wasm-bet/src/backend.ts';
 import type { MotorFaults } from './motor-fault.ts';
 import { validateModelManifest } from './model-manifest.ts';
@@ -395,6 +396,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   /** TASK-105: per rotor, its record in `motorV2`'s shapers and networks, or −1. */
   readonly shapedIndex:Int32Array;
   readonly heatedIndex:Int32Array;
+  /**
+   * TASK-105: ESC desynchronization on the ESC drive, null without one (SPECS_SIMULATION_ENGINES "ESC desynchronization"). Its
+   * `events` and `remaining` are for cold readers; the switch is `setEscDesync`.
+   */
+  readonly escDesync:EscDesync|null;
   constructor(module:WebAssembly.Module,configuration:BetFlightConfiguration,hz:H) {
     const model=validateModelManifest(configuration.manifest),n=model.rotorCount;
     if(configuration.syntheticGroundDownM!==undefined&&!Number.isFinite(configuration.syntheticGroundDownM))throw Error('Invalid synthetic ground plane');
@@ -468,6 +474,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
         }
       });
       this.motorV2=shaping.length+heat.length>0?new BetMotorV2(module,shaping,heat,hz):null;
+      this.escDesync=new EscDesync(n,hz);
       this.escEngine=esc;this.engine=null;
       this.bus=new BetBus(module,drive.battery,hz);esc.attachBattery(drive.battery);this.initialSoc=soc;this.housePowerW=house;
       this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
@@ -476,7 +483,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.input=this.escEngine.input;this.output=this.escEngine.output;this.inputStride=BOUND_V2_INPUT_DOUBLES;this.outputStride=BOUND_V2_OUTPUT_SLOTS;
     } else {
       if(configuration.limitRatings)throw Error('Limit ratings need the ESC drive');
-      this.motorV2=null;this.shapedIndex=new Int32Array(n).fill(-1);this.heatedIndex=new Int32Array(n).fill(-1);
+      this.motorV2=null;this.shapedIndex=new Int32Array(n).fill(-1);this.heatedIndex=new Int32Array(n).fill(-1);this.escDesync=null;
       this.engine=new BetRotorEngine(module,definitions,hz);this.escEngine=null;this.bus=null;this.initialSoc=1;this.housePowerW=0;
       this.power=null;this.limits=null;this.capacityAh=0;
       this.input=this.engine.input;this.output=this.engine.output;this.inputStride=13;this.outputStride=16;
@@ -545,6 +552,12 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
   }
   /** TASK-101: the rotor wakes, read by tests and by the capacity report's reader. */
   get rotorWakes():RotorWakeCoupler|null {return this.wake;}
+  /**
+   * TASK-105: ESC desynchronization from this tick, from the slots of `EscDesyncSlot`; false, changing nothing, for values outside its
+   * ranges. Only the ESC drive has it. Allocation-free.
+   */
+  get setEscDesync():((values:Float64Array)=>boolean)|undefined {return this.escDesync?this.applyEscDesync:undefined;}
+  private readonly applyEscDesync=(values:Float64Array):boolean=>this.escDesync!.set(values);
   /** TASK-100: the ground effect's intensity now, 0 for off. */
   get groundEffectIntensity():number {return this.groundIntensity;}
   /** TASK-100: the rotor ground effect's intensity from this step, 0 for off. Only the ESC drive's interface has its fields. */
@@ -643,6 +656,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
     this.dragWrenchBody.fill(0);
     this.resetMotorV2();
+    this.escDesync?.reset();
     const t=this.power;
     if(t) {
       t.clear();
@@ -835,6 +849,17 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       for(let i=0;i<this.rotorCount;i++){const k=shaped[i]!;if(k>=0)targets[k]=input[i*this.inputStride+13]!;}
       if(!mv.shapeFromInput()){this.fault='ESC shaper step failed';return;}
       for(let i=0;i<this.rotorCount;i++){const k=shaped[i]!;if(k>=0)input[i*this.inputStride+13]=duties[k]!;}
+    }
+    // TASK-105: ESC desynchronization, from each rotor's drive margin d − k·|Ω|/V with the last tick's speed and motor voltage.
+    const desync=this.escDesync;
+    if(desync!==null&&desync.active){
+      const margin=desync.margin,drive=esc!.drive,output=this.output,stride=this.outputStride,cut=desync.cut;
+      for(let i=0;i<this.rotorCount;i++){
+        const b=i*this.inputStride,volts=input[b+14]!,omega=output[i*stride+9]!;
+        margin[i]=volts>0?input[b+13]!-drive[i*BOUND_V2_DRIVE_DOUBLES+1]!*(omega<0?-omega:omega)/volts:0;
+      }
+      desync.step();
+      for(let i=0;i<this.rotorCount;i++)if(cut[i]===1)esc!.driveFlags[i]=BOUND_V2.drivePowerCut;
     }
     if(wake){
       // TASK-101: each rotor's last thrust and this step's air give what it blows onto the others on this step.

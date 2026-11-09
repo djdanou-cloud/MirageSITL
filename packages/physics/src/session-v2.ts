@@ -13,6 +13,7 @@ import { AIR_PRESSURE, WEATHER_AIR_KEEP, WEATHER_DISCRETE_DOWN, WEATHER_DISCRETE
 import type { LimitEvent } from './limit-monitor.ts';
 import type { AccidentEvent } from './accident.ts';
 import type { BarometerEffectIndex } from './barometer.ts';
+import { EscDesyncSlot } from './esc-desync.ts';
 /** TASK-116: how often the session samples the barometer error the run controller delivers, in simulated time. */
 export const BAROMETER_SAMPLE_HZ = 10;
 
@@ -159,6 +160,11 @@ export interface SessionDynamics {
   setWeather?(weather: Float64Array): string | null;
   /** TASK-100: the rotor ground effect's intensity from this tick, 0 for off; absent where the backend has none. */
   setGroundEffect?(intensity: number): void;
+  /**
+   * TASK-105: ESC desynchronization from this tick, from the slots of `EscDesyncSlot`, allocation-free; false for values outside its
+   * ranges. Absent where the backend has no ESC drive.
+   */
+  setEscDesync?(values: Float64Array): boolean;
   /** TASK-187: the published terrain the dynamics stands on, or null for level ground. Before a run; absent where the backend has none. */
   attachGround?(ground: GroundLattice | null): void;
   /** TASK-187: each support's normal load after the last step; null or absent without supports. */
@@ -223,6 +229,8 @@ export class PhysicsSessionV2 {
     magRotationWxyz: new Float64Array([1, 0, 0, 0]), gnssActive: false, magActive: false };
   /** TASK-093: a due weather.set in the WEATHER_* slots, and its reject, whose message is the dynamics' reason. */
   private readonly weather = new Float64Array(WEATHER_SLOTS);
+  /** TASK-105: an esc.desync control's values, for the dynamics at its tick. */
+  private readonly escDesync = new Float64Array(EscDesyncSlot.Count);
   private readonly weatherReject: { code: 'OUT_OF_RANGE'; message: string } = { code: 'OUT_OF_RANGE', message: '' };
   /** TASK-166: which environment effects are on (ENVIRONMENT_* bits); their values stay in `weather`. Empty at the start of each epoch. */
   private environment = 0;
@@ -529,6 +537,18 @@ export class PhysicsSessionV2 {
       switch (effective.family) {
         case "environment": return this.applyEnvironment(effective);
         case "fault": return this.applyFault(effective.fault, tick);
+        case "esc": {
+          if (!this.dynamics.setEscDesync) return NOT_MODELED;
+          const v = this.escDesync;
+          v[EscDesyncSlot.Active] = effective.active ? 1 : 0; v[EscDesyncSlot.MarginThreshold] = effective.marginThreshold;
+          v[EscDesyncSlot.RatePerS] = effective.ratePerS; v[EscDesyncSlot.Intensity] = effective.intensity;
+          v[EscDesyncSlot.RecoveryS] = effective.recoveryS; v[EscDesyncSlot.Seed] = effective.seed;
+          if (this.dynamics.setEscDesync(v)) return null;
+          // Admission holds the ranges, so this is a model that disagrees with its catalog entry.
+          this.weatherReject.message = "ESC desynchronization refused its values";
+          this.enterFault(this.weatherReject.message);
+          return this.weatherReject;
+        }
         case "delivery": {
           const mask = this.delivery.mask;
           this.delivery.mask = effective.active ? mask | effective.bit : mask & ~effective.bit;
@@ -633,6 +653,7 @@ export class PhysicsSessionV2 {
           if (effective.effect === "rotor.ground-effect") return this.dynamics.setGroundEffect ? null : "This backend has no rotor ground effect; it needs the ESC drive";
           return this.dynamics.setWeather ? null : `The demo backend has no atmosphere/wind model; ${command.control.effect} is not supported`;
         case "fault": return this.unsupportedFault(effective.fault, command.control.effect);
+        case "esc": return this.dynamics.setEscDesync ? null : "This backend has no ESC desynchronization; it needs the ESC drive";
         case "sensor": return `A running session cannot change ${command.control.effect}; sensor errors are set on the Sensors tab, before the run`;
         case "delivery": return this.delivery.attached ? null : `${command.control.effect} acts on the link to ArduPilot, and this session has none`;
         case "ardupilot": return `${command.control.effect} is ArduPilot's own fault parameter, which the run controller writes; a session cannot apply it`;

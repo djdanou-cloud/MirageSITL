@@ -29,6 +29,11 @@ describe('BET runtime allocation graphs', () => {
   it('include the TASK-100 ground effect', () => {
     expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'ground-effect-esc-drive-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar']);
   });
+  it('include the TASK-105 shaped and heated ESC drive, without and with ESC desynchronization', () => {
+    for (const graph of ['shaped-heated-esc-four-rotor', 'esc-desync-shaped-heated-esc-four-rotor']) {
+      expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar']);
+    }
+  });
   it('admit exactly the complete set', () => {
     expect(completeAllocationSamples(complete())).toBe(true);
     expect(completeAllocationSamples(complete().reverse())).toBe(true);
