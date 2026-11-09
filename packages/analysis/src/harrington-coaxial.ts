@@ -3,6 +3,8 @@
 // report's figures 4 and 8 into tests/fixtures/rotors/harrington-coaxial.json. Everything here was declared in the
 // specification before the model's prediction was computed. Cold path.
 
+import { POLAR_SCALE_RANGE } from '@mirage/physics/propulsion-calibration';
+
 export const HARRINGTON_METHOD = Object.freeze({
   /** The fixture `scripts/digitize-harrington.mjs` writes, and the report it reads (the NTRS PDF without its 436-byte wrapper). */
   fixture: Object.freeze({ file: 'tests/fixtures/rotors/harrington-coaxial.json', sha256: '9f0dd22b72b2bc0e845b2d5bab7590cb6b1ee5ad758211bae03f3547442c0bf8' }),
@@ -44,6 +46,22 @@ export const HARRINGTON_METHOD = Object.freeze({
     { id: 'r2-392', rotor: 2, tipSpeedFps: 392, coaxial: 'r2-coaxial-392', single: Object.freeze(['r2-single-lower-262', 'r2-single-lower-392']) },
     { id: 'r2-327', rotor: 2, tipSpeedFps: 327, coaxial: 'r2-coaxial-327', single: Object.freeze(['r2-single-lower-262', 'r2-single-lower-392']) },
     { id: 'r1-500', rotor: 1, tipSpeedFps: 500, coaxial: 'r1-coaxial-500', single: Object.freeze(['r1-single-lower-500', 'r1-single-upper-500', 'r1-single-unidentified-500']) },
+  ] as const),
+});
+/**
+ * Second variant (declared 2026-11-09 before its prediction, SPECS_SIMULATION_ENGINES "Second variant"): every drag
+ * coefficient of a rotor's polar multiplied by one scale s_D (TASK-145's form, within its range), fitted by the secant method
+ * from `start` so that the model's mean C_Q over the measured one, over that rotor's single-rotor points used in the
+ * performance comparison, is 1 within `tolerance`; no coaxial point enters the fit. Kept apart from HARRINGTON_METHOD so
+ * that the first variant's method record stays as it was.
+ */
+export const HARRINGTON_DRAG_VARIANT = Object.freeze({
+  id: 'sectionDragFitted',
+  scaleRange: POLAR_SCALE_RANGE,
+  start: Object.freeze([1, 2] as const), tolerance: 0.002, maxIterations: 8,
+  fits: Object.freeze([
+    { rotor: 2, performance: Object.freeze(['r2-single-262', 'r2-single-392'] as const) },
+    { rotor: 1, performance: Object.freeze(['r1-single-500'] as const) },
   ] as const),
 });
 export type HarringtonPerformanceId = typeof HARRINGTON_METHOD.performanceConfigurations[number]['id'];
@@ -155,6 +173,42 @@ export function torqueAt(sweep: readonly SweepPoint[], ct: number): number | nul
 /** The declared summary rule: the model's mean inside the measured mean widened by `standardErrors` standard errors and the tolerance. */
 export function reproduced(modelMean: number, measuredMean: number, standardError: number, tolerance: number, standardErrors: number): boolean {
   return Math.abs(modelMean - measuredMean) <= standardErrors * standardError + tolerance;
+}
+
+/**
+ * The polar with every drag coefficient multiplied by `scale` and everything else (lift, axes, confidence, rotational lift
+ * augmentation) as it was. TASK-145's `scaledPolar` drops the rotational augmentation, so the variant does not use it.
+ */
+export function dragScaledPolar<P extends { readonly cd: readonly number[] }>(polar: P, scale: number): P {
+  const [low, high] = HARRINGTON_DRAG_VARIANT.scaleRange;
+  if (!(scale >= low && scale <= high)) throw new Error(`A drag scale must be ${low} to ${high}, not ${scale}`);
+  return { ...polar, cd: polar.cd.map(value => value * scale) };
+}
+
+/** One evaluation of the drag-scale fit: the scale and the model's mean C_Q over the measured one there, less 1. */
+export interface DragFitStep { readonly scale: number; readonly residual: number }
+/**
+ * The secant method on `residual(scale)` from the two declared starts, until |residual| <= tolerance; throws after
+ * `maxIterations` steps beyond the starts, on a flat secant, or when a step leaves the scale range.
+ */
+export function fitDragScale(residual: (scale: number) => number, variant: Pick<typeof HARRINGTON_DRAG_VARIANT, 'start' | 'tolerance' | 'maxIterations' | 'scaleRange'> = HARRINGTON_DRAG_VARIANT): { scale: number; steps: DragFitStep[] } {
+  const [low, high] = variant.scaleRange;
+  const steps: DragFitStep[] = [];
+  const evaluate = (scale: number): DragFitStep => {
+    if (!(scale >= low && scale <= high)) throw new Error(`The drag-scale fit left ${low} to ${high}: ${scale}`);
+    const step = { scale, residual: residual(scale) };
+    steps.push(step);
+    return step;
+  };
+  let a = evaluate(variant.start[0]);
+  if (Math.abs(a.residual) <= variant.tolerance) return { scale: a.scale, steps };
+  let b = evaluate(variant.start[1]);
+  for (let iteration = 0; Math.abs(b.residual) > variant.tolerance; iteration++) {
+    if (iteration >= variant.maxIterations || b.residual === a.residual) throw new Error(`No drag-scale fit: residual ${b.residual} at ${b.scale}`);
+    const next = b.scale - b.residual * (b.scale - a.scale) / (b.residual - a.residual);
+    a = b; b = evaluate(next);
+  }
+  return { scale: b.scale, steps };
 }
 
 /** Measured interference at each coaxial point inside the single fit's C_T range (at C_T / 2) and at C_T >= minCt. */
