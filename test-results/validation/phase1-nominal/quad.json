@@ -9,7 +9,7 @@
     "tuning": []
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-07T17:18:31.901Z",
+  "recordedAt": "2026-11-09T08:33:09.386Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -55,14 +55,14 @@
     "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        2.72119140625,
-        3.28466796875,
-        3.79248046875
+        2.52880859375,
+        2.27734375,
+        2.05615234375
       ],
       "after": [
-        2.3388671875,
-        2.88427734375,
-        3.5439453125
+        2.23291015625,
+        2.25,
+        2.1201171875
       ]
     }
   },
@@ -79,17 +79,22 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "b3627b7561fac3d67e037b9fe039eeaf233684b0",
+    "commit": "c12135076576c48455f9102fba754620793c3f21",
     "uncommitted": [
       {
         "status": " M",
-        "path": "scripts/phase1/nominal-rules.ts",
-        "sha256": "a8053834c9e724873e7c01b5473e4249d2911bea89edf57e04b2e03f3beaef5f"
+        "path": "docs/benchmarks/device-results.json",
+        "sha256": "c54068eeb5470287a238b0028a102bdf5c6ffdf7eb3200aad5d186057ff8b8ae"
       },
       {
         "status": " M",
-        "path": "tests/integration/phase1-nominal.test.ts",
-        "sha256": "d57d328467079e19fb7c73571c4890f5a7117f1257fc67589ab75163fb6bc292"
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "325f31f1cbae440a140b5a491ba6fb0aea7d99d08b78393c98f162baaee0796d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "9f206192905e8a0d6dae5631be4b3cd54e32c9f5478c30bf6364121040de7b85"
       }
     ]
   },
@@ -140,97 +145,95 @@
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-07T17-16-06-187Z/quad.json",
-      "bytes": 11068,
-      "sha256": "d86cfce057760e01137022907ac62699440d2bba8a03ddd320a1a768d5ee8dcc"
+      "path": "test-results/phase1/nominal/2026-11-09T08-30-43-499Z/quad.json",
+      "bytes": 10861,
+      "sha256": "87a53ebbc7d0ba27f5d010ed03d8f57ea5072c07e22d08f7d94a8416ab5cb8dc"
     },
     "experimentRecord": {
-      "sha256": "3e2b541da4abae658ffd1e9439e10b325958ea74e1b668cf20b672b85b618902",
-      "launcherExperimentId": "20261107171613569-3a717867"
+      "sha256": "71444de3641c3697059ebf5e7bcccd9d00c6cc8c4e289a1dd4dec5117fbe967f",
+      "launcherExperimentId": "20261109083050881-291ed4e5"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 2621440,
-        "sha256": "150327a2375d98ee72b88965c4350cdc4c332a28011092a3b02730b32d54f655",
+        "bytes": 2609152,
+        "sha256": "b8f856759184f0fdcfe7d9c03b04d76436fcc6e80a5011fde45fa48b7b150f08",
         "status": "truncated",
-        "records": 53566,
-        "truncatedBytes": 5,
+        "records": 53318,
+        "truncatedBytes": 42,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "33d683780145fb338cec95ae9a01985e",
+      "recordId": "2abce81c8a78659c567064fd1d1542bf",
       "status": "closed",
-      "chunks": 197,
-      "bytes": 6707792,
+      "chunks": 201,
+      "bytes": 6702280,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.0011880159506825,
-      "dropped": 1,
+      "average": 1.0011112637784325,
+      "dropped": 0,
       "simElapsedS": 99.3,
-      "runningWallS": 99.18217000001668
+      "runningWallS": 99.19012999999524
     },
     "power": {
       "hover": {
         "voltageV": 16.6,
-        "currentA": 9.5,
-        "powerW": 158,
+        "currentA": 9.4,
+        "powerW": 156,
         "commandPercent": [
           45,
           44,
           45,
-          44
+          43
         ]
       },
       "limitEvents": [
-        "Limited 95.79 s Motor 1: motor current at the drive's limit ended, -28.62 A (limit 30.00 A)",
-        "Limited 95.79 s Motor 4: motor current at the drive's limit ended, -28.43 A (limit 30.00 A)",
-        "Limited 95.79 s Motor 3: motor current at the drive's limit ended, -29.20 A (limit 30.00 A)",
-        "Limited 95.79 s Motor 2: motor current at the drive's limit ended, -29.05 A (limit 30.00 A)",
-        "Limited 95.78 s Motor 3: motor current at the drive's limit, -29.33 A (limit 30.00 A)",
-        "Limited 95.78 s Motor 1: motor current at the drive's limit, -29.90 A (limit 30.00 A)",
-        "Limited 95.78 s Motor 4: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
-        "Limited 95.78 s Motor 2: motor current at the drive's limit, -30.00 A (limit 30.00 A)"
+        "Limited 95.71 s Motor 2: motor current at the drive's limit ended, -28.77 A (limit 30.00 A)",
+        "Limited 95.71 s Motor 4: motor current at the drive's limit ended, -28.49 A (limit 30.00 A)",
+        "Limited 95.70 s Motor 4: motor current at the drive's limit, -29.91 A (limit 30.00 A)",
+        "Limited 95.70 s Motor 2: motor current at the drive's limit, -30.00 A (limit 30.00 A)",
+        "Limited 42.31 s Battery: regeneration into a full pack ended, 1.00 (limit 1.00)",
+        "Limited 42.31 s Battery: regeneration into a full pack, 1.00 (limit 1.00)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 64.8,
-        "toS": 74.8,
-        "samples": 100,
+        "fromS": 64.4,
+        "toS": 74.6,
+        "samples": 102,
         "roll": {
-          "sdDegS": 0.10363443692846828,
-          "peakDegS": 0.2253861129283905
+          "sdDegS": 0.09990371640655032,
+          "peakDegS": 0.2770300507545471
         },
         "pitch": {
-          "sdDegS": 0.0894619585989222,
-          "peakDegS": 0.2522566616535187
+          "sdDegS": 0.07108951487708595,
+          "peakDegS": 0.1837611347436905
         },
         "yaw": {
-          "sdDegS": 0.045964699451506476,
-          "peakDegS": 0.12090493738651276
+          "sdDegS": 0.04855776708391402,
+          "peakDegS": 0.12827691435813904
         }
       },
       "afterResume": {
-        "fromS": 75.1,
-        "toS": 85.1,
-        "samples": 100,
+        "fromS": 74.8,
+        "toS": 84.9,
+        "samples": 101,
         "roll": {
-          "sdDegS": 0.06737014695333914,
-          "peakDegS": 0.22831477224826813
+          "sdDegS": 0.07788590878579077,
+          "peakDegS": 0.22265253961086273
         },
         "pitch": {
-          "sdDegS": 0.07742855181024752,
-          "peakDegS": 0.2211531549692154
+          "sdDegS": 0.06797801540078488,
+          "peakDegS": 0.2216215878725052
         },
         "yaw": {
-          "sdDegS": 0.04436839395765883,
-          "peakDegS": 0.12731635570526123
+          "sdDegS": 0.04069108370106572,
+          "peakDegS": 0.09354063868522644
         }
       }
     },
@@ -271,30 +274,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "8d63682b2a0353642ef9f5882681fa11e78ae1c2a08f32646f416ddc23438fb9",
+            "sha256": "63b505fdcb2b322781671d0915f0afae6743d5d205196fd892492d5164e682d3",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "81527d9847505f6c867fc3e0e037cfdb21ff7212b46bd6fea0497e0a7c69c516",
+            "sha256": "188358341698fdfbe02389655ce6efe021c0e31521e95ff3aeccf3128f861c8b",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "9f0e09651f80a3af58f10a59c80334dabddfa2b9a9495ffdd1151866873bd7eb",
+            "sha256": "501d35487f3aeaa98d51701d8d0892d5d2c63f5585e7af58c2eff3eccc38b0cc",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "838543170b1a9f4365642eaf041b0fda848c071cefbf751ee084e95928d97970",
+            "sha256": "661e79d8f87e62776fef2edb0936c4723b891a4c3946c12b10841ef43fcee65a",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "0ccca10c814c6631fbfa6f33833c3c4f43d65ca83d6aa42a716f096a208a9e29",
+        "sha256": "eb1e0148e34fbf83edd1e0a598ec49eb31ce77188665ab9b091ba3f7305373dd",
         "version": 1,
         "motors": 4,
         "differences": []
@@ -341,9 +344,9 @@
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41.3,
-        "recordSha256": "3e2b541da4abae658ffd1e9439e10b325958ea74e1b668cf20b672b85b618902",
-        "profileSha256": "0ccca10c814c6631fbfa6f33833c3c4f43d65ca83d6aa42a716f096a208a9e29",
+        "readyAtSimS": 41.4,
+        "recordSha256": "71444de3641c3697059ebf5e7bcccd9d00c6cc8c4e289a1dd4dec5117fbe967f",
+        "profileSha256": "eb1e0148e34fbf83edd1e0a598ec49eb31ce77188665ab9b091ba3f7305373dd",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -378,8 +381,8 @@
     "reopen": {
       "facts": {
         "listed": 1,
-        "recordId": "33d683780145fb338cec95ae9a01985e",
-        "recordingText": "50 Hz common rate, record 33d683780145fb338cec95ae9a01985e",
+        "recordId": "2abce81c8a78659c567064fd1d1542bf",
+        "recordingText": "50 Hz common rate, record 2abce81c8a78659c567064fd1d1542bf",
         "profileText": "Quad X, version 1",
         "truthRows": 5025,
         "missingChunks": 0,
@@ -431,13 +434,15 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 64.8,
-        "endSimS": 74.8,
+        "startSimS": 64.4,
+        "endSimS": 74.6,
         "readingsM": [
           5.01,
           5.01,
           5.01,
           5.01,
+          5.01,
+          5.01,
           5.02,
           5.02,
           5.02,
@@ -469,8 +474,7 @@
           5.07,
           5.07,
           5.07,
-          5.07,
-          5.08
+          5.07
         ]
       },
       "error": null
@@ -479,24 +483,24 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 75.1,
+          "simS": 74.8,
           "altitudeM": 5.08,
-          "stepped": 60000
+          "stepped": 59840
         },
         "after": {
-          "simS": 75.1,
+          "simS": 74.8,
           "altitudeM": 5.08,
-          "stepped": 60000
+          "stepped": 59840
         },
-        "wallS": 31.404,
+        "wallS": 31.432,
         "resumedStage": "Flying",
-        "resumedAtSimS": 75.1,
+        "resumedAtSimS": 74.8,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 75.1,
-          "endSimS": 85.1,
+          "startSimS": 74.8,
+          "endSimS": 84.9,
           "readingsM": [
             5.08,
             5.08,
@@ -511,7 +515,7 @@
             5.08,
             5.08,
             5.08,
-            5.09,
+            5.08,
             5.09,
             5.09,
             5.09,
@@ -554,7 +558,7 @@
         "ready": "READY",
         "altitudeM": 0.1,
         "restAltitudeM": 0.0999951111111111,
-        "frames": "80320 stepped, 0 lost, 0 resent, 27 held",
+        "frames": "80240 stepped, 0 lost, 0 resent, 27 held",
         "failsafeMessages": []
       },
       "error": null
@@ -562,7 +566,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261107171613569-3a717867 stopped",
+        "text": "Run 20261109083050881-291ed4e5 stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],
@@ -573,7 +577,7 @@
     }
   },
   "sources": {
-    "tests/browser/phase1-nominal.spec.ts": "722138d8fae7daf97b3ff2c2c49e01f65b840aa326bfdb497fac1f32aea8eff3",
+    "tests/browser/phase1-nominal.spec.ts": "9f206192905e8a0d6dae5631be4b3cd54e32c9f5478c30bf6364121040de7b85",
     "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
     "scripts/phase1/nominal-rules.ts": "a8053834c9e724873e7c01b5473e4249d2911bea89edf57e04b2e03f3beaef5f",
     "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",

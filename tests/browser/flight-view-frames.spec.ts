@@ -38,7 +38,10 @@ test.skip(!existsSync(join(HOME, "install-manifest.json")), "Needs the TASK-152 
 // The window fills the screen; no software GL and no fixed viewport.
 test.use({
   headless: false,
-  launchOptions: { ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ["--start-fullscreen"] },
+  // MIRAGE_FRAME_TIME_WINDOW_POSITION=X,Y opens the window at that point of the desktop, so it fills the built-in display when another
+  // display is the main one (2026-11-09: an external screen as main puts the built-in one at 1920,0).
+  launchOptions: { ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+    args: [...(/^-?\d+,-?\d+$/.test(process.env.MIRAGE_FRAME_TIME_WINDOW_POSITION ?? "") ? [`--window-position=${process.env.MIRAGE_FRAME_TIME_WINDOW_POSITION ?? ""}`] : []), "--start-fullscreen"] },
 });
 
 /**

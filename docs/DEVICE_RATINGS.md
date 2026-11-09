@@ -86,6 +86,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | geodata | 97 (excellent) | not run |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | geodata | 97 (excellent) | not run |
 
 Notes:
 
@@ -190,8 +191,13 @@ Notes:
   before both had none. The cause is not established. Candidates: the fanless machine's heat;
   the built-in screen staying the main display (Chrome on Windows paces every window by the
   main display); and the macOS 27.2 update of 2026-11-03, after which the A-06 runs on the
-  built-in screen showed the same p99 near 18.665 ms. A run with the external screen as the
-  main display would separate the second.
+  built-in screen showed the same p99 near 18.665 ms. On 2026-11-09 the stakeholder made the
+  external screen the main display (the built-in one second, at its right) and both runs were
+  repeated with nothing else changed: WebGL2 p99 18.620 ms, longest 18.685 ms; WebGPU p99
+  18.650 ms, longest 18.680 ms; median 16.665 ms and no missed refresh in either, rating 97 each.
+  The WebGL2 run again had almost no wandering intervals for its first 3 minutes (2, 19 and 2 a
+  minute) and 780 to 1,420 a minute after; the WebGPU run, on the warm machine, had them from the
+  start. The main display is therefore not the cause; heat and the macOS update remain.
 
 ## 4. Gate status
 
@@ -204,8 +210,9 @@ rating 100); its six earlier runs, with an external monitor on the NVIDIA GPU
 as the primary display, all FAIL. On Windows, gate captures therefore run on
 the primary display. The M5's first gate-eligible pair (2026-11-08, an external
 DELL P2317H at 1920 x 1080, 60 Hz and 1x) FAILS on both backends with no missed
-refresh: p99 18.620 ms on WebGL2 and 18.635 ms on WebGPU, rating 97 each (section 3
-says what is known of the cause). The M4 has no gate-eligible run yet, so the least
+refresh: p99 18.620 ms on WebGL2 and 18.635 ms on WebGPU, rating 97 each, and so does
+the pair repeated on 2026-11-09 with that screen as the main display (p99 18.620 and
+18.650 ms; section 3 says what is known of the cause). The M4 has no gate-eligible run yet, so the least
 performant integrated GPU is still unknown. The M4 needs 10-minute WebGL2 and
 WebGPU captures on a 1920 x 1080 display at 1x scale (an external 1920 x 1080 monitor
 or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
@@ -239,6 +246,8 @@ or a 1920 x 1080 scaled mode with the window filling the screen at DPR 1).
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.620 | 0 | FAIL | 97 (excellent) |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.635 | 0 | FAIL | 97 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.620 | 0 | FAIL | 97 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.650 | 0 | FAIL | 97 (excellent) |
 
 ## 6. Adding a run
 

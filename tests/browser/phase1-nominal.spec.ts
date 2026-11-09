@@ -207,6 +207,8 @@ class Steps {
   readonly records: Record<StepId, { readonly facts: unknown; readonly error: string | null } | null> = {
     profile: null, mapping: null, refusal: null, start: null, tuning: null, parameters: null, motorCheck: null, hold: null, pause: null, landing: null, stop: null, reopen: null };
   failed = false;
+  /** `after` runs once a step has run, failed or not: the optional screenshots of MIRAGE_PHASE1_SCREENSHOTS. */
+  constructor(private readonly after: (id: StepId) => Promise<void> = () => Promise.resolve()) {}
   /** Runs a step unless an earlier one failed (`always` runs it anyway); an exception ends it with its message as the error. */
   async run<S extends StepId>(id: S, body: () => Promise<StepFacts[S]>, always = false): Promise<void> {
     if (this.failed && !always) return;
@@ -216,6 +218,7 @@ class Steps {
       this.failed = true;
       this.records[id] = { facts: null, error: (error instanceof Error ? error.message : String(error)).split("\n")[0] ?? "error" };
     }
+    await this.after(id);
   }
 }
 
@@ -259,7 +262,14 @@ async function fly(page: Page, browserVersion: string, configuration: NominalCon
   copyFileSync(join(HOME, "catalog.json"), join(home, "catalog.json"));
   const token = ensureToken(home);
   const launcher = await startLauncher({ home, origin: ORIGIN, port: 0, python: join(HOME, "venv/bin/python") });
-  const steps = new Steps(), runTab = page.getByRole("region", { name: "ArduPilot SITL" });
+  // MIRAGE_PHASE1_SCREENSHOTS=DIR saves the page after every step as DIR/<configuration>-<nn>-<step>.png; a failed screenshot never fails a step.
+  const shots = process.env.MIRAGE_PHASE1_SCREENSHOTS;
+  let shot = 0;
+  const steps = new Steps(async id => {
+    if (!shots) return;
+    shot += 1;
+    await page.screenshot({ path: join(shots, `${configuration.id}-${String(shot).padStart(2, "0")}-${id}.png`), fullPage: true }).catch(() => undefined);
+  }), runTab = page.getByRole("region", { name: "ArduPilot SITL" });
   const stage = runTab.getByTestId("sitl-stage"), simTime = () => number(runTab.getByTestId("sitl-sim-time"), " s");
   const altitude = () => number(runTab.getByTestId("sitl-altitude"), " m"), text = async (testId: string) => (await runTab.getByTestId(testId).textContent()) ?? "";
   let projectId = "", profileSha256 = "", runPid = 0, experimentId: string | null = null;

@@ -1,6 +1,6 @@
 # Рейтинги устройств (TASK-073)
 
-<!-- source-sha256: 7273f291cc386a3cb9bdf40c063e79c4acb97637f5033e0affac6e53087a9793 -->
+<!-- source-sha256: e9cc1310b1bce8d6619584199fcbef7840a1b3b5c5d07d04eca98065564f82b9 -->
 
 Русское зеркало. [Английский источник](../DEVICE_RATINGS.md).
 
@@ -94,6 +94,7 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 92 (excellent) | not run |
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | geodata | 100 (excellent) | not run |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | geodata | 97 (excellent) | not run |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | geodata | 97 (excellent) | not run |
 
 Значения ячеек таблиц — это машинный вывод `node scripts/gpu-ratings.mjs table`
 и остаются на английском.
@@ -209,8 +210,14 @@ memory   = 1 - max(GPU peak / 2 GiB, CPU peak / 512 MiB), floored at 0
   начала. В 25-секундном прогоне перед обоими их не было. Причина не установлена. Кандидаты:
   нагрев машины без вентилятора; встроенный экран, оставшийся основным (Chrome в Windows
   задаёт темп всех окон по основному дисплею); обновление macOS 27.2 от 2026-11-03, после
-  которого прогоны A-06 на встроенном экране показали тот же p99 около 18,665 мс. Прогон с
-  внешним экраном в роли основного отделил бы вторую причину.
+  которого прогоны A-06 на встроенном экране показали тот же p99 около 18,665 мс. 2026-11-09
+  заказчик сделал внешний экран основным (встроенный — вторым, справа от него), и оба прогона
+  повторены без других изменений: WebGL2 p99 18,620 мс, самый длинный 18,685 мс; WebGPU p99
+  18,650 мс, самый длинный 18,680 мс; медиана 16,665 мс и ни одного пропущенного обновления в
+  обоих, оценка 97 у каждого. В прогоне WebGL2 смещённых интервалов снова почти не было первые
+  3 минуты (2, 19 и 2 в минуту), а затем 780–1 420 в минуту; в прогоне WebGPU, на прогретой
+  машине, они были с самого начала. Значит, основной дисплей не причина; остаются нагрев и
+  обновление macOS.
 
 ## 4. Состояние критерия
 
@@ -224,8 +231,9 @@ RTX 4050, Apple M5). Последняя допущенная к критерию
 Windows захваты критерия выполняются на основном дисплее. Первая допущенная к
 критерию пара M5 (2026-11-08, внешний DELL P2317H в режиме 1920 x 1080, 60 Гц и
 1x) — FAIL на обоих бэкендах без единого пропущенного обновления: p99 18,620 мс на
-WebGL2 и 18,635 мс на WebGPU, оценка 97 у каждого (что известно о причине, сказано
-в разделе 3). У M4 пока нет допущенного прогона, поэтому наименее
+WebGL2 и 18,635 мс на WebGPU, оценка 97 у каждого, как и пара, повторённая
+2026-11-09 с этим экраном в роли основного (p99 18,620 и 18,650 мс; что известно о
+причине, сказано в разделе 3). У M4 пока нет допущенного прогона, поэтому наименее
 производительный встроенный GPU по-прежнему неизвестен. Компьютеру M4 нужны
 10-минутные захваты WebGL2 и WebGPU на дисплее 1920 x 1080 при масштабе 1x (
 внешний монитор 1920 x 1080 или масштабированный режим 1920 x 1080 с окном,
@@ -260,6 +268,8 @@ WebGL2 и 18,635 мс на WebGPU, оценка 97 у каждого (что и�
 | RTX 4050 laptop (Intel Core 7 240H, 16 GB, Windows 11) | Internal panel at 1920 x 1080 60 Hz (DISPLAY1), 100% scaling, only display | ANGLE (Intel, Intel(R) Graphics (0x0000A7AB) Direct3D11 vs_5_0 ps_5_0, D3D11) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 17.310 | 2 | PASS | 100 (excellent) |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.620 | 0 | FAIL | 97 (excellent) |
 | MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.635 | 0 | FAIL | 97 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgl2 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.620 | 0 | FAIL | 97 (excellent) |
+| MacBook Air M5 (15-inch) | External DELL P2317H 1920 x 1080 60 Hz, main display | ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version) (integrated) | webgpu 60 FPS | 1920 x 1080 at 1x | geodata | 16.665 / 18.650 | 0 | FAIL | 97 (excellent) |
 
 ## 6. Добавление прогона
 

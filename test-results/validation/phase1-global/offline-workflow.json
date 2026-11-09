@@ -38,20 +38,86 @@
     "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        1.7138671875,
-        1.4189453125,
-        1.17822265625
+        7.130859375,
+        4.28271484375,
+        3.28857421875
       ],
       "after": [
-        3.6953125,
-        2.43017578125,
-        1.6494140625
+        2.65966796875,
+        3.4931640625,
+        3.16845703125
       ]
     }
   },
   "application": {
-    "commit": "446eeadac1195d1b7f39781462d30ce12aaad0df",
-    "uncommitted": []
+    "commit": "c12135076576c48455f9102fba754620793c3f21",
+    "uncommitted": [
+      {
+        "status": " M",
+        "path": "docs/DEVICE_RATINGS.md",
+        "sha256": "e9cc1310b1bce8d6619584199fcbef7840a1b3b5c5d07d04eca98065564f82b9"
+      },
+      {
+        "status": " M",
+        "path": "docs/PROJECT_ROADMAP.md",
+        "sha256": "4027c9db41b72297e2c2bc270e01f14da50fe2d2321b91f0bbd5b1a8fc27266d"
+      },
+      {
+        "status": " M",
+        "path": "docs/benchmarks/device-results.json",
+        "sha256": "c54068eeb5470287a238b0028a102bdf5c6ffdf7eb3200aad5d186057ff8b8ae"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/DEVICE_RATINGS.md",
+        "sha256": "34a4cc5a0686c5a1f7f4ad98ff196dfd77a875b1171830ffa47b60095e645b73"
+      },
+      {
+        "status": " M",
+        "path": "docs/ru/PROJECT_ROADMAP.md",
+        "sha256": "a809fd4f7539b86d912fa4d5bc6beb4383b08256f2aee5435b606e5e57634e3c"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-endurance/octo-paired-16.json",
+        "sha256": "5aec9c8fc53c6a867f3c7f52de17c35563daa277bf5cf1e3b6565a29c9091567"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/hexa.json",
+        "sha256": "4d7f2a4f790c2e0ea847fd60caeb264ec232733c8369bbcb2130d5d220c62772"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/octo-paired-16.json",
+        "sha256": "d34b75d5306286d0b9577a2394f57d1b10c852f243dcf67fc94140f00f40ff5b"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/octo.json",
+        "sha256": "07c73bcb3534455be59111a4862e1db5be478e45ab986e03be4e1605c938c5a4"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/quad.json",
+        "sha256": "7458b241cc030fe3063622d84b20091de05ff65388d35005a3f61c2d10e2acf1"
+      },
+      {
+        "status": " M",
+        "path": "test-results/validation/phase1-nominal/x8.json",
+        "sha256": "0c91152f2dca75ba1b555cf7747075d7f05e3548bf80cc1ef78890970f690e22"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "325f31f1cbae440a140b5a491ba6fb0aea7d99d08b78393c98f162baaee0796d"
+      },
+      {
+        "status": " M",
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "9f206192905e8a0d6dae5631be4b3cd54e32c9f5478c30bf6364121040de7b85"
+      }
+    ]
   },
   "sources": {
     "scripts/phase1/global-workflows.mjs": "2b2b314dc13bb4a959110e16e92a7efe7126c7a0771ae03e4373c1e6139f65a0",
@@ -59,7 +125,7 @@
     "playwright.config.ts": "0e76e629e0d560d9b4363f171f8008c71a072c74691f12daa33009e35abce9fb",
     "tests/browser/run-panel.spec.ts": "966c5fe1b2016cef3d5efeea51fc61a1c9def24fa7ca920ab1f4a54b886be660",
     "tests/browser/parameters-tab.spec.ts": "c6e32156085e0ee3b8be68860158010abf57a470d3b671756ab2656339f960b0",
-    "tests/browser/card-editor.spec.ts": "c9da2379d33c762e5e0ec05d29b5d57f4e09a3fdd14878b36af5190458c8d9de",
+    "tests/browser/card-editor.spec.ts": "98943a9c66c2a9d1dbf61f5ae78c11a9ad8776879e854e2cca7acfcf43180a87",
     "tests/browser/aircraft-editor.spec.ts": "3c3e1442c1334140ab6532799226bab76fa17a203da15d6e6ae29d4cfc900c89",
     "tests/browser/logging-tab.spec.ts": "4cf620a0a3d5f11cef93ede548872228baf452f11d5b275a1074c8048d723048",
     "tests/browser/log-viewer.spec.ts": "c33a345b7ed2614f674b9e206373858b33a0fbf423f8b3dd45cfff77fe78ed3f"
@@ -68,7 +134,7 @@
     {
       "tool": "playwright",
       "status": 0,
-      "passed": 20,
+      "passed": 21,
       "failed": 0,
       "skipped": 0,
       "notPassed": []

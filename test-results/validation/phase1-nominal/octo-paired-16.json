@@ -9,7 +9,7 @@
     "tuning": []
   },
   "settings": "acceptance",
-  "recordedAt": "2026-11-07T17:29:53.818Z",
+  "recordedAt": "2026-11-09T08:43:54.205Z",
   "criteria": {
     "physicsHz": 800,
     "speedup": 1,
@@ -55,14 +55,14 @@
     "lowPowerMode": false,
     "loadAverages": {
       "before": [
-        2.046875,
-        2.72802734375,
-        3.45458984375
+        2.52880859375,
+        2.27734375,
+        2.05615234375
       ],
       "after": [
-        1.58447265625,
-        2.646484375,
-        3.1533203125
+        2.23291015625,
+        2.25,
+        2.1201171875
       ]
     }
   },
@@ -79,42 +79,22 @@
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
   },
   "application": {
-    "commit": "b3627b7561fac3d67e037b9fe039eeaf233684b0",
+    "commit": "c12135076576c48455f9102fba754620793c3f21",
     "uncommitted": [
       {
         "status": " M",
-        "path": "packages/aircraft/src/experiment.ts",
-        "sha256": "c59bf914e068e51249b6295a508d3869aa9553b53b0be604943b8d102376f7a4"
+        "path": "docs/benchmarks/device-results.json",
+        "sha256": "c54068eeb5470287a238b0028a102bdf5c6ffdf7eb3200aad5d186057ff8b8ae"
       },
       {
         "status": " M",
-        "path": "packages/aircraft/src/sensor-fields.ts",
-        "sha256": "83cce013edbd98d4c86e619828c7f57aa96506f3b9b3dd6172ae1e4a7305c79b"
+        "path": "tests/browser/phase1-endurance.spec.ts",
+        "sha256": "325f31f1cbae440a140b5a491ba6fb0aea7d99d08b78393c98f162baaee0796d"
       },
       {
         "status": " M",
-        "path": "packages/aircraft/src/sensor-ownership.ts",
-        "sha256": "5a2dcb21384c93e788121f9dcfb0f8a46f39c920ec510d34ddeecf2811ede941"
-      },
-      {
-        "status": " M",
-        "path": "packages/sensors/src/gnss.ts",
-        "sha256": "51da4f4215b243cab25b3bf9d88413b7f56806ab6cb30bd8c448069c9f37ee21"
-      },
-      {
-        "status": " M",
-        "path": "scripts/phase1/nominal-rules.ts",
-        "sha256": "a8053834c9e724873e7c01b5473e4249d2911bea89edf57e04b2e03f3beaef5f"
-      },
-      {
-        "status": " M",
-        "path": "test-results/validation/phase1-acceptance.json",
-        "sha256": "f0daf474c602355ce08093597b63c159b190f66b99973f6fb15a6fbef6d84a44"
-      },
-      {
-        "status": " M",
-        "path": "tests/integration/phase1-nominal.test.ts",
-        "sha256": "d57d328467079e19fb7c73571c4890f5a7117f1257fc67589ab75163fb6bc292"
+        "path": "tests/browser/phase1-nominal.spec.ts",
+        "sha256": "9f206192905e8a0d6dae5631be4b3cd54e32c9f5478c30bf6364121040de7b85"
       }
     ]
   },
@@ -165,46 +145,46 @@
   },
   "captures": {
     "run": {
-      "path": "test-results/phase1/nominal/2026-11-07T17-19-11-061Z/octo-paired-16.json",
-      "bytes": 13059,
-      "sha256": "c844d0fb5b1cf7fb445d6c400d2b0a4507dd3b2b28b347b47cbe0afc9c27c191"
+      "path": "test-results/phase1/nominal/2026-11-09T08-30-43-499Z/octo-paired-16.json",
+      "bytes": 13048,
+      "sha256": "a2d6be07bd9eec6dd5f242864d1cad6edac72acf49775a64d8731618b16c01f8"
     },
     "experimentRecord": {
-      "sha256": "b9eba79a42efb3f38e9d85006db7e08aeb28462edeb03d60141839ae605d4097",
-      "launcherExperimentId": "20261107172658073-65cf85a1"
+      "sha256": "205a9594453df86c30ee739960f5b0ebf45131a9c9609dc98d3f607e80abaca9",
+      "launcherExperimentId": "20261109084101143-2900dcc0"
     },
     "dataflash": [
       {
         "name": "00000001.BIN",
-        "bytes": 3555328,
-        "sha256": "f972039a96af2159fd3e8f6586498ce7ff055b0391ce4e7f110a2a01b5fc4c8b",
+        "bytes": 3588096,
+        "sha256": "7897aff41d0abadf5887a9934a7ebab187017b2a37d79e215457281a36318117",
         "status": "truncated",
-        "records": 72745,
-        "truncatedBytes": 13,
+        "records": 73453,
+        "truncatedBytes": 1,
         "firmwareMatchesBuild": true
       }
     ],
     "recording": {
-      "recordId": "178348bb2b06fe5a6fcbb74016d73676",
+      "recordId": "1889a84619d8b7c53e3f85112983bfaf",
       "status": "closed",
-      "chunks": 272,
-      "bytes": 9227984,
+      "chunks": 277,
+      "bytes": 9276472,
       "droppedChunks": 0,
       "droppedRows": 0,
       "producerLost": 0
     },
     "speed": {
       "verdict": "Real time",
-      "average": 1.000723566330135,
+      "average": 1.000832219285604,
       "dropped": 1,
-      "simElapsedS": 136.7,
-      "runningWallS": 136.60115999996663
+      "simElapsedS": 137.5,
+      "runningWallS": 137.38566500002145
     },
     "power": {
       "hover": {
-        "voltageV": 15.05,
-        "currentA": 82.4,
-        "powerW": 1239,
+        "voltageV": 15.04,
+        "currentA": 82.3,
+        "powerW": 1238,
         "commandPercent": [
           64,
           64,
@@ -225,43 +205,43 @@
         ]
       },
       "limitEvents": [
-        "Limited 41.81 s Battery: regeneration into a full pack ended, 1.00 (limit 1.00)",
-        "Limited 41.81 s Battery: regeneration into a full pack, 1.00 (limit 1.00)"
+        "Limited 42.11 s Battery: regeneration into a full pack ended, 1.00 (limit 1.00)",
+        "Limited 42.11 s Battery: regeneration into a full pack, 1.00 (limit 1.00)"
       ]
     },
     "steadiness": {
       "hold": {
-        "fromS": 100.8,
-        "toS": 110.8,
+        "fromS": 101.3,
+        "toS": 111.3,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.11593937278531803,
-          "peakDegS": 0.320307195186615
+          "sdDegS": 0.10696261262546072,
+          "peakDegS": 0.2823217511177063
         },
         "pitch": {
-          "sdDegS": 0.18439551023680964,
-          "peakDegS": 0.6420100331306458
+          "sdDegS": 0.15515953003214328,
+          "peakDegS": 0.3943993151187897
         },
         "yaw": {
-          "sdDegS": 0.03169026302946222,
-          "peakDegS": 0.08872587233781815
+          "sdDegS": 0.025502955556786708,
+          "peakDegS": 0.06606486439704895
         }
       },
       "afterResume": {
-        "fromS": 111.3,
-        "toS": 121.3,
+        "fromS": 112,
+        "toS": 122,
         "samples": 100,
         "roll": {
-          "sdDegS": 0.12740406908038346,
-          "peakDegS": 0.24091918766498566
+          "sdDegS": 0.1371467553558544,
+          "peakDegS": 0.24531124532222748
         },
         "pitch": {
-          "sdDegS": 0.1861598951072855,
-          "peakDegS": 0.33135321736335754
+          "sdDegS": 0.182117175330442,
+          "peakDegS": 0.33731719851493835
         },
         "yaw": {
-          "sdDegS": 0.0056614799781806845,
-          "peakDegS": 0.03366648033261299
+          "sdDegS": 0.003650927696902349,
+          "peakDegS": 0.030744260177016258
         }
       }
     },
@@ -302,30 +282,30 @@
         "cards": [
           {
             "type": "motor",
-            "sha256": "8869ca0fa9ef15b84dc5324b3692a9e7ad48e48ad70b5850bc987c437dbed7e4",
+            "sha256": "6a198cc07703e68b3054e91f8383d963e14b77abd11033753bed2bb2d27632c5",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "propeller",
-            "sha256": "8fa0a455e96788774def58d6eb3f4c657b014a1857ca65b7ebca1e13b0cc1b37",
+            "sha256": "56578dbb426bde463288fd3dd5e0e6d8aafe6257f00813d9faa6bdf1760e98a0",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "esc",
-            "sha256": "83b67f80f081ee1f987d020a6ce3d76ad790140983b92f8d40bf6e17f113b247",
+            "sha256": "1d335fed902990b059b9fb83c946af3b0261a504fae4e0292e4c86bfe284c57c",
             "sourceKind": "synthetic",
             "differences": []
           },
           {
             "type": "battery",
-            "sha256": "dfba82dc4561065049d0b26f4d7d1128ef613831b144e1255e9186cf035b3f36",
+            "sha256": "525b652faf9e8ca6fc0054ae1d61e8abe0a783fabce656509e042c33e988f7ff",
             "sourceKind": "synthetic",
             "differences": []
           }
         ],
-        "sha256": "faa4979a2e38a5289187139d312b88ce6b0e601e9154a30a03e127713f1a6b1e",
+        "sha256": "98af108edd71e125c4cddaed4aaf8d6e9e33e26b0b675be30fa715a52204f285",
         "version": 1,
         "motors": 16,
         "differences": []
@@ -420,9 +400,9 @@
     "start": {
       "facts": {
         "ready": "READY",
-        "readyAtSimS": 41.3,
-        "recordSha256": "b9eba79a42efb3f38e9d85006db7e08aeb28462edeb03d60141839ae605d4097",
-        "profileSha256": "faa4979a2e38a5289187139d312b88ce6b0e601e9154a30a03e127713f1a6b1e",
+        "readyAtSimS": 41,
+        "recordSha256": "205a9594453df86c30ee739960f5b0ebf45131a9c9609dc98d3f607e80abaca9",
+        "profileSha256": "98af108edd71e125c4cddaed4aaf8d6e9e33e26b0b675be30fa715a52204f285",
         "physicsHz": 800,
         "clockMode": "sitl-lockstep",
         "speedup": 1,
@@ -457,10 +437,10 @@
     "reopen": {
       "facts": {
         "listed": 1,
-        "recordId": "178348bb2b06fe5a6fcbb74016d73676",
-        "recordingText": "50 Hz common rate, record 178348bb2b06fe5a6fcbb74016d73676",
+        "recordId": "1889a84619d8b7c53e3f85112983bfaf",
+        "recordingText": "50 Hz common rate, record 1889a84619d8b7c53e3f85112983bfaf",
         "profileText": "Octa coaxial 16, version 1",
-        "truthRows": 6893,
+        "truthRows": 6939,
         "missingChunks": 0,
         "corruptChunks": 0
       },
@@ -582,11 +562,9 @@
         "stage": "Flying",
         "armed": "Armed",
         "mode": "GUIDED",
-        "startSimS": 100.8,
-        "endSimS": 110.8,
+        "startSimS": 101.3,
+        "endSimS": 111.3,
         "readingsM": [
-          5.07,
-          5.07,
           5.07,
           5.07,
           5.08,
@@ -595,26 +573,28 @@
           5.1,
           5.11,
           5.11,
+          5.11,
           5.12,
           5.12,
           5.13,
           5.13,
           5.14,
           5.14,
-          5.14,
           5.15,
           5.15,
           5.15,
+          5.15,
           5.16,
           5.16,
           5.16,
-          5.16,
           5.17,
           5.17,
           5.17,
           5.17,
           5.17,
           5.17,
+          5.17,
+          5.18,
           5.18,
           5.18,
           5.18,
@@ -630,26 +610,26 @@
       "facts": {
         "stage": "paused",
         "before": {
-          "simS": 111.2,
-          "altitudeM": 5.18,
-          "stepped": 88880
+          "simS": 111.7,
+          "altitudeM": 5.19,
+          "stepped": 89360
         },
         "after": {
-          "simS": 111.2,
-          "altitudeM": 5.18,
-          "stepped": 88880
+          "simS": 111.7,
+          "altitudeM": 5.19,
+          "stepped": 89360
         },
-        "wallS": 31.432,
+        "wallS": 31.484,
         "resumedStage": "Flying",
-        "resumedAtSimS": 111.3,
+        "resumedAtSimS": 111.7,
         "hold": {
           "stage": "Flying",
           "armed": "Armed",
           "mode": "GUIDED",
-          "startSimS": 111.3,
-          "endSimS": 121.3,
+          "startSimS": 112,
+          "endSimS": 122,
           "readingsM": [
-            5.18,
+            5.19,
             5.19,
             5.19,
             5.19,
@@ -692,7 +672,7 @@
         "log": {
           "count": 1,
           "reason": "user",
-          "wallS": 32.6
+          "wallS": 32.7
         }
       },
       "error": null
@@ -705,7 +685,7 @@
         "ready": "READY",
         "altitudeM": 0.2,
         "restAltitudeM": 0.19705707577148507,
-        "frames": "110240 stepped, 0 lost, 0 resent, 28 held",
+        "frames": "110880 stepped, 0 lost, 1 resent, 27 held",
         "failsafeMessages": []
       },
       "error": null
@@ -713,7 +693,7 @@
     "stop": {
       "facts": {
         "state": "idle",
-        "text": "Run 20261107172658073-65cf85a1 stopped",
+        "text": "Run 20261109084101143-2900dcc0 stopped",
         "launcherState": "stopped",
         "group": "",
         "members": [],
@@ -724,7 +704,7 @@
     }
   },
   "sources": {
-    "tests/browser/phase1-nominal.spec.ts": "722138d8fae7daf97b3ff2c2c49e01f65b840aa326bfdb497fac1f32aea8eff3",
+    "tests/browser/phase1-nominal.spec.ts": "9f206192905e8a0d6dae5631be4b3cd54e32c9f5478c30bf6364121040de7b85",
     "scripts/phase1/nominal-flight.mjs": "216c3f7d7eb37986cbcb7fd85f43a97e750cd34f8454c27e03b97c70657e4bab",
     "scripts/phase1/nominal-rules.ts": "a8053834c9e724873e7c01b5473e4249d2911bea89edf57e04b2e03f3beaef5f",
     "tests/support/aircraft-ui.ts": "34eaada390229d27bc1c1056dd78541ab57d55dd2c81ad5a4e2a84daac17ce5f",

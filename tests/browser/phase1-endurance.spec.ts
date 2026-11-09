@@ -118,6 +118,12 @@ test("the 16-motor configuration flies a circuit for one simulated hour, with wi
     const stage = run.getByTestId("sitl-stage"), memory = { samples: 0, peakBytes: 0, lastBytes: 0 };
     const flight = { samples: 0, minimumAltitudeM: Number.POSITIVE_INFINITY, maximumAltitudeM: Number.NEGATIVE_INFINITY, taskState: "", armed: false, stateOfCharge: Number.NaN };
     let state = "running", failure: string | null = null, armedAtS: number | null = null;
+    // MIRAGE_PHASE1_SCREENSHOTS=DIR saves the page about every 10 simulated minutes and at the end; a failed screenshot changes nothing.
+    const shots = process.env.MIRAGE_PHASE1_SCREENSHOTS;
+    let nextShotS = 0;
+    const shot = async (label: string) => {
+      if (shots) await page.screenshot({ path: join(shots, `${ENDURANCE_CONFIGURATION}-hour-${label}.png`), fullPage: true }).catch(() => undefined);
+    };
     for (;;) {
       await page.waitForTimeout(15_000);
       const bytes = applicationMemoryBytes();
@@ -138,8 +144,10 @@ test("the 16-motor configuration flies a circuit for one simulated hour, with wi
         flight.maximumAltitudeM = Math.max(flight.maximumAltitudeM, altitude);
       }
       console.log(`EVID ${new Date().toISOString()} ${now.toFixed(0)} s simulated, ${(bytes / 1e9).toFixed(2)} GB, ${state}, ${(await run.getByTestId("sitl-speed").textContent()) ?? ""}`.slice(0, 200));
+      if (now >= nextShotS) { await shot(`${String(Math.round(now)).padStart(4, "0")}s`); nextShotS = now + 600; }
       if (now >= ENDURANCE_CRITERIA.simulatedS + MARGIN_S) break;
     }
+    await shot("end");
     // The meter and counters as the hour ended, before the stop changes them.
     const speed = run.getByTestId("sitl-speed");
     const frames = /(\d+) stepped, (\d+) lost, (\d+) resent, (\d+) held/.exec((await run.getByTestId("sitl-frames").textContent()) ?? "") ?? [];
