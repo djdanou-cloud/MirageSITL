@@ -177,12 +177,16 @@ function held(manifest: VehicleManifest, wakes: 'all' | 'off', omega: number): H
       }
     }
     const mean = (k: 'thrust' | 'torque' | 'speed', i: number) => (sums[0]![k][i]! + sums[1]![k][i]!) / (2 * half);
-    const change = (k: 'thrust' | 'torque', i: number) => Math.abs(sums[1]![k][i]! / sums[0]![k][i]! - 1);
+    // Steadiness (corrected 2026-11-09 before any result, see the specification): the change between the two halves of the
+    // averaged tail of the configuration's summed thrust, against the larger of that thrust and the thrust of C_T 0.001, and of
+    // its summed torque. A near-unloaded rotor's own relative change is not a measure of the coefficients compared.
+    const total = (k: 'thrust' | 'torque', h: number) => sums[h]![k].reduce((a, b) => a + b, 0) / half;
+    const R = model.rotors[0]!.radiusM, thrustAtCt = 0.001 * densityKgM3 * Math.PI * R * R * (omega * R) ** 2;
     return {
       thrustN: model.rotors.map((_, i) => mean('thrust', i)), torqueNm: model.rotors.map((_, i) => mean('torque', i)), omegaRadS: model.rotors.map((_, i) => mean('speed', i)),
       speedError: Math.max(...model.rotors.map((_, i) => Math.abs(mean('speed', i) / omega - 1))),
-      // Steadiness: the change between the two halves of the averaged tail, of whichever load is larger than a newton or a newton-metre.
-      unsteady: Math.max(0, ...model.rotors.flatMap((_, i) => [mean('thrust', i) > 1 ? change('thrust', i) : 0, mean('torque', i) > 1 ? change('torque', i) : 0])),
+      unsteady: Math.max(Math.abs(total('thrust', 1) - total('thrust', 0)) / Math.max(Math.abs(total('thrust', 0)), thrustAtCt),
+        Math.abs(total('torque', 1) / total('torque', 0) - 1)),
       flags,
     };
   } finally { d.dispose(); }

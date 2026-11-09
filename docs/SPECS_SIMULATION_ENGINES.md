@@ -1661,6 +1661,63 @@ rotor runs) and with `MIRAGE_HARRINGTON_OUT` set writes the report
 its differential collective and flags, the fits, the means, the standard errors and the statuses; its
 measurement tests and the fixture's checks against the report's text run always.
 
+Two corrections to the run's own checks (2026-11-09, after the declaration was committed in d050069 and
+before any model coefficient was seen; the method, the model and the tolerances are unchanged). The first
+run stopped at the steadiness check at 0.5° collective (a 0.39 % change): at low thrust dynamic inflow
+settles with a time constant of about `0.85/(4 lambda Omega)`, near 0.7 s at lambda 0.012, so a run
+now lasts 10 s instead of 4 s, still averaging its last second. The second stopped at 1° on rotor 1's
+coaxial pair with the wakes on, where the lower rotor, nearly unloaded in the upper one's wake, gave
+14 N of thrust that moved by 0.05 N (0.37 %): the check took each rotor's own relative change, which
+says nothing about the coefficients compared. It now takes the configuration's summed thrust, against the
+larger of that thrust and the thrust of C_T 0.001 (so 0.2 % of it is 2e-6 in C_T, a tenth of the
+digitization's uncertainty), and the summed torque.
+
+Result (2026-11-09; `MIRAGE_HARRINGTON=1 MIRAGE_HARRINGTON_OUT=… npx vitest run tests/rotor-wake-harrington.test.ts`,
+3 passed in 202 s, report `test-results/validation/harrington-coaxial.json`, status `NOT_REPRODUCED`,
+performance status `NOT_REPRODUCED`). Every run held its speed (error below 1e-3) and was steady (largest
+change 1.1e-4); the yaw trim needed at most 0.49° of differential collective on rotor 2 and 0.24° on
+rotor 1, within three secant steps; every run but rotor 1's at 327 ft/s set flag 2 (Reynolds number above
+the table's 1e6), and rotor 1's coaxial pair at 450 ft/s set flag 8 at zero collective only, where its
+thrust is −0.003 N. With the wakes off, the model's kappa is 1.0000 (within 2e-5) at every point, so the
+interference below is the TASK-101 coupler's alone.
+
+| Interference (C_T ≥ 0.002) | Points | Measured kappa (SE) | Model, wakes on | Model, wakes off | Band | Status | Induced share: measured / model |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| rotor 2, 392 ft/s | 8 | 1.116 (0.008) | 1.198 | 1.000 | ±0.035 | NOT_REPRODUCED | 1.317 / 1.328 |
+| rotor 2, 327 ft/s | 11 | 1.162 (0.008) | 1.221 | 1.000 | ±0.036 | NOT_REPRODUCED | 1.393 / 1.321 |
+| rotor 1, 500 ft/s | 14 | 1.274 (0.016) | 1.235 | 1.000 | ±0.052 | REPRODUCED | 1.396 / 1.308 |
+
+| Performance (C_T ≥ 0.001) | Points used | Mean model / measured C_Q (range) | Band about 1 | Status |
+| --- | --- | --- | --- | --- |
+| rotor 2 coaxial 392 ft/s | 8 of 8 | 0.740 (0.66–0.78) | ±0.058 | NOT_REPRODUCED |
+| rotor 2 coaxial 327 ft/s | 12 of 12 | 0.758 (0.67–0.80) | ±0.060 | NOT_REPRODUCED |
+| rotor 2 single 262 ft/s | 12 of 13 | 0.725 (0.57–0.83) | ±0.062 | NOT_REPRODUCED |
+| rotor 2 single 392 ft/s | 2 of 2 | 0.697 (0.68–0.71) | ±0.079 | NOT_REPRODUCED |
+| rotor 1 coaxial 500 ft/s | 16 of 19 | 0.735 (0.57–0.80) | ±0.060 | NOT_REPRODUCED |
+| rotor 1 coaxial 450 ft/s | 7 of 7 | 0.781 (0.72–0.80) | ±0.056 | NOT_REPRODUCED |
+| rotor 1 coaxial 327 ft/s | 9 of 9 | 0.683 (0.56–0.76) | ±0.062 | NOT_REPRODUCED |
+| rotor 1 single 500 ft/s | 15 of 25 | 0.788 (0.66–0.85) | ±0.080 | NOT_REPRODUCED |
+
+What it shows, for the stakeholder to judge (SA-01). The model's torque is 21 to 32 % below the measured
+one in every configuration, single rotors included, and least so at high thrust: at zero thrust rotor 1's
+coaxial pair has C_Q 3.43e-5 in the model against the measured 7.76e-5 (0.44), as the prior expectation
+from the section drag said (0.0054 against an effective 0.0115). So the rotors' own drag, not the wakes,
+sets the performance miss; the single rotors miss as much as the pairs. The interference itself: with
+the wakes on, a coaxial pair takes 20 to 24 % more torque than two lone rotors at the same thrust per
+rotor in the model, against 12 to 27 % measured. Rotor 1 at 500 ft/s, the one configuration with a single
+rotor at its own tip speed, is inside the band (model 1.235, measured 1.274). Rotor 2's two are not: the
+model's ratio is 0.06 to 0.08 above the measured one. Part of that follows from the drag miss: the
+ratio of whole torques mixes the induced ratio with the profile torque, which is the same in the pair and
+in two lone rotors, and the model, with about half the profile torque, weights the induced ratio more,
+most so on rotor 2, whose solidity is three times rotor 1's. The induced shares, each curve less its own
+torque at zero thrust and shown without a tolerance as declared, are 1.31 to 1.33 in the model (near the
+1.309 of the TASK-101 design's top hat in ideal hover) against 1.32 to 1.40 measured; rotor 2's measured
+share leans on the single fit's extrapolation to zero thrust (its points start at C_T 0.00087), so it is
+less certain than the whole-torque ratio. Not settled by this comparison: whether the lower-to-upper
+effect the model leaves out, the tunnel, or the rigs' structure explain the measured excess in the
+induced share on rotor 2 at 327 ft/s and rotor 1. The model and its declared method are not changed by
+this result.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,

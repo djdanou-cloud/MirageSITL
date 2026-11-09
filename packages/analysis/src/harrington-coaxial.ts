@@ -18,7 +18,7 @@ export const HARRINGTON_METHOD = Object.freeze({
   /** Yaw trim of a coaxial run: differential collective (added to the lower rotor, taken from the upper) until the torques agree. */
   trim: Object.freeze({ torqueTolerance: 0.005, maxIterations: 8, firstStepDeg: 0.5 }),
   /** Each run: rate, length, the averaged tail, the speed hold and the steadiness of the last two half-seconds. */
-  run: Object.freeze({ hz: 800, seconds: 4, averageS: 1, speedTolerance: 1e-3, steadyTolerance: 2e-3 }),
+  run: Object.freeze({ hz: 800, seconds: 10, averageS: 1, speedTolerance: 1e-3, steadyTolerance: 2e-3 }),
   /** Assumed mass of one blade, kg, for the shaft inertia only (a uniform bar from root to tip): it shapes the governor's transient, not a held speed's loads. */
   bladeMassKg: 40,
   /** Fit of measured C_Q against C_T: C_Q = a0 + a1 C_T^1.5 + a2 C_T^2 (profile, induced and the growth of profile drag with lift). */

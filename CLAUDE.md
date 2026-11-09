@@ -474,7 +474,7 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on measured coaxial data for TASK-101 (TASK-099 and TASK-100 are DONE, the stakeholder judging their comparisons on 2026-11-08);
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on the stakeholder's judgement of TASK-101's coaxial comparison (TASK-099 and TASK-100 are DONE, the stakeholder judging their comparisons on 2026-11-08);
   TASK-145 and TASK-184 are DONE on T-Motor's datasheet and a forum flight log (2026-11-07). A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
   failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
   stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
@@ -565,8 +565,12 @@ implementation.
   NASA's MTB2 tunnel data ran on 2026-11-08 (`tests/rotor-wake-mtb2.test.ts`,
   `MIRAGE_MTB2_DIR`), judged by the stakeholder as it stands: the level rear rotor's
   large loss at 40 ft/s is reproduced, a raised one's dependence on RPM and the
-  level one's loss at 20 ft/s are not; only a coaxial comparison stays
-  BLOCKED_EXTERNAL (D-11). TASK-103 adds the rotor table mode
+  level one's loss at 20 ft/s are not. Its coaxial comparison with NACA TN 2318
+  (Harrington 1951, digitized into `tests/fixtures/rotors/harrington-coaxial.json`) ran
+  on 2026-11-09 (`tests/rotor-wake-harrington.test.ts`, `MIRAGE_HARRINGTON=1`): a pair's
+  extra torque over two lone rotors is reproduced on rotor 1 and not on rotor 2 (the
+  model 0.06 to 0.08 high), and the model's torque is 21 to 32 % low everywhere from its
+  section drag; the task stays BLOCKED_EXTERNAL until the stakeholder judges it. TASK-103 adds the rotor table mode
   (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
   Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
   the profile. TASK-103 is DONE: 9 of 111 left-out stand points miss the declared
