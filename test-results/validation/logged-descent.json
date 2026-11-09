@@ -300,8 +300,8 @@
     }
   ],
   "model": {
-    "command": 0.3160648345947267,
-    "hoverInflowMps": 8.301798582782355,
+    "command": 0.2593822479248047,
+    "hoverInflowMps": 8.302013976260437,
     "densityKgM3": 1.225000018124288,
     "transverseMps": [
       0,
@@ -347,21 +347,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": -4.402234243163016,
-          "scaledClimb": -0.5029474206151427,
-          "ratio": 1.1243596073370634,
+          "climbMps": -4.402348460887706,
+          "scaledClimb": -0.4960377308374617,
+          "ratio": 1.16289112607552,
           "fluctuationShare": 1
         },
         {
           "transverseMps": 2,
-          "climbMps": -4.402234243163016,
-          "scaledClimb": -0.4976480284457543,
-          "ratio": 1.1401315643811178,
+          "climbMps": -4.402348460887706,
+          "scaledClimb": -0.49026590853970553,
+          "ratio": 1.1778435894315538,
           "fluctuationShare": 1
         }
       ],
-      "modelLow": 1.1243596073370634,
-      "modelHigh": 1.1401315643811178,
+      "modelLow": 1.16289112607552,
+      "modelHigh": 1.1778435894315538,
       "reproduced": false
     },
     {
@@ -397,21 +397,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": -2.754420465766271,
-          "scaledClimb": -0.31626918596915515,
-          "ratio": 1.112982032547796,
+          "climbMps": -2.7544919303047446,
+          "scaledClimb": -0.3124575145736093,
+          "ratio": 1.146592484732323,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": -2.754420465766271,
-          "scaledClimb": -0.31342201178370616,
-          "ratio": 1.1252195637621802,
+          "climbMps": -2.7544919303047446,
+          "scaledClimb": -0.3092865122807441,
+          "ratio": 1.1579721214247163,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 1.112982032547796,
-      "modelHigh": 1.1252195637621802,
+      "modelLow": 1.146592484732323,
+      "modelHigh": 1.1579721214247163,
       "reproduced": false
     },
     {
@@ -452,21 +452,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": -1.9747616819005396,
-          "scaledClimb": -0.22817684160130114,
-          "ratio": 1.098155871114842,
+          "climbMps": -1.9748129178806473,
+          "scaledClimb": -0.2261726585430069,
+          "ratio": 1.12301231381632,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": -1.9747616819005396,
-          "scaledClimb": -0.2264828424737716,
-          "ratio": 1.1070568080271403,
+          "climbMps": -1.9748129178806473,
+          "scaledClimb": -0.2241291734107992,
+          "ratio": 1.13197132054285,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 1.098155871114842,
-      "modelHigh": 1.1070568080271403,
+      "modelLow": 1.12301231381632,
+      "modelHigh": 1.13197132054285,
       "reproduced": false
     },
     {
@@ -523,21 +523,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": -1.122123280367372,
-          "scaledClimb": -0.13216422385262644,
-          "ratio": 1.052792958383196,
+          "climbMps": -1.122152394303802,
+          "scaledClimb": -0.13172782001519098,
+          "ratio": 1.061431761116118,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": -1.122123280367372,
-          "scaledClimb": -0.13147376363526217,
-          "ratio": 1.0570335036187868,
+          "climbMps": -1.122152394303802,
+          "scaledClimb": -0.1307144902473245,
+          "ratio": 1.0678092753354813,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 1.052792958383196,
-      "modelHigh": 1.0570335036187868,
+      "modelLow": 1.061431761116118,
+      "modelHigh": 1.0678092753354813,
       "reproduced": false
     },
     {
@@ -600,21 +600,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": -0.45356582836184994,
-          "scaledClimb": -0.054210233490041046,
-          "ratio": 1.0180022075885888,
+          "climbMps": -0.45357759630831784,
+          "scaledClimb": -0.05409209783682127,
+          "ratio": 1.0236498424577547,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": -0.45356582836184994,
-          "scaledClimb": -0.053969610667463114,
-          "ratio": 1.020789479882561,
+          "climbMps": -0.45357759630831784,
+          "scaledClimb": -0.053798570184373486,
+          "ratio": 1.0247205927074827,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 1.0180022075885888,
-      "modelHigh": 1.020789479882561,
+      "modelLow": 1.0236498424577547,
+      "modelHigh": 1.0247205927074827,
       "reproduced": false
     },
     {
@@ -677,21 +677,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": 0.45951808672334177,
-          "scaledClimb": 0.05563372497505473,
-          "ratio": 0.9888294300029828,
+          "climbMps": 0.45953000910352887,
+          "scaledClimb": 0.055671572822330664,
+          "ratio": 0.9870886580304855,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": 0.45951808672334177,
-          "scaledClimb": 0.055469281750116325,
-          "ratio": 0.9884578983676694,
+          "climbMps": 0.45953000910352887,
+          "scaledClimb": 0.05544618768308365,
+          "ratio": 0.9852929444196075,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 0.9884578983676694,
-      "modelHigh": 0.9888294300029828,
+      "modelLow": 0.9852929444196075,
+      "modelHigh": 0.9870886580304855,
       "reproduced": true
     },
     {
@@ -741,22 +741,22 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": 1.111569999120128,
-          "scaledClimb": 0.13558596890460917,
-          "ratio": 0.9726317501869005,
+          "climbMps": 1.1115988392474636,
+          "scaledClimb": 0.13588986894135613,
+          "ratio": 0.9668415382294177,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": 1.111569999120128,
-          "scaledClimb": 0.13523400339388394,
-          "ratio": 0.9716228138529892,
+          "climbMps": 1.1115988392474636,
+          "scaledClimb": 0.13539828561199518,
+          "ratio": 0.9643035235320581,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 0.9716228138529892,
-      "modelHigh": 0.9726317501869005,
-      "reproduced": false
+      "modelLow": 0.9643035235320581,
+      "modelHigh": 0.9668415382294177,
+      "reproduced": true
     },
     {
       "fromScaledClimb": 0.2,
@@ -793,22 +793,22 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": 1.9449685535410839,
-          "scaledClimb": 0.23970337120475887,
-          "ratio": 0.9505758740911693,
+          "climbMps": 1.9450190165265837,
+          "scaledClimb": 0.2407355555838326,
+          "ratio": 0.939484019913031,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": 1.9449685535410839,
-          "scaledClimb": 0.23915899400851354,
-          "ratio": 0.9489905780073346,
+          "climbMps": 1.9450190165265837,
+          "scaledClimb": 0.23989489612239215,
+          "ratio": 0.936965096553293,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 0.9489905780073346,
-      "modelHigh": 0.9505758740911693,
-      "reproduced": false
+      "modelLow": 0.936965096553293,
+      "modelHigh": 0.939484019913031,
+      "reproduced": true
     },
     {
       "fromScaledClimb": 0.3,
@@ -837,21 +837,21 @@
       "model": [
         {
           "transverseMps": 0,
-          "climbMps": 4.4924683989646175,
-          "scaledClimb": 0.5742899549621749,
-          "ratio": 0.8758135476876343,
+          "climbMps": 4.492584957850498,
+          "scaledClimb": 0.5798161201234022,
+          "ratio": 0.8514234445576176,
           "fluctuationShare": 0
         },
         {
           "transverseMps": 2,
-          "climbMps": 4.4924683989646175,
-          "scaledClimb": 0.573243881643145,
-          "ratio": 0.873611899710178,
+          "climbMps": 4.492584957850498,
+          "scaledClimb": 0.5784860313543899,
+          "ratio": 0.8471026278198763,
           "fluctuationShare": 0
         }
       ],
-      "modelLow": 0.873611899710178,
-      "modelHigh": 0.8758135476876343,
+      "modelLow": 0.8471026278198763,
+      "modelHigh": 0.8514234445576176,
       "reproduced": false
     }
   ],
