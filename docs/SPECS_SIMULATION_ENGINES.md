@@ -1219,7 +1219,8 @@ The Pavo20 Pro II profile (TASK-099, 2026-11-08). The stakeholder's BetaFPV Pavo
 and `pavo-battery-3s-850.json`, and the profile `tests/fixtures/aircraft/pavo-quad.json`, as the U35 is
 (`tests/support/pavo.ts`; the propellers fly the NACA6409 catalog polar, the card naming no airfoil).
 Stated: 169 g all-up, the RCinPower 1303 V3 8000KV motors, 2.2-inch Gemfan GP2219-3 propellers and a
-3S 850 mAh battery (the stakeholder); a 93.9 mm wheelbase (BetaFPV's frame page); three blades and a
+3S 850 mAh battery (the stakeholder); a blade 10 mm wide at its widest point (the stakeholder's ruler,
+2026-11-09); a 93.9 mm wheelbase (BetaFPV's frame page); three blades and a
 1.9-inch pitch read from the name GP2219-3 by Gemfan's naming, the pitch not confirmed; the outputs
 SERVO1 to SERVO4 on motors 2, 3, 4 and 1, QUAD/X_REV (FRAME_CLASS 1, FRAME_TYPE 18), DShot600 once per
 400 Hz loop, the cell voltages 4.35 and 3.3 V (MOT_BAT_VOLT_MAX 13.05 V and MOT_BAT_VOLT_MIN 9.9 V over
@@ -1237,12 +1238,15 @@ them ducts with an 8 to 11 % thrust gain. The model represents neither. Assumed,
 | Ground clearance | 25 mm | a whoop resting on its guards; not measured |
 | Motor resistance, no-load current and voltage, current and power limits, mass | 0.25 ohm, 0.5 A at 10 V, 12 A, 130 W, 4.5 g | typical of a 1303-size 8000 KV whoop motor; the logs' ESC voltage and current telemetry (15.75 V and 148 A at hover) is not usable for a fit |
 | Propeller mass | 1.0 g | typical of a 2-inch three-blade whoop propeller |
-| Propeller hub, chord, twist, airfoil | none on the card | the TASK-139 derivation's assumptions: a root at 0.15 R, a chord of 0.1812 R, the blade angle from the nominal pitch, the NACA6409 polar |
+| Propeller hub, twist, airfoil | none on the card | the TASK-139 derivation's assumptions: a root at 0.15 R, the blade angle from the nominal pitch, the NACA6409 polar |
+| Propeller chord along the blade | the median taper of the 14 UIUC propellers, each over its own maximum, scaled to the measured 10 mm maximum (c/R 0.35791) | only the widest chord is measured (the stakeholder's ruler, 2026-11-09); the shape and where the widest point lies are not. Until 2026-11-09 the card had no chord and the derivation assumed a constant 0.1812 R |
 | ESC current limit | 12 A | typical of a whoop all-in-one ESC; its model is not stated |
 
 `tests/pavo-profile.test.ts` holds, declared before its run: every card value is known with a named
-source or not known, and the assumed ones are exactly those of the table; the cards resolve with nothing
-missing; the derived rotors stand 46.95 mm from the axis and opposite ones 93.9 mm apart; the outputs are
+source or not known, and the assumed ones are exactly those of the table; the propeller's chord is the
+measured 10 mm maximum on the UIUC median taper, recomputed from `tests/fixtures/rotors/uiuc-propellers.json`
+within the card's five-decimal rounding (5e-6 R), so the derivation flags no assumed chord (from
+2026-11-09); the cards resolve with nothing missing; the derived rotors stand 46.95 mm from the axis and opposite ones 93.9 mm apart; the outputs are
 the logs' SERVO1..4_FUNCTION 34, 35, 36 and 33; the propellers clear; the manifest's bytes repeat; and,
 held level with equal commands, the model carries its weight within 0.1 % at zero climb with no vortex
 ring fluctuation. The TASK-128 frame catalog holds stock QUAD X (FRAME_TYPE 1) and not X_REV, whose spins
@@ -1250,8 +1254,12 @@ differ, so the profile flies on the scripting matrix (FRAME_CLASS 15) with X_REV
 Result (2026-11-08, 4 passed): the model hovers at 26,235 rpm on a command of 0.316, where the logs hover
 at a median of 22,400 to 23,100 rpm per flight: it needs 17 % more rotor speed, or its thrust per squared
 speed is 0.73 times the aircraft's. That is reported, not judged; the assumed blade geometry, the guards
-and the 14 poles the logs assume for the speed reading (SERVO_BLH_POLES) are what it rests on. The
-six-axis trim of `tests/support/hover-trim.ts` does not apply to this rotor: its sweep needs a settled
+and the 14 poles the logs assume for the speed reading (SERVO_BLH_POLES) are what it rests on. Again
+with the measured chord (2026-11-09, 4 passed, exit 0): the model hovers at 20,212 rpm on a command of
+0.259, where the logs hover at 22,400 to 23,100 rpm: it needs 10 to 12 % less rotor speed, or its thrust
+per squared speed is 1.23 to 1.31 times the aircraft's. Both hover speeds are in the model's air of
+1.225 kg/m³. With `MIRAGE_PAVO_OUT` the test also reports the rotor's coefficients ("Why the model hovers
+faster"). The six-axis trim of `tests/support/hover-trim.ts` does not apply to this rotor: its sweep needs a settled
 speed at every command up to the full 13.05 V, and above about 5.4 V this 28 mm rotor holds a period-two
 alternation of about 3e-6 of its speed at 800 Hz, whatever the ESC's update period; a held hover at
 zero climb replaces it.
@@ -1288,8 +1296,40 @@ So one geometric change accounts for both coefficients at once: the assumed chor
 median of the UIUC two-blade propellers, is too narrow for this three-blade whoop propeller. The open
 rings cannot be the main cause: a duct-like ring raises thrust at equal power, not power with it. Not
 established: the propeller's real chord and twist, which a ruler across one blade would give (the
-model predicts about 7.4 mm at a constant chord). The card keeps its assumed chord until the
-stakeholder decides; the Pavo's TASK-099 descent and TASK-090 SystemId results were computed with it.
+model predicts about 7.4 mm at a constant chord). The card kept its assumed chord until the
+stakeholder measured it (below); the Pavo's TASK-099 descent and TASK-090 SystemId results of 2026-11-08
+were computed with it.
+
+The measured chord (2026-11-09). The stakeholder measured a blade with a ruler: 10 mm wide at its widest
+point, narrowing toward the hub and the tip. The propeller card now holds a chord distribution whose
+source is of kind `measured`: the stakeholder's statement, written to `sources/stakeholder-pavo-blade.txt`
+beside the logs (SHA-256 `ea8e30e8…f726bf2`). Its shape is the median over the 14 UIUC propellers of
+`tests/fixtures/rotors/uiuc-propellers.json` of each one's chord over its own maximum, at r/R 0.15 to 1.0,
+scaled to a maximum of 10 mm (c/R 0.35791 at R 27.94 mm). Only the maximum is measured. The shape is the
+assumption: 0.68, 0.62 and 0.78 of the maximum at 0.15, 0.2 and 0.25 R, 0.95 at 0.3 R, 0.99 to 1.0
+from 0.35 to 0.9 R, 0.94 at 0.95 R and 0.12 at the tip; where the widest point lies is not measured. The measured
+10 mm is wider than the 7.4 mm constant chord that matched the measured CT above, and the taper takes
+some of that back. `tests/pavo-profile.test.ts` with `MIRAGE_PAVO_OUT` now computes the model's
+coefficients with the definitions of `scripts/pavo/propeller-from-flight.mjs`: held as the hover test
+holds it, at the command that turns the rotors at 22,500 rpm (to 1e-4), in air of 1.177 kg/m³, T a
+quarter of the vertical force and Q the mean aerodynamic shaft torque. The rotor's own thrust, before
+the download of TASK-101 on the airframe, is listed beside it; the 0.182 above is that one.
+
+| Chord | CT, vertical force | CT, rotor alone | CP | Hover in the model (1.225 kg/m³) |
+| --- | --- | --- | --- | --- |
+| Assumed constant 0.1812 R (to 2026-11-08) | 0.177 | 0.182 | 0.145 | 26,235 rpm |
+| Measured 10 mm maximum on the UIUC taper | 0.310 | 0.319 | 0.267 | 20,212 rpm |
+| The flights (median 22,513 rpm) | 0.255 | — | 0.24 to 0.26 | 22,400 to 23,100 rpm (logged) |
+
+The flights' CT is the aircraft's vertical force too, so it compares with the first CT column. With the
+measured chord the model's CP, 0.267, lies about 3 % above the top of the measured range, where it lay
+40 to 44 % below it; the measured CP rests on the motor constants as well. The model's CT, 0.310, lies
+22 % above the measured 0.255, where it lay 31 % below it, and the model now hovers 10 to 12 % slower
+than the aircraft, where it hovered 17 % faster. An observation, not a fix: at about the measured power
+the model's rotor gives about a fifth more thrust than the aircraft's. Besides the chord's shape, the
+remaining assumptions behind that are the pitch read from the name (1.9 inch, not confirmed) with the
+blade angle taken from it at every radius, and the cambered NACA6409 polar, which the card does not
+name; the open rings would add thrust, not remove it. Nothing is tuned to these numbers.
 
 Logged descent (TASK-099, 2026-11-08), declared before the model's prediction was computed and
 after a first look at the logs. The logs are the Pavo's 18 armed flights of
@@ -1382,6 +1422,32 @@ more speed than the aircraft, so the real rotor is more heavily loaded at a give
 more sensitive to inflow, which is the direction of the steeper climbs. Neither is established by these
 logs. The effect stays labeled as not validated (D-11); whether the model needs a guard term, or this
 comparison is enough for Phase 1, is the stakeholder's to judge.
+
+Again with the measured chord (2026-11-09; `tests/descent-logged.test.ts` 3 passed in 14 s, exit 0, with
+the declared method and tolerance unchanged; the report `test-results/validation/logged-descent.json`
+replaced, status still `NOT_REPRODUCED`). The measured columns are the same, value for value; the model
+now hovers on a command of 0.259 instead of 0.316, with a hover inflow of 8.30 m/s as before. The model
+columns are V_x 0 and 2 m/s, the 2026-11-08 ones beside the new:
+
+| x = V_z/v_h | Bins | Measured | Model, assumed chord | Reproduced | Model, measured chord | Reproduced |
+| --- | --- | --- | --- | --- | --- | --- |
+| −0.7 to −0.45 | 10 | 0.9855 ± 0.0163 | 1.1244–1.1401 | no | 1.1629–1.1778 | no |
+| −0.45 to −0.3 | 42 | 0.9802 ± 0.0046 | 1.1130–1.1252 | no | 1.1466–1.1580 | no |
+| −0.3 to −0.2 | 163 | 0.9808 ± 0.0033 | 1.0982–1.1071 | no | 1.1230–1.1320 | no |
+| −0.2 to −0.1 | 891 | 0.9921 ± 0.0012 | 1.0528–1.0570 | no | 1.0614–1.0678 | no |
+| −0.1 to −0.03 | 5414 | 0.9865 ± 0.0005 | 1.0180–1.0208 | no | 1.0236–1.0247 | no |
+| 0.03 to 0.1 | 2541 | 0.9749 ± 0.0006 | 0.9885–0.9888 | yes | 0.9853–0.9871 | yes |
+| 0.1 to 0.2 | 496 | 0.9468 ± 0.0015 | 0.9716–0.9726 | no | 0.9643–0.9668 | yes |
+| 0.2 to 0.3 | 70 | 0.9151 ± 0.0029 | 0.9490–0.9506 | no | 0.9370–0.9395 | yes |
+| 0.3 to 0.7 | 38 | 0.7899 ± 0.0074 | 0.8736–0.8758 | no | 0.8471–0.8514 | no |
+
+With the wider blade the model gains more thrust in descent (2.4 to 17.8 % at equal rotor speed, against
+1.8 to 14.0 %) and loses more in climb (0.966 against 0.972 at 0.13 v_h, 0.85 against 0.875 at
+0.54 v_h): the more heavily loaded rotor moved the way the paragraph above expected for the climbs. The
+classes from 0.1 to 0.3 v_h now lie within the declared tolerance; the steepest climb does not, and every
+descending class still has the opposite sign. The deepest class again carries the fluctuation on every
+step. Reported, not judged: the stakeholder's "Good for now" of 2026-11-08 was given on the earlier
+comparison.
 
 Rotor wakes (TASK-101). `packages/physics/src/rotor-wake.ts` computes them between rotor
 steps, one way and with no swirl, a synthetic model with nothing measured behind it. From
@@ -4853,6 +4919,38 @@ assumed blade geometry, with which the rotor hovers 17 % faster than the aircraf
 left out of the SITL would add lag to the real loop, not remove it. With these four flights the
 SystemId item of the G4 criterion has its real captures, scored; the SITL logs and captures stay in
 the run's directory, named by SHA-256 in the reports, and are not committed.
+
+Again with the measured chord (2026-11-09; `tests/sitl-systemid-pavo.test.ts` with `MIRAGE_SYSTEMID_LOG`
+33, 34, 35 and 36, each exit 0 and run under the shared SITL lock, 37 to 40 s of wall time each, no
+lockstep gap, duplicate or restart; the firmware, flight, parameters and comparison as declared; the
+derived manifest `f28cfc9a…` instead of `825dcb33…`; the four reports replaced, each `REPORTED`). The only
+change between the two runs is the propeller card's chord, and with it the hover command and the height
+the pilot model holds: 4.2 to 4.6 m instead of 2.5 to 3.0 m, its proportional term now leaving the
+hover less far below 5 m. Every simulated sweep again ran its 77 s. The real columns of the table above
+are unchanged; the simulated ones, with J of the 2026-11-08 run beside the new:
+
+| Log | Axis | J | J, 2026-11-08 | SITL, 1–4 Hz | SITL peak | SITL, 10.2 Hz | SITL, 16.8 Hz |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 33 | roll | 82.1 | 188.3 | 0.1 to 0.5 dB, −6 to −18° | 4.7 dB at 14.1 Hz | 3.3 dB, −67° | −160° |
+| 34 | roll | 90.2 | 238.5 | 0.1 to 0.5 dB, −6 to −18° | 4.9 dB at 14.1 Hz | 3.2 dB, −66° | −156° |
+| 35 | pitch | 93.6 | 276.6 | 0.2 to 0.8 dB, −6 to −19° | 5.4 dB at 12.1 Hz | 5.4 dB, −88° | −191° |
+| 36 | yaw | 11.7 | 7.9 | −0.03 to 0.04 dB, −7 to −21° | none | coherence below 0.6 above 5.1 Hz | |
+
+In roll and pitch the simulated loop's phase now follows the real one to about 10 Hz (at 10.2 Hz −67°
+and −66° against the aircraft's −68° and −63° in roll, −88° against −81° in pitch), and its peak sits
+at the aircraft's own frequency (14.1 Hz in roll, 12.1 Hz in pitch) where it lay at 10.2 and 8.6 Hz; the
+peak is still higher (4.7 to 5.4 dB against 1.9 to 2.4 dB), and above it the loop still lags more (at
+16.8 Hz −160° and −156° against −135° and −125° in roll, −191° against −159° in pitch). In yaw the
+simulated response is flatter than before and than the aircraft's (J 11.7 against 7.9). The cross-axis
+responses barely move (J 1403 instead of 1435 for pitch in log 33's roll sweep). The other candidates
+named above remain as they were. Reported, not judged; nothing is tuned to these numbers. The reports
+are assembled from the three files the test writes for each log (`-run.json`, `-capture.json`,
+`-fidelity.json` in `MIRAGE_SYSTEMID_OUT`) by `node --experimental-transform-types --no-warnings
+scripts/pavo/assemble-systemid.mjs --in RUN_DIR --out test-results/validation`, which recomputes the swept
+axis's response point by point and reproduces both the 2026-11-08 and the 2026-11-09 reports byte for byte
+from their run files; a fresh flight of the same log is not bit-identical (log 34 flown again: J 90.15
+against 90.25; its sweep began 2.5 ms of simulated time later and its lockstep counted 119,232 steps
+against 126,432).
 
 Capture schema 3 and the bench-test captures (2026-11-08), declared before either capture was written.
 An exploratory run of the two prediction paths came first: it showed the T-Motor predictions with and

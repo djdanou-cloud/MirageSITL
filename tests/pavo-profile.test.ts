@@ -10,12 +10,19 @@ import { buildPavo, heldAt, hoverCommand, PAVO_FILES } from './support/pavo.ts';
 // The stakeholder's BetaFPV Pavo20 Pro II (SPECS_SIMULATION_ENGINES "The Pavo20 Pro II profile"), built from its cards as the U35
 // is. Declared before the run, with independent oracles:
 //  - every card value is known with a named source or not known (null), and the assumed ones are exactly the listed set;
+//  - the propeller's chord is the stakeholder's measured 10 mm maximum (2026-11-09) on the median taper of the 14 UIUC propellers of
+//    tests/fixtures/rotors/uiuc-propellers.json, each over its own maximum, recomputed here from that fixture within the card's
+//    five-decimal rounding (5e-6 of R); the derivation then flags no assumed chord;
 //  - the cards resolve with nothing missing, and the derived rotors stand where the 93.9 mm wheelbase puts them on a square X;
 //  - the outputs are the real aircraft's own, read from its log 34 (SERVO1..4_FUNCTION 34, 35, 36, 33), and the allocation has
 //    QUAD/X_REV's spins (the log's FRAME_CLASS 1, FRAME_TYPE 18) on the scripting matrix, which the TASK-128 catalog needs for it;
 //  - the propellers clear each other and the body, and the derived manifest's bytes are reproducible;
 //  - held level with equal commands, the model carries its 169 g within 0.1 % at zero climb, with no vortex ring fluctuation. Its
-//    hover speed is reported (MIRAGE_PAVO_OUT writes it), not judged: the logs hover at a median of about 22,500 rpm. The six-axis
+//    hover speed is reported (MIRAGE_PAVO_OUT writes it), not judged: the logs hover at a median of about 22,500 rpm. With
+//    MIRAGE_PAVO_OUT, the rotor's CT = T/(rho n^2 D^4) and CP = 2 pi Q/(rho n^2 D^5) are also reported at the flights' median, held
+//    the same way at the command that turns it at 22,500 rpm (bisection to 1e-4) in air of 1.177 kg/m^3, T a quarter of the vertical
+//    force (as the flights measure it, after the TASK-101 download) and Q the mean aerodynamic shaft torque: the definitions of
+//    scripts/pavo/propeller-from-flight.mjs; the rotors' own CT, before the download, beside it. The six-axis
 //    trim of tests/support/hover-trim.ts does not apply: its rotor sweep needs a settled speed at every command to 13.05 V, and this
 //    rotor holds a period-two alternation of about 3e-6 of its speed above about 5.4 V at 800 Hz.
 const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -53,11 +60,24 @@ describe('the Pavo20 Pro II profile', () => {
     const { resolved, derived, references } = await buildPavo();
     expect(resolved.missing).toEqual([]);
     const ids = new Set<string>(resolved.assumptions.map(item => item.id));
-    for (const id of ['root-cutout-assumed', 'chord-assumed', 'twist-from-pitch', 'motor-rotor-inertia', 'esc-command-lag']) expect(ids.has(id), id).toBe(true);
-    expect(ids.has('pack-resistance')).toBe(false);
+    for (const id of ['root-cutout-assumed', 'twist-from-pitch', 'motor-rotor-inertia', 'esc-command-lag']) expect(ids.has(id), id).toBe(true);
+    for (const id of ['chord-assumed', 'chord-extended', 'pack-resistance']) expect(ids.has(id), id).toBe(false);
     const geometry = derivePropellerGeometry(read(`./${PAVO_FILES.propeller}`));
     expect(geometry.geometry.radiusM).toBeCloseTo(0.02794, 12);
     expect(geometry.geometry.bladeCount).toBe(3);
+    // The chord: the UIUC median taper, each propeller's chord over its own maximum, scaled to the measured 10 mm maximum.
+    const uiuc = read('./fixtures/rotors/uiuc-propellers.json') as { propellers: { geometry: { radiusRatio: number[]; chordRatio: number[] } }[] };
+    const card = read(`./${PAVO_FILES.propeller}`) as { values: { chord: { radiusRatio: number[]; chordRatio: number[] } } };
+    const grid = uiuc.propellers[0]!.geometry.radiusRatio;
+    const median = grid.map((_, i) => {
+      const column = uiuc.propellers.map(p => p.geometry.chordRatio[i]! / Math.max(...p.geometry.chordRatio)).sort((a, b) => a - b);
+      return (column[(column.length - 1) >> 1]! + column[column.length >> 1]!) / 2;
+    });
+    const scale = 0.010 / 0.02794 / Math.max(...median);
+    expect(uiuc.propellers).toHaveLength(14);
+    expect(card.values.chord.radiusRatio).toEqual(grid);
+    card.values.chord.chordRatio.forEach((ratio, i) => expect(Math.abs(ratio - median[i]! * scale), `r/R ${grid[i]}`).toBeLessThan(5e-6));
+    expect(Math.abs(Math.max(...card.values.chord.chordRatio) * 0.02794 - 0.010)).toBeLessThan(5e-6 * 0.02794);
     const rotors = derived.manifest.rotors;
     expect(rotors).toHaveLength(4);
     for (const rotor of rotors) {
@@ -98,7 +118,21 @@ describe('the Pavo20 Pro II profile', () => {
     expect(Math.abs(held.forceUpN / weightN - 1)).toBeLessThan(1e-3);
     expect(held.fluctuationSteps).toBe(0);
     const out = process.env.MIRAGE_PAVO_OUT;
-    if (out) writeFileSync(out, `${JSON.stringify({ manifestSha256: derived.sha256, command, forceUpN: held.forceUpN, weightN,
-      hoverRpm: Math.sqrt(held.meanOmega2) * 30 / Math.PI }, null, 2)}\n`);
+    if (!out) return;
+    // The flights' median speed and air (SPECS_SIMULATION_ENGINES "Why the model hovers faster"), reported only.
+    const rpm = 22500, densityKgM3 = 1.177, diameterM = 0.05588, flight = { ...configuration, densityKgM3 };
+    const rpmAt = (c: number) => Math.sqrt(heldAt(module, flight, c, { settleS: 0.5, measureS: 0.5 }).meanOmega2) * 30 / Math.PI;
+    let low = 0.05, high = 0.95, middle = 0.5;
+    for (let i = 0; i < 40; i++) {
+      middle = 0.5 * (low + high);
+      const speed = rpmAt(middle);
+      if (Math.abs(speed / rpm - 1) <= 1e-4) break;
+      if (speed < rpm) low = middle; else high = middle;
+    }
+    const at = heldAt(module, flight, middle, { settleS: 0.5, measureS: 1 }), n2 = at.meanOmega2 / (2 * Math.PI) ** 2;
+    writeFileSync(out, `${JSON.stringify({ manifestSha256: derived.sha256, command, forceUpN: held.forceUpN, weightN,
+      hoverRpm: Math.sqrt(held.meanOmega2) * 30 / Math.PI, hoverDensityKgM3: configuration.densityKgM3,
+      coefficients: { densityKgM3, command: middle, rpm: Math.sqrt(at.meanOmega2) * 30 / Math.PI, thrustN: at.forceUpN / 4, shaftTorqueNm: at.meanShaftTorqueNm,
+        ct: at.forceUpN / 4 / (densityKgM3 * n2 * diameterM ** 4), rotorCt: at.meanRotorThrustN / (densityKgM3 * n2 * diameterM ** 4), cp: 2 * Math.PI * at.meanShaftTorqueNm / (densityKgM3 * n2 * diameterM ** 5), fluctuationSteps: at.fluctuationSteps } }, null, 2)}\n`);
   }, 600_000);
 });

@@ -553,7 +553,10 @@ implementation.
   version 5); its comparison with the stakeholder's Pavo descents ran on 2026-11-08
   and is not reproduced (the logs reach only the edge of the vortex ring region);
   the stakeholder judged it "Good for now" and the task is DONE. The Pavo model's faster hover
-  traces to its assumed propeller chord (SPECS_SIMULATION_ENGINES "Why the model hovers faster"). TASK-100 adds the rotor ground effect,
+  traced to its assumed propeller chord; with the stakeholder's measured chord of 2026-11-09 (10 mm
+  at the widest point) it hovers 10 to 12 % slower than the logs, thrust about a fifth high at about
+  the measured power, and the descent and SystemId comparisons were run again
+  (SPECS_SIMULATION_ENGINES "Why the model hovers faster"). TASK-100 adds the rotor ground effect,
   off unless effect `rotor.ground-effect` asks for it, with the closed-form thrust
   ratio at equal power, the multirotor's neighbours and, since 2026-11-08, the
   fountain's lift on the body (Sanchez-Cuevas, K_b 2); its comparison with the

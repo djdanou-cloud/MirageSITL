@@ -26,6 +26,13 @@
       "description": "Assumed: typical of a 2-inch three-blade whoop propeller, chosen for MirageSITL's comparison with the stakeholder's logs; no source we hold states it.",
       "sha256": null,
       "date": null
+    },
+    {
+      "id": "blade-ruler",
+      "kind": "measured",
+      "description": "The stakeholder's ruler measurement of 2026-11-09 (sources/stakeholder-pavo-blade.txt beside the logs, hashed here): a blade is 10 mm wide at its widest point, narrowing toward the hub and the tip. Only that maximum is measured. The shape along the blade is assumed: the median over the 14 UIUC propellers of tests/fixtures/rotors/uiuc-propellers.json of each one's chord over its own maximum, at r/R 0.15 to 1.0, scaled so that its maximum is 10 mm (c/R 0.35791 at R 27.94 mm). Where along the blade the widest point lies is not measured.",
+      "sha256": "ea8e30e88daf7cc06539781f176f0b4eb18231a955979888ba09b8eb3f726bf2",
+      "date": "2026-11-09"
     }
   ],
   "values": {
@@ -34,7 +41,10 @@
     "bladeCount": 3,
     "hubDiameterM": null,
     "massKg": 0.001,
-    "chord": null,
+    "chord": {
+      "radiusRatio": [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0],
+      "chordRatio": [0.24348, 0.22217, 0.2798, 0.34059, 0.35711, 0.35503, 0.35347, 0.3547, 0.35584, 0.35535, 0.35722, 0.35633, 0.35712, 0.35791, 0.35631, 0.35616, 0.33609, 0.0435]
+    },
     "twist": null,
     "airfoil": null
   },
@@ -44,9 +54,9 @@
     "bladeCount": "model-name",
     "hubDiameterM": null,
     "massKg": "assumed",
-    "chord": null,
+    "chord": "blade-ruler",
     "twist": null,
     "airfoil": null
   },
-  "applicability": "No blade geometry: a derived BET geometry rests on its listed assumptions. The aircraft's propeller guards are open rings, not ducts (the stakeholder, 2026-11-08; BetaFPV's frame page calls them ducts), and the model does not represent them."
+  "applicability": "Of the blade geometry only the widest chord, 10 mm, is measured; the chord's shape along the blade (the UIUC median taper), the root, the twist (from the nominal pitch) and the airfoil are assumed, and a derived BET geometry rests on its listed assumptions. The aircraft's propeller guards are open rings, not ducts (the stakeholder, 2026-11-08; BetaFPV's frame page calls them ducts), and the model does not represent them."
 }

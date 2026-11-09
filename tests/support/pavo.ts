@@ -58,6 +58,10 @@ export interface HeldResult {
   readonly forceUpN: number;
   /** The mean over the rotors of the squared shaft speed, averaged over the measured interval, (rad/s)^2. */
   readonly meanOmega2: number;
+  /** The mean over the rotors and the measured interval of the aerodynamic shaft torque's magnitude, N m. */
+  readonly meanShaftTorqueNm: number;
+  /** The mean over the rotors and the measured interval of the rotor's own axial force (hub force z), before any download, N. */
+  readonly meanRotorThrustN: number;
   /** Steps of the measured interval on which any rotor flagged the vortex ring fluctuation (output flag 256). */
   readonly fluctuationSteps: number;
   readonly measuredSteps: number;
@@ -83,23 +87,27 @@ export function heldAt(module: WebAssembly.Module, configuration: BetFlightConfi
     for (const rotor of manifest.rotors) frame.normalizedActuators[rotor.motorChannel] = command;
     const settle = Math.round((options.settleS ?? 0.5) * hz), measure = Math.round((options.measureS ?? 1) * hz);
     const out = () => { const o = d.escEngine?.output; if (!o) throw new Error('The ESC drive is required'); return o; };
-    let start = 0, omega2 = 0, fluctuating = 0;
+    let start = 0, omega2 = 0, torque = 0, rotorThrust = 0, fluctuating = 0;
     for (let tick = 0; tick < settle + measure; tick++) {
       d.useActuators(frame); d.nowMs = (tick + 1) * 1000 / hz; d.stepNow(pilot);
       if (d.fault !== '') throw new Error(d.fault);
       if (tick === settle - 1) start = d.state.vd;
       if (tick >= settle) {
         const o = out();
-        let sum = 0, any = false;
+        let sum = 0, shaft = 0, axial = 0, any = false;
         for (let r = 0; r < manifest.rotors.length; r++) {
           sum += o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2.output.omega / 8]! ** 2;
+          shaft += Math.abs(o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2.output.aerodynamicShaftTorque / 8]!);
+          axial += Math.abs(o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2.output.forceHub / 8 + 2]!);
           if ((o[r * BOUND_V2_OUTPUT_SLOTS + BOUND_V2_OUTPUT_FLAGS_SLOT]! & ROTOR_FLAG_VORTEX_RING) !== 0) any = true;
         }
         omega2 += sum / manifest.rotors.length;
+        torque += shaft / manifest.rotors.length;
+        rotorThrust += axial / manifest.rotors.length;
         if (any) fluctuating++;
       }
     }
-    return { forceUpN: (start - d.state.vd) / (measure / hz) * manifest.massKg * scale, meanOmega2: omega2 / measure, fluctuationSteps: fluctuating, measuredSteps: measure };
+    return { forceUpN: (start - d.state.vd) / (measure / hz) * manifest.massKg * scale, meanOmega2: omega2 / measure, meanShaftTorqueNm: torque / measure, meanRotorThrustN: rotorThrust / measure, fluctuationSteps: fluctuating, measuredSteps: measure };
   } finally { d.dispose(); }
 }
 

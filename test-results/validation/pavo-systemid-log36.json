@@ -13,26 +13,26 @@
     }
   },
   "simulated": {
-    "sha256": "18ce4d563d0bf568352d7481c28cbb22296d6633003159b76ad22172f1b69db5",
+    "sha256": "61975e9587cb2a41eb80b9daf20076408c6b6d218c35ee6926fd5dc51236f03f",
     "firmware": {
       "id": "arducopter-fb773567",
       "commit": "fb773567896014da007bca58358704d4a0d8516f",
       "binarySha256": "5ea7bdeabb8d6540784f444a2a722d78bd6b1e90b389352690fcac34bd8ab841"
     },
-    "manifestSha256": "825dcb33c0058db3aef322c382a0def1b23ffa4bffef48920a2010c5da06a863",
+    "manifestSha256": "f28cfc9acf9a68a4487b1788e7d2d2fd5020f4ce0ead0275c9c9ba7517fb1460",
     "hz": 800,
     "speedup": 4,
     "sweep": {
-      "fromS": 58.347683999999994,
-      "toS": 135.35268399999998
+      "fromS": 57.902684,
+      "toS": 134.907684
     },
     "heightDuringSweepM": [
-      2.6824188005041663,
-      2.98827557138539
+      4.517167008364828,
+      4.6340966379357225
     ],
-    "wallS": 35.979375708000006,
+    "wallS": 37.73064562500001,
     "lockstep": {
-      "steps": 115232,
+      "steps": 120832,
       "duplicates": 0,
       "gaps": 0,
       "droppedFrames": 0,
@@ -342,9 +342,9 @@
     }
   ],
   "capture": {
-    "sha256": "bd319563979e865bd96fd65c7260f1a40eab9e1da25eb9a7c608982e5adeaadb",
+    "sha256": "0022ebb0b1c41532904d73c083da498375b7eeed9a4fdf4a600a4385c0bdf054",
     "summary": {
-      "sha256": "bd319563979e865bd96fd65c7260f1a40eab9e1da25eb9a7c608982e5adeaadb",
+      "sha256": "0022ebb0b1c41532904d73c083da498375b7eeed9a4fdf4a600a4385c0bdf054",
       "source": "flight-test",
       "origin": "It holds no SITL parameter and no MirageSITL message",
       "timeDomain": [
@@ -385,84 +385,84 @@
         "roll": {
           "unit": "deg",
           "samples": 770,
-          "rms": 3.0433791315129284,
-          "bias": -1.8737475775638923,
-          "theil": 0.9969389043380124
+          "rms": 3.0437901566206227,
+          "bias": -1.874428972750405,
+          "theil": 0.9971311636357626
         },
         "pitch": {
           "unit": "deg",
           "samples": 770,
-          "rms": 7.750234940450923,
-          "bias": 4.768546835445875,
-          "theil": 0.9984769241030547
+          "rms": 7.74915268847126,
+          "bias": 4.767900156291893,
+          "theil": 0.9982918854753102
         },
         "yaw": {
           "unit": "deg",
           "samples": 770,
-          "rms": 183.78374176758982,
-          "bias": -183.7708522092779,
-          "theil": 0.9996207372917265
+          "rms": 183.78506485974066,
+          "bias": -183.77217864176248,
+          "theil": 0.9996099141330651
         },
         "roll-rate": {
           "unit": "deg/s",
           "samples": 30802,
-          "rms": 3.3565334787866488,
-          "bias": -0.11346348858463574,
-          "theil": 0.9607320580498323
+          "rms": 3.353812777686658,
+          "bias": -0.11404764516432507,
+          "theil": 0.9574932312081901
         },
         "pitch-rate": {
           "unit": "deg/s",
           "samples": 30802,
-          "rms": 3.4608465113820084,
-          "bias": 0.5174092533347585,
-          "theil": 0.9666116117016899
+          "rms": 3.4646736289226636,
+          "bias": 0.5169516117217627,
+          "theil": 0.9634965348726875
         },
         "yaw-rate": {
           "unit": "deg/s",
           "samples": 30802,
-          "rms": 1.016923882816367,
-          "bias": -0.1949420705728149,
-          "theil": 0.46270146942508034
+          "rms": 1.0170817366161964,
+          "bias": -0.19478219464635357,
+          "theil": 0.46233978393370434
         },
         "altitude": {
           "unit": "m",
           "samples": 1925,
-          "rms": 7.91014139247787,
-          "bias": -7.753839466014028,
-          "theil": 0.5946860699168361
+          "rms": 6.134759243352612,
+          "bias": -5.933278664074852,
+          "theil": 0.4056895753325776
         },
         "vertical-speed": {
           "unit": "m/s",
           "samples": 1925,
-          "rms": 0.41733902161828546,
-          "bias": 0.06154100906037063,
-          "theil": 0.9580371472449574
+          "rms": 0.4160167428145061,
+          "bias": 0.0640179388915041,
+          "theil": 0.986931426303593
         },
         "battery-voltage": {
           "unit": "V",
           "samples": 770,
-          "rms": 1.3658810787888567,
-          "bias": 1.3654196689054061,
-          "theil": 0.05754995146721753
+          "rms": 1.419890847460958,
+          "bias": 1.4191429311264456,
+          "theil": 0.059690693195232555
         },
         "battery-current": {
           "unit": "A",
           "samples": 770,
-          "rms": 0.7260986993425003,
-          "bias": -0.6975859759522356,
-          "theil": 0.08613926639831058
+          "rms": 1.2411857761118652,
+          "bias": -1.2246546877777709,
+          "theil": 0.15706580888766772
         },
         "motor-output": {
           "unit": "us",
           "samples": 770,
-          "rms": 66.20726742167058,
-          "bias": 65.28336751948055,
-          "theil": 0.025688674815572136
+          "rms": 13.190818091451995,
+          "bias": 7.323537415584411,
+          "theil": 0.005235836597359879
         }
       },
       "frequencyResponse": {
         "pitch-rate-response": {
-          "cost": 1584.0866397494067,
+          "cost": 1738.5708647845768,
           "minCoherence": 0.6,
           "points": 9,
           "excludedPoints": 9,
@@ -470,7 +470,7 @@
           "simulatedSegments": 59
         },
         "yaw-rate-response": {
-          "cost": 7.92588555493504,
+          "cost": 11.663855928503288,
           "minCoherence": 0.6,
           "points": 10,
           "excludedPoints": 8,
@@ -480,111 +480,111 @@
       },
       "bench": null
     },
-    "inputSha256": "bd319563979e865bd96fd65c7260f1a40eab9e1da25eb9a7c608982e5adeaadb",
-    "sourceRevision": "5e765b937e1ffd6e1555868a633271504b410e57",
-    "validatorSha256": "0bb0e909f74cd9158fac33076ae22243d1fbe945f5cb6d517c11deb4ecc1ebc9"
+    "inputSha256": "0022ebb0b1c41532904d73c083da498375b7eeed9a4fdf4a600a4385c0bdf054",
+    "sourceRevision": "01c446d5e48779a494192fafbc54eeb050dc9d52",
+    "validatorSha256": "b885bf48b57d3c85eeb65b4c979e6d3a0fb08abec87b85cef524acfb416a83aa"
   },
   "sweptAxis": "yaw-rate-response",
   "sweptResponse": {
-    "cost": 7.92588555493504,
+    "cost": 11.663855928503288,
     "points": 10,
     "excluded": 8,
     "rows": [
       {
         "f": 0.781,
         "measuredDb": -0.38,
-        "simDb": -0.07,
+        "simDb": -0.01,
         "measuredDeg": -5,
-        "simDeg": -4.7,
+        "simDeg": -4.2,
         "coh": 0.946,
         "simCoh": 1
       },
       {
         "f": 1.172,
         "measuredDb": -0.43,
-        "simDb": -0.12,
+        "simDb": -0.01,
         "measuredDeg": -9.5,
-        "simDeg": -6.9,
+        "simDeg": -6.5,
         "coh": 0.922,
         "simCoh": 0.999
       },
       {
         "f": 1.563,
         "measuredDb": -0.76,
-        "simDb": -0.11,
+        "simDb": 0,
         "measuredDeg": -13.5,
-        "simDeg": -9.4,
+        "simDeg": -8.9,
         "coh": 0.889,
         "simCoh": 0.999
       },
       {
         "f": 1.953,
         "measuredDb": -0.7,
-        "simDb": -0.16,
+        "simDb": 0.04,
         "measuredDeg": -17.1,
-        "simDeg": -12,
+        "simDeg": -11.5,
         "coh": 0.885,
-        "simCoh": 0.998
+        "simCoh": 0.999
       },
       {
         "f": 2.344,
         "measuredDb": -0.54,
-        "simDb": -0.21,
+        "simDb": 0.02,
         "measuredDeg": -18.6,
-        "simDeg": -14.5,
+        "simDeg": -13.9,
         "coh": 0.867,
-        "simCoh": 0.999
+        "simCoh": 0.998
       },
       {
         "f": 2.734,
         "measuredDb": -0.45,
-        "simDb": -0.21,
+        "simDb": -0.02,
         "measuredDeg": -20,
-        "simDeg": -17,
+        "simDeg": -16.2,
         "coh": 0.805,
-        "simCoh": 0.996
+        "simCoh": 0.997
       },
       {
         "f": 3.125,
         "measuredDb": -0.1,
-        "simDb": -0.18,
+        "simDb": 0.01,
         "measuredDeg": -22.3,
-        "simDeg": -19.7,
+        "simDeg": -18.5,
         "coh": 0.807,
-        "simCoh": 0.994
+        "simCoh": 0.996
       },
       {
         "f": 3.516,
         "measuredDb": 0.75,
-        "simDb": -0.22,
+        "simDb": -0.03,
         "measuredDeg": -24,
-        "simDeg": -22,
+        "simDeg": -20.7,
         "coh": 0.859,
         "simCoh": 0.994
       },
       {
         "f": 4.297,
         "measuredDb": -0.48,
-        "simDb": -0.3,
+        "simDb": -0.04,
         "measuredDeg": -28.2,
-        "simDeg": -25.5,
+        "simDeg": -24.9,
         "coh": 0.723,
         "simCoh": 0.99
       },
       {
         "f": 5.078,
         "measuredDb": -1.27,
-        "simDb": -0.21,
+        "simDb": 0.04,
         "measuredDeg": -36.2,
-        "simDeg": -31.9,
+        "simDeg": -28.7,
         "coh": 0.667,
-        "simCoh": 0.974
+        "simCoh": 0.986
       }
     ]
   },
   "otherResponses": {
     "pitch-rate-response": {
-      "cost": 1584.0866397494067,
+      "cost": 1738.5708647845768,
       "points": 9,
       "excluded": 9
     }
