@@ -1784,6 +1784,51 @@ effect the model leaves out, the tunnel, or the rigs' structure explain the meas
 induced share on rotor 2 at 327 ft/s and rotor 1. The model and its declared method are not changed by
 this result.
 
+Second variant: section drag fitted on the single rotors (TASK-101, 2026-11-09), declared before its
+prediction was computed and after the first variant's results above, which stay as they are. It
+changes one thing, the section drag, to take the drag deficit out of the coaxial comparison without
+using any coaxial measurement. The wake model is not changed (the stakeholder judged it as it stands on
+2026-11-08), nor the MTB2 comparison, nor the catalog polar that flights use: the variant's polar exists
+only inside this comparison.
+
+The drag source. Each rotor's section drag level is fitted on that rotor's single-rotor measurements
+only, as the MTB2 comparison fitted its one collective offset on isolated rotors only: rotor 2 on the
+lower rotor alone at 262 and 392 ft/s together (the report draws one curve through them), rotor 1 on its
+lower, upper and unidentified single rotors at 500 ft/s. The form is TASK-145's calibration (section
+"Propulsion calibration: TASK-145"): every drag coefficient of the catalog's `naca0012-extended-v1`
+table multiplied by one scale s_D, with the lift coefficients, the angle, Reynolds and Mach axes, the
+confidence and the rotational lift augmentation unchanged, and s_D confined to TASK-145's 0.25 to 4. The
+lift scale stays 1, because the comparison is made at the measured C_T and so cannot identify a lift
+level. TASK-145's own `scaledPolar` returns its table without the rotational lift augmentation that the
+extended tables ask for (TASK-097); the variant keeps the augmentation, so that the drag is its one
+change, and does not call that function. A published polar with standard roughness (Abbott and von
+Doenhoff) was not chosen: it is a 12 % section, where these blades are 8 to 30 % and 15 to 30 % thick at
+Reynolds numbers 0.8e6 to 2.8e6, so it would put one unmatched section in place of another. A level
+fitted on the rotors' own single runs takes their thickness, finish and Reynolds number and the tunnel as
+they were; for the same reason it cannot say which of them makes the drag. One scale per rotor, because
+the two rotors are different blades; not one per tip speed, which would absorb the scale effect the
+report finds.
+
+The fit. A rotor's s_D is the scale at which the mean of the model's C_Q over the measured C_Q, over
+that rotor's single-rotor points used in the performance comparison (C_T ≥ 0.001, inside the model's
+sweep), is 1 within 0.002. It is found by the secant method from s_D = 1 and 2, at most 8 iterations,
+each running that rotor's single-rotor sweeps at the measured tip speeds (rotor 2 at 262 and 392 ft/s,
+rotor 1 at 500 ft/s) exactly as the first variant runs them. No convergence, or a scale outside 0.25 to
+4, fails the test. A prior expectation from the inputs alone: rotor 1's stated profile torque means an
+effective 0.0115 against the polar's 0.0054, so its s_D is expected near 2.
+
+The comparison. With each rotor's s_D, every sweep of that rotor runs again as declared above (the
+coaxial pair with the wakes `all` and `off`, the single rotor at each tip speed the comparison needs,
+the same collectives, yaw trim, governor, run length and checks), and the interference and the
+performance follow the same rules, against the same measured values and with the same bands: kappa
+within ±0.035 on rotor 2 at 392 ft/s, ±0.036 on rotor 2 at 327 ft/s and ±0.052 on rotor 1 at 500 ft/s;
+the performance bands as in the table above. The variant has its own status and performance status.
+Its single-rotor performance is fitted and so is not evidence; its coaxial performance is the fit's
+check outside the data it was fitted on. Also shown: each rotor's s_D with the fit's iterations and mean
+ratios, and the model's coaxial C_Q at zero collective against rotor 1's measured 7.76e-5. The report
+(`test-results/validation/harrington-coaxial.json`) keeps the first variant's fields as they were and
+adds this variant beside them under `variants.sectionDragFitted`.
+
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
 and zero-lift angle (rad), and stay reserved zero otherwise, as in versions 1 and 2,
