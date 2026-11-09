@@ -7938,7 +7938,9 @@ solve, which needs to know which bridges are cut.
 λ = i·λ₀·min(1, max(0, (m − m₀)/(1 − m₀)))        p = 1 − exp(−λ·dt)
 ```
 
-so the expected number of desynchronizations in a held condition is λ per second at every tick rate. i is
+so in a held condition the time to a desynchronization is exponential with rate λ, sampled at the ticks,
+at every tick rate (amended before the first run, which first said that λ per second start; a tick
+starts at most one, so p/dt per second of ticks start, 6 % below λ at λ·dt = 0.125). i is
 the effect's intensity, λ₀ the rate at full margin (`ratePerS`) and m₀ the margin below which none
 starts (`marginThreshold`). Every active tick draws one uniform u for every rotor, in rotor order,
 whether or not it can start one, from that rotor's own stream (`mulberry32-mix32-v1`, stream
@@ -7976,13 +7978,15 @@ drive of the held parity quad of `tests/motor-v2-flight.test.ts`):
    with intensity 0, and with it switched on and off again before the first step.
 2. The hazard law, on `EscDesync` alone fed a held margin: at 400 and 1200 Hz, with m₀ = 0.2 and
    λ₀ = 50 /s, for m of 0.25, 0.5, 0.75 and 1, the count n of desynchronizations started over 2,000 s of
-   ticks not in one lies within 4·√μ of μ = λ·T, T those ticks' time; at m = m₀ and below, none in
-   1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
+   ticks not in one lies within 4·√μ of μ = N·p, N those ticks; the mean wait from a tick that can start
+   one to the start, in seconds, lies within 4 standard errors of dt/p and within one tick of 1/λ (amended
+   before the first run from μ = λ·T, as above); at m = m₀ and below, none in 1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
    does.
 3. The cut: with λ₀ = 1000 /s and m₀ = 0 on a step from 0 to 1, every desynchronization lasts exactly
    round(t_r·f) ticks at 400, 800 and 1200 Hz, during which that rotor's drive record carries the
    power-cut flag, its electrical power is 0 and its speed does not rise; on the tick after, the flag is
-   clear.
+   clear unless a new one starts on that tick (amended before the first run: at λ₀ = 1000 /s a coasting
+   rotor's large margin makes that likely).
 4. The condition on the flight, default values: a throttle held at 0.5 after spin-up starts none in 60 s
    (m stays below 0.5, so p is exactly 0); a step from 0.2 to 1.0 every 2 s starts at least one in 30
    steps with seed 1.
