@@ -120,7 +120,7 @@ export const EFFECT_CATALOG = {
     meaning: `The air pressure at the site changing with the weather from the moment it goes on, which the barometer reads as a change of height; 100 Pa/h is 1 hPa an hour. Only the barometer sees it: the rotors' air changes by a negligible 0.1 % an hour. Intensity multiplies the trend. ${BAROMETER_DELIVERY}`,
     fields: [number('trendPaPerHour', 'Pressure trend', 'Pa/h', -1000, 1000, -100)] },
   'gnss.constellation': { family: 'gnss', label: 'GNSS satellite geometry',
-    meaning: `The receiver tracks the satellites above the elevation mask of a synthetic GPS-like constellation (Walker 24/6/1, 55°, not a real almanac) and reports their count and an accuracy of σ·HDOP. Intensity multiplies σ. ${GNSS_DELIVERY}`,
+    meaning: `The receiver tracks the satellites above the elevation mask of the run's sky (the GPS almanac of week 2444 with the Galileo, GLONASS and BeiDou broadcast records of 2026-11-07) and reports their count and an accuracy of σ·HDOP. Intensity multiplies σ. ${GNSS_DELIVERY}`,
     fields: [number('maskDeg', 'Elevation mask', '°', 0, 30, 10), number('uereM', 'User range error σ', 'm', 0.1, 30, 1.5)] },
   'gnss.atmosphere': { family: 'gnss', label: 'GNSS atmosphere residual',
     meaning: `What the receiver's own corrections leave of the Klobuchar ionospheric and Saastamoinen tropospheric delays, as fractions, which moves the fix through the satellite geometry, mostly in height. Intensity multiplies both. Without the satellite geometry effect the mask is 5°. ${GNSS_DELIVERY}`,
@@ -132,6 +132,20 @@ export const EFFECT_CATALOG = {
     meaning: `A jammer at the receiver: (C/N0)_eff⁻¹ = (C/N0)⁻¹ + (J/S)/(Q·R_c) against an open-sky C/N0 of 45 dB-Hz at the zenith and 35 at the horizon; a satellite below the tracking threshold is lost, and without four the fix is lost. Intensity multiplies J/S. ${GNSS_DELIVERY}`,
     fields: [number('jammingToSignalDb', 'Jamming-to-signal ratio J/S', 'dB', -30, 80, 30), number('spectralSeparation', 'Spectral separation Q', '1', 1, 2, 1.5),
       number('thresholdDbHz', 'Tracking threshold', 'dB-Hz', 15, 40, 28)] },
+  'gnss.receiver': { family: 'gnss', label: 'GNSS receiver timing',
+    meaning: `The GNSS solutions follow ArduPilot's simulated receiver: one per receiver epoch at its update rate (SIM_GPS1_HZ), and each position error written its lag (SIM_GPS1_LAG_MS) after its epoch, so that it lands on the position of the same epoch. Both are the run's own values, which the Sensors tab sets. Off: one solution every 0.2 s, written at once. Any intensity above 0 is on. ${GNSS_DELIVERY}`,
+    fields: [] },
+  'gnss.code-noise': { family: 'gnss', label: 'GNSS code tracking noise',
+    meaning: `Each tracked satellite's range gains the thermal noise of a noncoherent early-minus-late code loop at its C/N0 (Kaplan and Hegarty, Understanding GPS, chapter 5), larger at lower C/N0 and under jamming, correlated over a quarter of 1/B_n. Intensity multiplies the noise. ${GNSS_DELIVERY}`,
+    fields: [number('dllBandwidthHz', 'Code loop bandwidth B_n', 'Hz', 0.05, 10, 0.5), number('correlatorSpacingChips', 'Correlator spacing D', 'chips', 0.05, 1, 1)] },
+  'gnss.multipath': { family: 'gnss', label: 'GNSS multipath',
+    meaning: `Each tracked satellite's range gains a synthetic, seeded multipath error of σ = a + b·e^(−θ/θ₀) at elevation θ, the form and defaults of RTCA DO-229's airborne model, correlated over the stated time. Intensity multiplies a and b. ${GNSS_DELIVERY}`,
+    fields: [number('floorM', 'σ at the zenith, a', 'm', 0, 5, 0.13), number('lowElevationM', 'Extra σ at the horizon, b', 'm', 0, 20, 0.53),
+      number('elevationScaleDeg', 'Elevation scale θ₀', '°', 1, 45, 10), number('correlationS', 'Correlation time', 's', 0.1, 600, 10)] },
+  'gnss.jammer': { family: 'gnss', label: 'GNSS jammer',
+    meaning: `A jammer placed in the world: its power reaches the vehicle in free space at GPS L1, and each satellite loses 10·log10(1 + J/(N0·Q·R_c)) dB of C/N0; below the tracking threshold a satellite is lost, so approaching the jammer the receiver loses its low satellites first and then its fix. Intensity multiplies the radiated power. Not together with the GNSS jamming link budget. ${GNSS_DELIVERY}`,
+    fields: [vector('positionNedM', 'Position from the home', 'm', NED, 20000, [300, 0, -2]), number('eirpDbW', 'Radiated power (EIRP)', 'dBW', -90, 30, -50),
+      number('spectralSeparation', 'Spectral separation Q', '1', 1, 2, 1.5), number('thresholdDbHz', 'Tracking threshold', 'dB-Hz', 15, 40, 28)] },
   'sensor.imu.accel-noise': { family: 'sensor', label: 'Accelerometer noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
     fields: [number('densityMps2PerSqrtHz', 'Noise density', 'm/s²/√Hz', 0, 0.01, 0)] },
   'sensor.imu.gyro-noise': { family: 'sensor', label: 'Gyroscope noise', meaning: 'Intensity multiplies the density. Range: the Sensors tab.',
@@ -292,6 +306,7 @@ function fieldOf(effect: EffectId, key: string): EffectField {
 /** TASK-117: the GNSS fields intensity multiplies. */
 const GNSS_SCALED: Readonly<Partial<Record<EffectId, readonly string[]>>> = {
   'gnss.constellation': ['uereM'], 'gnss.atmosphere': ['ionosphereResidual', 'troposphereResidual'], 'gnss.terrain': ['nlosExcessM'],
+  'gnss.multipath': ['floorM', 'lowElevationM'],
 };
 function fieldOfNumber(effect: EffectId, key: string): NumberField {
   const field = fieldOf(effect, key);
@@ -412,9 +427,10 @@ export function effectiveControl(control: EffectControl, envelope: { requestId: 
       return { family: 'ardupilot', active };
     case 'barometer': return barometerControl(control, active, i);
     case 'gnss':
-      // Range-checks what intensity scales: σ, both residuals, the excess path, and J/S (by 10·log10 i dB).
+      // Range-checks what intensity scales: σ, both residuals, the excess path, multipath's a and b, and J/S and EIRP (by 10·log10 i dB).
       for (const key of GNSS_SCALED[control.effect] ?? []) scaledNumber(control, key, i);
       if (control.effect === 'gnss.jamming-budget') withinRange(numberOf(control, 'jammingToSignalDb') + 10 * Math.log10(i), fieldOfNumber(control.effect, 'jammingToSignalDb'), `jammingToSignalDb at intensity ${i}`);
+      if (control.effect === 'gnss.jammer') withinRange(numberOf(control, 'eirpDbW') + 10 * Math.log10(i), fieldOfNumber(control.effect, 'eirpDbW'), `eirpDbW at intensity ${i}`);
       return { family: 'gnss', active };
     default: { const never: never = definition.family; throw shape(`Unhandled family ${String(never)}`); }
   }

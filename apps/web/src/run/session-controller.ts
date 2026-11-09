@@ -85,7 +85,8 @@ import type { WeatherSchedule } from "@mirage/scenarios/weather-schedule";
 import { EFFECT_CATALOG, parseEffectControl, type EffectControl, type EffectId, type EffectRecovery } from "@mirage/protocol";
 import { barometerGlitchM } from "@mirage/physics/barometer";
 import { WGS84_E2, primeVerticalRadiusM } from "@mirage/sensors/geodesy";
-import { HorizontalWander, gnssSolution, type GnssEffects, type TerrainHeight } from "@mirage/sensors/gnss";
+import { GNSS_CODE_NOISE_STREAM, GNSS_MULTIPATH_STREAM, GnssRangeProcess, HorizontalWander, gnssSolution, type GnssEffects, type TerrainHeight } from "@mirage/sensors/gnss";
+import { jammerReceivedPowerDbW, type GnssEmitter } from "@mirage/ew/gnss-emitter";
 import { GNSS_SKY, GNSS_SKY_EPOCH } from "@mirage/sensors/gnss-sky";
 import { barometerAltitudePerPascal } from "@mirage/aircraft/sensor-parameters";
 import { siteParameters } from "@mirage/aircraft/site-parameters";
@@ -457,6 +458,20 @@ function horizontalWanderOf(prepared: PreparedRun): HorizontalWander | null {
  */
 const GNSS_PARAMETERS: readonly string[] = ["SIM_GPS1_GLTCH_X", "SIM_GPS1_GLTCH_Y", "SIM_GPS1_GLTCH_Z", SITL_GPS_NUMSATS, SITL_GPS_ACC, SITL_GPS_LOCK];
 const GNSS_PERIOD_S = 0.2, GNSS_WEEK = GNSS_SKY_EPOCH.week, GNSS_START_S = GNSS_SKY_EPOCH.secondsOfWeek;
+/** The position errors waiting for the receiver's lag (`gnss.receiver`): a ring of this many epochs. */
+const GNSS_PENDING = 64;
+/** The receiver ArduPilot simulates, as `gnss.receiver` follows it: its epoch period (1000/SIM_GPS1_HZ ms in SIM_GPS.cpp's integer arithmetic) and lag. */
+interface ReceiverTiming { readonly periodS: number; readonly lagS: number }
+/** TASK-117: the GNSS effects the stream applies besides the solution's own (`GnssEffects`), intensity applied. */
+interface GnssControls {
+  receiver: ReceiverTiming | null;
+  codeNoise: { readonly bandwidthHz: number; readonly spacingChips: number; readonly scale: number } | null;
+  multipath: { readonly floorM: number; readonly lowElevationM: number; readonly elevationScaleRad: number; readonly correlationS: number } | null;
+  jammer: { readonly emitter: GnssEmitter; readonly spectralSeparation: number; readonly thresholdDbHz: number } | null;
+}
+const NO_GNSS_CONTROLS = (): GnssControls => ({ receiver: null, codeNoise: null, multipath: null, jammer: null });
+/** A per-satellite unit process and the last epoch it was advanced to. */
+interface RangeProcessState { readonly process: GnssRangeProcess; epoch: number; periodS: number }
 const GNSS_CONSTELLATION = GNSS_SKY;
 /** Its GPS fix within these distances of the session's home (declared before the first connection): metres. */
 export const HOME_HORIZONTAL_M = 10, HOME_VERTICAL_M = 5;
@@ -672,7 +687,17 @@ export class SessionController {
    * they held before it.
    */
   private gnssEffects: { -readonly [key in keyof GnssEffects]: GnssEffects[key] } = { constellation: null, atmosphere: null, terrain: null, jamming: null };
-  private gnssStream: { readonly base: ReadonlyMap<string, number>; readonly last: Map<string, number>; nextS: number; writes: number; fixLost: boolean } | null = null;
+  private gnssStream: {
+    readonly base: ReadonlyMap<string, number>; readonly last: Map<string, number>; nextS: number; writes: number; fixLost: boolean;
+    /** Receiver timing: the last epoch solved, its count, accuracy and lock targets, and the errors waiting for the lag (east, north, up, due time). */
+    epoch: number; solutions: number; readonly counts: Map<string, number>; readonly pending: Float64Array; pendingCount: number; pendingHead: number;
+    current: readonly [number, number, number] | null;
+  } | null = null;
+  /** TASK-117: receiver timing, code noise, multipath and a placed jammer, and the run's seed for the noise processes. */
+  private gnssControls: GnssControls = NO_GNSS_CONTROLS();
+  private gnssSeed = 0;
+  private gnssCode: RangeProcessState | null = null;
+  private gnssMultipath: RangeProcessState | null = null;
   private runTerrain: readonly TerrainChunk[] | null = null;
   /** The Sensors tab's horizontal GNSS error of this run (mapping 4), streamed with the GNSS effects; null when not specified. */
   private gnssWander: HorizontalWander | null = null;
@@ -761,6 +786,7 @@ export class SessionController {
     this.prepared = prepared;
     this.gnssWander = horizontalWanderOf(prepared);
     this.gnssWanderAtS = null;
+    this.gnssSeed = Number.parseInt(prepared.profile.sha256.slice(0, 8), 16);
     this.set({ name: "starting", step: "firmware", experimentId: null });
     let firmware: CatalogEntry | undefined;
     try { firmware = (await this.launcher.catalog()).find(entry => entry.id === request.firmwareId); } catch (error) {
@@ -1228,6 +1254,10 @@ export class SessionController {
       }
       // Both write SIM_GPS1_NUMSATS, ACC and LCKTIME: one at a time.
       if (family === "gnss" && this.faultRestore.has(SITL_GPS_NUMSATS)) return refused("GNSS jamming is on and writes the same receiver parameters; turn it off first");
+      if (family === "gnss") {
+        const why = this.gnssRefusal(parsed.effect);
+        if (why !== null) return refused(why);
+      }
       if (parsed.effect === "ew.gnss-jamming" && this.gnssStream) return refused("A GNSS effect is on and writes the same receiver parameters; turn it off first");
     }
     const writes = this.effectWrites(parsed, on);
@@ -1398,14 +1428,43 @@ export class SessionController {
   /** TASK-117: one GNSS effect's values with intensity applied, or off. */
   private setGnssEffect(control: EffectControl, on: boolean): void {
     const n = (key: string): number => { const value = control.parameters[key]; return typeof value === "number" ? value : 0; };
-    const i = control.intensity, e = this.gnssEffects;
+    const i = control.intensity, e = this.gnssEffects, c = this.gnssControls;
     switch (control.effect) {
       case "gnss.constellation": e.constellation = on ? { maskRad: (n("maskDeg") * Math.PI) / 180, uereM: n("uereM") * i } : null; break;
       case "gnss.atmosphere": e.atmosphere = on ? { ionosphereResidual: n("ionosphereResidual") * i, troposphereResidual: n("troposphereResidual") * i } : null; break;
       case "gnss.terrain": e.terrain = on ? { heightAt: this.terrainHeight(), nlosExcessM: n("nlosExcessM") * i } : null; break;
       case "gnss.jamming-budget": e.jamming = on ? { jammingToSignalDb: n("jammingToSignalDb") + 10 * Math.log10(i), spectralSeparation: n("spectralSeparation"), thresholdDbHz: n("thresholdDbHz") } : null; break;
+      case "gnss.receiver": {
+        const timing = on ? this.receiverTiming() : null;
+        c.receiver = typeof timing === "string" ? null : timing;
+        break;
+      }
+      case "gnss.code-noise": c.codeNoise = on ? { bandwidthHz: n("dllBandwidthHz"), spacingChips: n("correlatorSpacingChips"), scale: i } : null; break;
+      case "gnss.multipath": c.multipath = on ? { floorM: n("floorM") * i, lowElevationM: n("lowElevationM") * i, elevationScaleRad: (n("elevationScaleDeg") * Math.PI) / 180, correlationS: n("correlationS") } : null; break;
+      case "gnss.jammer": {
+        const position = control.parameters.positionNedM, at: readonly [number, number, number] = Array.isArray(position) ? [position[0], position[1], position[2]] : [0, 0, 0];
+        c.jammer = on ? { emitter: { positionNedM: at, eirpDbW: n("eirpDbW") + 10 * Math.log10(i) }, spectralSeparation: n("spectralSeparation"), thresholdDbHz: n("thresholdDbHz") } : null;
+        break;
+      }
       default: break;
     }
+  }
+  /** TASK-117: why a GNSS effect cannot go on now, or null: two jammers would set the same jamming, and receiver timing needs the receiver's own. */
+  private gnssRefusal(effect: EffectId): string | null {
+    if (effect === "gnss.jammer" && this.gnssEffects.jamming) return "The GNSS jamming link budget is on and sets the same jamming; turn it off first";
+    if (effect === "gnss.jamming-budget" && this.gnssControls.jammer) return "A GNSS jammer is on and sets the same jamming; turn it off first";
+    if (effect === "gnss.receiver") { const timing = this.receiverTiming(); if (typeof timing === "string") return timing; }
+    return null;
+  }
+  /** The receiver ArduPilot simulates: SIM_GPS1_HZ and SIM_GPS1_LAG_MS as the run holds them, or why the stream cannot follow it. */
+  private receiverTiming(): ReceiverTiming | string {
+    const rate = this.params?.get("SIM_GPS1_HZ")?.value, lag = this.params?.get("SIM_GPS1_LAG_MS")?.value;
+    if (rate === undefined || lag === undefined) return "ArduPilot's parameter list has no SIM_GPS1_HZ or SIM_GPS1_LAG_MS, so the receiver's timing is unknown";
+    if (!Number.isInteger(rate) || rate < 1 || rate > 1000 || !Number.isFinite(lag) || lag < 0) return `ArduPilot's receiver runs at ${rate} Hz with a lag of ${lag} ms, which the stream cannot follow`;
+    // SIM_GPS.cpp: a new sample once (now_ms − last) reaches 1000/hertz in uint32 arithmetic.
+    const periodS = Math.floor(1000 / rate) / 1000, lagS = lag / 1000;
+    if (lagS / periodS > GNSS_PENDING - 2) return `A lag of ${lag} ms is more than ${GNSS_PENDING - 2} of the receiver's epochs`;
+    return { periodS, lagS };
   }
   /** The run's terrain height under a local east, north position, m above the home's reference, from the nearest post; the pad's height without real terrain. */
   private terrainHeight(): TerrainHeight {
@@ -1421,47 +1480,62 @@ export class SessionController {
   }
   /**
    * TASK-117: every 0.2 s of simulated time while a GNSS effect is on, the solution at the vehicle's true position, written where
-   * it changed; once every effect is off, the values the receiver held before. Each write replaces the one before it.
+   * it changed; once every effect is off, the values the receiver held before. Each write replaces the one before it. With receiver
+   * timing on, one solution per epoch of ArduPilot's receiver instead: its count, accuracy and lock written at once (SIM_GPS.cpp lags
+   * them with its sample), its position error written the receiver's lag after the epoch (SIM_GPS.cpp adds SIM_GPS1_GLTCH after the lag).
    */
   private stepGnss(simTimeS: number, now = false): void {
-    const params = this.params, home = this.home, e = this.gnssEffects;
+    const params = this.params, home = this.home, e = this.gnssEffects, c = this.gnssControls;
     if (!this.active || !params || !home || this.writeRefusal() !== null) return;
-    const wander = this.gnssWander;
-    const on = e.constellation !== null || e.atmosphere !== null || e.terrain !== null || e.jamming !== null || wander !== null;
+    const wander = this.gnssWander, timing = c.receiver;
+    const on = e.constellation !== null || e.atmosphere !== null || e.terrain !== null || e.jamming !== null || wander !== null
+      || timing !== null || c.codeNoise !== null || c.multipath !== null || c.jammer !== null;
     let stream = this.gnssStream;
     if (!stream) {
       if (!on) return;
       const base = new Map<string, number>();
       for (const name of GNSS_PARAMETERS) { const held = params.get(name)?.value; if (held !== undefined) base.set(name, held); }
-      stream = { base, last: new Map(base), nextS: simTimeS, writes: 0, fixLost: false };
+      stream = { base, last: new Map(base), nextS: simTimeS, writes: 0, fixLost: false, epoch: -1, solutions: 0, counts: new Map(), pending: new Float64Array(GNSS_PENDING * 4),
+        pendingCount: 0, pendingHead: 0, current: null };
       this.gnssStream = stream;
     }
-    if (on && !now && simTimeS < stream.nextS) return;
-    stream.nextS = simTimeS + GNSS_PERIOD_S;
     const targets = new Map(stream.base);
-    if (on) {
-      const truth = this.physics.flightTruth(), latRad = (home[0] * Math.PI) / 180, lonRad = (home[1] * Math.PI) / 180;
-      const s2 = Math.sin(latRad) ** 2, meridional = (6378137 * (1 - WGS84_E2)) / (1 - WGS84_E2 * s2) ** 1.5, normal = primeVerticalRadiusM(latRad);
-      const receiver = { latRad: latRad + truth.northM / meridional, lonRad: lonRad + truth.eastM / (normal * Math.cos(latRad)), heightM: home[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
-      // GPS time of the simulated moment: the sky's epoch plus the run's simulated time.
-      const gpsS = GNSS_START_S + simTimeS;
-      const solution = gnssSolution(GNSS_CONSTELLATION, receiver, GNSS_WEEK + Math.floor(gpsS / 604800), gpsS % 604800, e);
-      const [solvedEast, solvedNorth, up] = solution.errorEnuM, deg = 180 / Math.PI;
-      // The Sensors tab's horizontal error wanders on, by the simulated time since its last step.
-      if (wander) {
-        if (this.gnssWanderAtS !== null) wander.step(simTimeS - this.gnssWanderAtS);
-        this.gnssWanderAtS = simTimeS;
+    if (on && timing === null) {
+      if (!now && simTimeS < stream.nextS) return;
+      stream.nextS = simTimeS + GNSS_PERIOD_S;
+      stream.pendingCount = 0; stream.current = null; stream.epoch = -1;
+      const solved = this.gnssSolve(simTimeS, Math.floor(simTimeS / GNSS_PERIOD_S + 1e-9), GNSS_PERIOD_S, stream.base);
+      for (const [name, value] of solved.counts) targets.set(name, value);
+      for (const [name, value] of solved.offsets) targets.set(name, value);
+      stream.fixLost = !solved.fix;
+      stream.solutions++;
+    } else if (on && timing !== null) {
+      // One solution per receiver epoch t_k = k·period; its error waits in the ring until t_k + lag.
+      const k = Math.floor(simTimeS / timing.periodS + 1e-9);
+      if (k > stream.epoch || now) {
+        const epochS = k * timing.periodS, solved = this.gnssSolve(epochS, k, timing.periodS, stream.base);
+        stream.counts.clear();
+        for (const [name, value] of solved.counts) stream.counts.set(name, value);
+        stream.fixLost = !solved.fix;
+        const ring = stream.pending;
+        let slot: number;
+        if (k === stream.epoch && stream.pendingCount > 0) slot = (stream.pendingHead + stream.pendingCount - 1) % GNSS_PENDING;
+        else if (stream.pendingCount < GNSS_PENDING) { slot = (stream.pendingHead + stream.pendingCount) % GNSS_PENDING; stream.pendingCount++; }
+        else { slot = stream.pendingHead; stream.pendingHead = (stream.pendingHead + 1) % GNSS_PENDING; }
+        ring[slot * 4] = solved.errorEnuM[0]; ring[slot * 4 + 1] = solved.errorEnuM[1]; ring[slot * 4 + 2] = solved.errorEnuM[2]; ring[slot * 4 + 3] = epochS + timing.lagS;
+        if (k > stream.epoch) stream.solutions++;
+        stream.epoch = k;
       }
-      const east = solvedEast + (wander?.errorEnM[0] ?? 0), north = solvedNorth + (wander?.errorEnM[1] ?? 0);
-      targets.set("SIM_GPS1_GLTCH_X", (stream.base.get("SIM_GPS1_GLTCH_X") ?? 0) + (north / meridional) * deg);
-      targets.set("SIM_GPS1_GLTCH_Y", (stream.base.get("SIM_GPS1_GLTCH_Y") ?? 0) + (east / (normal * Math.cos(latRad))) * deg);
-      targets.set("SIM_GPS1_GLTCH_Z", (stream.base.get("SIM_GPS1_GLTCH_Z") ?? 0) + up);
-      if (e.constellation) {
-        targets.set(SITL_GPS_NUMSATS, solution.tracked);
-        if (solution.accuracyM !== null) targets.set(SITL_GPS_ACC, solution.accuracyM);
+      // The newest error whose time has come; older ones are passed over.
+      while (stream.pendingCount > 0) {
+        const head = stream.pendingHead * 4, ring = stream.pending;
+        if ((ring[head + 3] ?? Infinity) > simTimeS + 1e-9) break;
+        stream.current = [ring[head] ?? 0, ring[head + 1] ?? 0, ring[head + 2] ?? 0];
+        stream.pendingHead = (stream.pendingHead + 1) % GNSS_PENDING;
+        stream.pendingCount--;
       }
-      if (!solution.fix) targets.set(SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S);
-      stream.fixLost = !solution.fix;
+      for (const [name, value] of stream.counts) targets.set(name, value);
+      if (stream.current) for (const [name, value] of this.gnssOffsets(stream.current, stream.base)) targets.set(name, value);
     }
     for (const [name, raw] of targets) {
       if (!stream.base.has(name)) continue;
@@ -1473,10 +1547,66 @@ export class SessionController {
     }
     if (!on) this.gnssStream = null;
   }
+  /** One unit process per sky satellite, advanced to epoch `k` of a grid of `periodS` with correlation time `tauS`; created on first use. */
+  private rangeProcess(state: RangeProcessState | null, stream: number, k: number, periodS: number, tauS: number): RangeProcessState {
+    if (!state) return { process: new GnssRangeProcess(GNSS_CONSTELLATION.length, this.gnssSeed, stream), epoch: k, periodS };
+    // A changed grid (receiver timing turned on or off) starts counting epochs on the new one.
+    if (state.periodS !== periodS) { state.periodS = periodS; state.epoch = k; return state; }
+    if (k > state.epoch) { state.process.advance(k - state.epoch, Math.exp(-periodS / tauS)); state.epoch = k; }
+    return state;
+  }
+  /**
+   * The GNSS solution at simulated time `atS`, epoch `k` of a grid of `periodS`, at the vehicle's true position now: the count,
+   * accuracy and lock targets, the offsets, and the error, m east, north, up, with the Sensors tab's wander added.
+   */
+  private gnssSolve(atS: number, k: number, periodS: number, base: ReadonlyMap<string, number>): { readonly counts: Map<string, number>; readonly offsets: Map<string, number>; readonly errorEnuM: readonly [number, number, number]; readonly fix: boolean } {
+    const home = this.home ?? [0, 0, 0, 0], e = this.gnssEffects, c = this.gnssControls, wander = this.gnssWander;
+    const truth = this.physics.flightTruth(), latRad = (home[0] * Math.PI) / 180, lonRad = (home[1] * Math.PI) / 180;
+    const s2 = Math.sin(latRad) ** 2, meridional = (6378137 * (1 - WGS84_E2)) / (1 - WGS84_E2 * s2) ** 1.5, normal = primeVerticalRadiusM(latRad);
+    const receiver = { latRad: latRad + truth.northM / meridional, lonRad: lonRad + truth.eastM / (normal * Math.cos(latRad)), heightM: home[2] + truth.altitudeM, eastM: truth.eastM, northM: truth.northM };
+    const code = c.codeNoise, multipath = c.multipath, jammer = c.jammer;
+    if (code) this.gnssCode = this.rangeProcess(this.gnssCode, GNSS_CODE_NOISE_STREAM, k, periodS, 1 / (4 * code.bandwidthHz));
+    if (multipath) this.gnssMultipath = this.rangeProcess(this.gnssMultipath, GNSS_MULTIPATH_STREAM, k, periodS, multipath.correlationS);
+    const effects: GnssEffects = code || multipath || jammer ? {
+      ...e,
+      codeNoise: code && this.gnssCode ? { ...code, unit: this.gnssCode.process.values } : null,
+      multipath: multipath && this.gnssMultipath ? { ...multipath, unit: this.gnssMultipath.process.values } : null,
+      // The jammer's power at the vehicle's true position; the truth itself is untouched.
+      jammer: jammer ? { receivedPowerDbW: jammerReceivedPowerDbW(jammer.emitter, truth.northM, truth.eastM, -truth.altitudeM), spectralSeparation: jammer.spectralSeparation, thresholdDbHz: jammer.thresholdDbHz } : null,
+    } : e;
+    // GPS time of the simulated moment: the sky's epoch plus the run's simulated time.
+    const gpsS = GNSS_START_S + atS;
+    const solution = gnssSolution(GNSS_CONSTELLATION, receiver, GNSS_WEEK + Math.floor(gpsS / 604800), gpsS % 604800, effects);
+    const [solvedEast, solvedNorth, up] = solution.errorEnuM;
+    // The Sensors tab's horizontal error wanders on, by the simulated time since its last step.
+    if (wander) {
+      if (this.gnssWanderAtS !== null) wander.step(atS - this.gnssWanderAtS);
+      this.gnssWanderAtS = atS;
+    }
+    const errorEnuM: readonly [number, number, number] = [solvedEast + (wander?.errorEnM[0] ?? 0), solvedNorth + (wander?.errorEnM[1] ?? 0), up];
+    const counts = new Map<string, number>();
+    if (e.constellation) {
+      counts.set(SITL_GPS_NUMSATS, solution.tracked);
+      if (solution.accuracyM !== null) counts.set(SITL_GPS_ACC, solution.accuracyM);
+    }
+    if (!solution.fix) counts.set(SITL_GPS_LOCK, SITL_GPS_NO_LOCK_S);
+    return { counts, offsets: this.gnssOffsets(errorEnuM, base), errorEnuM, fix: solution.fix };
+  }
+  /** SIM_GPS1_GLTCH_{X,Y,Z} for an error, m east, north, up, on top of what they held: latitude and longitude in degrees, height in metres. */
+  private gnssOffsets(errorEnuM: readonly [number, number, number], base: ReadonlyMap<string, number>): Map<string, number> {
+    const home = this.home ?? [0, 0, 0, 0], latRad = (home[0] * Math.PI) / 180, deg = 180 / Math.PI;
+    const s2 = Math.sin(latRad) ** 2, meridional = (6378137 * (1 - WGS84_E2)) / (1 - WGS84_E2 * s2) ** 1.5, normal = primeVerticalRadiusM(latRad);
+    const [east, north, up] = errorEnuM;
+    return new Map([
+      ["SIM_GPS1_GLTCH_X", (base.get("SIM_GPS1_GLTCH_X") ?? 0) + (north / meridional) * deg],
+      ["SIM_GPS1_GLTCH_Y", (base.get("SIM_GPS1_GLTCH_Y") ?? 0) + (east / (normal * Math.cos(latRad))) * deg],
+      ["SIM_GPS1_GLTCH_Z", (base.get("SIM_GPS1_GLTCH_Z") ?? 0) + up],
+    ]);
+  }
   /** TASK-117: whether the GNSS stream runs, its last values and the writes so far. */
-  get gnssReceiver(): { readonly values: ReadonlyMap<string, number>; readonly writes: number; readonly fixLost: boolean } | null {
+  get gnssReceiver(): { readonly values: ReadonlyMap<string, number>; readonly writes: number; readonly fixLost: boolean; readonly solutions: number } | null {
     const stream = this.gnssStream;
-    return stream ? { values: stream.last, writes: stream.writes, fixLost: stream.fixLost } : null;
+    return stream ? { values: stream.last, writes: stream.writes, fixLost: stream.fixLost, solutions: stream.solutions } : null;
   }
   /** TASK-116: whether the barometer offset stream runs, its last offsets, m, and the writes so far. */
   get barometerOffset(): { readonly offsetsM: ReadonlyMap<string, number>; readonly writes: number } | null {
@@ -2082,7 +2212,7 @@ export class SessionController {
     this.ownership = ownership; this.external = null; this.prepared = null; this.compatibility = []; this.motorCheck = null;
     this.accidents = []; this.afterAccident = false; this.terrainMiss = null; this.resumeTo = null; this.pauses = []; this.pausing = false;
     this.params = null; this.paramMetadata = null; this.changes = []; this.firmwareCommit = null;
-    this.effects = []; this.faultRestore.clear(); this.barometerStream = null; this.gnssStream = null; this.gnssWander = null; this.gnssWanderAtS = null; this.gnssEffects = { constellation: null, atmosphere: null, terrain: null, jamming: null }; this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
+    this.effects = []; this.faultRestore.clear(); this.barometerStream = null; this.gnssStream = null; this.gnssWander = null; this.gnssWanderAtS = null; this.gnssEffects = { constellation: null, atmosphere: null, terrain: null, jamming: null }; this.gnssControls = NO_GNSS_CONTROLS(); this.gnssCode = null; this.gnssMultipath = null; this.gcsLinkLost = false; this.faultPlan = null; this.weatherPlan = null;
     this.everArmed = false; this.flightTaskEntry = null; this.taskRunner = null; this.taskUpload = null; this.taskRoutePoint = -1; this.taskStep = null;
     this.taskState = "waiting"; this.taskReason = null; this.home = null; this.launcherHomeChecked = false;
     this.parser.reset();

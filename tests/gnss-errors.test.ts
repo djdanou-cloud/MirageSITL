@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   CA_CHIP_RATE, GPS_EARTH_RATE_RADS, GPS_MU, almanacEcefInto, dilution, effectiveCn0DbHz, gnssSolution, klobucharDelayS, lineOfSightClear, positionError,
   saastamoinenDelayM, walkerConstellation, GNSS_WANDER_TAU_S, HorizontalWander, type AlmanacSatellite, type SatelliteView,
+  CA_CHIP_LENGTH_M, GNSS_CODE_NOISE_STREAM, GNSS_MULTIPATH_STREAM, GNSS_SYSTEMS, GnssRangeProcess, dllJitterM, jammerCn0LossDb, multipathSigmaM, visibleSatellites,
 } from '@mirage/sensors/gnss';
+import { GNSS_SKY, GNSS_SKY_EPOCH } from '@mirage/sensors/gnss-sky';
+import { freeSpaceLossL1Db, jammerReceivedPowerDbW } from '@mirage/ew/gnss-emitter';
 
 // TASK-117: the GNSS v2 building blocks against closed forms worked by hand. Tolerances, declared before the first run: 1e-9
 // relative for the arithmetic of a formula, 1e-6 m for an orbit position (a few operations on 26,000 km).
@@ -197,5 +200,113 @@ describe('the horizontal wander of the Sensors tab (mapping 4)', () => {
     still.step(1);
     expect([...still.errorEnM].every(value => value === 0)).toBe(true);
     expect(() => new HorizontalWander(-1, 1)).toThrow('Invalid GNSS wander');
+  });
+});
+
+describe('receiver noise, multipath and a placed jammer (declared 2026-11-09)', () => {
+  // SPECS_SIMULATION_ENGINES "Receiver timing, tracking noise, multipath and jammers", checks 1 to 5, limits declared before the first run.
+  const home = { latRad: -35.363261 * deg, lonRad: 149.16523 * deg, heightM: 584, eastM: 0, northM: 0 };
+  const sky = { constellation: { maskRad: 10 * deg, uereM: 1.5 }, atmosphere: null, terrain: null, jamming: null };
+  const week = GNSS_SKY_EPOCH.week, start = GNSS_SKY_EPOCH.secondsOfWeek;
+
+  it('1. the DLL jitter and the multipath σ against their closed forms', () => {
+    // Worked independently of the module: λ_c = 299792458/1.023e6, T = 20 ms, B_n 0.5 Hz, D 1 chip.
+    for (const [cn0, sigma] of [[45, 0.825279], [40, 1.472569], [35, 2.646522], [28, 6.278575]] as const) {
+      expect(Math.abs(dllJitterM(cn0, 0.5, 1) - sigma)).toBeLessThanOrEqual(1e-6);
+    }
+    expect(CA_CHIP_LENGTH_M).toBeCloseTo(293.0522561, 6);
+    expect(dllJitterM(46, 0.5, 1)).toBeLessThan(dllJitterM(45, 0.5, 1));
+    expect(dllJitterM(45, 0.5, 0.1)).toBeLessThan(dllJitterM(45, 0.5, 0.5));
+    expect(dllJitterM(45, 0.5, 0.5)).toBeLessThan(dllJitterM(45, 0.5, 1));
+    for (const [elevation, sigma] of [[0, 0.66], [10, 0.32498], [90, 0.130065]] as const) {
+      expect(Math.abs(multipathSigmaM(elevation * deg, 0.13, 0.53, 10 * deg) - sigma)).toBeLessThanOrEqual(1e-5);
+    }
+  });
+
+  it('2. each unit process is first-order Gauss–Markov of variance 1, repeated by its seed, and steps the same in batches', () => {
+    for (const tauS of [0.5, 10]) {
+      const process = new GnssRangeProcess(1, 117, GNSS_CODE_NOISE_STREAM), n = 1_000_000, phi = Math.exp(-0.2 / tauS);
+      let sum = 0, square = 0, lagged = 0, previous = process.values[0]!;
+      for (let i = 0; i < n; i++) {
+        process.advance(1, phi);
+        const x = process.values[0]!;
+        sum += x; square += x * x; lagged += x * previous; previous = x;
+      }
+      const mean = sum / n, variance = square / n - mean * mean;
+      expect(Math.abs(variance - 1), `τ ${tauS}`).toBeLessThan(0.05);
+      expect(Math.abs((lagged / n - mean * mean) / variance - phi), `τ ${tauS}`).toBeLessThan(0.005);
+    }
+    const a = new GnssRangeProcess(121, 7, GNSS_MULTIPATH_STREAM), b = new GnssRangeProcess(121, 7, GNSS_MULTIPATH_STREAM), c = new GnssRangeProcess(121, 8, GNSS_MULTIPATH_STREAM);
+    a.advance(10, 0.98);
+    for (let i = 0; i < 10; i++) b.advance(1, 0.98);
+    c.advance(10, 0.98);
+    expect([...a.values]).toEqual([...b.values]);
+    expect([...a.values]).not.toEqual([...c.values]);
+    expect(() => new GnssRangeProcess(0, 1, 1)).toThrow('Invalid GNSS range process');
+  });
+
+  it('3. with every new effect absent or null a solution is the former one, bit for bit', () => {
+    for (const t of [0, 3600, 20000]) {
+      const former = gnssSolution(GNSS_SKY, home, week, start + t, { ...sky, atmosphere: { ionosphereResidual: 0.5, troposphereResidual: 0.1 } });
+      const nulls = gnssSolution(GNSS_SKY, home, week, start + t, { ...sky, atmosphere: { ionosphereResidual: 0.5, troposphereResidual: 0.1 }, jammer: null, codeNoise: null, multipath: null });
+      expect(nulls).toEqual(former);
+      for (let i = 0; i < 3; i++) expect(Object.is(nulls.errorEnuM[i], former.errorEnuM[i])).toBe(true);
+      expect(Object.is(nulls.accuracyM, former.accuracyM)).toBe(true);
+    }
+  });
+
+  it('4. code noise reaches the least-squares solution with the variance its satellites\' σ give', () => {
+    // B_n 10 Hz: τ = 25 ms against epochs of 0.2 s, so the unit process is white to e^(−8).
+    const t = start + 7200, process = new GnssRangeProcess(GNSS_SKY.length, 2026, GNSS_CODE_NOISE_STREAM), phi = Math.exp(-0.2 / (1 / 40)), n = 200_000;
+    const effects = { ...sky, codeNoise: { bandwidthHz: 10, spacingChips: 1, scale: 1, unit: process.values } };
+    // The prediction: Σ σ_i²·x_i², x_i the error a unit bias on satellite i alone gives, from the views' own lines and clocks.
+    const views = visibleSatellites(GNSS_SKY, home, week, t, 10 * deg);
+    const present = GNSS_SYSTEMS.filter(system => views.some(view => view.system === system)), clocks = views.map(view => present.indexOf(view.system));
+    const lines = views.map(view => view.lineOfSight);
+    let eastVariance = 0, northVariance = 0;
+    views.forEach((view, i) => {
+      const unit = views.map((_, j) => (j === i ? 1 : 0)), x = positionError(lines, unit, clocks);
+      if (!x) throw new Error('No solution');
+      const sigma = dllJitterM(45 - 10 * (1 - Math.sin(view.elevationRad)), 10, 1);
+      eastVariance += sigma * sigma * x[0] * x[0]; northVariance += sigma * sigma * x[1] * x[1];
+    });
+    let e = 0, ee = 0, nn = 0, no = 0;
+    for (let i = 0; i < n; i++) {
+      process.advance(1, phi);
+      const [east, north] = gnssSolution(GNSS_SKY, home, week, t, effects).errorEnuM;
+      e += east; ee += east * east; no += north; nn += north * north;
+    }
+    expect(Math.abs((ee / n - (e / n) ** 2) / eastVariance - 1)).toBeLessThan(0.03);
+    expect(Math.abs((nn / n - (no / n) ** 2) / northVariance - 1)).toBeLessThan(0.03);
+    expect(views.length).toBeGreaterThan(20);
+  }, 300_000);
+
+  it('5. a placed jammer: free-space power, one C/N0 loss for every satellite, and the fix lost on the way in', () => {
+    const lambda = 299792458 / 1575.42e6, n0 = 10 * Math.log10(1.380649e-23 * 290);
+    expect(Math.abs(freeSpaceLossL1Db(100) - 20 * Math.log10(4 * Math.PI * 100 / lambda))).toBeLessThanOrEqual(1e-9);
+    expect(freeSpaceLossL1Db(0.2)).toBe(freeSpaceLossL1Db(1));
+    const emitter = { positionNedM: [400, 0, -2] as const, eirpDbW: -48.8 };
+    expect(Math.abs(jammerReceivedPowerDbW(emitter, 100, 0, -2) - (-48.8 - 20 * Math.log10(4 * Math.PI * 300 / lambda)))).toBeLessThanOrEqual(1e-9);
+    for (const j of [-140, -130, -125]) {
+      const loss = 10 * Math.log10(1 + 10 ** ((j - n0) / 10) / (1.5 * CA_CHIP_RATE));
+      expect(Math.abs(jammerCn0LossDb(j, 1.5) - loss)).toBeLessThanOrEqual(1e-9);
+      for (const open of [35, 40, 45]) expect(Math.abs(effectiveCn0DbHz(open, j - (open + n0), 1.5) - (open - loss))).toBeLessThanOrEqual(1e-9);
+    }
+    // Straight in from 1000 m at 10 m up, one solution per metre of range, the sky held at one moment.
+    const t = start + 3600, clear = gnssSolution(GNSS_SKY, home, week, t, sky);
+    let previous = Infinity, lostAtM: number | null = null;
+    for (let range = 1000; range >= 20; range -= 1) {
+      const j = jammerReceivedPowerDbW(emitter, 400 - range, 0, -10);
+      const s = gnssSolution(GNSS_SKY, home, week, t, { ...sky, jammer: { receivedPowerDbW: j, spectralSeparation: 1.5, thresholdDbHz: 28 } });
+      const d = Math.hypot(range, 8);
+      expect(s.tracked, `${d} m`).toBeLessThanOrEqual(previous);
+      previous = s.tracked;
+      if (d > 350.2) expect(s.tracked, `${d} m`).toBe(clear.tracked);
+      if (d < 100.1) expect(s.tracked, `${d} m`).toBe(0);
+      if (!s.fix && lostAtM === null) lostAtM = d;
+    }
+    expect(lostAtM).not.toBeNull();
+    expect(lostAtM ?? 0).toBeGreaterThan(100.1);
+    expect(lostAtM ?? Infinity).toBeLessThan(350.2);
   });
 });
