@@ -7979,8 +7979,9 @@ drive of the held parity quad of `tests/motor-v2-flight.test.ts`):
 2. The hazard law, on `EscDesync` alone fed a held margin: at 400 and 1200 Hz, with m₀ = 0.2 and
    λ₀ = 50 /s, for m of 0.25, 0.5, 0.75 and 1, the count n of desynchronizations started over 2,000 s of
    ticks not in one lies within 4·√μ of μ = N·p, N those ticks; the mean wait from a tick that can start
-   one to the start, in seconds, lies within 4 standard errors of dt/p and within one tick of 1/λ (amended
-   before the first run from μ = λ·T, as above); at m = m₀ and below, none in 1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
+   one to the start, in seconds, lies within 4 standard errors of dt/p and within one tick plus 4 standard
+   errors of 1/λ (amended before the first run from μ = λ·T, as above, and from "within one tick of 1/λ",
+   which the sampling noise alone can break); at m = m₀ and below, none in 1,000,000 ticks. Intensity 2 with λ₀ = 25 starts them on exactly the ticks intensity 1 with λ₀ = 50
    does.
 3. The cut: with λ₀ = 1000 /s and m₀ = 0 on a step from 0 to 1, every desynchronization lasts exactly
    round(t_r·f) ticks at 400, 800 and 1200 Hz, during which that rotor's drive record carries the
