@@ -8901,6 +8901,38 @@ cell gives a second, independent set (its eq. (3)–(7) at s ≥ 0.2: R₀ 0.074
 C₁ 703.6 F, R₂ 0.0498 Ω with C₂ 4475 F, per cell), run as (D) with `chen-2006`. The script is
 `scripts/check-battery-logs.mjs --dir DIRECTORY`, its report `test-results/validation/battery-logs.json`.
 
+### Results (2026-11-09)
+
+Apple M5, macOS 27.2, Node 24, Rust 1.97.0. Native: `cargo test -p mirage-bet --locked` 179 passed, 7 of them new in
+`native/bet/tests/battery.rs` (checks 1 to 7; check 1's oracle corrected after its first run as recorded there), and
+`native/bet/tests/drive.rs` now names version 3 as the unknown record version, since version 2 exists. Through the WASM records,
+`tests/wasm-bus-v2.test.ts` 5 passed on the first run: the `chen-2006` table against eq. (2) within 1e-12 V (check 7), a neutral
+dynamic pack against the TASK-092 pack over 4000 steps within 1e-12 V (check 6), V·I = P and the energy budget over 8000 steps
+through the record bytes (checks 2 and 3), a branch without capacitance refused with −3, and a flight whose pack charges its
+branches, warms, reports its temperature and returns relaxed to the air temperature on reset. Cards: `tests/component-cards.test.ts`
+18 and `tests/card-editor.test.ts` 9 passed. G1 (check 8): `node scripts/check-bet-runtime.mjs --allocation` exit 0, graph `battery-v2-esc-drive-weather-pad-four-rotor` 0.002 B/step and 0 GC events over 1,000,000 steps, the branches at 10.1 and 13.4 mV and the pack 5.39 K warmer, every other graph passing as before (`test-results/validation/bet-runtime-allocation.json`)
+
+Check 9, native ArduCopter V4.7.2 (`tests/integration/battery-failsafe-sitl.test.ts`, 1 passed, 49.9 s; evidence in the ignored
+`test-results/browser/task-104-battery-failsafe.json`): the example quad on a 4S 2 Ah `chen-2006` pack with two branches
+(0.02 Ω and 250 F, 0.02 Ω and 3000 F) from charge 0.45, resting 15.41 V, `BATT_LOW_VOLT` 14.96 V. With `BATT_FS_VOLTSRC 0`
+the autopilot reported "Battery 1 is low 14.87V" at 55.0 s, in the climb at 11.1 m and 14.8 A; with `BATT_FS_VOLTSRC 1` it reported
+nothing in the climb and "Battery 1 is low 14.81V" at 91.1 s, 25.4 s into the hover at 40 m and 10.3 A, with 140 mAh used. No
+lockstep frame was lost or resent in either flight.
+
+Comparison with the stakeholder's logs (`node scripts/check-battery-logs.mjs --dir DIRECTORY`, exit 0, report
+`test-results/validation/battery-logs.json`; shown, not judged). The script's mirror of the pack equals the WASM bus exactly
+(0 V over 40,000 steps). Fitted on log 34: (B) linear curve R₀ 0.0679 Ω, R₁ 0.0714 Ω, τ₁ 9.27 s, R₂ 0.0089 Ω, τ₂ 11.4 s, RMS
+17.6 mV; (C) `chen-2006` R₀ 0.0635 Ω, R₁ 0.0608 Ω, τ₁ 6.14 s, R₂ 0.109 Ω, τ₂ 86.8 s, RMS 11.9 mV. On the 17 logs not used in the
+fit (log 0 holds no sample above 9 V), RMS voltage error: (A) TASK-092 84 to 454 mV, median 339; (B) 20 to 318, median 98;
+(C) 19 to 217, median 81; (D) the paper's own cell 491 to 978, median 832. (C) is below (A) on 16 of the 17 logs and (B) on 15;
+on log 32, which starts at 11.81 V, (A) is lowest (84 mV against 185 and 249), which is not explained. The largest errors, 1.1 to
+1.5 V, are on logs 14, 22 and 26, next to the 112, 150 and 36 samples below 3.0 V per cell that the method leaves out. The logged
+voltage resolves 12 to 24 µV. Heat is not compared: the logs hold no temperature.
+
+Not done: the Main thread's power record v1 does not carry the pack temperature (the Worker's `PowerTelemetry` does); the card
+editor takes the curve's name as text, which the card schema checks; R₀ and the branches do not depend on charge or current;
+no measured temperature exists to compare the heat balance with.
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of

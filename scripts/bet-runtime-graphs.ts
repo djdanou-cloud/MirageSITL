@@ -31,6 +31,8 @@ export const ALLOCATION_GRAPHS: readonly (readonly [graph: string, variant: Allo
   ["shaped-heated-esc-four-rotor", "scalar"],
   // TASK-105 the same with ESC desynchronization on, desynchronizations starting and ending in the measured steps.
   ["esc-desync-shaped-heated-esc-four-rotor", "scalar"],
+  // TASK-104 a dynamic pack on the ESC drive in a gusty wind: two RC branches, its heat and its air every step.
+  ["battery-v2-esc-drive-weather-pad-four-rotor", "scalar"],
 ];
 
 function field(value: unknown, key: string): unknown {

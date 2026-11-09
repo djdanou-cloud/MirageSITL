@@ -533,6 +533,30 @@
         "currentLimitA": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "dynamics": {
+          "description": "Optional (TASK-104): the second-order Thevenin pack; the table is in pack volts at charges 0, 0.05, ..., 1, its ends the empty and full voltages.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["openCircuitTableV", "branches", "activationK", "referenceK", "heatCapacityJPerK", "stillAirConductanceWPerK", "airflowConductanceWPerK", "entropicVPerK", "capacityRetention", "resistanceGrowth"],
+          "properties": {
+            "openCircuitTableV": { "type": "array", "minItems": 21, "maxItems": 21, "items": { "type": "number", "exclusiveMinimum": 0 } },
+            "branches": {
+              "type": "array", "minItems": 0, "maxItems": 2,
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["resistanceOhm", "capacitanceF"],
+                "properties": { "resistanceOhm": { "type": "number", "exclusiveMinimum": 0 }, "capacitanceF": { "type": "number", "exclusiveMinimum": 0 } }
+              }
+            },
+            "activationK": { "type": "number", "minimum": 0 },
+            "referenceK": { "type": "number", "minimum": 173.15, "maximum": 473.15 },
+            "heatCapacityJPerK": { "type": "number", "minimum": 0 },
+            "stillAirConductanceWPerK": { "type": "number", "minimum": 0 },
+            "airflowConductanceWPerK": { "type": "number", "minimum": 0 },
+            "entropicVPerK": { "type": "number" },
+            "capacityRetention": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "resistanceGrowth": { "type": "number", "minimum": 1 }
+          }
         }
       }
     },

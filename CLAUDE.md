@@ -164,7 +164,11 @@ implementation.
   motor's heat fly on the ESC drive with G1 passing, HAL mailbox v2 motor speeds
   drive the browser firmware's notch, and ESC desynchronization is the TASK-166
   effect `esc.desync`, every value of it an engineering choice; the notch's
-  attenuation of a vibration belongs to the deferred TASK-114.
+  attenuation of a vibration belongs to the deferred TASK-114. TASK-104 is DONE
+  (2026-11-09, approved that day): a pack whose battery card names an open-circuit
+  curve flies the second-order Thevenin pack (shared bus records v2), and ArduCopter's
+  sag-compensated low-battery warning behaves as declared on it; its comparison with
+  the stakeholder's logged discharges is shown for the stakeholder to judge (SA-01).
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and

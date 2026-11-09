@@ -376,6 +376,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
    * Hot-path readers index this array; the getters are for cold code.
    */
   readonly electrical=new Float64Array([1,0,0]);
+  /** TASK-104: a dynamic pack's [branch 1 V, branch 2 V, temperature K]; zeros for a TASK-092 pack. */
+  readonly packState=new Float64Array(3);
+  /** TASK-104: the pack has dynamics. */
+  private packDynamic=false;
   private faults:MotorFaults|null=null;
   private readonly unit=new Float64Array([1]);
   private readonly fraction=new Float64Array(1);
@@ -477,6 +481,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       this.escDesync=new EscDesync(n,hz);
       this.escEngine=esc;this.engine=null;
       this.bus=new BetBus(module,drive.battery,hz);esc.attachBattery(drive.battery);this.initialSoc=soc;this.housePowerW=house;
+      this.packDynamic=drive.battery.dynamics!==undefined;
       this.power=new PowerTelemetry(n);this.capacityAh=drive.battery.capacityAh;
       this.limits=new LimitMonitor(n,configuration.limitRatings??null,drive.motors.map(m=>m.currentLimitA),
         drive.motors.map(m=>m.brakeCurrentLimitA),drive.battery.currentLimitA,hz);
@@ -654,6 +659,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(this.wake){this.wake.reset();for(let i=0;i<this.rotorCount;i++){const b=i*this.inputStride;this.input[b+15]=0;this.input[b+16]=0;this.input[b+17]=0;}}
     // A new epoch starts without weather, as configured; with an origin air (TASK-148) at the initial CG height.
     this.turbulenceActive=false;this.weatherActive=false;this.windNedMps.fill(0);this.discreteGust.stop();this.restoreConfiguredAir();
+    // TASK-104: a dynamic pack starts relaxed, at the air's temperature.
+    const air=this.atmosphere[2]!;this.packState[0]=0;this.packState[1]=0;this.packState[2]=this.packDynamic?air*air/(AIR_GAMMA*AIR_GAS_CONSTANT):0;
     this.dragWrenchBody.fill(0);
     this.resetMotorV2();
     this.escDesync?.reset();
@@ -663,6 +670,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       for(let i=0;i<this.rotorCount;i++)t.motors[i*MotorColumn.stride+MotorColumn.Rpm]=this.output[i*this.outputStride+9]!*60/(2*Math.PI);
       t.battery[BatteryColumn.StateOfCharge]=e[0]!;t.battery[BatteryColumn.VoltageV]=e[1]!;
       t.battery[BatteryColumn.RemainingAh]=e[0]*this.capacityAh;t.battery[BatteryColumn.CapacityAh]=this.capacityAh;
+      t.battery[BatteryColumn.TemperatureK]=this.packState[2]!;
     }
     this.copyTruth();
   }
@@ -874,6 +882,11 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     if(esc){
       // TASK-197: the motors and the bus agree within this step, as they physically do, and a pack at its limit holds the motors back.
       const q=esc.busState;q[0]=this.electrical[0]!;q[1]=this.housePowerW;
+      if(this.packDynamic){
+        // TASK-104: the pack's state, the air's temperature and the body's speed through the air at the step's midpoint.
+        const ps=this.packState,a=this.atmosphere[2]!;q[2]=ps[0]!;q[3]=ps[1]!;q[4]=ps[2]!;
+        q[5]=a*a/(AIR_GAMMA*AIR_GAS_CONSTANT);q[6]=Math.sqrt(fx*fx+fy*fy+fz*fz);
+      }
       if(!esc.solveBusInto()){this.fault='Battery bus solve failed';return;}
       const voltage=esc.busSolution;
       for(let i=0;i<this.rotorCount;i++)input[i*this.inputStride+14]=voltage[0]!;
@@ -907,8 +920,10 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       const e=this.electrical,o=this.bus.output;
       // Through the bus's input slots: as call arguments, V8 boxes these doubles once this step is too large to inline the call.
       const bi=this.bus.input;bi[0]=e[0]!;bi[1]=terminalPowerW;bi[2]=this.housePowerW;
+      if(this.packDynamic){const q=esc!.busState;bi[3]=q[2]!;bi[4]=q[3]!;bi[5]=q[4]!;bi[6]=q[5]!;bi[7]=q[6]!;}
       if(!this.bus.stepFromInput()){this.fault='Battery bus step failed';return;}
       e[0]=o[0]!;e[1]=o[1]!;e[2]=o[2]!;
+      if(this.packDynamic){const ps=this.packState;ps[0]=o[7]!;ps[1]=o[8]!;ps[2]=o[9]!;}
       this.busLimited=this.bus.output[6]!!==0||esc!.busLimited;
     }
     if(!this.frame.sumInto(this.hub,this.wrench)){this.fault='BET body integration failed';return;}
@@ -1001,6 +1016,7 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
     const b=t.battery;
     b[BatteryColumn.StateOfCharge]=e[0]!;b[BatteryColumn.VoltageV]=e[1]!;b[BatteryColumn.CurrentA]=e[2]!;
     b[BatteryColumn.PowerW]=e[1]!*e[2]!;b[BatteryColumn.RemainingAh]=e[0]!*this.capacityAh;
+    b[BatteryColumn.TemperatureK]=this.packState[2]!;
     // The bus flags word (slot 6) is read here, not passed: V8 can box a double call argument.
     const flags=bus[6]!;
     t.batteryMasks[1]=((flags&1)!==0||this.escEngine!.busLimited?BatteryLimited.PackCurrent:0)|((flags&2)!==0?BatteryLimited.Charge:0);

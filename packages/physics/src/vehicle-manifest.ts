@@ -55,6 +55,16 @@ export interface EscSpec {
 export interface BatterySpec {
   readonly openCircuitFullV: number; readonly openCircuitEmptyV: number; readonly internalResistanceOhm: number;
   readonly capacityAh: number; readonly currentLimitA: number;
+  /** TASK-104: the second-order Thevenin pack; absent, the TASK-092 pack. */
+  readonly dynamics?: BatteryDynamicsSpec;
+}
+/** TASK-104 (SPECS_SIMULATION_ENGINES "Battery v2"); the shape of `BusBatteryDynamics`. */
+export interface BatteryDynamicsSpec {
+  readonly openCircuitTableV: readonly number[];
+  readonly branches: readonly { readonly resistanceOhm: number; readonly capacitanceF: number }[];
+  readonly activationK: number; readonly referenceK: number; readonly heatCapacityJPerK: number;
+  readonly stillAirConductanceWPerK: number; readonly airflowConductanceWPerK: number; readonly entropicVPerK: number;
+  readonly capacityRetention: number; readonly resistanceGrowth: number;
 }
 export interface AirframeDrag {
   /** Row-major symmetric drag-area tensor (C_D·A), body FRD, m^2, of the airframe without its rotors (TASK-096). */
@@ -381,6 +391,12 @@ export function validateVehicleManifest(input: unknown): VehicleManifest {
   }
   const battery = manifest.battery;
   if (battery && battery.openCircuitFullV < battery.openCircuitEmptyV) throw new Error('Battery full voltage is below empty voltage');
+  const table = battery?.dynamics?.openCircuitTableV;
+  if (battery && table) {
+    // TASK-104: the table's ends are the pack's empty and full voltages, and it never falls.
+    if (table[0] !== battery.openCircuitEmptyV || table[table.length - 1] !== battery.openCircuitFullV) throw new Error('Battery table ends are not its empty and full voltages');
+    for (let i = 1; i < table.length; i++) if (table[i]! < table[i - 1]!) throw new Error('Battery open-circuit table falls');
+  }
   const drag = manifest.airframe.drag;
   if (drag) assertSymmetricPositiveDefinite(drag.dragAreaBodyM2, 'Drag area tensor');
 

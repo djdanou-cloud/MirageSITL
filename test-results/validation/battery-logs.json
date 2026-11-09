@@ -1,0 +1,783 @@
+{
+  "schema": "mirage-battery-logs/1",
+  "task": "TASK-104",
+  "status": "REPORTED",
+  "judged": false,
+  "declared": "SPECS_SIMULATION_ENGINES, Battery v2, Comparison with measured discharges (2026-11-09)",
+  "card": "tests/fixtures/components/pavo-battery-3s-850.json",
+  "cells": 3,
+  "capacityAh": 0.85,
+  "cellWindowV": [
+    3.3,
+    4.35
+  ],
+  "mirrorCheck": {
+    "steps": 40000,
+    "worstDifferenceV": 0
+  },
+  "fitLog": "stakeholder-pavo-log_34_UnknownDate.bin",
+  "fits": {
+    "B": {
+      "values": {
+        "r0Ohm": 0.06794243638305872,
+        "r1Ohm": 0.07143157512142069,
+        "tau1S": 9.270870976663797,
+        "r2Ohm": 0.008856242552895362,
+        "tau2S": 11.41158098473201,
+        "c1F": 129.78673592042458,
+        "c2F": 1288.5352808004602
+      },
+      "fitRmsV": 0.017593006489471565,
+      "iterations": 147
+    },
+    "C": {
+      "values": {
+        "r0Ohm": 0.0634724903428208,
+        "r1Ohm": 0.06082769398103174,
+        "tau1S": 6.14081136853787,
+        "r2Ohm": 0.10919154195905462,
+        "tau2S": 86.77299490868175,
+        "c1F": 100.9542030387145,
+        "c2F": 794.686047580686
+      },
+      "fitRmsV": 0.011915312496357225,
+      "iterations": 247
+    }
+  },
+  "models": {
+    "A": "TASK-092: linear curve, the card's 0.0771 ohm",
+    "B": "linear curve, R0 R1 tau1 R2 tau2 fitted on log 34",
+    "C": "chen-2006 curve, R0 R1 tau1 R2 tau2 fitted on log 34",
+    "D": "chen-2006 curve, the paper's own cell (eq. 3 to 7 at s >= 0.2), three in series"
+  },
+  "method": {
+    "minimumCurrentA": 0.5,
+    "minimumCellV": 3,
+    "substepS": 0.0025,
+    "heat": "not compared: the logs hold no temperature"
+  },
+  "logs": [
+    {
+      "file": "stakeholder-pavo-log_0_UnknownDate.bin",
+      "sha256": "a9395ad98adf0b211972cc97fcee54915d7e3df4236e1980d0d97c9eefce0d5e",
+      "fitted": false,
+      "samplesInFlight": 56,
+      "durationS": 5.500145,
+      "voltageStepV": 0.012336313724517822,
+      "models": {
+        "A": {
+          "samples": 0,
+          "excluded": 55,
+          "rmsV": 0,
+          "largestV": 0,
+          "startCharge": 0
+        },
+        "B": {
+          "samples": 0,
+          "excluded": 55,
+          "rmsV": 0,
+          "largestV": 0,
+          "startCharge": 0
+        },
+        "C": {
+          "samples": 0,
+          "excluded": 55,
+          "rmsV": 0,
+          "largestV": 0,
+          "startCharge": 0
+        },
+        "D": {
+          "samples": 0,
+          "excluded": 55,
+          "rmsV": 0,
+          "largestV": 0,
+          "startCharge": 0
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_12_UnknownDate.bin",
+      "sha256": "0113ab869461cf3c8515eafbf2b89ff01d61074584e2701a58b97018998bba9c",
+      "fitted": false,
+      "samplesInFlight": 3290,
+      "durationS": 328.900067,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 3289,
+          "excluded": 0,
+          "rmsV": 0.3151028823737698,
+          "largestV": 0.46548652825334,
+          "startCharge": 0.8254635754804764
+        },
+        "B": {
+          "samples": 3289,
+          "excluded": 0,
+          "rmsV": 0.0984138559524809,
+          "largestV": 0.26042436177360706,
+          "startCharge": 0.8220310327754268
+        },
+        "C": {
+          "samples": 3289,
+          "excluded": 0,
+          "rmsV": 0.04904705141219254,
+          "largestV": 0.29547095001368184,
+          "startCharge": 0.8137435488419293
+        },
+        "D": {
+          "samples": 3289,
+          "excluded": 0,
+          "rmsV": 0.868247979387306,
+          "largestV": 1.3305326723555062,
+          "startCharge": 0.8830505600247598
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_13_UnknownDate.bin",
+      "sha256": "fe2ce1e0b1aac28f1d54d80f1aaeb55c4f9e26ea8b998c7c37a0623be2eb7ed4",
+      "fitted": false,
+      "samplesInFlight": 3386,
+      "durationS": 338.50026299999996,
+      "voltageStepV": 0.000011444091796875,
+      "models": {
+        "A": {
+          "samples": 3385,
+          "excluded": 0,
+          "rmsV": 0.2971518961337621,
+          "largestV": 0.5185708982674608,
+          "startCharge": 0.8287463222647469
+        },
+        "B": {
+          "samples": 3385,
+          "excluded": 0,
+          "rmsV": 0.11297833265603546,
+          "largestV": 0.28479220212491363,
+          "startCharge": 0.8241258549398751
+        },
+        "C": {
+          "samples": 3385,
+          "excluded": 0,
+          "rmsV": 0.06996980565837661,
+          "largestV": 0.5150871648844948,
+          "startCharge": 0.8155790333877189
+        },
+        "D": {
+          "samples": 3385,
+          "excluded": 0,
+          "rmsV": 0.862014954687967,
+          "largestV": 1.2408851602948445,
+          "startCharge": 0.9068921927570963
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_14_UnknownDate.bin",
+      "sha256": "0eb4a87bdc72e077b2b1939efbafa1ed3d410e3c2208db7e7916bd1a050a1f6e",
+      "fitted": false,
+      "samplesInFlight": 4337,
+      "durationS": 433.600155,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 4224,
+          "excluded": 112,
+          "rmsV": 0.42268852538574964,
+          "largestV": 1.4584212551858986,
+          "startCharge": 0.9379368225392843
+        },
+        "B": {
+          "samples": 4224,
+          "excluded": 112,
+          "rmsV": 0.15622416359550687,
+          "largestV": 1.095663348831696,
+          "startCharge": 0.9340132959992051
+        },
+        "C": {
+          "samples": 4224,
+          "excluded": 112,
+          "rmsV": 0.1982374380735214,
+          "largestV": 1.5012241619394082,
+          "startCharge": 0.9365480585917234
+        },
+        "D": {
+          "samples": 4224,
+          "excluded": 112,
+          "rmsV": 0.8470302252354166,
+          "largestV": 1.2684203924430406,
+          "startCharge": 1
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_15_UnknownDate.bin",
+      "sha256": "3a952234a170314e30e0eab37e4e36b6e8bd27e329017b977490083d1b497db0",
+      "fitted": false,
+      "samplesInFlight": 2660,
+      "durationS": 265.89997900000003,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 2659,
+          "excluded": 0,
+          "rmsV": 0.4291725861120116,
+          "largestV": 0.5738295116148642,
+          "startCharge": 0.9481205920302682
+        },
+        "B": {
+          "samples": 2659,
+          "excluded": 0,
+          "rmsV": 0.13258831578897862,
+          "largestV": 0.23175069303485785,
+          "startCharge": 0.9440180176035757
+        },
+        "C": {
+          "samples": 2659,
+          "excluded": 0,
+          "rmsV": 0.08098000896300021,
+          "largestV": 0.1750292300475529,
+          "startCharge": 0.9465022716821956
+        },
+        "D": {
+          "samples": 2659,
+          "excluded": 0,
+          "rmsV": 0.8323642294197732,
+          "largestV": 1.1859621125234536,
+          "startCharge": 1
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_22_UnknownDate.bin",
+      "sha256": "59da21a893db9681633c95d931b6d84587309f9f055e85e67cf8531ba62fbbda",
+      "fitted": false,
+      "samplesInFlight": 4361,
+      "durationS": 436.000298,
+      "voltageStepV": 0.0000133514404296875,
+      "models": {
+        "A": {
+          "samples": 4210,
+          "excluded": 150,
+          "rmsV": 0.45406648362074453,
+          "largestV": 1.5178365673411331,
+          "startCharge": 0.978316984952442
+        },
+        "B": {
+          "samples": 4210,
+          "excluded": 150,
+          "rmsV": 0.16435367642335755,
+          "largestV": 1.15619324596749,
+          "startCharge": 0.9738358233030482
+        },
+        "C": {
+          "samples": 4210,
+          "excluded": 150,
+          "rmsV": 0.1991905960261234,
+          "largestV": 1.4809578700708155,
+          "startCharge": 0.9739893278122664
+        },
+        "D": {
+          "samples": 4210,
+          "excluded": 150,
+          "rmsV": 0.9425189780120603,
+          "largestV": 1.255203576803364,
+          "startCharge": 1
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_23_UnknownDate.bin",
+      "sha256": "6288bee018c3555906fab8c787037b63b0577dd2405721d5628306534d9f3e03",
+      "fitted": false,
+      "samplesInFlight": 1025,
+      "durationS": 102.399836,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1024,
+          "excluded": 0,
+          "rmsV": 0.3758912649037126,
+          "largestV": 0.537631302064387,
+          "startCharge": 0.9337050017629354
+        },
+        "B": {
+          "samples": 1024,
+          "excluded": 0,
+          "rmsV": 0.08717093800265603,
+          "largestV": 0.1905162163295948,
+          "startCharge": 0.930276990340897
+        },
+        "C": {
+          "samples": 1024,
+          "excluded": 0,
+          "rmsV": 0.042945293010183676,
+          "largestV": 0.20436801342100175,
+          "startCharge": 0.9330406238413416
+        },
+        "D": {
+          "samples": 1024,
+          "excluded": 0,
+          "rmsV": 0.6405913897566748,
+          "largestV": 0.9543164574050245,
+          "startCharge": 0.9894155125128368
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_24_UnknownDate.bin",
+      "sha256": "43f344c8232548a6fa3afb912f9d339a8bf65ba535a216533ad14c14b821e5ed",
+      "fitted": false,
+      "samplesInFlight": 3925,
+      "durationS": 392.399797,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 3924,
+          "excluded": 0,
+          "rmsV": 0.39338319228610247,
+          "largestV": 0.49654198961579077,
+          "startCharge": 0.9310814689946556
+        },
+        "B": {
+          "samples": 3924,
+          "excluded": 0,
+          "rmsV": 0.10647144018979464,
+          "largestV": 0.23815597667743305,
+          "startCharge": 0.9274268244564503
+        },
+        "C": {
+          "samples": 3924,
+          "excluded": 0,
+          "rmsV": 0.07091295869540429,
+          "largestV": 0.1771531583883359,
+          "startCharge": 0.9300688222356512
+        },
+        "D": {
+          "samples": 3924,
+          "excluded": 0,
+          "rmsV": 0.882399738347444,
+          "largestV": 1.1991257733527956,
+          "startCharge": 0.990329858388648
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_26_UnknownDate.bin",
+      "sha256": "875721929e8fbe69f5169d79d90e657c1a5f04d0011546d36fd5e0a0e48ccb4d",
+      "fitted": false,
+      "samplesInFlight": 5062,
+      "durationS": 506.1000019999999,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 5025,
+          "excluded": 36,
+          "rmsV": 0.3388242429624508,
+          "largestV": 0.9223195398231265,
+          "startCharge": 0.9056987874545754
+        },
+        "B": {
+          "samples": 5025,
+          "excluded": 36,
+          "rmsV": 0.16257472076064786,
+          "largestV": 0.5482878163603431,
+          "startCharge": 0.9013577587213897
+        },
+        "C": {
+          "samples": 5025,
+          "excluded": 36,
+          "rmsV": 0.2171080643765054,
+          "largestV": 1.3293731096337336,
+          "startCharge": 0.9035665119160181
+        },
+        "D": {
+          "samples": 5025,
+          "excluded": 36,
+          "rmsV": 0.8671922836696024,
+          "largestV": 1.2417645647024251,
+          "startCharge": 0.977101723593867
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_29_UnknownDate.bin",
+      "sha256": "717cd3d68597b5a512ae87b73ea2f7e04290328fea53f8c7a6c494e02b16b396",
+      "fitted": false,
+      "samplesInFlight": 506,
+      "durationS": 50.49998,
+      "voltageStepV": 0.0000133514404296875,
+      "models": {
+        "A": {
+          "samples": 505,
+          "excluded": 0,
+          "rmsV": 0.3103927535850409,
+          "largestV": 0.5017841308855893,
+          "startCharge": 0.891288643556928
+        },
+        "B": {
+          "samples": 505,
+          "excluded": 0,
+          "rmsV": 0.0516114879349436,
+          "largestV": 0.15792383505712948,
+          "startCharge": 0.8874681991134223
+        },
+        "C": {
+          "samples": 505,
+          "excluded": 0,
+          "rmsV": 0.027070929645660595,
+          "largestV": 0.1828067898898773,
+          "startCharge": 0.8888974057725798
+        },
+        "D": {
+          "samples": 505,
+          "excluded": 0,
+          "rmsV": 0.4914459189227638,
+          "largestV": 0.7206776649026434,
+          "startCharge": 0.9562522761008834
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_30_UnknownDate.bin",
+      "sha256": "b334b38d4b40ebc2f6b65caea72ea94f7ea83b6282b8d355b6d9f73054aef586",
+      "fitted": false,
+      "samplesInFlight": 2300,
+      "durationS": 229.90041899999997,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 2299,
+          "excluded": 0,
+          "rmsV": 0.35725850732653697,
+          "largestV": 0.43575310325806527,
+          "startCharge": 0.8006787274489331
+        },
+        "B": {
+          "samples": 2299,
+          "excluded": 0,
+          "rmsV": 0.0520431300679096,
+          "largestV": 0.12803478778423028,
+          "startCharge": 0.7968456560611434
+        },
+        "C": {
+          "samples": 2299,
+          "excluded": 0,
+          "rmsV": 0.02550111955048898,
+          "largestV": 0.12919733067399264,
+          "startCharge": 0.7812380397705005
+        },
+        "D": {
+          "samples": 2299,
+          "excluded": 0,
+          "rmsV": 0.7773570961868558,
+          "largestV": 1.065535526456257,
+          "startCharge": 0.8628026519645768
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_31_UnknownDate.bin",
+      "sha256": "85d656b7e0c16571c27809c40e8960a695ec0d003c13dfad501c9a4bbcb31e79",
+      "fitted": false,
+      "samplesInFlight": 1687,
+      "durationS": 168.600012,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1686,
+          "excluded": 0,
+          "rmsV": 0.316437973780105,
+          "largestV": 0.585504604715549,
+          "startCharge": 0.9161002821581707
+        },
+        "B": {
+          "samples": 1686,
+          "excluded": 0,
+          "rmsV": 0.03867525411593068,
+          "largestV": 0.23710331463622225,
+          "startCharge": 0.9122400951569689
+        },
+        "C": {
+          "samples": 1686,
+          "excluded": 0,
+          "rmsV": 0.11865421168314817,
+          "largestV": 0.19293860179725364,
+          "startCharge": 0.9147249043400634
+        },
+        "D": {
+          "samples": 1686,
+          "excluded": 0,
+          "rmsV": 0.801846564172517,
+          "largestV": 1.1191768154875028,
+          "startCharge": 0.9795977740633763
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_32_UnknownDate.bin",
+      "sha256": "16553acbe7692687b4812c2b3e23a9ec5db79a18b4b0c927d3707d05966b41ce",
+      "fitted": false,
+      "samplesInFlight": 1277,
+      "durationS": 127.600158,
+      "voltageStepV": 0.00002384185791015625,
+      "models": {
+        "A": {
+          "samples": 1276,
+          "excluded": 0,
+          "rmsV": 0.0843229507614946,
+          "largestV": 0.1521740546851671,
+          "startCharge": 0.6005958497562107
+        },
+        "B": {
+          "samples": 1276,
+          "excluded": 0,
+          "rmsV": 0.2487788478413278,
+          "largestV": 0.40716541851531574,
+          "startCharge": 0.59714943872594
+        },
+        "C": {
+          "samples": 1276,
+          "excluded": 0,
+          "rmsV": 0.18453400267075434,
+          "largestV": 0.2731782113774468,
+          "startCharge": 0.4019814035148189
+        },
+        "D": {
+          "samples": 1276,
+          "excluded": 0,
+          "rmsV": 0.8969702063891588,
+          "largestV": 1.2794811124037118,
+          "startCharge": 0.5511541732571748
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_33_UnknownDate.bin",
+      "sha256": "922b36fe68d2e08c78298019f1db938063394addc1c1ca9461c0bdb49aab63ac",
+      "fitted": false,
+      "samplesInFlight": 1326,
+      "durationS": 132.500363,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1325,
+          "excluded": 0,
+          "rmsV": 0.36311714720210375,
+          "largestV": 0.48427495727355563,
+          "startCharge": 0.9401777034108605
+        },
+        "B": {
+          "samples": 1325,
+          "excluded": 0,
+          "rmsV": 0.04859924011646339,
+          "largestV": 0.1427360198215908,
+          "startCharge": 0.9358998069731688
+        },
+        "C": {
+          "samples": 1325,
+          "excluded": 0,
+          "rmsV": 0.09109462464240185,
+          "largestV": 0.1985674825074053,
+          "startCharge": 0.9382679697319494
+        },
+        "D": {
+          "samples": 1325,
+          "excluded": 0,
+          "rmsV": 0.7937094659483308,
+          "largestV": 1.37340693449978,
+          "startCharge": 1
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_34_UnknownDate.bin",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "fitted": true,
+      "samplesInFlight": 1393,
+      "durationS": 139.200411,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1392,
+          "excluded": 0,
+          "rmsV": 0.3158416034588833,
+          "largestV": 0.434413750320763,
+          "startCharge": 0.7156639203760355
+        },
+        "B": {
+          "samples": 1392,
+          "excluded": 0,
+          "rmsV": 0.017593006489471565,
+          "largestV": 0.12300819966060672,
+          "startCharge": 0.711610816816439
+        },
+        "C": {
+          "samples": 1392,
+          "excluded": 0,
+          "rmsV": 0.011915312496357225,
+          "largestV": 0.12554897086845607,
+          "startCharge": 0.6538742815008989
+        },
+        "D": {
+          "samples": 1392,
+          "excluded": 0,
+          "rmsV": 0.7027565896676281,
+          "largestV": 1.5793018721550975,
+          "startCharge": 0.7617669046599389
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_35_UnknownDate.bin",
+      "sha256": "9c78c2eac10a911ca79613d06845d92628872165fbc50bf2d5bd2f8c4841f7dd",
+      "fitted": false,
+      "samplesInFlight": 1390,
+      "durationS": 138.89995199999998,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1389,
+          "excluded": 0,
+          "rmsV": 0.3669154675015395,
+          "largestV": 0.4408588218540519,
+          "startCharge": 0.9368394110127107
+        },
+        "B": {
+          "samples": 1389,
+          "excluded": 0,
+          "rmsV": 0.06515036982784365,
+          "largestV": 0.29557451337805674,
+          "startCharge": 0.9325008660810805
+        },
+        "C": {
+          "samples": 1389,
+          "excluded": 0,
+          "rmsV": 0.08140762335341216,
+          "largestV": 0.3113114861155637,
+          "startCharge": 0.934826672920819
+        },
+        "D": {
+          "samples": 1389,
+          "excluded": 0,
+          "rmsV": 0.7294318423117787,
+          "largestV": 1.5667514788299428,
+          "startCharge": 1
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_36_UnknownDate.bin",
+      "sha256": "012137bb6197fdb8ea00401e0926c05dba997178aec747d0f4f1b75d2feae2c3",
+      "fitted": false,
+      "samplesInFlight": 1444,
+      "durationS": 144.300121,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 1443,
+          "excluded": 0,
+          "rmsV": 0.29610627827177033,
+          "largestV": 0.36354727112981955,
+          "startCharge": 0.711604226460532
+        },
+        "B": {
+          "samples": 1443,
+          "excluded": 0,
+          "rmsV": 0.02938201706445644,
+          "largestV": 0.1506605249671349,
+          "startCharge": 0.7073836671279321
+        },
+        "C": {
+          "samples": 1443,
+          "excluded": 0,
+          "rmsV": 0.019270178444305085,
+          "largestV": 0.09177664436183619,
+          "startCharge": 0.6464612148152258
+        },
+        "D": {
+          "samples": 1443,
+          "excluded": 0,
+          "rmsV": 0.7120356567027785,
+          "largestV": 1.0686363359256816,
+          "startCharge": 0.7599159833459672
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_37_UnknownDate.bin",
+      "sha256": "64e0b6bbf3ffbd77d1a20bd9c7fde47b92fbc52c2a2d925cfacfe4b222a2b9e9",
+      "fitted": false,
+      "samplesInFlight": 1283,
+      "durationS": 128.20006899999998,
+      "voltageStepV": 0.0000133514404296875,
+      "models": {
+        "A": {
+          "samples": 1282,
+          "excluded": 0,
+          "rmsV": 0.30809771699881683,
+          "largestV": 0.47011067167275833,
+          "startCharge": 0.9116818479015716
+        },
+        "B": {
+          "samples": 1282,
+          "excluded": 0,
+          "rmsV": 0.020472477523829486,
+          "largestV": 0.11497260312644642,
+          "startCharge": 0.9081178657590392
+        },
+        "C": {
+          "samples": 1282,
+          "excluded": 0,
+          "rmsV": 0.10723589375871725,
+          "largestV": 0.17372885458261322,
+          "startCharge": 0.9107324621825141
+        },
+        "D": {
+          "samples": 1282,
+          "excluded": 0,
+          "rmsV": 0.7733390273402035,
+          "largestV": 1.0446207599887085,
+          "startCharge": 0.9712033162134257
+        }
+      }
+    },
+    {
+      "file": "stakeholder-pavo-log_63_UnknownDate.bin",
+      "sha256": "e5dda93f1731a37a21a2815820fcc1047107cfc70121075a7a6278d7253c1ce2",
+      "fitted": false,
+      "samplesInFlight": 3595,
+      "durationS": 359.936804,
+      "voltageStepV": 0.00001239776611328125,
+      "models": {
+        "A": {
+          "samples": 3594,
+          "excluded": 0,
+          "rmsV": 0.17504012358583307,
+          "largestV": 0.2960654289194036,
+          "startCharge": 0.7629716827869413
+        },
+        "B": {
+          "samples": 3594,
+          "excluded": 0,
+          "rmsV": 0.31808748432905226,
+          "largestV": 0.584205984132911,
+          "startCharge": 0.7582488233681328
+        },
+        "C": {
+          "samples": 3594,
+          "excluded": 0,
+          "rmsV": 0.13393207551073397,
+          "largestV": 0.3056163330720487,
+          "startCharge": 0.7268504751892668
+        },
+        "D": {
+          "samples": 3594,
+          "excluded": 0,
+          "rmsV": 0.9775259289560163,
+          "largestV": 1.2739680717317654,
+          "startCharge": 0.8356213581242287
+        }
+      }
+    }
+  ]
+}

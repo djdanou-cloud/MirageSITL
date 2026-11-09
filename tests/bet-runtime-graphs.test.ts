@@ -34,6 +34,9 @@ describe('BET runtime allocation graphs', () => {
       expect(ALLOCATION_GRAPHS.filter(([name]) => name === graph).map(([, variant]) => variant)).toEqual(['scalar']);
     }
   });
+  it('include the TASK-104 dynamic pack', () => {
+    expect(ALLOCATION_GRAPHS.filter(([name]) => name === 'battery-v2-esc-drive-weather-pad-four-rotor').map(([, variant]) => variant)).toEqual(['scalar']);
+  });
   it('admit exactly the complete set', () => {
     expect(completeAllocationSamples(complete())).toBe(true);
     expect(completeAllocationSamples(complete().reverse())).toBe(true);

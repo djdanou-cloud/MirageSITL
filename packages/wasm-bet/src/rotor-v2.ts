@@ -1,5 +1,5 @@
 /** Bound-rotor step interface v2 (TASK-088) on v1 arenas; no hot-path host objects or views. */
-import { BUS_V1, type BusBattery } from './bus.ts';
+import { BUS_V1, BUS_V2, writeBusRecord, type BusBattery } from './bus.ts';
 import { encodeBoundRotor, type BoundRotorDefinition } from './rotor.ts';
 
 /** Byte offsets of the 256-byte input and output records (SPECS_SIMULATION_ENGINES.md). */
@@ -49,8 +49,11 @@ export class BetRotorEngineV2 {
   readonly driveFlags: Uint32Array;
   readonly output: Float64Array;
   readonly dtS: number;
-  /** [state of charge, house load W], read by `solveBusInto`. */
-  readonly busState = new Float64Array(2);
+  /**
+   * [state of charge, house load W, branch 1 V, branch 2 V, temperature K, air temperature K, airspeed m/s], read by
+   * `solveBusInto`; the last five only for a pack with TASK-104 dynamics.
+   */
+  readonly busState = new Float64Array(7);
   /** [the voltage the motors run on V, the pack's terminal voltage V], written by `solveBusInto`. */
   readonly busSolution = new Float64Array(2);
   /** The last solve found the pack at its limit. */
@@ -69,6 +72,7 @@ export class BetRotorEngineV2 {
   private readonly busAt: number;
   private readonly solutionAt: number;
   private batteryAttached = false;
+  private batteryDynamic = false;
   private readonly nativeStep: (...args: number[]) => number;
   private readonly nativeSolve: (...args: number[]) => number;
   private readonly nativeReset: (...args: number[]) => number;
@@ -101,7 +105,7 @@ export class BetRotorEngineV2 {
       this.input[row] = 1.225; this.input[row + 1] = 1.789e-5; this.input[row + 2] = 340;
     }
     this.tableAt = at; at += Math.ceil(this.count * 8 / 64) * 64;
-    this.busAt = at; at += BUS_V1.inputBytes;
+    this.busAt = at; at += BUS_V2.inputBytes;
     this.solutionAt = at; at += BUS_SOLUTION_V1.outputBytes;
     if (at > 64 * 1024 * 1024) throw new Error('Bound rotor memory budget exceeded');
     if (this.memory.buffer.byteLength < at) this.memory.grow(Math.ceil((at - this.memory.buffer.byteLength) / 65536));
@@ -121,12 +125,8 @@ export class BetRotorEngineV2 {
   }
   /** The pack `solveBusInto` solves against; configuration time. Invalid values fail the solve. */
   attachBattery(battery: BusBattery): void {
-    const v = this.view, at = this.busAt, I = BUS_V1.input;
-    new Uint8Array(this.buffer, at, BUS_V1.inputBytes).fill(0);
-    v.setUint32(at, BUS_V1.version, true);
-    v.setFloat64(at + I.openCircuitFull, battery.openCircuitFullV, true); v.setFloat64(at + I.openCircuitEmpty, battery.openCircuitEmptyV, true);
-    v.setFloat64(at + I.internalResistance, battery.internalResistanceOhm, true);
-    v.setFloat64(at + I.capacityCoulomb, battery.capacityAh * 3600, true); v.setFloat64(at + I.currentLimit, battery.currentLimitA, true);
+    writeBusRecord(this.view, this.busAt, battery);
+    this.batteryDynamic = battery.dynamics !== undefined;
     this.batteryAttached = true;
   }
   get memoryStable(): boolean { return this.memory.buffer === this.buffer; }
@@ -162,6 +162,12 @@ export class BetRotorEngineV2 {
     const v = this.view, I = BUS_V1.input, at = this.solutionAt;
     v.setFloat64(this.busAt + I.stateOfCharge, this.busState[0]!, true);
     v.setFloat64(this.busAt + I.housePower, this.busState[1]!, true);
+    if (this.batteryDynamic) {
+      const J = BUS_V2.input, q = this.busState;
+      v.setFloat64(this.busAt + J.branch1Voltage, q[2]!, true); v.setFloat64(this.busAt + J.branch2Voltage, q[3]!, true);
+      v.setFloat64(this.busAt + J.temperature, q[4]!, true); v.setFloat64(this.busAt + J.airTemperature, q[5]!, true);
+      v.setFloat64(this.busAt + J.airspeed, q[6]!, true);
+    }
     const status = this.nativeSolve(this.tableAt, this.count, this.busAt, at, this.dtS);
     this.lastStatus = status;
     if (status !== 0) return false;

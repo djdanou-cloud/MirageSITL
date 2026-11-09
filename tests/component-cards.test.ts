@@ -174,7 +174,9 @@ describe('card schema 2 (TASK-105)', () => {
       housingToAirKPerW: 6, airflowCoolingPerMps: 0 }));
     expect(missingValues(motor).filter(key => CARD_V2_VALUE_KEYS.motor.includes(key))).toEqual([]);
     expect(CARD_V2_VALUE_KEYS.propeller).toEqual([]);
-    expect(CARD_V2_VALUE_KEYS.battery).toEqual([]);
+    // TASK-104 gave the battery card a schema 2.
+    expect(CARD_V2_VALUE_KEYS.battery).toEqual(['openCircuitCurve', 'rcFastResistanceOhm', 'rcFastCapacitanceF', 'rcSlowResistanceOhm', 'rcSlowCapacitanceF',
+      'resistanceActivationK', 'heatCapacityJPerK', 'stillAirConductanceWPerK', 'airflowConductanceWPerK', 'entropicCoefficientVPerK', 'capacityRetention', 'resistanceGrowth']);
   });
   test('one form per card, the ranges, and the sources', () => {
     expect(() => validateComponentCard(v2('esc-example', {}))).toThrow('A schema 2 card knows at least one of its schema 2 values');
@@ -190,8 +192,28 @@ describe('card schema 2 (TASK-105)', () => {
     const unsourced = v2('esc-example', { startDuty: 0.05 });
     setSource(unsourced, 'startDuty', null);
     expect(() => validateComponentCard(unsourced)).toThrow('startDuty has a value but no source');
-    // A propeller or battery card has no schema 2.
+    // A propeller card has no schema 2; a battery card marked 2 must hold the schema-2 values (TASK-104).
+    expect(() => validateComponentCard(edit('propeller-example', card => { card.schemaVersion = 2; }))).toThrow();
     expect(() => validateComponentCard(edit('battery-example', card => { card.schemaVersion = 2; }))).toThrow();
+  });
+});
+
+// TASK-104 (SPECS_SIMULATION_ENGINES "Battery v2"): the battery card's schema 2, its branch rule and its curve's range.
+describe('battery card schema 2 (TASK-104)', () => {
+  const battery = (known: Record<string, number | string>): CardData => {
+    const card = fixture('battery-example');
+    card.schemaVersion = 2;
+    for (const key of CARD_V2_VALUE_KEYS.battery) setValue(card, key, known[key] ?? null);
+    return card;
+  };
+  test('a battery card that names a curve is schema 2; a branch is both its values; the curve is one of two', () => {
+    const card = validateComponentCard(battery({ openCircuitCurve: 'chen-2006', rcFastResistanceOhm: 0.01, rcFastCapacitanceF: 900 }));
+    expect(card.schemaVersion).toBe(2);
+    expect(() => validateComponentCard(battery({ openCircuitCurve: 'linear', rcFastResistanceOhm: 0.01 }))).toThrow('fast RC branch needs both');
+    expect(() => validateComponentCard(battery({ openCircuitCurve: 'nmc' }))).toThrow();
+    expect(() => validateComponentCard(battery({ capacityRetention: 1.2 }))).toThrow();
+    expect(() => validateComponentCard(battery({ resistanceGrowth: 0.9 }))).toThrow();
+    expect(() => validateComponentCard(battery({}))).toThrow('A schema 2 card knows at least one of its schema 2 values');
   });
 });
 

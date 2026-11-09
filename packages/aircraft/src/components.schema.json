@@ -744,7 +744,7 @@
         },
         {
           "type": "object",
-          "description": "Battery: cells in series, capacity, pack internal resistance, full and empty cell voltage, rated discharge current, mass.",
+          "description": "Battery: cells in series, capacity, pack internal resistance, full and empty cell voltage, rated discharge current, mass. Schema 2 (TASK-104) adds the open-circuit curve, two RC branches, the resistance's activation temperature, the heat capacity, still-air and airflow conductances, the entropic coefficient and the state of health; a card that knows none of them is schema 1.",
           "additionalProperties": false,
           "required": [
             "schemaVersion",
@@ -760,7 +760,10 @@
           ],
           "properties": {
             "schemaVersion": {
-              "const": 1
+              "enum": [
+                1,
+                2
+              ]
             },
             "units": {
               "const": "SI"
@@ -781,13 +784,40 @@
               "$ref": "#/definitions/sources"
             },
             "values": {
-              "$ref": "#/definitions/batteryValues"
+              "type": "object"
             },
             "provenance": {
-              "$ref": "#/definitions/batteryProvenance"
+              "type": "object"
             },
             "applicability": {
               "$ref": "#/definitions/note"
+            }
+          },
+          "if": {
+            "properties": {
+              "schemaVersion": {
+                "const": 2
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/batteryValuesV2"
+              },
+              "provenance": {
+                "$ref": "#/definitions/batteryProvenanceV2"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "values": {
+                "$ref": "#/definitions/batteryValues"
+              },
+              "provenance": {
+                "$ref": "#/definitions/batteryProvenance"
+              }
             }
           }
         }
@@ -1128,6 +1158,266 @@
           "$ref": "#/definitions/sourceReference"
         },
         "throttleSteps": {
+          "$ref": "#/definitions/sourceReference"
+        }
+      }
+    },
+    "batteryValuesV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cellsSeries",
+        "capacityAh",
+        "internalResistanceOhm",
+        "cellFullV",
+        "cellEmptyV",
+        "maxDischargeCurrentA",
+        "massKg",
+        "openCircuitCurve",
+        "rcFastResistanceOhm",
+        "rcFastCapacitanceF",
+        "rcSlowResistanceOhm",
+        "rcSlowCapacitanceF",
+        "resistanceActivationK",
+        "heatCapacityJPerK",
+        "stillAirConductanceWPerK",
+        "airflowConductanceWPerK",
+        "entropicCoefficientVPerK",
+        "capacityRetention",
+        "resistanceGrowth"
+      ],
+      "properties": {
+        "cellsSeries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "capacityAh": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "internalResistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "cellFullV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "cellEmptyV": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "maxDischargeCurrentA": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "massKg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "openCircuitCurve": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "linear",
+            "chen-2006",
+            null
+          ]
+        },
+        "rcFastResistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "rcFastCapacitanceF": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000000.0
+        },
+        "rcSlowResistanceOhm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "rcSlowCapacitanceF": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000000.0
+        },
+        "resistanceActivationK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 20000
+        },
+        "heatCapacityJPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 10000000.0
+        },
+        "stillAirConductanceWPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "airflowConductanceWPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "entropicCoefficientVPerK": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -1,
+          "maximum": 1
+        },
+        "capacityRetention": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "resistanceGrowth": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "batteryProvenanceV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cellsSeries",
+        "capacityAh",
+        "internalResistanceOhm",
+        "cellFullV",
+        "cellEmptyV",
+        "maxDischargeCurrentA",
+        "massKg",
+        "openCircuitCurve",
+        "rcFastResistanceOhm",
+        "rcFastCapacitanceF",
+        "rcSlowResistanceOhm",
+        "rcSlowCapacitanceF",
+        "resistanceActivationK",
+        "heatCapacityJPerK",
+        "stillAirConductanceWPerK",
+        "airflowConductanceWPerK",
+        "entropicCoefficientVPerK",
+        "capacityRetention",
+        "resistanceGrowth"
+      ],
+      "properties": {
+        "cellsSeries": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "capacityAh": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "internalResistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "cellFullV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "cellEmptyV": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "maxDischargeCurrentA": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "massKg": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "openCircuitCurve": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "rcFastResistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "rcFastCapacitanceF": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "rcSlowResistanceOhm": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "rcSlowCapacitanceF": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "resistanceActivationK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "heatCapacityJPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "stillAirConductanceWPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "airflowConductanceWPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "entropicCoefficientVPerK": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "capacityRetention": {
+          "$ref": "#/definitions/sourceReference"
+        },
+        "resistanceGrowth": {
           "$ref": "#/definitions/sourceReference"
         }
       }

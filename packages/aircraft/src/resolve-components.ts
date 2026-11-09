@@ -1,4 +1,6 @@
 import { catalogPolar, catalogPolarForAirfoil } from '@mirage/physics/polar-catalog';
+import { openCircuitTableV } from '@mirage/physics/battery-curves';
+import type { BatteryDynamicsSpec } from '@mirage/physics/vehicle-manifest';
 import { LIMIT_RATINGS_SCHEMA_VERSION, type LimitRatings, type MotorRatings } from '@mirage/physics/limit-monitor';
 import { checkProfileCards, type BatteryCard, type ComponentCard, type EscCard, type MotorCard, type PropellerCard } from './components.ts';
 import type { EscValues, MotorValues, ResolvedComponents, RotorBlades } from './derive-manifest.ts';
@@ -29,7 +31,10 @@ export type ComponentAssumptionId =
   | 'motor-current-limit' | 'motor-rotor-inertia' | 'bearing-drag' | 'pack-resistance' | 'pack-current-limit'
   | 'polar-from-card-airfoil' | 'rotor-numerics'
   // TASK-105: the ESC command path's neutral values, and the motor heat's.
-  | 'esc-latency' | 'esc-ramp' | 'esc-start-duty' | 'esc-throttle-steps' | 'motor-heat-incomplete' | 'motor-heat-20c' | GeometryFlagId;
+  | 'esc-latency' | 'esc-ramp' | 'esc-start-duty' | 'esc-throttle-steps' | 'motor-heat-incomplete' | 'motor-heat-20c'
+  // TASK-104: the dynamic pack's rules for what its card does not state.
+  | 'pack-curve-chen-2006' | 'pack-no-fast-branch' | 'pack-no-slow-branch' | 'pack-resistance-no-temperature' | 'pack-no-entropic'
+  | 'pack-temperature-held' | 'pack-new' | GeometryFlagId;
 export interface ComponentAssumption {
   readonly id: ComponentAssumptionId;
   /** What it applies to, such as "ESC card 1a2b3c4d5e6f" or "battery". */
@@ -169,6 +174,7 @@ export function resolveComponents(input: unknown, cards: ReadonlyMap<string, Com
       battery = { card: batteryRef, values: {
         openCircuitFullV: v.cellsSeries * v.cellFullV, openCircuitEmptyV: v.cellsSeries * v.cellEmptyV,
         internalResistanceOhm: v.internalResistanceOhm ?? 0, capacityAh: v.capacityAh, currentLimitA: limit,
+        ...batteryDynamics(v, v.cellFullV, v.cellEmptyV, subject, assume),
       } };
     }
   }
@@ -204,4 +210,37 @@ export function componentRatings(input: unknown, cards: ReadonlyMap<string, Comp
   const b = profile.battery.card === null ? null : (cards.get(profile.battery.card) as BatteryCard).values;
   const emptyVoltageV = b && b.cellEmptyV !== null ? b.cellsSeries * b.cellEmptyV : null;
   return Object.freeze({ schemaVersion: LIMIT_RATINGS_SCHEMA_VERSION, motors: Object.freeze(motors), battery: Object.freeze({ emptyVoltageV }) });
+}
+
+/**
+ * TASK-104: the pack's dynamics when its card names an open-circuit curve, each unknown value's rule an assumption
+ * (SPECS_SIMULATION_ENGINES "Battery v2": an unknown branch is absent, an unknown activation temperature or entropic
+ * coefficient 0, unknown thermal values hold the temperature, unknown health a new pack).
+ */
+function batteryDynamics(v: BatteryCard['values'], cellFullV: number, cellEmptyV: number, subject: string,
+  assume: (id: ComponentAssumptionId, subject: string, text: string) => void): { dynamics: BatteryDynamicsSpec } | Record<string, never> {
+  const curve = v.openCircuitCurve ?? null;
+  if (curve === null) return {};
+  if (curve === 'chen-2006') {
+    assume('pack-curve-chen-2006', subject, 'The open-circuit curve is the shape of Chen and Rincón-Mora\'s 850 mAh polymer Li-ion cell (2006), scaled onto the card\'s empty and full cell voltages: an approximation for another chemistry or window.');
+  }
+  const branches: { resistanceOhm: number; capacitanceF: number }[] = [];
+  for (const [r, c, name] of [[v.rcFastResistanceOhm, v.rcFastCapacitanceF, 'fast'], [v.rcSlowResistanceOhm, v.rcSlowCapacitanceF, 'slow']] as const) {
+    if (r !== undefined && r !== null && c !== undefined && c !== null) branches.push({ resistanceOhm: r, capacitanceF: c });
+    else assume(`pack-no-${name}-branch`, subject, `The pack has no ${name} RC branch: the card does not state it.`);
+  }
+  const activation = v.resistanceActivationK ?? null, entropic = v.entropicCoefficientVPerK ?? null;
+  if (activation === null) assume('pack-resistance-no-temperature', subject, 'The internal resistance does not change with temperature: the card states no activation temperature.');
+  if (entropic === null) assume('pack-no-entropic', subject, 'The open-circuit voltage does not change with temperature and no reversible heat is made: the card states no entropic coefficient.');
+  const heat = v.heatCapacityJPerK ?? null, still = v.stillAirConductanceWPerK ?? null, airflow = v.airflowConductanceWPerK ?? null;
+  const thermal = heat !== null && still !== null && airflow !== null;
+  if (!thermal) assume('pack-temperature-held', subject, 'The pack\'s temperature stays at the air\'s: the card does not state its heat capacity and both conductances.');
+  const retention = v.capacityRetention ?? null, growth = v.resistanceGrowth ?? null;
+  if (retention === null || growth === null) assume('pack-new', subject, 'The pack is taken as new where its card does not state its retained capacity or resistance growth.');
+  return { dynamics: {
+    openCircuitTableV: openCircuitTableV(curve, v.cellsSeries, cellEmptyV, cellFullV),
+    branches, activationK: activation ?? 0, referenceK: 298.15,
+    heatCapacityJPerK: thermal ? heat : 0, stillAirConductanceWPerK: thermal ? still : 0, airflowConductanceWPerK: thermal ? airflow : 0,
+    entropicVPerK: entropic ?? 0, capacityRetention: retention ?? 1, resistanceGrowth: growth ?? 1,
+  } };
 }

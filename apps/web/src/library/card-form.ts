@@ -56,6 +56,14 @@ export const CARD_FIELDS: { readonly [T in ComponentType]: readonly FieldSpec[] 
     { key: 'cellsSeries', label: 'Cells in series', kind: 'integer', required: true }, number('capacityAh', 'Capacity (Ah)', true),
     number('internalResistanceOhm', 'Internal resistance (Ω)'), number('cellFullV', 'Full cell voltage (V)'),
     number('cellEmptyV', 'Empty cell voltage (V)'), number('maxDischargeCurrentA', 'Maximum discharge current (A)'), number('massKg', 'Mass (kg)'),
+    // TASK-104: the dynamic pack; the curve is linear or chen-2006, which the card schema checks.
+    schema2({ key: 'openCircuitCurve', label: 'Open-circuit curve (linear or chen-2006)', kind: 'text', required: false }),
+    schema2(number('rcFastResistanceOhm', 'Fast RC resistance (Ω)')), schema2(number('rcFastCapacitanceF', 'Fast RC capacitance (F)')),
+    schema2(number('rcSlowResistanceOhm', 'Slow RC resistance (Ω)')), schema2(number('rcSlowCapacitanceF', 'Slow RC capacitance (F)')),
+    schema2(number('resistanceActivationK', 'Resistance activation temperature (K)')), schema2(number('heatCapacityJPerK', 'Heat capacity (J/K)')),
+    schema2(number('stillAirConductanceWPerK', 'Still-air conductance (W/K)')), schema2(number('airflowConductanceWPerK', 'Airflow conductance at 1 m/s (W/K)')),
+    schema2(number('entropicCoefficientVPerK', 'Entropic coefficient (V/K)')), schema2(number('capacityRetention', 'Retained capacity share')),
+    schema2(number('resistanceGrowth', 'Resistance growth factor')),
   ],
 };
 /** The card schema's limits on sources and distribution stations. */

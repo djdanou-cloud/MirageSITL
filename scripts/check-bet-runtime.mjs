@@ -401,12 +401,31 @@ if(!allocation){
     if(!(desyncGraph.desynchronizations>0))throw Error('The desynchronization graph started none');
     samples.push(desyncGraph);desynced.dispose();console.log(JSON.stringify(desyncGraph));
   }
+  // TASK-104 check 8: the ESC drive on the pad in the gusty wind with a dynamic pack (two RC branches, Arrhenius resistance,
+  // heat with still-air and forced cooling, an entropic coefficient and an aged pack), its state carried through every step.
+  {
+    const full=16.8,empty=13.2,table=Array.from({length:21},(_,i)=>i===0?empty:i===20?full:empty+(full-empty)*i/20);
+    const dynamics={openCircuitTableV:table,branches:[{resistanceOhm:0.006,capacitanceF:3000},{resistanceOhm:0.008,capacitanceF:40000}],
+      activationK:3000,referenceK:298.15,heatCapacityJPerK:50,stillAirConductanceWPerK:0.3,airflowConductanceWPerK:0.2,entropicVPerK:4e-4,
+      capacityRetention:0.9,resistanceGrowth:1.2};
+    const packConfig=padded();packConfig.drive={...driven.drive,battery:{...driven.drive.battery,dynamics}};
+    const packed=new BetFlightDynamics(modules[0],packConfig,400);
+    if(packed.setWeather(weathers[0])!==null)throw Error('Weather refused');
+    const startK=packed.packState[2];
+    const packRun=n=>{for(let i=0;i<n;i++){packed.nowMs=0;packed.stepNow(escPilot);
+      if(packed.fault||packed.state.down!==0||!(packed.electrical[2]>0))throw Error('Dynamic pack allocation step failed');}};
+    packRun(100000);await measure(packRun,10000);
+    const packGraph={graph:'battery-v2-esc-drive-weather-pad-four-rotor',variant:'scalar',...await measure(packRun,1000000),
+      branchVoltagesV:[packed.packState[0],packed.packState[1]],packRiseK:packed.packState[2]-startK,memoryStable:packed.escEngine.memoryStable};
+    if(!(packGraph.branchVoltagesV[0]>0&&packGraph.branchVoltagesV[1]>0&&packGraph.packRiseK>0))throw Error('The dynamic pack did not charge its branches or heat');
+    samples.push(packGraph);packed.dispose();console.log(JSON.stringify(packGraph));
+  }
   const sink={value:null};const control=n=>{for(let i=0;i<n;i++)sink.value={i};};
   const positive=await measure(control,1000000),controlDetected=positive.gcEvents>0 || positive.bytes>1000000;
   const passed=completeAllocationSamples(samples)&&samples.every(s=>s.gcEvents===0&&s.bytesPerStep<0.01&&s.memoryStable)&&controlDetected;
   const report={schemaVersion:1,status:passed?'pass':'failed',...identity,warmupSteps:100000,samples,positiveControl:positive,controlDetected,
     nativeAllocator:{steps:1000000,calls:0,bytes:0,positiveControlDetected:true,driveSteps:{boundV2:1000000,esc:1000000,bus:1000000,escShaper:1000000,motorThermal:1000000}},
-    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step), and TASK-105 every ESC shaped and every motor heated on the ESC drive, without and with ESC desynchronization starting and ending in the measured steps; native counted allocator checks (bound v1, v2, ESC drive, bus, ESC shaper, motor thermal) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
+    scope:'Active NeuralFoil rotor graph through step interfaces v1 and v2 and a stationary body through interface v2, each in both WASM variants, plus stationary four-rotor body, synthetic-pad and ESC-drive bus (synthetic pad) graphs, and the TASK-093 weather graphs (gust and per-step air with a weather re-applied every 1000 steps, and the real session applying scheduled weather.set commands, on the synthetic pad, and TASK-096 airframe drag in that wind, and TASK-145 calibrated rotors on the ESC drive checked against their bench envelope every step), and TASK-105 every ESC shaped and every motor heated on the ESC drive, without and with ESC desynchronization starting and ending in the measured steps, and the TASK-104 dynamic pack on the ESC drive in the gusty wind; native counted allocator checks (bound v1, v2, ESC drive, bus, ESC shaper, motor thermal) and WASM trapping allocator; no measured aerodynamic acceptance or hardware realtime claim'};
   writeFileSync(resolve(root,'test-results/validation/bet-runtime-allocation.json'),JSON.stringify(report,null,2)+'\n');
   observer.disconnect();if(!passed)process.exitCode=1;
 }

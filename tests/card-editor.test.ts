@@ -89,6 +89,19 @@ describe('card form', () => {
     expect(same(cleared, original)).toBe(true);
   });
 
+  // TASK-104: the battery card's schema 2 the same way; its curve is text the card schema checks.
+  test('a battery card names its open-circuit curve in schema 2, and returns to its bytes without it', () => {
+    const original = example('battery-example');
+    const typed = edit(formFromCard(original), f => { field(f, 'openCircuitCurve').known = true; field(f, 'openCircuitCurve').text = 'chen-2006'; field(f, 'openCircuitCurve').source = 0; });
+    const card = built(typed);
+    expect(card.schemaVersion).toBe(2);
+    expect(Reflect.get(card.values, 'openCircuitCurve')).toBe('chen-2006');
+    expect(same(built(formFromCard(card)), card)).toBe(true);
+    const cleared = built(edit(formFromCard(card), f => { field(f, 'openCircuitCurve').known = false; }));
+    expect(cleared.schemaVersion).toBe(1);
+    expect(same(cleared, original)).toBe(true);
+  });
+
   test('a new card starts with its required values to fill, and unknown values are stored as null', () => {
     const blank = newCardForm('motor');
     expect(errors(blank)).toEqual(['Source datasheet needs a description', 'KV (rpm/V) is not a decimal number']);

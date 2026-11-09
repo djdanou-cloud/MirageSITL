@@ -83,10 +83,29 @@ export interface BatteryCardValues {
   readonly cellEmptyV: number | null;
   readonly maxDischargeCurrentA: number | null;
   readonly massKg: number | null;
+  /** Schema 2 (TASK-104): the open-circuit curve, `linear` or `chen-2006`. Absent in schema 1. */
+  readonly openCircuitCurve?: 'linear' | 'chen-2006' | null;
+  /** The fast and slow RC branches of the pack, ohm and farad. */
+  readonly rcFastResistanceOhm?: number | null;
+  readonly rcFastCapacitanceF?: number | null;
+  readonly rcSlowResistanceOhm?: number | null;
+  readonly rcSlowCapacitanceF?: number | null;
+  /** Arrhenius activation temperature of the internal resistance, E_a/R_gas, K. */
+  readonly resistanceActivationK?: number | null;
+  /** The pack's heat capacity m·c_p. */
+  readonly heatCapacityJPerK?: number | null;
+  readonly stillAirConductanceWPerK?: number | null;
+  /** Forced conductance to the air at 1 m/s, scaled by the square root of the airspeed. */
+  readonly airflowConductanceWPerK?: number | null;
+  /** dU/dT of the whole pack. */
+  readonly entropicCoefficientVPerK?: number | null;
+  /** State of health: the share of the rated capacity still held, and the growth of the resistances. */
+  readonly capacityRetention?: number | null;
+  readonly resistanceGrowth?: number | null;
 }
 type Provenance<V> = { readonly [K in keyof V]: string | null };
 interface CardOf<T extends ComponentType, V> {
-  /** 2 only for a motor or ESC card that knows one of its schema-2 values (TASK-105). */
+  /** 2 only for a motor, ESC (TASK-105) or battery (TASK-104) card that knows one of its schema-2 values. */
   readonly schemaVersion: 1 | 2;
   readonly units: 'SI';
   readonly type: T;
@@ -119,7 +138,7 @@ export const CARD_V2_VALUE_KEYS: { readonly [T in ComponentType]: readonly strin
   motor: schema.definitions.motorValuesV2.required.slice(schema.definitions.motorValues.required.length),
   propeller: [],
   esc: schema.definitions.escValuesV2.required.slice(schema.definitions.escValues.required.length),
-  battery: [],
+  battery: schema.definitions.batteryValuesV2.required.slice(schema.definitions.batteryValues.required.length),
 };
 /** Every value field a card holds: its type's, and schema 2's when the card is schema 2. */
 export function cardValueKeys(card: ComponentCard): readonly string[] {
@@ -205,6 +224,13 @@ function checkTypeRules(card: ComponentCard): void {
     case 'esc':
       return;
     case 'battery':
+      // TASK-104: an RC branch is its resistance and its capacitance together.
+      if ((card.values.rcFastResistanceOhm ?? null) === null !== ((card.values.rcFastCapacitanceF ?? null) === null)) {
+        fail('The fast RC branch needs both its resistance and its capacitance, or neither');
+      }
+      if ((card.values.rcSlowResistanceOhm ?? null) === null !== ((card.values.rcSlowCapacitanceF ?? null) === null)) {
+        fail('The slow RC branch needs both its resistance and its capacitance, or neither');
+      }
       if (card.values.cellFullV !== null && card.values.cellEmptyV !== null && card.values.cellFullV <= card.values.cellEmptyV) {
         fail('The full cell voltage must be above the empty cell voltage');
       }

@@ -28,7 +28,8 @@
     "./thrust-capacity": "./src/thrust-capacity.ts",
     "./fidelity-metrics": "./src/fidelity-metrics.ts",
     "./bench-import": "./src/bench-import.ts",
-    "./propulsion-calibration": "./src/propulsion-calibration.ts"
+    "./propulsion-calibration": "./src/propulsion-calibration.ts",
+    "./battery-curves": "./src/battery-curves.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

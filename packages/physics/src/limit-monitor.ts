@@ -74,7 +74,8 @@ export interface LimitEvent {
 /** Per-motor telemetry columns, `stride` doubles per motor. */
 export const MotorColumn = Object.freeze({ Rpm: 0, MotorCurrentA: 1, BusCurrentA: 2, ElectricalPowerW: 3, Command: 4, stride: 5 });
 /** Battery telemetry slots. */
-export const BatteryColumn = Object.freeze({ StateOfCharge: 0, VoltageV: 1, CurrentA: 2, PowerW: 3, RemainingAh: 4, CapacityAh: 5, length: 6 });
+/** TemperatureK (TASK-104) is the pack's temperature, 0 for a pack without dynamics. */
+export const BatteryColumn = Object.freeze({ StateOfCharge: 0, VoltageV: 1, CurrentA: 2, PowerW: 3, RemainingAh: 4, CapacityAh: 5, TemperatureK: 6, length: 7 });
 
 /** The last step's electrical values and masks; written in place every step. */
 export class PowerTelemetry {
