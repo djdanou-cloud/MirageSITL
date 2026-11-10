@@ -581,7 +581,10 @@ implementation.
   on 2026-11-09 (`tests/rotor-wake-harrington.test.ts`, `MIRAGE_HARRINGTON=1`): a pair's
   extra torque over two lone rotors is reproduced on rotor 1 and not on rotor 2 (the
   model 0.06 to 0.08 high), and the model's torque is 21 to 32 % low everywhere from its
-  section drag; the task stays BLOCKED_EXTERNAL until the stakeholder judges it. TASK-103 adds the rotor table mode
+  section drag. On 2026-11-10 the lower rotor's field on the upper one was added (a vortex
+  cylinder, `upstream` in the coupler) and TASK-101 is DONE: rotor 1's interference is now
+  inside its band in both variants, rotor 2's overshoots, and the comparisons are shown for
+  the stakeholder's judgement. TASK-103 adds the rotor table mode
   (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
   Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
   the profile. TASK-103 is DONE: 9 of 111 left-out stand points miss the declared

@@ -985,8 +985,10 @@ flight, for every pair by default, as closed forms between rotor steps with a
 lag of one step. A receiver adds the area-averaged wake velocity once, through
 the `external_wake_hub` field of bound-rotor interface v2, and an arm or body in
 a rotor's wash takes a download off that rotor's force. `coaxial.rs` stays the
-reference the wake is checked against. Nothing flows upstream: there is no swirl,
-no effect of a lower rotor on its upper rotor and no transport delay. TASK-177's
+reference the wake is checked against. Since 2026-11-10 a rotor's induced field also
+reaches the rotors upstream of its disk: the field of the semi-infinite vortex cylinder
+its rim sheds, averaged over each receiver's disk at configuration and scaled by the
+rotor's own inflow state. There is no swirl and no transport delay. TASK-177's
 thrust at full command runs the same coupling. The engine specification has the
 formulas, tolerances and limitations.
 

@@ -912,7 +912,8 @@ export class BetFlightDynamics<H extends PhysicsHz|4800 = PhysicsHz> {
       // TASK-100: the fountain lifts the body with a share of what this rotor gave, before TASK-101's download.
       this.groundThrust[i]=this.hub[b+2]!;
       // TASK-101: the next step's wake is what this rotor gave; its download leaves the wrench at its hub.
-      if(wake){const thrust=this.hub[b+2]!;wake.thrustN[i]=thrust;this.hub[b+2]=thrust-wake.downloadN[i]!;}
+      // Its own mean induced velocity (`induced_axial`, output byte 96) is the strength of what it induces upstream.
+      if(wake){const thrust=this.hub[b+2]!;wake.thrustN[i]=thrust;wake.inducedAxialMps[i]=output[a+12]!;this.hub[b+2]=thrust-wake.downloadN[i]!;}
     }
     if(mv&&mv.heated>0&&!this.heatMotors()){this.fault='Motor thermal step failed';return;}
     if(this.bus) {

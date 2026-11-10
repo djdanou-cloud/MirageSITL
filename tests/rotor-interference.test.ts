@@ -8,13 +8,15 @@ import { resolveComponents } from '@mirage/aircraft/resolve-components';
 import { BetFlightDynamics, CONFIGURATION_FLAG_WAKE_UNMODELED, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
 import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
-import { RotorWakeCoupler, WAKE_SPREAD_SLOPE, rotorWashedDragAreasM2, wakeCoverage, wakeMomentumRoot } from '@mirage/physics/rotor-wake';
+import { RotorWakeCoupler, WAKE_SPREAD_SLOPE, rotorWashedDragAreasM2, vortexCylinderVelocity, wakeCoverage, wakeMomentumRoot, type RotorWakeConfiguration } from '@mirage/physics/rotor-wake';
 import { thrustCapacity } from '@mirage/physics/thrust-capacity';
 import { ActuatorFlagV2, newActuatorFrameV2, newInput } from '@mirage/protocol';
 import { holdHover, trimHover } from './support/hover-trim.ts';
 
 // TASK-101. The oracles are closed forms written out here (momentum, kinetic power, the area of two circles), the registered fixture of
-// native/bet/src/coaxial.rs, a 3D quadrature of the same top hat over the receiver's disk, and runs with the coupling off.
+// native/bet/src/coaxial.rs, a 3D quadrature of the same top hat over the receiver's disk, and runs with the coupling off. The upstream
+// field (2026-11-10): the vortex cylinder's axis formula, a direct Biot-Savart quadrature of its sheet written here, a fine average of
+// its field over the receiver's disk, and an independent scalar fixed point for an ideal coaxial pair.
 
 const json = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const RHO = 1.225;
@@ -251,6 +253,207 @@ describe('a receiver', () => {
   });
 });
 
+/** Gauss-Legendre nodes and weights on [-1, 1], written out here for the references. */
+function gaussNodes(n: number): { x: number[]; w: number[] } {
+  const x: number[] = [], w: number[] = [];
+  for (let i = 0; i < n; i++) {
+    let t = Math.cos(Math.PI * (i + 0.75) / (n + 0.5)), d = 1;
+    for (let it = 0; it < 100; it++) {
+      let p0 = 1, p1 = t;
+      for (let j = 2; j <= n; j++) { const p2 = ((2 * j - 1) * t * p1 - (j - 1) * p0) / j; p0 = p1; p1 = p2; }
+      d = n * (t * p1 - p0) / (t * t - 1);
+      const dt = p1 / d; t -= dt;
+      if (Math.abs(dt) < 1e-16) break;
+    }
+    x.push(t); w.push(2 / ((1 - t * t) * d * d));
+  }
+  return { x, w };
+}
+/**
+ * Biot-Savart of the sheet itself: tangential vorticity 2 on r = R from the disk (z = 0) to z = +infinity, at the point (px, 0, pz).
+ * Along the cylinder s = R (u/(1-u))^2 on Gauss-Legendre nodes, around it the trapezoidal rule. Returns [u_x, u_z].
+ */
+function biotSavart(R: number, px: number, pz: number, n: number): [number, number] {
+  const { x, w } = gaussNodes(n);
+  let ux = 0, uz = 0;
+  for (let i = 0; i < n; i++) {
+    const u = (x[i]! + 1) / 2, s = R * (u / (1 - u)) ** 2, ds = R * u / (1 - u) ** 3 * w[i]!;
+    for (let j = 0; j < n; j++) {
+      const theta = 2 * Math.PI * (j + 0.5) / n, c = Math.cos(theta), sn = Math.sin(theta);
+      const rx = px - R * c, ry = -R * sn, rz = pz - s, d3 = (rx * rx + ry * ry + rz * rz) ** 1.5;
+      // The vorticity runs along e_theta = (-sin, cos, 0); its cross product with the separation.
+      const weight = 2 / (4 * Math.PI) * R * (2 * Math.PI / n) * ds / d3;
+      ux += c * rz * weight; uz += (-sn * ry - c * rx) * weight;
+    }
+  }
+  return [ux, uz];
+}
+
+describe('upstream of a disk (2026-11-10)', () => {
+  const R = 0.4, out = new Float64Array(2);
+  const axis = (h: number) => 1 - h / Math.sqrt(h * h + R * R);
+
+  it('is the vortex cylinder\'s field: its axis formula and a direct Biot-Savart quadrature of its sheet', () => {
+    for (const [r, z] of [[0, -0.19], [0.3, -0.19], [0.7, -0.19], [0.95, -0.19], [1.05, -0.19], [1.5, -0.3], [2.5, -0.5], [0.5, -1], [0.5, -0.1], [0.5, 0.5], [1.5, 0.5]] as const) {
+      const coarse = biotSavart(R, r * R, z * R, 600), fine = biotSavart(R, r * R, z * R, 1200);
+      expect(Math.max(Math.abs(coarse[0] - fine[0]), Math.abs(coarse[1] - fine[1])), `${r} ${z}`).toBeLessThan(1e-12);
+      vortexCylinderVelocity(R, r * R, z * R, out);
+      expect(Math.abs((out[0] ?? NaN) - fine[0]), `${r} ${z}`).toBeLessThan(1e-10);
+      expect(Math.abs((out[1] ?? NaN) - fine[1]), `${r} ${z}`).toBeLessThan(1e-10);
+    }
+    // The elliptic branch next to the axis meets the axis formula, and the axis gives v at the disk and v R^2/(2 h^2) far upstream.
+    for (const h of [0.01, 0.1, 0.19, 0.5, 1, 2, 5]) {
+      vortexCylinderVelocity(R, 1e-6 * R, -h * R, out);
+      expect(Math.abs((out[1] ?? NaN) - axis(h * R))).toBeLessThan(1e-9);
+      expect(vortexCylinderVelocity(R, 0, -h * R, out)[1]).toBe(axis(h * R));
+    }
+    expect(vortexCylinderVelocity(R, 0, 0, out)[1]).toBe(1);
+    expect(Math.abs((vortexCylinderVelocity(R, 0, -1000 * R, out)[1] ?? NaN) / (1 / (2 * 1000 * 1000)) - 1)).toBeLessThan(1e-5);
+  }, 60000);
+
+  /** A source at the origin and a receiver at `offsetUp` (x, y, up) whose hub is turned by `tilt` about body x; the reference average. */
+  function geometryOf(offsetUp: readonly [number, number, number], receiverRadius: number, tilt = 0) {
+    const c = Math.cos(tilt), s = Math.sin(tilt);
+    // UP turned about body x: hub z = (0, -s, -c) in body FRD.
+    const turned = [1, 0, 0, 0, -c, s, 0, -s, -c];
+    return { hubPositionsBodyM: Float64Array.from([0, 0, 0, offsetUp[0], -offsetUp[1], -offsetUp[2]]), hubToBody: Float64Array.from([...UP, ...turned]),
+      radiiM: Float64Array.from([R, receiverRadius]) };
+  }
+  function reference(g: ReturnType<typeof geometryOf>, nr = 400, nphi = 800): [number, number, number] {
+    const { x, w } = gaussNodes(nr), r = g.hubToBody, a = g.radiiM[1] ?? NaN, field = new Float64Array(2);
+    const sum = [0, 0, 0];
+    for (let i = 0; i < nr; i++) {
+      const rho = a * ((x[i] ?? NaN) + 1) / 2, weight = (w[i] ?? NaN) / 2 * a * rho * 2 * Math.PI / nphi;
+      for (let k = 0; k < nphi; k++) {
+        const phi = 2 * Math.PI * (k + 0.5) / nphi, hx = rho * Math.cos(phi), hy = rho * Math.sin(phi);
+        // The sample in body axes; the source's hub axes are UP: x, -y, -z of body.
+        const bx = (g.hubPositionsBodyM[3] ?? NaN) + hx * (r[9] ?? NaN) + hy * (r[10] ?? NaN);
+        const by = (g.hubPositionsBodyM[4] ?? NaN) + hx * (r[12] ?? NaN) + hy * (r[13] ?? NaN);
+        const bz = (g.hubPositionsBodyM[5] ?? NaN) + hx * (r[15] ?? NaN) + hy * (r[16] ?? NaN);
+        const sx = bx, sy = -by, height = -bz;
+        if (!(height > 0)) continue;
+        const radial = Math.hypot(sx, sy);
+        vortexCylinderVelocity(R, radial, -height, field);
+        const ur = radial > 0 ? (field[0] ?? NaN) / radial : 0;
+        // In the source's hub axes: radial outward, and downstream is -z.
+        const vx = ur * sx, vy = ur * sy, vz = -(field[1] ?? NaN);
+        // Into body (x, -y, -z), then into the receiver's hub axes.
+        const ex = vx, ey = -vy, ez = -vz;
+        for (let m = 0; m < 3; m++) sum[m]! += weight * (ex * (r[9 + m] ?? NaN) + ey * (r[12 + m] ?? NaN) + ez * (r[15 + m] ?? NaN));
+      }
+    }
+    const area = Math.PI * a * a;
+    return [sum[0]! / area, sum[1]! / area, sum[2]! / area];
+  }
+
+  it('averages that field over the receiver\'s disk upstream of the source\'s plane', () => {
+    const cases: [readonly [number, number, number], number, number][] = [
+      [[0, 0, 0.19 * R], R, 0], [[0, 0, 0.05 * R], R, 0], [[0, 0, 0.5 * R], R, 0], [[1.5 * R, 0, 0.3 * R], R, 0],
+      [[0.8 * R, 0.3 * R, 0.2 * R], 0.5 * R, 0], [[0.4 * R, 0, 0.5 * R], R, 20 * Math.PI / 180],
+    ];
+    for (const [offset, radius, tilt] of cases) {
+      const g = geometryOf(offset, radius, tilt), coupler = new RotorWakeCoupler(g, { pairs: [[1, 0]] });
+      expect(coupler.upstreamPairCount).toBe(1);
+      expect([coupler.upstreamSources[0], coupler.upstreamReceivers[0]]).toEqual([0, 1]);
+      const want = reference(g);
+      for (let m = 0; m < 3; m++) expect(Math.abs((coupler.upstreamPerInducedVelocity[m] ?? NaN) - want[m]!), `${offset.join(',')} ${m}`).toBeLessThan(1e-7);
+    }
+    // A disk that crosses the source's plane is outside that domain: the samples stop at the plane, a cut the Gauss radii do not
+    // resolve. Shown, with a bound of 1e-3 v only (found while testing; the declared 1e-7 holds for disks wholly 0.05 R upstream).
+    const crossing = geometryOf([0.4 * R, 0, 0.3 * R], R, 20 * Math.PI / 180), crossed = new RotorWakeCoupler(crossing, { pairs: [[1, 0]] }), exact = reference(crossing);
+    const cut = [0, 1, 2].map(m => Math.abs((crossed.upstreamPerInducedVelocity[m] ?? NaN) - exact[m]!));
+    console.log(`receiver crossing the source's plane: |G - reference| ${cut.map(value => value.toExponential(2)).join(', ')} v`);
+    for (const value of cut) expect(value).toBeLessThan(1e-3);
+    // Two equal coaxial disks 0.19 R apart: the average is well below the axis.
+    const coaxial = new RotorWakeCoupler(geometryOf([0, 0, 0.19 * R], R), { pairs: 'all' });
+    expect(coaxial.upstreamPairCount).toBe(1);
+    expect(Math.abs((coaxial.upstreamPerInducedVelocity[2] ?? NaN) + 0.667535)).toBeLessThan(1e-6);
+    // A tiny coaxial receiver takes the axis formula.
+    const tiny = new RotorWakeCoupler(geometryOf([0, 0, 0.3 * R], 1e-4 * R), { pairs: 'all' });
+    expect(Math.abs(-(tiny.upstreamPerInducedVelocity[2] ?? NaN) / axis(0.3 * R) - 1)).toBeLessThan(1e-8);
+    // Wholly at or below the source's plane: no upstream pair at all.
+    expect(new RotorWakeCoupler(geometryOf([0.9, 0, 0], R), { pairs: 'all' }).upstreamPairCount).toBe(0);
+    // Rotor 1 below rotor 0: the pair (1, 0) brings 0's field to 1, which is below 0's plane, so it is dropped; (0, 1) brings 1's up to 0.
+    expect(new RotorWakeCoupler(geometryOf([0.2, 0, -0.1], R), { pairs: [[1, 0]] }).upstreamPairCount).toBe(0);
+    expect(new RotorWakeCoupler(geometryOf([0.2, 0, -0.1], R), { pairs: [[0, 1]] }).upstreamPairCount).toBe(1);
+  }, 60000);
+
+  it('reaches the receiver each step as the source\'s own induced velocity times that average, and nothing else', () => {
+    const g = geometryOf([0, 0, 0.25 * R], R), coupler = new RotorWakeCoupler(g, { pairs: 'all' });
+    coupler.densityKgM3.fill(RHO);
+    // Only the lower rotor (0) gives thrust: the upper one (1) takes exactly its induced velocity times G, the lower one nothing.
+    const v = 7.25, G = coupler.upstreamPerInducedVelocity;
+    coupler.thrustN.set([20, 0]); coupler.inducedAxialMps.set([v, 3]); coupler.step();
+    expect(Array.from(coupler.wakeHubMps.subarray(3, 6))).toEqual([0 + v * G[0]!, 0 + v * G[1]!, 0 + v * G[2]!]);
+    expect(Array.from(coupler.wakeHubMps.subarray(0, 3))).toEqual([0, 0, 0]);
+    expect(coupler.wakeHubMps[5]).toBeLessThan(-0.5 * v);
+    // An induced velocity of zero or below gives none; nor does a source without thrust, or one no wake leaves below.
+    for (const none of [0, -2]) { coupler.inducedAxialMps[0] = none; coupler.step(); expect(Array.from(coupler.wakeHubMps)).toEqual([0, 0, 0, 0, 0, 0]); }
+    coupler.inducedAxialMps[0] = v;
+    coupler.thrustN.set([0, 0]); coupler.step();
+    expect(Array.from(coupler.wakeHubMps)).toEqual([0, 0, 0, 0, 0, 0]);
+    coupler.thrustN.set([20, 0]); coupler.airHubMps.set([0, 0, 60], 0); coupler.step();
+    expect(Array.from(coupler.wakeHubMps)).toEqual([0, 0, 0, 0, 0, 0]);
+    // A reset clears the input with the rest.
+    coupler.reset();
+    expect(Array.from(coupler.inducedAxialMps)).toEqual([0, 0]);
+    // `upstream: false` is the coupler without it: the upper rotor takes nothing.
+    const without = new RotorWakeCoupler(g, { pairs: 'all', upstream: false });
+    without.densityKgM3.fill(RHO); without.thrustN.set([20, 0]); without.inducedAxialMps.set([v, 3]); without.step();
+    expect(without.upstreamPairCount).toBe(0);
+    expect(Array.from(without.wakeHubMps)).toEqual([0, 0, 0, 0, 0, 0]);
+  });
+
+  it('does not depend on the order of the pairs, and a declared pair reaches back up', () => {
+    const geometry = { hubPositionsBodyM: Float64Array.from([0, 0, 0, 0.05, 0, 0.03, 0.02, 0.01, 0.1]), hubToBody: Float64Array.from([...UP, ...UP, ...UP]), radiiM: Float64Array.from([0.127, 0.11, 0.127]) };
+    const flown = (pairs: RotorWakeConfiguration['pairs']) => {
+      const coupler = new RotorWakeCoupler(geometry, { pairs });
+      coupler.densityKgM3.fill(RHO); coupler.thrustN.set([10, 7, 4]); coupler.inducedAxialMps.set([6, 5, 4]);
+      for (let i = 0; i < 5; i++) { coupler.airHubMps.set(coupler.wakeHubMps); coupler.step(); }
+      return Array.from(coupler.wakeHubMps);
+    };
+    const every: [number, number][] = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== j) every.push([i, j]);
+    const all = flown('all');
+    expect(flown([...every].reverse())).toEqual(all);
+    expect(flown([every[3]!, every[0]!, every[5]!, every[1]!, every[4]!, every[2]!])).toEqual(all);
+    // Rotor 2 is lowest and rotor 0 highest: a declared pair (0 over 2) also brings 2's field up to 0.
+    const declared = new RotorWakeCoupler(geometry, { pairs: [[0, 2]] });
+    expect([declared.upstreamPairCount, declared.upstreamSources[0], declared.upstreamReceivers[0]]).toEqual([1, 2, 0]);
+    expect(all[2]).toBeLessThan(0);
+  });
+
+  it('gives an ideal coaxial pair in hover the induced power of its own fixed point', () => {
+    const T = 20, h = 0.25 * R, A = Math.PI * R * R, vh = Math.sqrt(T / (2 * RHO * A));
+    const factor = (upstream: boolean) => {
+      const coupler = new RotorWakeCoupler(geometryOf([0, 0, h], R), { pairs: 'all', spreadSlope: 0, upstream });
+      coupler.densityKgM3.fill(RHO); coupler.thrustN.set([T, T]);
+      for (let i = 0; i < 500; i++) {
+        // The rotor's own induced velocity is fed back as its momentum v, so the fixed point is that of the momentum equations.
+        coupler.airHubMps.set(coupler.wakeHubMps); coupler.inducedAxialMps.set(coupler.inducedMps); coupler.step();
+      }
+      // Each rotor's induced power: thrust times the flow through its disk.
+      const power = [0, 1].map(i => T * (-(coupler.wakeHubMps[3 * i + 2] ?? NaN) + (coupler.inducedMps[i] ?? NaN)));
+      return { value: (power[0]! + power[1]!) / (2 * T * vh), g: -(coupler.upstreamPerInducedVelocity[2] ?? 0) };
+    };
+    const without = factor(false);
+    expect(Math.abs(without.value - (3 + Math.sqrt(5)) / 4)).toBeLessThan(1e-9);
+    const withIt = factor(true);
+    // The same equations as a scalar fixed point: the upper rotor in the lower one's field w, its contracted tube on the lower disk.
+    const root = (V: number) => (-V + Math.sqrt(V * V + 4 * vh * vh)) / 2;
+    let vl = vh, vu = vh, Vl = 0, w = 0;
+    for (let i = 0; i < 500; i++) {
+      w = withIt.g * vl; vu = root(w);
+      const ratio = (w + vu) / (w + 2 * vu), e = (-w + Math.sqrt(w * w + 4 * T / (RHO * A * ratio))) / 2;
+      Vl = e * ratio; vl = root(Vl);
+    }
+    const expected = (T * (w + vu) + T * (Vl + vl)) / (2 * T * vh);
+    expect(Math.abs(withIt.value - expected)).toBeLessThan(1e-9);
+    expect(withIt.value).toBeGreaterThan(without.value);
+    console.log(`ideal coaxial pair 0.25 R apart: induced power factor ${withIt.value.toFixed(6)} with the upstream field, ${without.value.toFixed(6)} without; G ${withIt.g.toFixed(6)}`);
+  });
+});
+
 describe('the download on the airframe', () => {
   it('is the closed form at hover, leaves the wake with the rest, and adds nothing to the free stream\'s drag', () => {
     const R = 0.127, area = Math.PI * R * R, cda = 0.03 * area;
@@ -331,14 +534,17 @@ describe('in flight', () => {
       const span = Math.round(0.1 * HZ), lastAt = trace.length - 4;
       const netUpN = -((trace[lastAt] ?? NaN) - (trace[lastAt - 4 * span] ?? NaN)) / 0.1 * model.massKg * scale;
       const omega = model.rotors.map((_, i) => d.rotorSpeedRadS(i));
-      return { thrust, omega, trace, download, netUpN, rotors: model.rotors, wake: d.rotorWakes ? Array.from(d.rotorWakes.wakeHubMps) : [], flags: d.validityFlags };
+      return { thrust, omega, trace, download, netUpN, rotors: model.rotors, wake: d.rotorWakes ? Array.from(d.rotorWakes.wakeHubMps) : [], flags: d.validityFlags,
+        upstreamPairs: d.rotorWakes?.upstreamPairCount ?? 0 };
     } finally { d.dispose(); }
   }
 
-  it('a coaxial pair is not twice one rotor: the lower rotor gives less, and nothing changes for the upper', async () => {
+  it('a coaxial pair is not twice one rotor: the lower rotor gives less, and the upper one feels the lower one\'s field', async () => {
     const manifest = await manifestOf('octa-coaxial-16');
-    const on = held(buildProfileDynamics(manifest, { initialStateOfCharge: 1, syntheticPad: true }).configuration, 1.5);
+    const built = buildProfileDynamics(manifest, { initialStateOfCharge: 1, syntheticPad: true }).configuration;
+    const on = held(built, 1.5);
     const off = held(buildProfileDynamics(manifest, { initialStateOfCharge: 1, syntheticPad: true, rotorWake: 'off' }).configuration, 1.5);
+    const downstreamOnly = held({ ...built, rotorWake: { ...built.rotorWake, pairs: built.rotorWake?.pairs ?? 'all', upstream: false } }, 1.5);
     const levels = manifest.rotorWakePairs;
     expect(levels.length).toBe(8);
     const index = (id: number) => manifest.rotors.findIndex(rotor => rotor.id === id);
@@ -346,7 +552,11 @@ describe('in flight', () => {
       const upper = index(pair.upstreamRotorId), lower = index(pair.downstreamRotorId);
       expect(on.thrust[lower]).toBeLessThan((on.thrust[upper] ?? NaN) * 0.95);
       expect(on.wake[lower * 3 + 2]).toBeLessThan(-0.5);
-      expect(Array.from(on.wake.slice(upper * 3, upper * 3 + 3)).map(Math.abs).every(value => value === 0)).toBe(true);
+      // The upper rotor takes the lower one's field, down through its disk, less than the lower one takes; without it, nothing.
+      expect(on.wake[upper * 3 + 2]).toBeLessThan(0);
+      expect(on.wake[upper * 3 + 2]).toBeGreaterThan(on.wake[lower * 3 + 2] ?? NaN);
+      expect(Array.from(downstreamOnly.wake.slice(upper * 3, upper * 3 + 3)).map(Math.abs).every(value => value === 0)).toBe(true);
+      expect(on.thrust[upper]).toBeLessThan(downstreamOnly.thrust[upper] ?? NaN);
       expect(off.thrust[lower]).toBeGreaterThan(on.thrust[lower] ?? NaN);
     }
     const sumOn = on.thrust.reduce((a, b) => a + b, 0), sumOff = off.thrust.reduce((a, b) => a + b, 0);
@@ -377,7 +587,7 @@ describe('in flight', () => {
     expect(off.limitations.some(text => text.includes('switched off'))).toBe(true);
     const on = buildProfileDynamics(manifest, { initialStateOfCharge: 1, syntheticPad: true });
     expect((on.configuration.configurationFlags ?? 0) & CONFIGURATION_FLAG_WAKE_UNMODELED).toBe(0);
-    expect(on.limitations.some(text => text.includes('synthetic one-way'))).toBe(true);
+    expect(on.limitations.some(text => text.includes('synthetic top-hat model with an axial-flight vortex cylinder upstream'))).toBe(true);
     // A quad on the same plane at hover meets no wake: every pair is checked and none reaches, and without a washed area nothing differs.
     const quad = await manifestOf('quad-x');
     const quadOff = held(buildProfileDynamics(quad, { initialStateOfCharge: 1, syntheticPad: true, rotorWake: 'off' }).configuration, 0.5);
@@ -385,6 +595,8 @@ describe('in flight', () => {
     const quadOn = held({ ...noDownload.configuration, rotorWake: { pairs: 'all' } }, 0.5);
     expect(quadOn.trace).toEqual(quadOff.trace);
     expect(Math.max(...quadOn.wake.map(Math.abs))).toBe(0);
+    // On one plane no rotor is upstream of another's disk.
+    expect(quadOn.upstreamPairs).toBe(0);
     const again = held(buildProfileDynamics(quad, { initialStateOfCharge: 1, syntheticPad: true, rotorWake: 'off' }).configuration, 0.5);
     expect(again.trace).toEqual(quadOff.trace);
   }, 120000);

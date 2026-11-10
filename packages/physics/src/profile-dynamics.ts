@@ -174,7 +174,7 @@ export function buildProfileDynamics(input: VehicleManifest, options: ProfileDyn
     configurationFlags |= CONFIGURATION_FLAG_WAKE_UNMODELED;
   }
   if (rotorWake) {
-    limitations.push('The rotor wakes are a synthetic one-way top-hat model with no swirl, no effect of a lower rotor on its upper rotor and no transport delay (TASK-101); nothing measured confirms them.');
+    limitations.push('The rotor wakes are a synthetic top-hat model with an axial-flight vortex cylinder upstream of each disk, with no swirl and no transport delay (TASK-101); nothing measured confirms them.');
     if (!manifest.hull) limitations.push('This manifest has no hull, so no rotor wake puts a download on the airframe (TASK-101).');
   }
   const air = isaTroposphere(0), n = model.rotorCount, initialBody = newBodyTruth();

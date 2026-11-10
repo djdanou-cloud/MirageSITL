@@ -156,15 +156,16 @@ export function evaluateTorque(fit: TorqueFit, ct: number, powers: readonly numb
   return powers.reduce((s, p, i) => s + (p === 0 ? 1 : Math.sign(ct) * Math.abs(ct) ** p) * fit.coefficients[i]!, 0);
 }
 
-/** One point of the model's sweep. */
-export interface SweepPoint { readonly collectiveDeg: number; readonly ct: number; readonly cq: number }
+/** One point of the model's sweep; `steady: false` marks a run that failed the steadiness check (2026-11-10), absent is steady. */
+export interface SweepPoint { readonly collectiveDeg: number; readonly ct: number; readonly cq: number; readonly steady?: boolean }
 /**
- * The model's C_Q at `ct`, linear in C_T between the two sweep points around it; null outside the sweep's C_T range or where
- * the sweep's C_T does not rise with collective there.
+ * The model's C_Q at `ct`, linear in C_T between the two consecutive sweep points around it, both steady; null outside the sweep's
+ * C_T range, where the sweep's C_T does not rise with collective there, or where an unsteady point is one of the two.
  */
 export function torqueAt(sweep: readonly SweepPoint[], ct: number): number | null {
   for (let i = 0; i + 1 < sweep.length; i++) {
     const a = sweep[i]!, b = sweep[i + 1]!;
+    if (a.steady === false || b.steady === false) continue;
     if (ct >= a.ct && ct <= b.ct) return b.ct > a.ct ? a.cq + (ct - a.ct) / (b.ct - a.ct) * (b.cq - a.cq) : null;
   }
   return null;
