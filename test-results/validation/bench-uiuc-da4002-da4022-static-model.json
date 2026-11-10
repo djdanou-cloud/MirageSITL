@@ -9,7 +9,7 @@
   "command": "cargo run -q --release --locked -p mirage-bet --example propeller_points -- --dynamic-inflow",
   "sources": {
    "files": 74,
-   "sha256": "37fa15d7ecefe56982d1a2301e0b35a92b2371bea69a274694d3b5bbcc17ea8c"
+   "sha256": "b7b3c10455dafe4eea970bf94cee35038880e586d1586b290a14b5f098946692"
   }
  },
  "requestSha256": "4ecf8d604b1b204717c3bb4fa5b0b03fd6c840f3f1e0b5c25749546a73ca1954",
