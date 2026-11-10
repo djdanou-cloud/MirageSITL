@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ensureToken, startLauncher } from "../../apps/launcher/src/server";
+import { MAX_ROUTE_POINTS } from "../../packages/scenarios/src/flight-tasks";
 import { ENDURANCE_CRITERIA, ENDURANCE_FIXTURE } from "../../scripts/phase1/endurance-rules";
 import { seedProfiles } from "../support/run-tab";
 import { viteFileUrl } from "../support/vite-url";
@@ -38,10 +39,14 @@ const ORIGIN = "http://127.0.0.1:5173";
 const FIRMWARE_ID = "arducopter-fb773567";
 const MINUTES = Number(process.env.MIRAGE_SOAK_MINUTES ?? "120");
 const SHOTS = process.env.MIRAGE_SOAK_SCREENSHOTS;
-const SIDE_M = 500, SPEED_MPS = 6, ALTITUDE_M = 20, CAPACITY_AH = 300;
+// 2026-11-10: the sides were 500 m, which needs 96 points for 120 minutes, but a flight task's route holds at most MAX_ROUTE_POINTS (50),
+// so both real soaks stopped at the 51st "Add point" (the 3-minute smoke needed 12). The circuit, not a pass rule, changed: 1200 m sides.
+const SIDE_M = 1200, SPEED_MPS = 6, ALTITUDE_M = 20, CAPACITY_AH = 300;
 const WIND_MPS = 3, WIND_FROM_DEG = 270, GUST_RMS_MPS = 1, GUST_BANDWIDTH_HZ = 1, GUST_SEED = 187;
-/** A lap is four 500 m sides at 6 m/s, about 333 s: enough laps for the soak and some to spare. */
-const LAPS = Math.ceil((MINUTES * 60) / 333) + 2;
+/** A lap is four sides at 6 m/s (800 s at 1200 m): enough laps for the soak and two to spare, 44 points for 120 minutes. */
+const LAP_S = (4 * SIDE_M) / SPEED_MPS;
+const LAPS = Math.ceil((MINUTES * 60) / LAP_S) + 2;
+if (4 * LAPS > MAX_ROUTE_POINTS) throw new Error(`A ${MINUTES}-minute soak needs ${4 * LAPS} route points; a flight task holds at most ${MAX_ROUTE_POINTS}`);
 export const SOAK_CRITERIA = Object.freeze({
   ratioTolerance: 0.005, droppedPerTenMinutes: 1, lost: 0, resent: 0,
   bytesPerSimHour: ENDURANCE_CRITERIA.bytesPerSimHour, memoryBytes: ENDURANCE_CRITERIA.memoryBytes,

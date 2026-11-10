@@ -183,27 +183,37 @@ test("T-Motor's datasheet on a laboratory supply is fitted in the Components tab
   await page.reload();
   for (const id of [1, 2, 3, 4]) await expect(motors.getByTestId(`calibration-${id}`)).toContainText(/Calibrated \(lift ×0\.50\d\d, drag ×0\.84\d\d\) from the set measured on 2026-07-28/);
   await expect(motors.getByTestId("calibration-stale-1")).toHaveCount(0);
-  // A profile version bound to a schema 1 calibration (fitted before 2026-11-08 without the flight's dynamic inflow) asks for a new fit.
-  await page.evaluate(async ({ urls }) => {
-    const { ProjectStore } = await import(urls.store) as Store;
-    const { profileDraft, propulsionCalibrationsOf, validateAircraftProfile, withPropulsionCalibrations } = await import(urls.profile) as Profiles;
-    const store = await ProjectStore.openIndexedDb();
-    try {
-      const project = (await store.listProjects()).find(item => item.record.name === "Forum quad");
-      if (!project) throw new Error("No Forum quad project");
-      const [calibration] = await store.listItems(project.record.id, "propulsion-calibration");
-      const [profileItem] = await store.listItems(project.record.id, "aircraft-profile");
-      if (!calibration || !profileItem) throw new Error("No calibration or profile");
-      const payload = { ...(calibration.record.payload as Record<string, unknown>), schemaVersion: 1 };
-      const old = await store.createItem(project.record.id, "propulsion-calibration", { name: "Fitted before 2026-11-08", payload,
-        dependencies: calibration.record.dependencies.map(dependency => dependency.sha256) });
-      const profile = validateAircraftProfile(profileItem.record.payload);
-      const next = withPropulsionCalibrations(profile, propulsionCalibrationsOf(profile).map(entry => ({ ...entry, record: old.sha256 })));
-      await store.saveVersion(profileItem.record.id, profileItem.sha256, profileDraft(profileItem.record.name, next));
-    } finally {
-      store.close();
-    }
-  }, { urls });
-  await page.reload();
+  // A profile version bound to an older copy of this calibration: schema 1 (fitted before 2026-11-08 without the flight's dynamic
+  // inflow) asks for a new fit; schema 2 on this NeuralFoil polar (polar 1, no augmentation to lose) binds without a note; schema 2 on an
+  // extended polar (polar 3, fitted before 2026-11-09 without its rotational lift augmentation) asks for a new fit (2026-11-09).
+  const bindCopy = async (overrides: { schemaVersion: number; polarId?: number }) => {
+    await page.evaluate(async ({ urls, overrides }) => {
+      const { ProjectStore } = await import(urls.store) as Store;
+      const { profileDraft, propulsionCalibrationsOf, validateAircraftProfile, withPropulsionCalibrations } = await import(urls.profile) as Profiles;
+      const store = await ProjectStore.openIndexedDb();
+      try {
+        const project = (await store.listProjects()).find(item => item.record.name === "Forum quad");
+        if (!project) throw new Error("No Forum quad project");
+        const [calibration] = await store.listItems(project.record.id, "propulsion-calibration");
+        const [profileItem] = await store.listItems(project.record.id, "aircraft-profile");
+        if (!calibration || !profileItem) throw new Error("No calibration or profile");
+        const payload = { ...(calibration.record.payload as Record<string, unknown>), ...overrides };
+        const old = await store.createItem(project.record.id, "propulsion-calibration", { name: `Schema ${overrides.schemaVersion} copy`, payload,
+          dependencies: calibration.record.dependencies.map(dependency => dependency.sha256) });
+        const profile = validateAircraftProfile(profileItem.record.payload);
+        const next = withPropulsionCalibrations(profile, propulsionCalibrationsOf(profile).map(entry => ({ ...entry, record: old.sha256 })));
+        await store.saveVersion(profileItem.record.id, profileItem.sha256, profileDraft(profileItem.record.name, next));
+      } finally {
+        store.close();
+      }
+    }, { urls, overrides });
+    await page.reload();
+  };
+  await bindCopy({ schemaVersion: 2, polarId: 1 });
+  await expect(motors.getByTestId("calibration-1")).toContainText(/Calibrated \(lift ×0\.50\d\d/);
+  await expect(motors.getByTestId("calibration-stale-1")).toHaveCount(0);
+  await bindCopy({ schemaVersion: 2, polarId: 3 });
+  await expect(motors.getByTestId("calibration-stale-1")).toContainText("fitted before 2026-11-09 on an extended polar without its rotational lift augmentation");
+  await bindCopy({ schemaVersion: 1, polarId: 1 });
   await expect(motors.getByTestId("calibration-stale-1")).toContainText("fitted before 2026-11-08 to the rotor without the flight's dynamic inflow");
 });

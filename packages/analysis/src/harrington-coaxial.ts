@@ -177,7 +177,7 @@ export function reproduced(modelMean: number, measuredMean: number, standardErro
 
 /**
  * The polar with every drag coefficient multiplied by `scale` and everything else (lift, axes, confidence, rotational lift
- * augmentation) as it was. TASK-145's `scaledPolar` drops the rotational augmentation, so the variant does not use it.
+ * augmentation) as it was. Written when TASK-145's `scaledPolar` still dropped the rotational augmentation (fixed 2026-11-09).
  */
 export function dragScaledPolar<P extends { readonly cd: readonly number[] }>(polar: P, scale: number): P {
   const [low, high] = HARRINGTON_DRAG_VARIANT.scaleRange;

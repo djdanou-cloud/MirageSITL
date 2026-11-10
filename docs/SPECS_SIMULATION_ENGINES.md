@@ -1799,9 +1799,9 @@ lower, upper and unidentified single rotors at 500 ft/s. The form is TASK-145's 
 table multiplied by one scale s_D, with the lift coefficients, the angle, Reynolds and Mach axes, the
 confidence and the rotational lift augmentation unchanged, and s_D confined to TASK-145's 0.25 to 4. The
 lift scale stays 1, because the comparison is made at the measured C_T and so cannot identify a lift
-level. TASK-145's own `scaledPolar` returns its table without the rotational lift augmentation that the
-extended tables ask for (TASK-097); the variant keeps the augmentation, so that the drag is its one
-change, and does not call that function. A published polar with standard roughness (Abbott and von
+level. TASK-145's own `scaledPolar` returned its table without the rotational lift augmentation that the
+extended tables ask for (TASK-097) until 2026-11-09 (section "Rotational lift augmentation kept"); the
+variant keeps the augmentation, so that the drag is its one change, and does not call that function. A published polar with standard roughness (Abbott and von
 Doenhoff) was not chosen: it is a 12 % section, where these blades are 8 to 30 % and 15 to 30 % thick at
 Reynolds numbers 0.8e6 to 2.8e6, so it would put one unmatched section in place of another. A level
 fitted on the rotors' own single runs takes their thickness, finish and Reynolds number and the tunnel as
@@ -1881,8 +1881,8 @@ effect on the upper one, swirl, the tunnel, the rigs' structure) this comparison
 Rotor 2's measured share at 327 ft/s leans on the single fit's extrapolation to zero thrust, as said
 above. A finding on the way, not changed here: TASK-145's `scaledPolar` drops the rotational lift
 augmentation of the extended tables, so a rotor calibrated by TASK-145 on an extended polar flies, and
-is fitted, without it. The model, the wake model and both variants' methods are not changed by this
-result.
+is fitted, without it (fixed on 2026-11-09 under TASK-145). The model, the wake model and both
+variants' methods are not changed by this result.
 
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)
@@ -8989,8 +8989,9 @@ judged. A calibration belongs to its combination and is never transferred.
 
 **Scaling the BET model, not the TASK-103 table mode.** The fit scales the
 section polar of the combination's propeller: every lift coefficient by s_L and
-every drag coefficient by s_D, with the angle, Reynolds-number and Mach axes and
-the confidence unchanged. The reasons: (1) a table of the bench's C_T and C_P
+every drag coefficient by s_D, with the angle, Reynolds-number and Mach axes,
+the confidence and an extended polar's rotational lift augmentation (TASK-097)
+unchanged. The reasons: (1) a table of the bench's C_T and C_P
 versus RPM holds only where a static bench measured, at one density and zero
 advance ratio, while a flight needs loads in climb, descent, forward flight and
 wind, which the BET gives from the geometry and the inflow; scaling its polar
@@ -9076,7 +9077,7 @@ which a calibrated rotor flew outside its bench data.
 
 **The calibration record and its binding.** A fit is stored as a
 `propulsion-calibration` item of the project store
-(`@mirage/aircraft/propulsion-calibration`, payload schema 2; schema 1 below): the combination
+(`@mirage/aircraft/propulsion-calibration`, payload schema 3; schemas 1 and 2 below): the combination
 key, the measurement set's SHA-256, the motor and propeller cards, the date the
 bench measured, the polar's catalog ID and the SHA-256 of the BET module it was
 fitted with, and the fit itself (s_L, s_D, iterations, the RMS thrust and torque
@@ -9215,6 +9216,65 @@ drag ×0.846 in 7 iterations (×0.474 and ×1.249 before); RMS thrust residual 0
 unchanged (R 0.132 Ω, I₀ 0.889 A, RMS 1.45 W), since it reads the bench, not the rotor. The drag scale
 moved most: with the dynamic inflow's tip and hub losses the rotor already needs more torque for its
 thrust, so less is added through the drag coefficient.
+
+### Rotational lift augmentation kept (2026-11-09)
+
+TASK-101's coaxial comparison found that `scaledPolar` returned the scaled table without the
+`rotational` field of an extended polar (TASK-097). The rotor bound for a calibration therefore lost
+configuration option 8, rotational lift augmentation, both in the fit's static solve and in the
+flight's calibrated polar: a rotor calibrated on `naca6409-extended-v1` or `naca0012-extended-v1` was
+fitted and flown without the augmentation that the same rotor uncalibrated has. `scaledPolar` now
+copies every field of the polar and replaces only the lift and drag coefficients, so the
+augmentation's lift slope and zero-lift angle reach both the fit and the flight.
+
+Checks, declared before the fix (`tests/propulsion-calibration.test.ts`, 8 passed; the two new tests
+failed before it at their first assertion, the missing `rotational`): at scales 1 the scaled extended
+polar keeps the catalog's augmentation, and its static loads at 2000 to 8000 rpm equal the unscaled
+polar's bitwise, while the same polar without the augmentation gives other loads; static bench data of
+the fixture rotor on the extended polar scaled by hand (lift 1.2, drag 0.8, augmentation kept) are
+fitted back to those scales within 10⁻⁹ relative; the scaled copy of a NeuralFoil polar has exactly
+the six fields it had before; and a calibration of the S19 quad on the repository's bench fixture,
+with its propeller on `naca6409-extended-v1`, records polar 3, the build flies its calibrated polar
+with the catalog's augmentation, and the stored residuals equal within 10⁻⁹ relative the static
+loads of the rotor the flight binds.
+
+What it changes. The NeuralFoil polars carry no augmentation, so every calibration recorded so far is
+unchanged: the T-Motor datasheet fit, the S19 quad's calibration on the bench fixture, the browser
+calibration test and the forum quad's flight all choose `naca6409-neuralfoil-v1`, and the U35 flight
+is not calibrated. Re-run on the fix: `tests/tmotor-bench-fit.test.ts` (2 passed) gives every figure
+recorded above (lift ×0.504, drag ×0.846 in 7 iterations, RMS 0.688 N and 0.022 N·m, R 0.132 Ω,
+I₀ 0.889 A); `tests/propulsion-calibration.test.ts`, `tests/tmotor-bench-fit.test.ts`,
+`tests/profile-dynamics.test.ts` and `tests/rotor-wake-harrington.test.ts` together give 39 passed
+and 1 skipped (the opt-in Harrington comparison). On an extended polar the change is large. On the S19
+quad's rotor at the bench fixture's 2000 to 8000 rpm, the augmentation adds 19.7 % to the static
+thrust at 2000 rpm, falling to 2.2 % at 8000 rpm, and 11.3 % to 1.7 % to the torque. The fixture's
+fit on `naca6409-extended-v1` moves from lift ×0.733 and drag ×1.209 (10 iterations, RMS 0.277 N and
+0.00140 N·m) to lift ×0.582 and drag ×1.284 (7 iterations, RMS 0.178 N and 0.00353 N·m); the motor
+fit (R 0.197 Ω, I₀ 0.417 A) reads the bench only and does not move. A calibration record fitted on an
+extended polar before this fix holds scales fitted without the augmentation, and it now flies with
+it.
+
+By the stakeholder's decision of 2026-11-10 ("Yes, refuse them") such records are refused. The
+calibration record's payload schema becomes 3, which marks a fit with the augmentation kept. A schema
+2 record still validates, since stored versions are immutable. On a NeuralFoil polar, which has no
+augmentation to lose, it binds as before. On an extended polar (catalog provenance `extended-model`,
+polars 3 and 4) `bindCalibration` refuses it ("This calibration was fitted before 2026-11-09 on an
+extended polar without its rotational lift augmentation; fit it again to bind it"), and so does
+`savePropulsionCalibration`. `calibrationRefusal` gives the reason for each schema, schema 1 keeping
+its refusal; `savePropulsionCalibration` stores only schema 3 fits ("Only a new fit (calibration
+schema 3) is saved; fit it again" where no other refusal applies); and the Components tab shows the
+matching note under a motor whose bound calibration is refused (test ID `calibration-stale-N`). A
+profile version that bound such a record keeps its scales until it is fitted again.
+
+Checks of the schema, declared before the change. `tests/propulsion-calibration.test.ts`: new fits are
+schema 3; a schema 2 copy of the S19 quad's fit on the NeuralFoil polar binds with its scales but is not
+saved, and schema 4 is refused; a schema 2 copy of the fit on `naca6409-extended-v1` reads,
+`calibrationRefusal` names the augmentation, and it is refused on saving and on binding. Both tests
+failed before the change, since the records were still schema 2, and pass with it: 8 passed, and 36
+with `tests/tmotor-bench-fit.test.ts` and `tests/profile-dynamics.test.ts`.
+`tests/browser/propulsion-calibration.spec.ts` (2 passed in Playwright's Chromium) binds three copies
+of the T-Motor calibration in turn: schema 2 on polar 1 shows no note, schema 2 on polar 3 the
+augmentation note, and schema 1 the dynamic-inflow note.
 
 ## Profile-driven dynamics (TASK-144)
 

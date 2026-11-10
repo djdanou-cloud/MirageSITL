@@ -115,7 +115,7 @@ describe('a calibration of a profile version (TASK-145)', () => {
     const { MemoryBackend, ProjectStore } = await import('../packages/project/src/store.ts');
     const { validateComponentCard } = await import('../packages/aircraft/src/components.ts');
     const { measurementSetFromBenchCsv, measurementSetDraft, validateMeasurementSet } = await import('../packages/aircraft/src/measurements.ts');
-    const { validateAircraftProfile, profileDraft } = await import('../packages/aircraft/src/profile.ts');
+    const { validateAircraftProfile, profileDraft, propulsionCalibrationsOf } = await import('../packages/aircraft/src/profile.ts');
     const { bindMeasurements } = await import('../packages/aircraft/src/calculation-mode.ts');
     const { resolveComponents } = await import('../packages/aircraft/src/resolve-components.ts');
     const { deriveVehicleManifest } = await import('../packages/aircraft/src/derive-manifest.ts');
@@ -168,7 +168,9 @@ describe('a calibration of a profile version (TASK-145)', () => {
     //  - the definition the fit takes has the flight's dynamic inflow, vortex ring seed (configuration seed + index) and kernel options;
     //  - the fit's residual rows equal, within 1e-9 relative, an independent static solve of that rotor on the fitted polar, and differ
     //    by more than 1e-6 from the same solve on the binding used before (no dynamic inflow), so the change is not empty;
-    //  - new records are schema 2; a schema 1 record still reads, is refused on saving and on binding, with the reason.
+    //  - new records are schema 3 (2026-11-09: schema 2 with the extended polar's augmentation kept); a schema 1 record still reads, is
+    //    refused on saving and on binding, with the reason; a schema 2 record on this NeuralFoil polar, which has no augmentation to
+    //    lose, still binds, but is not saved as a new fit.
     const { STATIC_BINDING_REFUSAL } = await import('../packages/aircraft/src/propulsion-calibration.ts');
     const { profileRotorDefinition } = await import('../packages/physics/src/profile-dynamics.ts');
     const uncalibrated = buildProfileDynamics((await deriveVehicleManifest(measured, components, { modelId: 1 })).manifest, { syntheticPad: true }).configuration;
@@ -177,7 +179,7 @@ describe('a calibration of a profile version (TASK-145)', () => {
     expect(flightRotor.dynamicInflow).toBe(true);
     expect(flightRotor.vortexRingSeed).toBe(uncalibrated.vortexRingSeed);
     expect(flightRotor.kernelOptions).toBe(uncalibrated.kernelOptions ?? 0);
-    expect(calibration.schemaVersion).toBe(2);
+    expect(calibration.schemaVersion).toBe(3);
     // The bench's air as the fit takes it: viscosity and sound speed from its temperature and pressure, else of the ISA sea level.
     const { measurementSetBench } = await import('../packages/aircraft/src/measurements.ts');
     const conditions = measurementSetBench(set).conditions;
@@ -201,6 +203,101 @@ describe('a calibration of a profile version (TASK-145)', () => {
     const storedOld = await store.createItem(projectId, 'propulsion-calibration', { name: 'Old fit', payload: schema1,
       dependencies: [...new Set([schema1.measurementSet, schema1.motorCard, schema1.propellerCard])].sort() });
     expect(() => bindCalibration(measured, storedOld)).toThrow(STATIC_BINDING_REFUSAL);
-    expect(() => validatePropulsionCalibration({ ...calibration, schemaVersion: 3 })).toThrow('schemaVersion must be 1 or 2');
+    const schema2 = validatePropulsionCalibration({ ...calibration, schemaVersion: 2 });
+    expect(schema2.polarId).toBe(1);
+    expect(() => savePropulsionCalibration(store, projectId, 'Before 2026-11-09', schema2)).toThrow('Only a new fit (calibration schema 3) is saved');
+    const storedSchema2 = await store.createItem(projectId, 'propulsion-calibration', { name: 'Before 2026-11-09', payload: schema2,
+      dependencies: [...new Set([schema2.measurementSet, schema2.motorCard, schema2.propellerCard])].sort() });
+    expect(propulsionCalibrationsOf(bindCalibration(measured, storedSchema2))[0]?.liftScale).toBe(calibration.fit.scales.lift);
+    expect(() => validatePropulsionCalibration({ ...calibration, schemaVersion: 4 })).toThrow('schemaVersion must be 1, 2 or 3');
+  }, 300_000);
+});
+
+// 2026-11-09 (found by the TASK-101 coaxial comparison): `scaledPolar` returned the table without its `rotational` field, so a rotor
+// on an extended polar (TASK-097) was fitted and flown without its rotational lift augmentation. Declared before the fix:
+//  - at scales 1 the scaled extended polar keeps its augmentation, and its static loads equal those of the unscaled polar bitwise
+//    (multiplying by 1 is exact); the same polar without the augmentation gives other loads, so the comparison is not empty;
+//  - bench data of the rotor on the extended polar scaled by hand (lift 1.2, drag 0.8, augmentation kept) are fitted back to those
+//    scales within 1e-9 relative;
+//  - a calibration of a profile that chooses the extended polar records polar 3, the build flies the calibrated polar with the
+//    catalog's augmentation, and the stored residuals equal the static loads of the rotor the flight binds within 1e-9 relative;
+//  - (2026-11-09, the stakeholder's "Yes, refuse them") the record is schema 3; a schema 2 copy, which may have been fitted without the
+//    augmentation, still reads, is refused on saving and on binding with its reason, and the refusal names it.
+describe('a calibration on an extended polar (TASK-145, TASK-097)', () => {
+  it('keeps the rotational lift augmentation at scale 1 and fits hand-scaled bench data back to their scales', async () => {
+    const { boundCatalogPolar } = await import('../packages/physics/src/polar-catalog.ts');
+    const extended = boundCatalogPolar(3);
+    if (!extended.rotational) throw new Error('The extended NACA6409 polar has no rotational augmentation');
+    const rotor = { ...rotorDefinition(0), polar: extended };
+    const unity = scaledPolar(extended, { lift: 1, drag: 1 });
+    expect(unity.rotational).toEqual(extended.rotational);
+    const reference = staticLoads(module, rotor, AIR, RPMS);
+    expect(staticLoads(module, { ...rotor, polar: unity }, AIR, RPMS)).toEqual(reference);
+    const plain = { alphaRad: extended.alphaRad, reynolds: extended.reynolds, mach: extended.mach, cl: extended.cl, cd: extended.cd, confidence: extended.confidence };
+    const without = staticLoads(module, { ...rotor, polar: plain }, AIR, RPMS);
+    expect(Math.max(...reference.thrustN.map((thrust, i) => Math.abs(thrust / (without.thrustN[i] ?? NaN) - 1)))).toBeGreaterThan(1e-6);
+    const byHand = { ...extended, cl: extended.cl.map(value => value * 1.2), cd: extended.cd.map(value => value * 0.8) };
+    const loads = staticLoads(module, { ...rotor, polar: byHand }, AIR, RPMS);
+    const bench = benchMeasurements(2 * rotor.geometry.radiusM, CONDITIONS, { rpm: RPMS, thrustN: loads.thrustN, torqueNm: loads.torqueNm, voltageV: null, currentA: null });
+    const fit = fitPropulsion({ module, rotor, bench, kvRpmPerV: null });
+    expect(Math.abs(fit.scales.lift / 1.2 - 1)).toBeLessThan(1e-9);
+    expect(Math.abs(fit.scales.drag / 0.8 - 1)).toBeLessThan(1e-9);
+    // A NeuralFoil polar has no augmentation, and its scaled copy has the same fields as before the fix: such calibrations are unchanged.
+    expect(Object.keys(scaledPolar(rotorDefinition(0).polar, { lift: 1.2, drag: 0.8 })).sort()).toEqual(['alphaRad', 'cd', 'cl', 'confidence', 'mach', 'reynolds']);
+  }, 120_000);
+
+  it('fits and flies a stored calibration with the extended polar\'s augmentation', async () => {
+    const { MemoryBackend, ProjectStore } = await import('../packages/project/src/store.ts');
+    const { validateComponentCard } = await import('../packages/aircraft/src/components.ts');
+    const { measurementSetBench, measurementSetFromBenchCsv, measurementSetDraft, validateMeasurementSet } = await import('../packages/aircraft/src/measurements.ts');
+    const { validateAircraftProfile, withPropellerPolars } = await import('../packages/aircraft/src/profile.ts');
+    const { bindMeasurements } = await import('../packages/aircraft/src/calculation-mode.ts');
+    const { resolveComponents } = await import('../packages/aircraft/src/resolve-components.ts');
+    const { deriveVehicleManifest } = await import('../packages/aircraft/src/derive-manifest.ts');
+    const { AUGMENTATION_REFUSAL, bindCalibration, calibrateMotor, calibrationRefusal, savePropulsionCalibration, validatePropulsionCalibration } = await import('../packages/aircraft/src/propulsion-calibration.ts');
+    const { buildProfileDynamics, CALIBRATED_POLAR_BASE, profileRotorDefinition } = await import('../packages/physics/src/profile-dynamics.ts');
+    const { boundCatalogPolar } = await import('../packages/physics/src/polar-catalog.ts');
+    const { exampleCard, quadProfile } = await import('./support/quad-profile.ts');
+    const store = new ProjectStore(new MemoryBackend(), { storage: null, validators: { 'component-card': validateComponentCard, 'measurement-set': validateMeasurementSet,
+      'aircraft-profile': validateAircraftProfile, 'propulsion-calibration': validatePropulsionCalibration } });
+    const projectId = (await store.createProject('Bench')).record.id;
+    const cards = new Map<string, ReturnType<typeof exampleCard>>();
+    const card = async (type: 'motor' | 'propeller' | 'esc' | 'battery') => { const stored = await store.createItem(projectId, 'component-card', { name: type, payload: exampleCard(type) }); cards.set(stored.sha256, exampleCard(type)); return stored.sha256; };
+    const addresses = { motor: await card('motor'), propeller: await card('propeller'), esc: await card('esc'), battery: await card('battery') };
+    const set = await measurementSetFromBenchCsv(readFileSync('tests/fixtures/components/bench-combination.csv', 'utf8'), {
+      combination: { motor: addresses.motor, propeller: addresses.propeller, esc: addresses.esc, supply: { kind: 'battery', card: addresses.battery } },
+      fileName: 'bench-combination.csv', date: '2026-10-29', description: 'Synthetic thrust stand run', applicability: null });
+    const storedSet = await store.createItem(projectId, 'measurement-set', measurementSetDraft('Bench run', set));
+    const { profile: neuralFoil } = await quadProfile(addresses);
+    const base = withPropellerPolars(neuralFoil, [{ card: addresses.propeller, polar: 'naca6409-extended-v1' }]);
+    const measured = await bindMeasurements(base, 'measured', [{ sha256: storedSet.sha256, createdAt: storedSet.record.createdAt, set }]);
+    const components = resolveComponents(measured, cards).components;
+    if (!components) throw new Error('Cards missing');
+    const calibration = await calibrateMotor({ module, betModuleSha256: 'a'.repeat(64), profile: measured, components, motorId: measured.motors[0]?.id ?? 1, set: { sha256: storedSet.sha256, set } });
+    expect(calibration.polarId).toBe(3);
+    expect(calibration.schemaVersion).toBe(3);
+    expect(calibrationRefusal(calibration)).toBeNull();
+    const schema2 = validatePropulsionCalibration({ ...calibration, schemaVersion: 2 });
+    expect(calibrationRefusal(schema2)).toBe(AUGMENTATION_REFUSAL);
+    expect(() => savePropulsionCalibration(store, projectId, 'Before 2026-11-09', schema2)).toThrow(AUGMENTATION_REFUSAL);
+    const storedSchema2 = await store.createItem(projectId, 'propulsion-calibration', { name: 'Before 2026-11-09', payload: schema2,
+      dependencies: [...new Set([schema2.measurementSet, schema2.motorCard, schema2.propellerCard])].sort() });
+    expect(() => bindCalibration(measured, storedSchema2)).toThrow(AUGMENTATION_REFUSAL);
+    const bound = bindCalibration(measured, await savePropulsionCalibration(store, projectId, 'Extended polar fit', calibration));
+    const build = buildProfileDynamics((await deriveVehicleManifest(bound, components, { modelId: 7 })).manifest, { syntheticPad: true });
+    const flown = build.configuration.polars.get(CALIBRATED_POLAR_BASE);
+    expect(flown?.rotational).toBeDefined();
+    expect(flown?.rotational).toEqual(boundCatalogPolar(3).rotational);
+    const conditions = measurementSetBench(set).conditions;
+    const atmosphere = atmosphereFromState(conditions.airTemperatureK !== null && conditions.airPressurePa !== null
+      ? { temperatureK: conditions.airTemperatureK, pressurePa: conditions.airPressurePa } : { temperatureK: 288.15, pressurePa: 101325 });
+    const air = { densityKgM3: calibration.fit.envelope.densityKgM3, viscosityPaS: atmosphere.dynamicViscosityPaS, soundMps: atmosphere.speedOfSoundMps };
+    const rotor = profileRotorDefinition(build.configuration, 0);
+    expect(rotor.polar).toBe(flown);
+    const loads = staticLoads(module, rotor, air, calibration.fit.residuals.map(row => row.rpm));
+    calibration.fit.residuals.forEach((row, i) => {
+      expect(Math.abs(row.modelThrustN / (loads.thrustN[i] ?? NaN) - 1)).toBeLessThan(1e-9);
+      expect(Math.abs(row.modelTorqueNm / (loads.torqueNm[i] ?? NaN) - 1)).toBeLessThan(1e-9);
+    });
   }, 300_000);
 });
