@@ -6,7 +6,7 @@
   "operator": "UIUC Applied Aerodynamics Group (Brandt, Deters, Ananda, Dantsker, Selig)",
   "recordedAt": "2022-06-27T00:00:00Z",
   "firmwareSha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "modelSha256": "0113549960849d9318dc73e07e95fb7d8e31ff5e43f86714ffc6c4917dd46b24"
+  "modelSha256": "ba9c0f8cb5664db0d9a160f878b240b18ca98e826a2f13ce5f3a179263e7f9cd"
  },
  "timeDomain": [],
  "frequencyResponse": [],

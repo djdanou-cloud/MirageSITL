@@ -6,11 +6,11 @@
  "method": "The forum quad profile's rotor 0, uncalibrated, bound as BetFlightDynamics binds it in flight, solved statically by staticLoads (packages/physics/src/propulsion-calibration.ts: 400 steps at 800 Hz on a 1e6 kg·m² shaft) at each measured rpm; CT = T/(ρn²D⁴), CP = 2πQ/(ρn²D⁵). Not the TASK-145 calibration, which is fitted on this same table.",
  "betModule": {
   "file": "packages/wasm-bet/dist/mirage_bet.scalar.wasm",
-  "sha256": "6b0d9be4e7005ede6e3ad0b5deb1662df2b15ffadabe38df4a445bf79df1ca40",
+  "sha256": "81402b8b9e91270a14aa0d41f8ccf8b39d744a10883a1d2c16b333df8b132b46",
   "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
   "sources": {
    "files": 74,
-   "sha256": "b7b3c10455dafe4eea970bf94cee35038880e586d1586b290a14b5f098946692"
+   "sha256": "c0ac562bc02619b56e242f4e95bb3da18fe9602276d7bab3faa1fe0bcc500b33"
   },
   "hashNote": "sha256 is the module built on the recording host; WASM builds of the same sources differ between hosts, so sources identifies the code"
  },
