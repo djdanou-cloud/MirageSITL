@@ -1585,6 +1585,27 @@ thrust at full command fill from each rotor's output; the tube keeps the momentu
 declaration and its tolerances stay; in the step check the upstream velocity is `inducedAxialMps_i
 G_ij`, and the ideal coaxial pair feeds its momentum v there, so its fixed point is the same.
 
+Corrections to the comparisons' own checks, before any of their results (2026-11-10). (1) Harrington.
+The first run with the upstream field stopped at rotor 2's coaxial pair at 392 ft/s and 0.5°
+collective, whose summed thrust changed by 4.9 % between the halves of its averaged second. A trace
+over the 10 s run shows both rotors swinging with periods near 1.5 s, the upper one between -99 and
+244 N and the lower one between -364 and 360 N, and so at 1°, while at 3° the pair settles within
+1.4e-6. Near zero collective the pair has no steady state in the model: the upstream field slows the
+upper rotor, its weaker wake lets the lower rotor's induced velocity rise, and that slows the upper
+rotor further; with no stream through it the lower rotor's v grows as the square root of its thrust,
+so the gain of this loop has no bound as the thrust goes to zero. Fixed-pitch multirotors do not reach
+that regime: the coaxial x8 and the 16-rotor octa hold steady at every duty from 0.02 to 0.3 (their
+thrust coefficient hardly changes with RPM). The comparison's rule changes, not the model: a sweep
+point that fails the steadiness check is recorded with its change and marked unsteady instead of
+failing the test, it does not end a sweep, and no interpolation uses it, so a measured C_T is read only
+between two consecutive steady sweep points and is outside the model's range otherwise. A coaxial
+point whose yaw trim meets an unsteady run is unsteady. The model's induced share uses the
+collective-0 point only when it is steady. (2) MTB2. Its check that the model's front rotor gives the
+same thrust with the wakes on, within 1e-5, stated the old design, in which nothing flows upstream.
+With the upstream field a front rotor upstream of the rear rotor's disk feels it (0.54 % in the first
+condition, equal height, tilt -3°). The check is removed, and the front rotor's ratio, already in the
+report as `rFront`, is shown with the results.
+
 Measured rotor wakes: NASA MTB2 (TASK-101, 2026-11-08), declared before the model's prediction
 was computed and after a first look at the measured thrusts. The data are NASA Ames's second
 wind-tunnel entry of the Multirotor Test Bed (Conley et al., NASA/TM-20250004795, May 2025, a
