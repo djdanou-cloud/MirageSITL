@@ -55,7 +55,7 @@ export interface ThrustCapacity {
 const HZ = 800;
 /** The longest it may take to settle, and how little the speeds and the voltage may change over a check to count as settled. */
 const MAX_SETTLE_S = 8, CHECK_EVERY_S = 0.1, SETTLED_RELATIVE = 1e-6;
-const OUTPUT = { thrust: 2, omega: 9, flags: 14, motorCurrent: 19, power: 21 } as const;
+const OUTPUT = { thrust: 2, omega: 9, induced: 12, flags: 14, motorCurrent: 19, power: 21 } as const;
 const INPUT = { density: 0, viscosity: 1, sound: 2, duty: 13, busVoltage: 14 } as const;
 
 /** Throws when the configuration has no ESC drive, or the rotors do not settle. */
@@ -97,6 +97,7 @@ export function thrustCapacity(module: WebAssembly.Module, configuration: BetFli
           for (let j = 0; j < 3; j++) wake.airHubMps[i * 3 + j] = engine.input[row + INPUT_WAKE + j] ?? 0;
           wake.densityKgM3[i] = configuration.densityKgM3;
           wake.thrustN[i] = engine.output[i * BOUND_V2_OUTPUT_SLOTS + OUTPUT.thrust] ?? 0;
+          wake.inducedAxialMps[i] = engine.output[i * BOUND_V2_OUTPUT_SLOTS + OUTPUT.induced] ?? 0;
         }
         wake.step();
         for (let i = 0; i < count; i++) for (let j = 0; j < 3; j++) engine.input[i * BOUND_V2_INPUT_DOUBLES + INPUT_WAKE + j] = wake.wakeHubMps[i * 3 + j] ?? 0;

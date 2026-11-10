@@ -61,6 +61,11 @@ describe('the Harrington measurement (TASK-101)', () => {
     expect(torqueAt(sweep, 0.002)).toBeCloseTo(2.5e-4, 15);
     expect(torqueAt(sweep, 0.0031)).toBeNull();
     expect(torqueAt(sweep, -0.0001)).toBeNull();
+    // An unsteady point is read by no interval: neither the one below it nor the one above it (2026-11-10).
+    const shaky: SweepPoint[] = [sweep[0]!, { ...sweep[1]!, steady: false }, sweep[2]!, { collectiveDeg: 3, ct: 0.004, cq: 4.5e-4, steady: true }];
+    expect(torqueAt(shaky, 0.0005)).toBeNull();
+    expect(torqueAt(shaky, 0.002)).toBeNull();
+    expect(torqueAt(shaky, 0.0035)).toBeCloseTo(4e-4, 15);
     // The summary rule: within the standard errors and the tolerance, and not beyond.
     expect(reproduced(1.0999, 1.07, 0.005, 0.02, 2)).toBe(true);
     expect(reproduced(1.1001, 1.07, 0.005, 0.02, 2)).toBe(false);
@@ -227,20 +232,22 @@ const coefficients = (rotor: HarringtonRotor, h: Held) => {
     cq: h.torqueNm.reduce((s, q, i) => s + q / (rho * A * (h.omegaRadS[i]! * R) ** 2 * R), 0),
   };
 };
-interface ModelPoint extends SweepPoint { readonly differentialDeg: number; readonly thrustN: number[]; readonly torqueNm: number[]; readonly unsteady: number; readonly flags: number; readonly trimIterations: number }
-/** One collective: a single rotor as it is; a coaxial pair trimmed in yaw by differential collective (secant on the torque ratio). */
+interface ModelPoint extends SweepPoint { readonly steady: boolean; readonly differentialDeg: number; readonly thrustN: number[]; readonly torqueNm: number[]; readonly unsteady: number; readonly flags: number; readonly trimIterations: number }
+/**
+ * One collective: a single rotor as it is; a coaxial pair trimmed in yaw by differential collective (secant on the torque ratio).
+ * A run that fails the steadiness check makes the point unsteady (2026-11-10): it is recorded, not trimmed further, and never read.
+ */
 function point(base: VehicleManifest, rotor: HarringtonRotor, kind: 'coaxial' | 'single', wakes: 'all' | 'off', omega: number, collectiveDeg: number, dragScale: number): ModelPoint {
   const { run, trim } = HARRINGTON_METHOD;
   const at = (delta: number) => {
     const h = held(rigManifest(base, rotor, kind, collectiveDeg - delta, collectiveDeg + delta), wakes, omega, dragScale);
     if (h.speedError > run.speedTolerance) throw new Error(`Speed not held: ${h.speedError} at ${collectiveDeg} deg`);
-    if (h.unsteady > run.steadyTolerance) throw new Error(`Not steady: ${h.unsteady} at ${collectiveDeg} deg`);
-    return { delta, h, ratio: kind === 'coaxial' ? h.torqueNm[0]! / h.torqueNm[1]! - 1 : 0 };
+    return { delta, h, steady: h.unsteady <= run.steadyTolerance, ratio: kind === 'coaxial' ? h.torqueNm[0]! / h.torqueNm[1]! - 1 : 0 };
   };
   let a = at(0), iterations = 0;
-  if (Math.abs(a.ratio) > trim.torqueTolerance) {
+  if (a.steady && Math.abs(a.ratio) > trim.torqueTolerance) {
     let b = at(trim.firstStepDeg);
-    for (iterations = 1; Math.abs(b.ratio) > trim.torqueTolerance; iterations++) {
+    for (iterations = 1; b.steady && Math.abs(b.ratio) > trim.torqueTolerance; iterations++) {
       if (iterations >= trim.maxIterations || b.ratio === a.ratio) throw new Error(`No yaw trim at ${collectiveDeg} deg: torque ratio ${b.ratio + 1}`);
       const next = b.delta - b.ratio * (b.delta - a.delta) / (b.ratio - a.ratio);
       a = b; b = at(next);
@@ -248,7 +255,7 @@ function point(base: VehicleManifest, rotor: HarringtonRotor, kind: 'coaxial' | 
     a = b;
   }
   const c = coefficients(rotor, a.h);
-  return { collectiveDeg, differentialDeg: a.delta, ct: c.ct, cq: c.cq, thrustN: a.h.thrustN, torqueNm: a.h.torqueNm, unsteady: a.h.unsteady, flags: a.h.flags, trimIterations: iterations };
+  return { collectiveDeg, steady: a.steady, differentialDeg: a.delta, ct: c.ct, cq: c.cq, thrustN: a.h.thrustN, torqueNm: a.h.torqueNm, unsteady: a.h.unsteady, flags: a.h.flags, trimIterations: iterations };
 }
 /** The declared sweep: from the first collective up, until C_T passes `sweepBeyond` times the largest C_T needed or the last collective. */
 function sweep(base: VehicleManifest, rotor: HarringtonRotor, kind: 'coaxial' | 'single', wakes: 'all' | 'off', tipSpeedFps: number, ctNeeded: number, dragScale: number): ModelPoint[] {
@@ -256,7 +263,8 @@ function sweep(base: VehicleManifest, rotor: HarringtonRotor, kind: 'coaxial' | 
   for (let deg = from; deg <= to + 1e-9; deg += step) {
     const p = point(base, rotor, kind, wakes, omega, deg, dragScale);
     out.push(p);
-    if (p.ct > HARRINGTON_METHOD.sweepBeyond * ctNeeded) break;
+    // An unsteady point does not end the sweep (2026-11-10).
+    if (p.steady && p.ct > HARRINGTON_METHOD.sweepBeyond * ctNeeded) break;
   }
   return out;
 }
@@ -334,8 +342,8 @@ describe.skipIf(process.env.MIRAGE_HARRINGTON !== '1')('NACA TN 2318 against the
         const used = rows.filter(r => r.modelKappa !== null);
         const measured = mean(used.map(r => r.kappa)), model = mean(used.map(r => r.modelKappa ?? NaN));
         const standardError = measured * Math.sqrt(coaxialFit.rmsRelative ** 2 / coaxialPoints.length + singleFit.rmsRelative ** 2 / singleFit.points);
-        // The model's induced share, each curve less its C_Q at zero thrust (the sweep's first point, collective 0).
-        const q0 = (s: readonly ModelPoint[]) => s[0]?.cq ?? NaN;
+        // The model's induced share, each curve less its C_Q at zero thrust (the sweep's first point, collective 0), when that point is steady.
+        const q0 = (s: readonly ModelPoint[]) => (s[0]?.steady === true ? s[0].cq : NaN);
         const modelInduced = mean(used.map(r => ((r.modelCoaxialCq ?? NaN) - q0(coaxial)) / (2 * ((r.modelSingleCq ?? NaN) - q0(single)))));
         return { id: c.id, rotor: c.rotor, tipSpeedFps: c.tipSpeedFps, coaxial: c.coaxial, single: c.single, points: rows.length, used: used.length,
           coaxialFit, singleFit, measuredMean: measured, modelMean: model, modelWakesOffMean: mean(used.map(r => r.modelKappaWakesOff ?? NaN)),

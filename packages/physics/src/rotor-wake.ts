@@ -1,7 +1,9 @@
-// Rotor wakes (TASK-101): what one rotor's slipstream does to another rotor and to the airframe, one way and with no swirl.
+// Rotor wakes (TASK-101): what one rotor's slipstream does to another rotor and to the airframe, with no swirl.
 // It generalizes the coaxial reference of native/bet/src/coaxial.rs to any pair, climb and transverse flow: a straight top-hat
-// tube from the actuator disk's far wake, spreading by entrainment. A synthetic model, not measured. Numbers from a rotor's
-// last step reach the others on this one, which is the one-step lag; nothing flows back upstream, so the pairs need no order.
+// tube from the actuator disk's far wake, spreading by entrainment. Upstream of its disk a rotor's induced field reaches the
+// rotors above it (2026-11-10): the field of the semi-infinite vortex cylinder its rim sheds, averaged over each receiver's disk
+// at configuration and scaled each step by the rotor's own mean induced velocity, its inflow state, which the caller supplies. A synthetic model, not measured. Numbers from a rotor's
+// last step reach the others on this one, which is the one-step lag both ways; the pairs run sorted, so their order changes nothing.
 //
 // All of it is closed forms in a preallocated table: `step` allocates nothing.
 
@@ -32,6 +34,129 @@ for (let i = 0; i < CHORDS; i++) {
   const angle = x * Math.PI / 2;
   CHORD_SIN[i] = Math.sin(angle);
   CHORD_WEIGHT[i] = Math.PI * Math.cos(angle) / ((1 - x * x) * slope * slope);
+}
+
+// Carlson's symmetric elliptic integrals (DLMF 19.36): duplication until the arguments agree within 1e-4 of their mean, then the
+// fifth-order series, which leaves a relative error near 1e-20 (Carlson 1995). Configuration-time only.
+function carlsonRF(x0: number, y0: number, z0: number): number {
+  let x = x0, y = y0, z = z0;
+  for (let i = 0; i < 64; i++) {
+    const a = (x + y + z) / 3;
+    if (Math.max(Math.abs(a - x), Math.abs(a - y), Math.abs(a - z)) < 1e-4 * a) break;
+    const sx = Math.sqrt(x), sy = Math.sqrt(y), sz = Math.sqrt(z), l = sx * sy + sy * sz + sz * sx;
+    x = (x + l) / 4; y = (y + l) / 4; z = (z + l) / 4;
+  }
+  const a = (x + y + z) / 3, dx = 1 - x / a, dy = 1 - y / a, dz = -(dx + dy), e2 = dx * dy - dz * dz, e3 = dx * dy * dz;
+  return (1 - e2 / 10 + e3 / 14 + e2 * e2 / 24 - 3 * e2 * e3 / 44) / Math.sqrt(a);
+}
+function carlsonRD(x0: number, y0: number, z0: number): number {
+  let x = x0, y = y0, z = z0, sum = 0, factor = 1;
+  for (let i = 0; i < 64; i++) {
+    const a = (x + y + 3 * z) / 5;
+    if (Math.max(Math.abs(a - x), Math.abs(a - y), Math.abs(a - z)) < 1e-4 * a) break;
+    const sx = Math.sqrt(x), sy = Math.sqrt(y), sz = Math.sqrt(z), l = sx * sy + sy * sz + sz * sx;
+    sum += factor / (sz * (z + l)); factor /= 4;
+    x = (x + l) / 4; y = (y + l) / 4; z = (z + l) / 4;
+  }
+  const a = (x + y + 3 * z) / 5, dx = 1 - x / a, dy = 1 - y / a, dz = -(dx + dy) / 3;
+  const e2 = dx * dy - 6 * dz * dz, e3 = (3 * dx * dy - 8 * dz * dz) * dz, e4 = 3 * (dx * dy - dz * dz) * dz * dz, e5 = dx * dy * dz * dz * dz;
+  return 3 * sum + factor * (1 - 3 * e2 / 14 + e3 / 6 + 9 * e2 * e2 / 88 - 3 * e4 / 22 - 9 * e2 * e3 / 52 + 3 * e5 / 26) / (a * Math.sqrt(a));
+}
+function carlsonRJ(x0: number, y0: number, z0: number, p0: number): number {
+  let x = x0, y = y0, z = z0, p = p0, sum = 0, factor = 1;
+  for (let i = 0; i < 64; i++) {
+    const a = (x + y + z + 2 * p) / 5;
+    if (Math.max(Math.abs(a - x), Math.abs(a - y), Math.abs(a - z), Math.abs(a - p)) < 1e-4 * a) break;
+    const sx = Math.sqrt(x), sy = Math.sqrt(y), sz = Math.sqrt(z), l = sx * sy + sy * sz + sz * sx;
+    const alpha = (p * (sx + sy + sz) + sx * sy * sz) ** 2, beta = p * (p + l) ** 2;
+    sum += factor * carlsonRF(alpha, beta, beta); factor /= 4; // R_C(alpha, beta) = R_F(alpha, beta, beta)
+    x = (x + l) / 4; y = (y + l) / 4; z = (z + l) / 4; p = (p + l) / 4;
+  }
+  const a = (x + y + z + 2 * p) / 5, dx = 1 - x / a, dy = 1 - y / a, dz = 1 - z / a, dp = -(dx + dy + dz) / 2;
+  const e2 = dx * dy + dx * dz + dy * dz - 3 * dp * dp, e3 = dx * dy * dz + 2 * e2 * dp + 4 * dp * dp * dp;
+  const e4 = (2 * dx * dy * dz + e2 * dp + 3 * dp * dp * dp) * dp, e5 = dx * dy * dz * dp * dp;
+  return 3 * sum + factor * (1 - 3 * e2 / 14 + e3 / 6 + 9 * e2 * e2 / 88 - 3 * e4 / 22 - 9 * e2 * e3 / 52 + 3 * e5 / 26) / (a * Math.sqrt(a));
+}
+
+/**
+ * The velocity a uniformly loaded disk of radius `radiusM` induces through the semi-infinite vortex cylinder its rim sheds, per
+ * unit of its induced velocity v (tangential vorticity 2 v): `out[0]` radial (outward from the cylinder's axis), `out[1]` along the
+ * axis downstream. `radialM` is the distance from the axis and `alongM` the distance from the disk along the cylinder, negative
+ * upstream. On the axis `1 + z/sqrt(z^2 + R^2)`, which is `1 - h/sqrt(h^2 + R^2)` at a height h upstream; off it Branlard and Gaunaa
+ * (Wind Energy 18, 2015, equations 7 and 8) with K, E and Pi from Carlson's forms. Not on the sheet itself. Configuration-time code.
+ */
+export function vortexCylinderVelocity(radiusM: number, radialM: number, alongM: number, out: Float64Array): Float64Array {
+  const R = radiusM, r = radialM, z = alongM;
+  if (r < 1e-12 * R) { out[0] = 0; out[1] = 1 + z / Math.sqrt(z * z + R * R); return out; }
+  const m = 4 * r * R / ((R + r) * (R + r) + z * z), k = Math.sqrt(m), q = 1 - m;
+  const K = carlsonRF(0, q, 1), E = K - m / 3 * carlsonRD(0, q, 1);
+  out[0] = -(1 / Math.PI) * Math.sqrt(R / r) * ((2 - m) / k * K - 2 / k * E);
+  // On the cylinder's radius, the step term is a half and the third-kind term's factor R - r vanishes, its limit included.
+  const onRim = Math.abs(R - r) <= 1e-12 * R;
+  let third = 0;
+  if (!onRim) {
+    const n = 4 * r * R / ((R + r) * (R + r));
+    third = (R - r) / (R + r) * (K + n / 3 * carlsonRJ(0, q, 1, 1 - n));
+  }
+  out[1] = (onRim ? 0.5 : r < R ? 1 : 0) + z * k / (2 * Math.PI * Math.sqrt(r * R)) * (K + third);
+  return out;
+}
+
+/** Gauss-Legendre nodes and weights on [-1, 1]. Configuration-time code. */
+function gaussLegendre(n: number): { nodes: Float64Array; weights: Float64Array } {
+  const nodes = new Float64Array(n), weights = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let x = Math.cos(Math.PI * (i + 0.75) / (n + 0.5)), slope = 1;
+    for (let iteration = 0; iteration < 100; iteration++) {
+      let previous = 1, value = x;
+      for (let j = 2; j <= n; j++) { const next = ((2 * j - 1) * x * value - (j - 1) * previous) / j; previous = value; value = next; }
+      slope = n * (x * value - previous) / (x * x - 1);
+      const change = value / slope;
+      x -= change;
+      if (Math.abs(change) < 1e-16) break;
+    }
+    nodes[i] = x; weights[i] = 2 / ((1 - x * x) * slope * slope);
+  }
+  return { nodes, weights };
+}
+/** Samples of a receiver's disk for the upstream field: Gauss-Legendre radii and equally spaced azimuths. */
+export const UPSTREAM_RADII = 32;
+export const UPSTREAM_AZIMUTHS = 64;
+
+/**
+ * The area-averaged velocity the source's vortex cylinder induces on the receiver's disk, per unit of the source's induced velocity,
+ * in the receiver's hub axes (`out`, 3 values). Only the disk's samples upstream of the source's disk plane count. Configuration-time.
+ */
+export function upstreamAverage(geometry: RotorWakeGeometry, source: number, receiver: number, out: Float64Array): Float64Array {
+  const r = geometry.hubToBody, p = geometry.hubPositionsBodyM, a = source * 9, b = receiver * 9;
+  const R = geometry.radiiM[source]!, radius = geometry.radiiM[receiver]!, { nodes, weights } = gaussLegendre(UPSTREAM_RADII);
+  const field = new Float64Array(2);
+  let bx = 0, by = 0, bz = 0;
+  for (let i = 0; i < UPSTREAM_RADII; i++) {
+    const rho = radius * (nodes[i]! + 1) / 2, weight = weights[i]! / 2 * radius * rho * (2 * Math.PI / UPSTREAM_AZIMUTHS);
+    for (let k = 0; k < UPSTREAM_AZIMUTHS; k++) {
+      const phi = 2 * Math.PI * (k + 0.5) / UPSTREAM_AZIMUTHS, c = rho * Math.cos(phi), s = rho * Math.sin(phi);
+      // The sample in body axes, from the source's hub, then in the source's hub axes.
+      const dx = p[receiver * 3]! + c * r[b]! + s * r[b + 1]! - p[source * 3]!;
+      const dy = p[receiver * 3 + 1]! + c * r[b + 3]! + s * r[b + 4]! - p[source * 3 + 1]!;
+      const dz = p[receiver * 3 + 2]! + c * r[b + 6]! + s * r[b + 7]! - p[source * 3 + 2]!;
+      const x = r[a]! * dx + r[a + 3]! * dy + r[a + 6]! * dz, y = r[a + 1]! * dx + r[a + 4]! * dy + r[a + 7]! * dz;
+      const height = r[a + 2]! * dx + r[a + 5]! * dy + r[a + 8]! * dz;
+      if (!(height > 0)) continue;
+      const radial = Math.sqrt(x * x + y * y);
+      vortexCylinderVelocity(R, radial, -height, field);
+      const ur = radial > 0 ? field[0]! * weight / radial : 0, down = field[1]! * weight;
+      // Radial outward in the source's plane, and downstream along minus its thrust axis, into body axes.
+      bx += ur * (x * r[a]! + y * r[a + 1]!) - down * r[a + 2]!;
+      by += ur * (x * r[a + 3]! + y * r[a + 4]!) - down * r[a + 5]!;
+      bz += ur * (x * r[a + 6]! + y * r[a + 7]!) - down * r[a + 8]!;
+    }
+  }
+  const area = Math.PI * radius * radius;
+  out[0] = (r[b]! * bx + r[b + 3]! * by + r[b + 6]! * bz) / area;
+  out[1] = (r[b + 1]! * bx + r[b + 4]! * by + r[b + 7]! * bz) / area;
+  out[2] = (r[b + 2]! * bx + r[b + 5]! * by + r[b + 8]! * bz) / area;
+  return out;
 }
 
 /** The speed e >= 0 with `e sqrt(across^2 + (axial + e)^2) = load`: Glauert's momentum balance. `axial` >= 0. Newton from above, on a convex function. */
@@ -79,6 +204,11 @@ export interface RotorWakeConfiguration {
   readonly spreadSlope?: number;
   /** C_D A of the airframe in each rotor's wake, m². Without it there is no download. */
   readonly washedDragAreaM2?: readonly number[];
+  /**
+   * A rotor's induced field upstream of its disk on the rotors there (default true): every ordered pair with `all`, each listed pair
+   * reversed otherwise. `false` leaves the coupler without it, as it was before 2026-11-10.
+   */
+  readonly upstream?: boolean;
 }
 
 /** Descent over the induced velocity where the vortex ring state begins (Johnson, NASA TP-2005-213477, table 4: his D). */
@@ -93,6 +223,11 @@ export class RotorWakeCoupler {
   readonly airHubMps: Float64Array;
   readonly densityKgM3: Float64Array;
   readonly thrustN: Float64Array;
+  /**
+   * Input: each rotor's own mean induced velocity, m/s, from its last step (interface v2 `induced_axial`, the Pitt-Peters mean
+   * state with dynamic inflow): the strength of the field it induces upstream. Zero or below gives none.
+   */
+  readonly inducedAxialMps: Float64Array;
   /** Outputs: the area-averaged velocity each rotor receives, hub axes, m/s, and the download its own wake puts on the airframe, N. */
   readonly wakeHubMps: Float64Array;
   readonly downloadN: Float64Array;
@@ -117,6 +252,11 @@ export class RotorWakeCoupler {
   private readonly carried: Float64Array;
   /** The induced velocity at the disk, m/s, from the actuator-disk balance: half the far wake's excess speed. */
   readonly inducedMps: Float64Array;
+  /** Upstream pairs, sorted by source then receiver, and each one's area-averaged velocity per unit induced velocity, receiver hub axes, m/s per m/s. */
+  readonly upstreamPairCount: number;
+  readonly upstreamSources: Uint8Array;
+  readonly upstreamReceivers: Uint8Array;
+  readonly upstreamPerInducedVelocity: Float64Array;
 
   constructor(geometry: RotorWakeGeometry, configuration: RotorWakeConfiguration) {
     const n = geometry.radiiM.length;
@@ -143,12 +283,24 @@ export class RotorWakeCoupler {
     const count = listed.length, r = geometry.hubToBody, p = geometry.hubPositionsBodyM;
     this.rotorCount = n; this.pairCount = count; this.radii = Float64Array.from(geometry.radiiM); this.spread = spread;
     this.washed = washed ? Float64Array.from(washed) : new Float64Array(n);
-    this.airHubMps = new Float64Array(3 * n); this.densityKgM3 = new Float64Array(n); this.thrustN = new Float64Array(n);
+    this.airHubMps = new Float64Array(3 * n); this.densityKgM3 = new Float64Array(n); this.thrustN = new Float64Array(n); this.inducedAxialMps = new Float64Array(n);
     this.wakeHubMps = new Float64Array(3 * n); this.downloadN = new Float64Array(n);
     this.sources = new Uint8Array(count); this.receivers = new Uint8Array(count);
     this.offsets = new Float64Array(3 * count); this.normals = new Float64Array(3 * count); this.axes = new Float64Array(3 * count);
     this.active = new Uint8Array(n); this.directions = new Float64Array(3 * n); this.launchRadii = new Float64Array(n);
     this.axial = new Float64Array(n); this.across = new Float64Array(n); this.carried = new Float64Array(n); this.inducedMps = new Float64Array(n);
+    // Upstream: the pairs reversed (every ordered pair for `all`), sorted, each kept only where the field reaches the receiver.
+    const reversed: [number, number][] = configuration.upstream === false ? [] : listed.map(([i, j]) => [j, i]);
+    reversed.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const kept: { source: number; receiver: number; g: Float64Array }[] = [];
+    for (const [source, receiver] of reversed) {
+      const g = upstreamAverage(geometry, source, receiver, new Float64Array(3));
+      if (g[0] !== 0 || g[1] !== 0 || g[2] !== 0) kept.push({ source, receiver, g });
+    }
+    this.upstreamPairCount = kept.length;
+    this.upstreamSources = Uint8Array.from(kept, item => item.source); this.upstreamReceivers = Uint8Array.from(kept, item => item.receiver);
+    this.upstreamPerInducedVelocity = new Float64Array(3 * kept.length);
+    kept.forEach((item, k) => this.upstreamPerInducedVelocity.set(item.g, 3 * k));
     listed.forEach(([i, j], k) => {
       const a = i * 9, b = j * 9, dx = p[j * 3]! - p[i * 3]!, dy = p[j * 3 + 1]! - p[i * 3 + 1]!, dz = p[j * 3 + 2]! - p[i * 3 + 2]!;
       this.sources[k] = i; this.receivers[k] = j;
@@ -229,10 +381,21 @@ export class RotorWakeCoupler {
       wake[3 * j + 1] = wake[3 * j + 1]! - speed * axes[a + 1]!;
       wake[3 * j + 2] = wake[3 * j + 2]! - speed * axes[a + 2]!;
     }
+    // Upstream: the source's cylinder exists while its wake leaves below it, scaled by its own mean induced velocity. Not the momentum
+    // v of its last thrust: thrust answers its inflow within a step, so that closed a coaxial pair into an undamped alternating loop.
+    const perVelocity = this.upstreamPerInducedVelocity, strength = this.inducedAxialMps;
+    for (let k = 0; k < this.upstreamPairCount; k++) {
+      const i = this.upstreamSources[k]!, v = strength[i]!;
+      if (this.active[i] === 0 || !(v > 0)) continue;
+      const j = this.upstreamReceivers[k]!, a = 3 * k;
+      wake[3 * j] = wake[3 * j]! + v * perVelocity[a]!;
+      wake[3 * j + 1] = wake[3 * j + 1]! + v * perVelocity[a + 1]!;
+      wake[3 * j + 2] = wake[3 * j + 2]! + v * perVelocity[a + 2]!;
+    }
   }
 
   reset(): void {
-    this.airHubMps.fill(0); this.densityKgM3.fill(0); this.thrustN.fill(0); this.wakeHubMps.fill(0); this.downloadN.fill(0); this.inducedMps.fill(0);
+    this.airHubMps.fill(0); this.densityKgM3.fill(0); this.thrustN.fill(0); this.inducedAxialMps.fill(0); this.wakeHubMps.fill(0); this.downloadN.fill(0); this.inducedMps.fill(0);
     this.active.fill(0); this.outsideValidity = false;
   }
 }

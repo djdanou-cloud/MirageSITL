@@ -26,8 +26,8 @@ import { readFirstSheet } from './support/xlsx.ts';
 //    speed from the largest RPM column, keeps wind-off points only at the housekeeping condition, and the scatter is the RMS of
 //    each run over the mean of the runs sharing a condition;
 //  - with MIRAGE_MTB2_DIR set, every downloaded file is checked by SHA-256, the rotor positions rotate with the model pitch as
-//    the workbook gives them except in the six rows the specification names, the model's front rotor is unchanged by the wakes,
-//    and each tandem condition is compared with the model; MIRAGE_MTB2_OUT writes the report. The comparison is shown (SA-01),
+//    the workbook gives them except in the six rows the specification names, the model's front rotor was unchanged by the wakes
+//    until the upstream field of 2026-11-10 (its ratio is now shown), and each tandem condition is compared with the model; MIRAGE_MTB2_OUT writes the report. The comparison is shown (SA-01),
 //    whatever its outcome.
 
 const HEADER = ['Run', 'Point', ...[1, 2, 3, 4].flatMap(n => [`Fx${n}_H`, `Fy${n}_H`, `Fz${n}_H`, `Mx${n}_H`, `My${n}_H`, `Mz${n}_H`, `RPM_${n}`, `Phase_${n}`]),
@@ -279,9 +279,9 @@ describe.skipIf(!present)('NASA MTB2 against the rotor wakes (TASK-101)', () => 
         const manifest = manifestFor(configuration.positions, m.condition.tiltDeg, deltaDeg), air = airOf(m.tandem);
         const on = heldThrust(manifest, 'all', air, m.condition.pitchDeg, m.condition.rpm), off = heldThrust(manifest, 'off', air, m.condition.pitchDeg, m.condition.rpm);
         expect(Math.max(on.speedError, off.speedError), `${configuration.id} ${m.key}`).toBeLessThan(SPEED_TOLERANCE);
-        // Nothing flows upstream: the model's front rotor gives the same thrust with the wakes on, to the governor's hold of its speed
-        // (the rotors share one battery bus, so the rear rotor's load moves the front one's duty).
-        expect(Math.abs(on.thrustN[0]! / off.thrustN[0]! - 1), `${configuration.id} ${m.key}`).toBeLessThan(1e-5);
+        // Since 2026-11-10 the rear rotor's field reaches a front rotor upstream of its disk, so the front rotor's ratio (rFront) is
+        // shown, no longer checked to be 1.
+        expect(Number.isFinite(on.thrustN[0]! / off.thrustN[0]!), `${configuration.id} ${m.key}`).toBe(true);
         const r = on.thrustN[1]! / off.thrustN[1]!, c = corrected.get(m.key);
         if (!c) throw new Error(`No corrected value at ${m.key}`);
         const shown = (x: Mtb2Measured): Shown => ({ ...x, within: withinMeasured(r, x.r, x.rc, scatter[x.basis].rms) });

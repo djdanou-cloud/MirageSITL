@@ -1471,12 +1471,225 @@ comes off the hub's force, the free stream's own part being the airframe drag's.
 comes from the manifest's hull at configuration, inside the contracted hover radius
 `R/sqrt(2)`, for shapes not above the disk: an arm's width times its length inside, with
 C_D 1.2, and a body's plan area inside, with C_D 1.17, the numbers of TASK-096. In hover
-`F/T = C_D A / A_disk`. Not modeled, and listed as limitations: swirl, a lower rotor's
-effect on its upper rotor, and transport delay.
+`F/T = C_D A / A_disk`. Not modeled, and listed as limitations: swirl and transport delay. A
+lower rotor's effect on its upper rotor is modeled since 2026-11-10 ("Upstream influence" below).
 
 `buildProfileDynamics` takes the option `rotorWake`: `all` by default, every ordered pair,
 because a wake's reach depends on the flight; `declared`, the manifest's `rotorWakePairs`;
 `off`, none. TASK-177's thrust at full command runs the same coupling.
+
+Upstream influence (TASK-101, 2026-11-10), declared before implementation. The design above lets
+nothing flow upstream, and the coaxial comparison with NACA TN 2318 below left the model's induced
+share at 1.29 to 1.32 where the measurements reach 1.39 to 1.40. A lower rotor's effect on its upper
+rotor is the first effect that design leaves out; it is added here from a closed form, without any
+measured coaxial value. Swirl and transport delay stay out.
+
+The form. An actuator disk of uniform loading sheds from its rim a semi-infinite cylinder of
+tangential vorticity gamma = 2 v, v its induced velocity, whose field is the classical vortex cylinder
+(the solenoid of magnetostatics). On its axis, at a height h upstream of the disk,
+
+```text
+w(h) = v (1 - h / sqrt(h^2 + R^2))
+```
+
+which is v at the disk and falls as v R^2/(2 h^2) far upstream. Off the axis the field has the closed
+form of Branlard and Gaunaa (Cylindrical vortex wake model: right cylinder, Wind Energy 18, 2015,
+1973-1987, equations 7 and 8; also E. Branlard, Wind Turbine Aerodynamics and Vorticity-Based Methods,
+Springer, 2017), with the complete elliptic integrals K, E and Pi of parameter k^2 and characteristic
+k0^2:
+
+```text
+k^2 = 4 r R / ((R + r)^2 + z^2),  k0^2 = 4 r R / (R + r)^2
+u_r = -(gamma / (2 pi)) sqrt(R / r) ((2 - k^2) / k K(k^2) - (2 / k) E(k^2))
+u_z = (gamma / 2) (T + z k / (2 pi sqrt(r R)) (K(k^2) + (R - r) / (R + r) Pi(k0^2, k^2)))
+```
+
+with z along the cylinder from the disk downstream (upstream is z = -h), r from its axis, and T = 1
+inside r < R, 1/2 at r = R and 0 outside. On the axis, u_r = 0 and u_z is w above. The integrals come
+from Carlson's symmetric forms R_F, R_D and R_J (DLMF 19.25 and 19.36). These formulas were read from
+the first author's published code (repository `ebranlard/wiz`, `VortexCylinder.py`, which cites those
+equations), not from the paper or a textbook, which were not at hand; so they are checked against a
+direct Biot-Savart quadrature of the vortex sheet that takes nothing from the source. A prototype of
+both agreed within 2e-13 v at 11 points.
+
+What a receiver takes. For each ordered pair, source i and receiver j, at configuration: the
+receiver's disk is sampled at 32 Gauss-Legendre radii and 64 azimuths; each sample upstream of the
+source's disk plane (its height above that plane, along the source's thrust axis, above zero) takes the
+field of the source's cylinder per unit v, radial and axial; the area average is turned into the
+receiver's hub axes and stored as a vector G_ij. Samples at or below the source's disk plane take
+nothing: there the source's tube is the model. A pair whose G is zero is dropped. On each step, while the
+source's wake leaves below it (the condition under which its tube is built), the receiver adds
+v_i G_ij to `external_wake_hub` together with the downstream wakes, once. The area average replaces the
+on-axis value times an overlap, which would overstate the coupling: for two equal coaxial disks 0.19 R
+apart the prototype's average is 0.668 v where the axis has 0.813 v.
+
+Which pairs. With `pairs` `all`, every ordered pair; with a list of pairs (source, receiver), each one
+reversed, so a declared pair's downstream rotor reaches its upstream rotor. `RotorWakeConfiguration`
+gets `upstream`, true by default; `false` skips the new loop and leaves the coupler as it was. The
+profile option `rotorWake` keeps its three values: `all` and `declared` include the upstream field,
+`off` has no wakes at all.
+
+Coupling and lag. The upstream field takes the source's v from its last thrust and this step's air, as
+the tube does: a lag of one step both ways. A coaxial pair is now a loop, the upper rotor's wake slowing
+the lower rotor and the lower rotor's field slowing the upper one, iterated once per step; it settles
+where the product of the two sensitivities is below 1, which the steady hovers below check. What a
+receiver takes upstream is part of its air, so its own v, tube and download follow from it, as they
+already do from a received wake. Pairs run sorted, so their order changes nothing.
+
+Forward flight. The cylinder lies along the source's thrust axis at every speed, which is the geometry
+of axial flight. In edgewise flight the real wake is swept back; the model keeps the axial cylinder,
+whose strength falls with v as Glauert's v falls with the transverse speed. The error of that geometry
+in edgewise flight is not quantified; it is stated as a limitation, and no fade or factor is added. A
+receiver in the source's disk plane, as on a flat multirotor, takes nothing, bitwise as before.
+
+Tolerances, declared before implementation. The field: against the Biot-Savart quadrature (nested
+Gauss-Legendre along the cylinder and trapezoids around it, refined until it changes by under 1e-12 v)
+at 11 points upstream and downstream, inside, outside and near the rim, within 1e-10 v in each
+component; the elliptic branch at r = 1e-6 R against w(h) within 1e-9 v. The average: the coupler's
+G_ij for coaxial, offset and smaller receivers at heights of at least 0.05 R within 1e-7 v of a
+400 x 800 point average of the same field; a coaxial receiver of radius 1e-4 R within 1e-8 relative of
+w(h). A step: the upstream velocity is v_i G_ij, linear in v and bitwise the stored product; it is
+bitwise zero without thrust, when no wake leaves below the source, and for a receiver wholly at or below
+the source's plane; the flat quad flies bitwise as without it. The ideal coaxial pair at equal thrust in
+hover (top hat, no spreading, 0.25 R apart): the coupler iterated to convergence gives the induced power
+factor of an independent scalar fixed point of the same equations, with the same G, within 1e-9; it is
+shown beside 1.309 (without the upstream field), momentum theory's 1.2818 and Cameron's measured 1.334,
+without a limit (SA-01). The tube's momentum and energy checks stay as they are, since the tube does not
+change. `upstream: false`, `off` and a configuration without wakes: the existing tests, unchanged.
+Pair order: 'all' against an explicit, shuffled list of every pair, and the declared pairs in reverse,
+bitwise. The five S19 configurations hold a steady hover within the existing limits. G1: the graph
+`rotor-wake-esc-drive-pad-four-rotor`, whose rotor 1 sits under rotor 0, also requires rotor 0 to
+receive the upstream field, and keeps 0 GC events and 0 bytes per step over 1,000,000 steps.
+
+Comparisons. Harrington's two variants and MTB2 run again as declared, with the same bands and
+intervals and nothing changed for them; the second variant's single-rotor fits see no pair, so its
+s_D is expected bitwise unchanged. Every test that pins a number the wakes move runs again, and each
+number that moves is recorded with its reason; no limit is loosened.
+
+Correction to the design, before any comparison was computed (2026-11-10). The declared re-run of
+the tests that pin numbers found, in `tests/bus-coupling.test.ts`, that the octa-coaxial-16 at full
+duty, its pack at the 125 A limit, no longer settles: the upper rotors' thrust alternates tick by tick
+by 0.0145 N of 8.69 N (0.17 %), and the pack current between 125.000 and 124.999 A, beyond that test's
+5e-4 A. Below the limit (duty 0.6, or the limit raised) the same configuration settles to 1e-7 N per
+tick, and without the upstream field it settles at the limit too. The cause is the strength taken from
+the momentum v of the source's last thrust: a rotor's thrust answers within one step to the inflow it
+receives, so the two rotors of a coaxial pair form a loop with no lag but the coupler's one step, and
+its alternating mode is not damped at that operating point. The cylinder's strength is therefore the
+source rotor's own mean induced velocity, which interface v2 reports as `induced_axial` (output byte
+96): with dynamic inflow (TASK-098) the Pitt-Peters mean state, whose target is the same Glauert v and
+which follows it with the uniform mode's time constant, the lag the wake has in that model. A value of
+zero or below gives no field. With it the same run settles, 3e-8 N per tick at the limit. A rotor flown
+from a table (TASK-103) reports the hover momentum value of its thrust, with no lag; that is stated as a
+limitation. The coupler takes it in the new input `inducedAxialMps`, which `BetFlightDynamics` and the
+thrust at full command fill from each rotor's output; the tube keeps the momentum v. The rest of the
+declaration and its tolerances stay; in the step check the upstream velocity is `inducedAxialMps_i
+G_ij`, and the ideal coaxial pair feeds its momentum v there, so its fixed point is the same.
+
+Corrections to the comparisons' own checks, before any of their results (2026-11-10). (1) Harrington.
+The first run with the upstream field stopped at rotor 2's coaxial pair at 392 ft/s and 0.5°
+collective, whose summed thrust changed by 4.9 % between the halves of its averaged second. A trace
+over the 10 s run shows both rotors swinging with periods near 1.5 s, the upper one between -99 and
+244 N and the lower one between -364 and 360 N, and so at 1°, while at 3° the pair settles within
+1.4e-6. Near zero collective the pair has no steady state in the model: the upstream field slows the
+upper rotor, its weaker wake lets the lower rotor's induced velocity rise, and that slows the upper
+rotor further; with no stream through it the lower rotor's v grows as the square root of its thrust,
+so the gain of this loop has no bound as the thrust goes to zero. Fixed-pitch multirotors do not reach
+that regime: the coaxial x8 and the 16-rotor octa hold steady at every duty from 0.02 to 0.3 (their
+thrust coefficient hardly changes with RPM). The comparison's rule changes, not the model: a sweep
+point that fails the steadiness check is recorded with its change and marked unsteady instead of
+failing the test, it does not end a sweep, and no interpolation uses it, so a measured C_T is read only
+between two consecutive steady sweep points and is outside the model's range otherwise. A coaxial
+point whose yaw trim meets an unsteady run is unsteady. The model's induced share uses the
+collective-0 point only when it is steady. (2) MTB2. Its check that the model's front rotor gives the
+same thrust with the wakes on, within 1e-5, stated the old design, in which nothing flows upstream.
+With the upstream field a front rotor upstream of the rear rotor's disk feels it (0.54 % in the first
+condition, equal height, tilt -3°). The check is removed, and the front rotor's ratio, already in the
+report as `rFront`, is shown with the results.
+
+Result (2026-11-10, Apple M5, macOS 27.2, Node 24; `npx --no-install vitest run tests/rotor-interference.test.ts`
+32 passed, 5 of them new). The field against the Biot-Savart quadrature: all 11 points within 1e-10 v,
+and the quadrature itself within 1e-12 v between 600 and 1200 nodes; the elliptic branch at
+r = 1e-6 R within 1e-9 v of w(h) at seven heights. The averages: coaxial (h 0.05, 0.19 and 0.5 R),
+offset (1.5 R at 0.3 R), smaller (0.5 R at 0.8 R by 0.3 R) and tilted (20° at 0.5 R) receivers within
+1e-7 v of the 400 x 800 average; two equal coaxial disks 0.19 R apart take 0.6675 v (the axis 0.8133 v);
+a coaxial receiver of radius 1e-4 R within 1e-8 of w(h). Found while testing, outside the declared
+domain: a receiver that crosses the source's plane (tilted 20° at 0.3 R) differs from the reference by
+2.4e-4, 3.3e-4 and 5.5e-4 v in its three components, since the samples stop at the plane, a cut the
+Gauss radii do not resolve; that test shows it with a bound of 1e-3 v. A step: bitwise
+`inducedAxialMps_i G_ij`, zero without thrust, with an induced velocity of zero or below, and when no
+wake leaves below the source; the flat quad has no upstream pair and flies bitwise as without wakes.
+The ideal coaxial pair 0.25 R apart: induced power factor 1.405846, against 1.309017 without the upstream
+field, equal to the scalar fixed point within 1e-9 (0.19 R apart: 1.416279); shown beside momentum
+theory's 1.2818 and Cameron's measured 1.334, without a limit. Pair order: bitwise. The five S19
+configurations hold a steady hover within the existing limits. G1 (`node scripts/check-bet-runtime.mjs
+--allocation`, exit 0): all 24 graphs 0 GC events with stable memory; `rotor-wake-esc-drive-pad-four-rotor`
+2048 bytes over 1,000,000 steps (0.002 B/step), as before the change and as the dynamic-inflow graph,
+with its new requirement that rotor 0 receives the upstream field met.
+
+Numbers the upstream field moves, through `BetFlightDynamics` (without it, on the same tree, in
+brackets). The 16-rotor example at duty 0.6: an upper rotor 6.283 N and a lower one 3.979 N, 82.10 N in
+all (6.651, 3.810, 83.69; 105.18 with the wakes off); an upper rotor now receives 1.367 m/s down through
+its disk, and its download falls to 0.1694 N (0.1796) with its induced velocity. Thrust at full command:
+coaxial x8 89.90 N (91.92; 112.77 off), 16-rotor octa 110.05 N (112.52; 138.51 off). The voltage a
+hover needs, with wakes over without: coaxial x8 1.1328 (1.1222), 16-rotor octa 1.1411 (1.1306). The
+quad, hexa and octa-x have no rotor upstream of another and do not change. The tests that pin such
+numbers (`tests/thrust-capacity.test.ts`, `tests/profile-dynamics.test.ts`, `tests/bus-coupling.test.ts`,
+`tests/delivery-effects.test.ts`, `tests/calculation-mode.test.ts`, `tests/experiment-record.test.ts`,
+`tests/experiment-compare.test.ts`, `tests/bet-runtime-graphs.test.ts`, `tests/vehicle-manifest.test.ts`,
+`tests/aircraft-profile.test.ts`, with `tests/rotor-interference.test.ts`): 263 passed in 11 files, no
+limit changed. Two assertions of `tests/rotor-interference.test.ts` stated the old design and were
+replaced: an upper rotor of a coaxial pair received nothing (now it receives the lower one's field,
+downward and less than the lower one receives, and nothing with `upstream: false`), and the limitation
+text (now "a synthetic top-hat model with an axial-flight vortex cylinder upstream of each disk").
+
+Harrington (`MIRAGE_HARRINGTON=1 … npx --no-install vitest run tests/rotor-wake-harrington.test.ts`, 4 passed in 179 s,
+report `test-results/validation/harrington-coaxial.json`). Both variants: status `NOT_REPRODUCED`,
+performance status `NOT_REPRODUCED`. The single-rotor and wakes-off sweeps are unchanged to the last
+digit, so s_D stays 2.143 (rotor 2) and 2.072 (rotor 1), and with the wakes off kappa is 1.0000.
+Unsteady and left out, as declared: the coaxial pairs of rotor 2 at 0.5° to 2° (largest change 0.23)
+and of rotor 1 at 0.5° (largest 0.035), all but rotor 2's 2° points flagged 256 (vortex ring state)
+in their swings; no compared point lost its model value (the same points are used as before). Every steady run
+held its speed and changed by at most 1.5e-5; the yaw trim needed at most 0.32°.
+
+| Interference (C_T ≥ 0.002) | Measured kappa | Band | First variant: before / after | Second variant: before / after | Induced share: measured / second variant before / after |
+| --- | --- | --- | --- | --- | --- |
+| rotor 2, 392 ft/s | 1.116 | ±0.035 | 1.198 / 1.270 (not) | 1.143 / 1.193 (REPRODUCED / not) | 1.317 / 1.321 / 1.434 |
+| rotor 2, 327 ft/s | 1.162 | ±0.036 | 1.221 / 1.304 (not) | 1.167 / 1.229 (REPRODUCED / not) | 1.393 / 1.314 / 1.429 |
+| rotor 1, 500 ft/s | 1.274 | ±0.052 | 1.235 / 1.317 (REPRODUCED) | 1.185 / 1.247 (not / REPRODUCED) | 1.396 / 1.292 / 1.390 |
+
+| Performance, model over measured C_Q (C_T ≥ 0.001) | Band | First variant: before / after | Second variant: before / after |
+| --- | --- | --- | --- |
+| rotor 2 coaxial 392 ft/s | ±0.058 | 0.740 / 0.785 | 1.032 / 1.077 (REPRODUCED / not) |
+| rotor 2 coaxial 327 ft/s | ±0.060 | 0.758 / 0.807 | 1.019 / 1.069 (REPRODUCED / not) |
+| rotor 2 single 262 and 392 ft/s | ±0.062, ±0.079 | 0.725, 0.697 unchanged | 1.002, 0.990 unchanged (fitted) |
+| rotor 1 coaxial 500 ft/s | ±0.060 | 0.735 / 0.781 | 0.949 / 0.995 (REPRODUCED) |
+| rotor 1 coaxial 450 ft/s | ±0.056 | 0.781 / 0.834 | 0.963 / 1.017 (REPRODUCED) |
+| rotor 1 coaxial 327 ft/s | ±0.062 | 0.683 / 0.728 | 0.865 / 0.910 (not) |
+| rotor 1 single 500 ft/s | ±0.080 | 0.788 unchanged | 1.000 unchanged (fitted) |
+
+MTB2 (`MIRAGE_MTB2_DIR=… npx --no-install vitest run tests/rotor-wake-mtb2.test.ts`, 4 passed, report
+`test-results/validation/mtb2-rotor-wake.json`, status `SHOWN`). The isolated fit is unchanged
+(−4.50°). Conditions inside the measured interval widened by twice the data's scatter: 100 of 151 on
+the thrust basis (96 before) and 101 on the coefficient basis (100 before); on the thrust basis the
+gains are in the tall configuration at q 1.90 psf (6 to 9) and the equal-height one at 1.90 psf (20 to 21). The rear rotors'
+ratio moves by −0.022 to +0.003. The front rotor, which nothing reached before, now reads 1.000 to 1.012
+of its thrust without wakes in the equal-height configuration (largest at q 0.48 psf) and 1.000 in the
+others, where it is not upstream of the rear disk; the data read 1.004 to 1.28.
+
+What it shows, for the stakeholder to judge (SA-01). The upstream field raises the model's induced share
+from 1.29 to 1.33 to 1.39 to 1.45, against the measured 1.32 to 1.40. On rotor 1 the gap closes: in the
+second variant its share is 1.390 against 1.396 and its kappa 1.247 against 1.274, inside its band, and
+its coaxial torque at 500 and 450 ft/s is within 0.5 % and 1.7 % of the measured one (in the first
+variant its kappa, 1.317, is inside its band too). On rotor 2 the
+model now overshoots: its share is 1.43 at both tip speeds, where the measured one is 1.317 at 392 ft/s
+and 1.393 at 327 ft/s, so kappa is 0.07 high in the second variant (0.14 to 0.15 in the first) and its
+coaxial torque 7 % high in the second. One model share cannot meet two measured ones 0.08 apart on the same rotor; rotor 2's measured
+share leans on the single fit's extrapolation to zero thrust, as said above. Rotor 1 at 327 ft/s stays
+9 % low, the tip speed with the report's scale effect. What is left, not modeled: swirl, which a
+counter-rotating lower rotor partly recovers and which would lower the coaxial torque; a contracted and
+spreading wake in place of the straight cylinder; the tunnel and the rigs' structure. And a property of
+the model found here: near zero collective the coupled pair has no steady state. Nothing was fitted to
+Harrington; the model and both variants' methods stay as declared.
 
 Measured rotor wakes: NASA MTB2 (TASK-101, 2026-11-08), declared before the model's prediction
 was computed and after a first look at the measured thrusts. The data are NASA Ames's second
@@ -1882,7 +2095,8 @@ Rotor 2's measured share at 327 ft/s leans on the single fit's extrapolation to 
 above. A finding on the way, not changed here: TASK-145's `scaledPolar` drops the rotational lift
 augmentation of the extended tables, so a rotor calibrated by TASK-145 on an extended polar flies, and
 is fitted, without it (fixed on 2026-11-09 under TASK-145). The model, the wake model and both
-variants' methods are not changed by this result.
+variants' methods are not changed by this result. Both variants ran again with the upstream field of
+2026-11-10; those results are under "Upstream influence" above.
 
 Configuration version 3 (TASK-097) adds option 8, rotational lift augmentation,
 which an extended table asks for: bytes 112 and 120 hold the f64 lift slope (1/rad)

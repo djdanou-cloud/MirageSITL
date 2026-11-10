@@ -311,7 +311,8 @@ if(!allocation){
     const nearGraph={graph:'ground-effect-esc-drive-pad-four-rotor',variant:'scalar',...await measure(nearRun,1000000),memoryStable:near.escEngine.memoryStable};
     samples.push(nearGraph);near.dispose();console.log(JSON.stringify(nearGraph));
   }
-  // TASK-101: the rotor wakes: rotor 1 under rotor 0 on one arm, so a wake reaches it at every step; every ordered pair checked.
+  // TASK-101: the rotor wakes: rotor 1 under rotor 0 on one arm, so a wake reaches it and its upstream field reaches rotor 0 at every step;
+  // every ordered pair checked.
   {
     const stacked=flightConfiguration(0,4);stacked.initialBody.positionNedM[2]=0;stacked.initialOmegaRadS=[0,0,0,0];stacked.syntheticGroundDownM=0;
     const hub=stacked.manifest.rotors[0].hubPositionBodyM;stacked.manifest.rotors[1].hubPositionBodyM=[hub[0],hub[1],hub[2]+0.05];
@@ -321,6 +322,8 @@ if(!allocation){
     washedRun(100000);await measure(washedRun,10000);
     const washedGraph={graph:'rotor-wake-esc-drive-pad-four-rotor',variant:'scalar',...await measure(washedRun,1000000),memoryStable:washed.escEngine.memoryStable};
     if(!(washed.rotorWakes.wakeHubMps[5]<-0.1)||!(washed.rotorWakes.downloadN[0]>0))throw Error('The rotor wake allocation graph has no wake');
+    // Since 2026-11-10 rotor 1's induced field also reaches rotor 0 above it, upstream of its disk.
+    if(!(washed.rotorWakes.upstreamPairCount>0)||!(washed.rotorWakes.wakeHubMps[2]<-0.1))throw Error('The rotor wake allocation graph has no upstream field');
     samples.push(washedGraph);washed.dispose();console.log(JSON.stringify(washedGraph));
   }
   // TASK-098 and TASK-099: dynamic inflow with its annular solve and the vortex ring option, in a gusty wind on the pad.
