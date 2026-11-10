@@ -8979,6 +8979,46 @@ Not done: the Main thread's power record v1 does not carry the pack temperature 
 editor takes the curve's name as text, which the card schema checks; R₀ and the branches do not depend on charge or current;
 no measured temperature exists to compare the heat balance with.
 
+### Second increment: resistance by charge, the pack temperature on the Run tab, and log 32 (declared 2026-11-10)
+
+Recorded before the implementation; the stakeholder asked on 2026-11-10 to finish the task.
+
+**Log 32.** It is the only Pavo log flown on a pack that was not recharged: log 31 ends at rest at 11.624 V having used
+202 mAh, and log 32 starts at 11.798 V and uses 162 mAh more. Every other log starts between 12.23 and 12.96 V. So log 32 alone
+reaches the middle and lower part of the open-circuit curve, which the fit on log 34, a full pack, never saw; that is where the
+fitted packs (B) and (C) miss, through their curves, and why (A) does better there. No change is made for it: the comparison
+stays as declared, and this explanation is recorded beside it. (Every log's voltage falls 0.05 to 0.12 V in the 40 s before
+arming, under the 0.2 A idle load, so a pack still recovering from the previous flight is not the cause.)
+
+**Series resistance by charge.** The contract's R₀(T, SOC): R₀(T, s) = R₀,ref·g·exp(Θ·(1/T − 1/T_ref))·m(s), with m(s) a
+21-point multiplier table at s = 0, 0.05, …, 1, interpolated linearly. For `chen-2006`, m follows the paper's eq. (3) under the
+same mapping as its curve, R_series(z) = 0.1562·e^(−24.37·z) + 0.07446, normalised to 1 at full charge:
+m(s) = R_series(z_e + (1 − z_e)·s)/R_series(1), which reaches 2.07 at s = 0 and 1.10 at s = 0.1, and is within 1e-4 of 1
+above s = 0.4. For `linear` m is 1. The curve preset carries it; no card value is added. The branches keep constant resistances
+and capacitances (the paper's eq. (4) to (7) show the same rise below s = 0.2; not modelled).
+
+Shared bus input v3 (576 bytes) is input v2 with the table at bytes 376–543 (f64[21], each > 0) and bytes 544–575 reserved
+zero; `bet_bus_v3_version` returns 3, and `bet_bus_step` and the bus solve take versions 1, 2 and 3. Output v3 is output v2.
+A manifest's `battery.dynamics.seriesResistanceTable` (21 numbers > 0, optional) selects v3; without it the pack runs v2 bit for
+bit as before.
+
+**The pack temperature on the Run tab.** Power telemetry v2 (SPECS_SHARED_MEMORY, "Power telemetry") is v1 with
+`pack_temperature` (f64, K, 0 for a pack without dynamics) at record byte 88 and the header version 2; a v1 buffer is refused.
+The module keeps its name, `power-v1.ts`. The Run tab's power panel shows the pack temperature in °C only while it is above 0 K,
+so a run without a dynamic pack shows the panel as before.
+
+**Checks, limits set before the first run.**
+
+1. A v3 record whose table is all ones equals v2 bit for bit over 4000 steps (native).
+2. R₀(T, s) against its closed form within 1e-12 relative at 30 points of T and s (native); the `chen-2006` table against
+   eq. (3) under the mapping within 1e-12 (TypeScript).
+3. Checks 1 to 7 of the first increment pass unchanged.
+4. Power telemetry v2: a round trip of every field, the temperature included, and a v1 buffer refused
+   (`tests/power-channel.test.ts`); the panel shows the temperature for a dynamic pack and no temperature without one
+   (`tests/browser/power-panel.spec.ts`, headless).
+5. G1: the TASK-104 allocation graph runs a v3 pack, 0 GC events and under 0.01 B/step over 1,000,000 steps.
+6. The logged-discharge comparison and check 9 are run again; (C) and (D) now carry m(s). Shown, not judged (SA-01).
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of

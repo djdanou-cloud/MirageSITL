@@ -1,6 +1,6 @@
 # SPECS_SHARED_MEMORY.md
 
-<!-- source-sha256: 9270156932e3b80b64568a4b7b9e9af754a0623c77725f284aeebbd222e96b2f -->
+<!-- source-sha256: 99e4e58ab2e5a344cb2a545ef3b71c65b480a002963c85513b887db6177435c1 -->
 
 Английский источник: [Source of truth](../SPECS_SHARED_MEMORY.md). Изменения спецификации обновляют оба языка в одной задаче.
 
@@ -659,7 +659,10 @@ timer callback allocations браузера. Все новые contract tests а
 в SAB и не допускает браузерный READY. Тайминги/отзыв описаны в спецификации двигателя;
 записанный Simulation-on-Hardware версии 2 не допускает fast-forward.
 
-## Телеметрия питания v1 (TASK-146)
+## Телеметрия питания (TASK-146, версия 2 с TASK-104)
+
+Версия 2 (TASK-104, объявлено 2026-11-10) добавляет `pack_temperature` в байт записи 88, который версия 1 держала в резерве,
+и отклоняет буфер версии 1; больше ничего не меняется. Модуль сохраняет имя `power-v1.ts`.
 
 Электрические величины каждого мотора и батареи передаются в собственном
 SharedArrayBuffer размером 672 байта, который создаёт Main
@@ -675,7 +678,7 @@ SharedArrayBuffer размером 672 байта, который создаёт
 | Byte Offset | Data Type | Units | Field Name |
 | ---: | --- | --- | --- |
 | 0 | u32 | magic | magic = 0x4d505752 |
-| 4 | u32 | version | version = 1 |
+| 4 | u32 | version | version = 2 |
 | 8 | u32 | bytes | header_bytes = 64 |
 | 12 | u32 | bytes | record_bytes = 608 |
 | 16 | u32 | rows | motor_capacity = 16 |
@@ -701,7 +704,7 @@ SharedArrayBuffer размером 672 байта, который создаёт
 | 64 | f64 | W | bus_power = bus_voltage · bus_current |
 | 72 | f64 | Ah | remaining_charge |
 | 80 | f64 | Ah | capacity |
-| 88..95 | u32[2] | — | reserved_zero |
+| 88 | f64 | К | pack_temperature (версия 2, TASK-104): 0 для батареи без динамики |
 | 96 + 32·i | motor_row | — | мотор i: 16 строк; строки начиная с motor_count нулевые |
 
 Строка мотора (смещения относительно её начала):

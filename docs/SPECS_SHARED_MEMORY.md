@@ -663,7 +663,10 @@ does not publish that flag into the SAB and does not admit browser READY.
 Timing and revocation
 details are in the engine specification; a version 2 Simulation-on-Hardware board cannot fast-forward.
 
-## Power telemetry v1 (TASK-146)
+## Power telemetry (TASK-146, version 2 since TASK-104)
+
+Version 2 (TASK-104, declared 2026-11-10) adds `pack_temperature` at record byte 88, which version 1 kept reserved, and
+refuses a version 1 buffer; nothing else changes. The module keeps its name, `power-v1.ts`.
 
 Per-motor and battery electrical values travel in their own 672-byte
 SharedArrayBuffer, created by Main (`createPowerChannelV1`) and handed to
@@ -677,7 +680,7 @@ drive (the demo), it publishes a record with `motor_count` 0 and zero values.
 | Byte Offset | Data Type | Units | Field Name |
 | ---: | --- | --- | --- |
 | 0 | u32 | magic | magic = 0x4d505752 |
-| 4 | u32 | version | version = 1 |
+| 4 | u32 | version | version = 2 |
 | 8 | u32 | bytes | header_bytes = 64 |
 | 12 | u32 | bytes | record_bytes = 608 |
 | 16 | u32 | rows | motor_capacity = 16 |
@@ -703,7 +706,7 @@ Record (offsets relative to byte 64):
 | 64 | f64 | W | bus_power = bus_voltage · bus_current |
 | 72 | f64 | Ah | remaining_charge |
 | 80 | f64 | Ah | capacity |
-| 88..95 | u32[2] | — | reserved_zero |
+| 88 | f64 | K | pack_temperature (version 2, TASK-104): 0 for a pack without dynamics |
 | 96 + 32·i | motor_row | — | motor i: 16 rows; rows at and beyond motor_count are zero |
 
 Motor row (offsets relative to its start):
