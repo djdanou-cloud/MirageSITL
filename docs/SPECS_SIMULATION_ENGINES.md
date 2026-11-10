@@ -1566,6 +1566,25 @@ intervals and nothing changed for them; the second variant's single-rotor fits s
 s_D is expected bitwise unchanged. Every test that pins a number the wakes move runs again, and each
 number that moves is recorded with its reason; no limit is loosened.
 
+Correction to the design, before any comparison was computed (2026-11-10). The declared re-run of
+the tests that pin numbers found, in `tests/bus-coupling.test.ts`, that the octa-coaxial-16 at full
+duty, its pack at the 125 A limit, no longer settles: the upper rotors' thrust alternates tick by tick
+by 0.0145 N of 8.69 N (0.17 %), and the pack current between 125.000 and 124.999 A, beyond that test's
+5e-4 A. Below the limit (duty 0.6, or the limit raised) the same configuration settles to 1e-7 N per
+tick, and without the upstream field it settles at the limit too. The cause is the strength taken from
+the momentum v of the source's last thrust: a rotor's thrust answers within one step to the inflow it
+receives, so the two rotors of a coaxial pair form a loop with no lag but the coupler's one step, and
+its alternating mode is not damped at that operating point. The cylinder's strength is therefore the
+source rotor's own mean induced velocity, which interface v2 reports as `induced_axial` (output byte
+96): with dynamic inflow (TASK-098) the Pitt-Peters mean state, whose target is the same Glauert v and
+which follows it with the uniform mode's time constant, the lag the wake has in that model. A value of
+zero or below gives no field. With it the same run settles, 3e-8 N per tick at the limit. A rotor flown
+from a table (TASK-103) reports the hover momentum value of its thrust, with no lag; that is stated as a
+limitation. The coupler takes it in the new input `inducedAxialMps`, which `BetFlightDynamics` and the
+thrust at full command fill from each rotor's output; the tube keeps the momentum v. The rest of the
+declaration and its tolerances stay; in the step check the upstream velocity is `inducedAxialMps_i
+G_ij`, and the ideal coaxial pair feeds its momentum v there, so its fixed point is the same.
+
 Measured rotor wakes: NASA MTB2 (TASK-101, 2026-11-08), declared before the model's prediction
 was computed and after a first look at the measured thrusts. The data are NASA Ames's second
 wind-tunnel entry of the Multirotor Test Bed (Conley et al., NASA/TM-20250004795, May 2025, a
