@@ -1,0 +1,3025 @@
+{
+  "schema": "mirage-system-soak/1",
+  "task": "TASK-082",
+  "status": "PASS",
+  "checks": {
+    "noFailure": true,
+    "duration": true,
+    "realTime": true,
+    "dropped": true,
+    "lockstep": true,
+    "recording": true,
+    "memory": true,
+    "altitude": true,
+    "charge": true
+  },
+  "criteria": {
+    "ratioTolerance": 0.005,
+    "droppedPerTenMinutes": 1,
+    "lost": 0,
+    "resent": 0,
+    "bytesPerSimHour": 2000000000,
+    "memoryBytes": 8000000000,
+    "altitudeM": 20,
+    "altitudeToleranceM": 10,
+    "climbS": 120,
+    "minimumStateOfCharge": 0.05
+  },
+  "minutes": 120,
+  "startedAt": "2026-11-10T02:58:28.060Z",
+  "finishedAt": "2026-11-10T04:59:06.150Z",
+  "chrome": "157.0.8103.39",
+  "configuration": "octa-coaxial-16",
+  "profileSha256": "e4afc80c28575c6aa18188e8e89ea2dfd9f261c47ca694efe820085043dd9975",
+  "experimentSha256": "2abecb6488da638eaa2f29979c24d6cb5ea4dcdaa58638d667da9aa4beb9ce50",
+  "physicsHz": 800,
+  "workload": {
+    "routePoints": 44,
+    "sideM": 1200,
+    "speedMps": 6,
+    "altitudeM": 20,
+    "batteryCapacityAh": 300,
+    "speed": "real time",
+    "weather": [
+      "Mean wind: 3 m/s from 270°",
+      "Synthetic gust: 1 m/s RMS, 1 Hz, seed 187"
+    ]
+  },
+  "rate": {
+    "mode": "real-time",
+    "averageRatio": 0.9999650048930703,
+    "simElapsedS": 7223.9,
+    "runningWallS": 7224.152810000062,
+    "droppedIntervals": 1,
+    "steps": 5779920,
+    "lost": 0,
+    "resent": 0,
+    "held": 0
+  },
+  "failure": null,
+  "pauses": 0,
+  "accidents": 0,
+  "endSimS": 7224.8,
+  "flight": {
+    "samples": 231,
+    "minimumAltitudeM": 19.88,
+    "maximumAltitudeM": 20.08,
+    "stateOfCharge": 0.498,
+    "taskState": "running"
+  },
+  "recording": {
+    "status": "closed",
+    "bytes": 496863752,
+    "chunks": 14365,
+    "droppedChunks": 0,
+    "droppedRows": 0,
+    "producerLost": 0,
+    "rows": {
+      "events.limit": 109,
+      "truth.position": 361255,
+      "truth.velocity": 361255,
+      "truth.attitude": 361255,
+      "truth.bodyRates": 361255,
+      "truth.acceleration": 361255,
+      "truth.specificForce": 361255,
+      "truth.air": 361255,
+      "pilot": 361255,
+      "actuators": 361255,
+      "motors.speed": 361255,
+      "motors.current": 361255,
+      "motors.busCurrent": 361255,
+      "motors.power": 361255,
+      "motors.command": 361255,
+      "battery": 361255,
+      "truth.contact": 361255,
+      "events.validity": 121484,
+      "autopilot.globalPosition": 66488,
+      "autopilot.gps": 66378,
+      "events.parameter": 39,
+      "autopilot.ekf": 57838,
+      "events.flightTask": 71837,
+      "events.contact": 1
+    }
+  },
+  "memory": {
+    "peakBytes": 3789422592,
+    "slopeBytesPerHour": {
+      "ardupilot": -786202.8708642761,
+      "chromeOther": 53840952.64645279,
+      "chromeRenderer": 741887362.673168,
+      "node": -69980577.93649673,
+      "other": -737.2888314466193,
+      "total": 724960797.2234279
+    },
+    "samples": [
+      {
+        "simS": 71.5,
+        "wall": "2026-11-10T02:59:47.587Z",
+        "bytes": {
+          "node": 1065189376,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 568344576,
+          "chromeRenderer": 840892416
+        }
+      },
+      {
+        "simS": 111.8,
+        "wall": "2026-11-10T03:00:27.882Z",
+        "bytes": {
+          "node": 742752256,
+          "other": 1622016,
+          "ardupilot": 6832128,
+          "chromeOther": 574160896,
+          "chromeRenderer": 866107392
+        }
+      },
+      {
+        "simS": 141.8,
+        "wall": "2026-11-10T03:00:57.930Z",
+        "bytes": {
+          "node": 742801408,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 575258624,
+          "chromeRenderer": 873742336
+        }
+      },
+      {
+        "simS": 171.8,
+        "wall": "2026-11-10T03:01:27.973Z",
+        "bytes": {
+          "node": 742801408,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 669401088,
+          "chromeRenderer": 885325824
+        }
+      },
+      {
+        "simS": 201.8,
+        "wall": "2026-11-10T03:01:58.022Z",
+        "bytes": {
+          "node": 573243392,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 576192512,
+          "chromeRenderer": 907214848
+        }
+      },
+      {
+        "simS": 232,
+        "wall": "2026-11-10T03:02:28.070Z",
+        "bytes": {
+          "node": 577486848,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 577470464,
+          "chromeRenderer": 914767872
+        }
+      },
+      {
+        "simS": 262,
+        "wall": "2026-11-10T03:02:58.127Z",
+        "bytes": {
+          "node": 583303168,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 578519040,
+          "chromeRenderer": 925302784
+        }
+      },
+      {
+        "simS": 292,
+        "wall": "2026-11-10T03:03:28.176Z",
+        "bytes": {
+          "node": 585482240,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 579731456,
+          "chromeRenderer": 928595968
+        }
+      },
+      {
+        "simS": 322,
+        "wall": "2026-11-10T03:03:58.225Z",
+        "bytes": {
+          "node": 587431936,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 580894720,
+          "chromeRenderer": 936361984
+        }
+      },
+      {
+        "simS": 352,
+        "wall": "2026-11-10T03:04:28.276Z",
+        "bytes": {
+          "node": 599867392,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 582467584,
+          "chromeRenderer": 944406528
+        }
+      },
+      {
+        "simS": 382.3,
+        "wall": "2026-11-10T03:04:58.326Z",
+        "bytes": {
+          "node": 601194496,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 583565312,
+          "chromeRenderer": 949370880
+        }
+      },
+      {
+        "simS": 412.3,
+        "wall": "2026-11-10T03:05:28.374Z",
+        "bytes": {
+          "node": 605978624,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 584679424,
+          "chromeRenderer": 957792256
+        }
+      },
+      {
+        "simS": 442.3,
+        "wall": "2026-11-10T03:05:58.437Z",
+        "bytes": {
+          "node": 577945600,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 585777152,
+          "chromeRenderer": 967622656
+        }
+      },
+      {
+        "simS": 472.3,
+        "wall": "2026-11-10T03:06:28.482Z",
+        "bytes": {
+          "node": 582483968,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 587005952,
+          "chromeRenderer": 975585280
+        }
+      },
+      {
+        "simS": 502.3,
+        "wall": "2026-11-10T03:06:58.552Z",
+        "bytes": {
+          "node": 579846144,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 586530816,
+          "chromeRenderer": 982712320
+        }
+      },
+      {
+        "simS": 532.5,
+        "wall": "2026-11-10T03:07:28.602Z",
+        "bytes": {
+          "node": 579993600,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 587628544,
+          "chromeRenderer": 991019008
+        }
+      },
+      {
+        "simS": 562.5,
+        "wall": "2026-11-10T03:07:58.651Z",
+        "bytes": {
+          "node": 588644352,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 588775424,
+          "chromeRenderer": 994131968
+        }
+      },
+      {
+        "simS": 592.5,
+        "wall": "2026-11-10T03:08:28.696Z",
+        "bytes": {
+          "node": 592003072,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 589971456,
+          "chromeRenderer": 1002143744
+        }
+      },
+      {
+        "simS": 622.5,
+        "wall": "2026-11-10T03:08:58.744Z",
+        "bytes": {
+          "node": 594935808,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 591134720,
+          "chromeRenderer": 1013530624
+        }
+      },
+      {
+        "simS": 652.5,
+        "wall": "2026-11-10T03:09:28.802Z",
+        "bytes": {
+          "node": 596262912,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 592117760,
+          "chromeRenderer": 1017790464
+        }
+      },
+      {
+        "simS": 682.8,
+        "wall": "2026-11-10T03:09:58.849Z",
+        "bytes": {
+          "node": 598048768,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 593231872,
+          "chromeRenderer": 1024491520
+        }
+      },
+      {
+        "simS": 722.8,
+        "wall": "2026-11-10T03:10:39.039Z",
+        "bytes": {
+          "node": 622542848,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 594984960,
+          "chromeRenderer": 1036124160
+        }
+      },
+      {
+        "simS": 753,
+        "wall": "2026-11-10T03:11:09.083Z",
+        "bytes": {
+          "node": 622575616,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 595492864,
+          "chromeRenderer": 1044135936
+        }
+      },
+      {
+        "simS": 783,
+        "wall": "2026-11-10T03:11:39.140Z",
+        "bytes": {
+          "node": 622592000,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 596639744,
+          "chromeRenderer": 1051426816
+        }
+      },
+      {
+        "simS": 813,
+        "wall": "2026-11-10T03:12:09.184Z",
+        "bytes": {
+          "node": 622460928,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 597770240,
+          "chromeRenderer": 1058340864
+        }
+      },
+      {
+        "simS": 843,
+        "wall": "2026-11-10T03:12:39.228Z",
+        "bytes": {
+          "node": 622477312,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 598917120,
+          "chromeRenderer": 1065189376
+        }
+      },
+      {
+        "simS": 873,
+        "wall": "2026-11-10T03:13:09.273Z",
+        "bytes": {
+          "node": 622477312,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 600031232,
+          "chromeRenderer": 1071562752
+        }
+      },
+      {
+        "simS": 903.2,
+        "wall": "2026-11-10T03:13:39.319Z",
+        "bytes": {
+          "node": 623099904,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 601178112,
+          "chromeRenderer": 1083260928
+        }
+      },
+      {
+        "simS": 933.2,
+        "wall": "2026-11-10T03:14:09.366Z",
+        "bytes": {
+          "node": 623149056,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 602308608,
+          "chromeRenderer": 1089929216
+        }
+      },
+      {
+        "simS": 963.2,
+        "wall": "2026-11-10T03:14:39.406Z",
+        "bytes": {
+          "node": 623198208,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 603406336,
+          "chromeRenderer": 1095663616
+        }
+      },
+      {
+        "simS": 993.2,
+        "wall": "2026-11-10T03:15:09.455Z",
+        "bytes": {
+          "node": 627163136,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 604536832,
+          "chromeRenderer": 1106034688
+        }
+      },
+      {
+        "simS": 1023.2,
+        "wall": "2026-11-10T03:15:39.503Z",
+        "bytes": {
+          "node": 674070528,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 605634560,
+          "chromeRenderer": 1109426176
+        }
+      },
+      {
+        "simS": 1053.5,
+        "wall": "2026-11-10T03:16:09.547Z",
+        "bytes": {
+          "node": 674938880,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 606765056,
+          "chromeRenderer": 1118601216
+        }
+      },
+      {
+        "simS": 1083.5,
+        "wall": "2026-11-10T03:16:39.592Z",
+        "bytes": {
+          "node": 675020800,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 607862784,
+          "chromeRenderer": 1124024320
+        }
+      },
+      {
+        "simS": 1113.5,
+        "wall": "2026-11-10T03:17:09.650Z",
+        "bytes": {
+          "node": 675332096,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 608993280,
+          "chromeRenderer": 1135427584
+        }
+      },
+      {
+        "simS": 1143.5,
+        "wall": "2026-11-10T03:17:39.696Z",
+        "bytes": {
+          "node": 675512320,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 610123776,
+          "chromeRenderer": 1143947264
+        }
+      },
+      {
+        "simS": 1173.5,
+        "wall": "2026-11-10T03:18:09.758Z",
+        "bytes": {
+          "node": 675577856,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 611172352,
+          "chromeRenderer": 1152958464
+        }
+      },
+      {
+        "simS": 1203.7,
+        "wall": "2026-11-10T03:18:39.808Z",
+        "bytes": {
+          "node": 677347328,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 612302848,
+          "chromeRenderer": 1161068544
+        }
+      },
+      {
+        "simS": 1233.7,
+        "wall": "2026-11-10T03:19:09.859Z",
+        "bytes": {
+          "node": 677412864,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 613384192,
+          "chromeRenderer": 1169604608
+        }
+      },
+      {
+        "simS": 1263.7,
+        "wall": "2026-11-10T03:19:39.902Z",
+        "bytes": {
+          "node": 677724160,
+          "other": 1622016,
+          "ardupilot": 6832128,
+          "chromeOther": 614498304,
+          "chromeRenderer": 1175224320
+        }
+      },
+      {
+        "simS": 1293.7,
+        "wall": "2026-11-10T03:20:09.952Z",
+        "bytes": {
+          "node": 678150144,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 615661568,
+          "chromeRenderer": 1180925952
+        }
+      },
+      {
+        "simS": 1334,
+        "wall": "2026-11-10T03:20:50.141Z",
+        "bytes": {
+          "node": 678215680,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 617611264,
+          "chromeRenderer": 1194557440
+        }
+      },
+      {
+        "simS": 1364,
+        "wall": "2026-11-10T03:21:20.189Z",
+        "bytes": {
+          "node": 678428672,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 618741760,
+          "chromeRenderer": 1201913856
+        }
+      },
+      {
+        "simS": 1394,
+        "wall": "2026-11-10T03:21:50.262Z",
+        "bytes": {
+          "node": 678428672,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 619888640,
+          "chromeRenderer": 1210728448
+        }
+      },
+      {
+        "simS": 1424.2,
+        "wall": "2026-11-10T03:22:20.314Z",
+        "bytes": {
+          "node": 678445056,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 620986368,
+          "chromeRenderer": 1218363392
+        }
+      },
+      {
+        "simS": 1454.2,
+        "wall": "2026-11-10T03:22:50.367Z",
+        "bytes": {
+          "node": 678494208,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 622084096,
+          "chromeRenderer": 1226915840
+        }
+      },
+      {
+        "simS": 1484.2,
+        "wall": "2026-11-10T03:23:20.413Z",
+        "bytes": {
+          "node": 678510592,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 623198208,
+          "chromeRenderer": 1237352448
+        }
+      },
+      {
+        "simS": 1514.2,
+        "wall": "2026-11-10T03:23:50.462Z",
+        "bytes": {
+          "node": 678526976,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 624345088,
+          "chromeRenderer": 1244397568
+        }
+      },
+      {
+        "simS": 1544.2,
+        "wall": "2026-11-10T03:24:20.509Z",
+        "bytes": {
+          "node": 678543360,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 625491968,
+          "chromeRenderer": 1251459072
+        }
+      },
+      {
+        "simS": 1574.5,
+        "wall": "2026-11-10T03:24:50.563Z",
+        "bytes": {
+          "node": 678559744,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 626606080,
+          "chromeRenderer": 1256538112
+        }
+      },
+      {
+        "simS": 1604.5,
+        "wall": "2026-11-10T03:25:20.614Z",
+        "bytes": {
+          "node": 679313408,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 627752960,
+          "chromeRenderer": 1265598464
+        }
+      },
+      {
+        "simS": 1634.5,
+        "wall": "2026-11-10T03:25:50.665Z",
+        "bytes": {
+          "node": 679329792,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 628899840,
+          "chromeRenderer": 1277526016
+        }
+      },
+      {
+        "simS": 1664.5,
+        "wall": "2026-11-10T03:26:20.712Z",
+        "bytes": {
+          "node": 679346176,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 629964800,
+          "chromeRenderer": 1284161536
+        }
+      },
+      {
+        "simS": 1694.5,
+        "wall": "2026-11-10T03:26:50.767Z",
+        "bytes": {
+          "node": 679591936,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 631111680,
+          "chromeRenderer": 1294008320
+        }
+      },
+      {
+        "simS": 1724.7,
+        "wall": "2026-11-10T03:27:20.814Z",
+        "bytes": {
+          "node": 679608320,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 632209408,
+          "chromeRenderer": 1303166976
+        }
+      },
+      {
+        "simS": 1754.7,
+        "wall": "2026-11-10T03:27:50.863Z",
+        "bytes": {
+          "node": 679608320,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 633339904,
+          "chromeRenderer": 1304985600
+        }
+      },
+      {
+        "simS": 1784.7,
+        "wall": "2026-11-10T03:28:20.908Z",
+        "bytes": {
+          "node": 679624704,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 634470400,
+          "chromeRenderer": 1314930688
+        }
+      },
+      {
+        "simS": 1814.7,
+        "wall": "2026-11-10T03:28:50.968Z",
+        "bytes": {
+          "node": 679673856,
+          "other": 1720320,
+          "ardupilot": 6832128,
+          "chromeOther": 635617280,
+          "chromeRenderer": 1322352640
+        }
+      },
+      {
+        "simS": 1844.7,
+        "wall": "2026-11-10T03:29:21.013Z",
+        "bytes": {
+          "node": 679690240,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 636764160,
+          "chromeRenderer": 1332822016
+        }
+      },
+      {
+        "simS": 1875,
+        "wall": "2026-11-10T03:29:51.061Z",
+        "bytes": {
+          "node": 680361984,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 637911040,
+          "chromeRenderer": 1341095936
+        }
+      },
+      {
+        "simS": 1905,
+        "wall": "2026-11-10T03:30:21.103Z",
+        "bytes": {
+          "node": 680378368,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 638976000,
+          "chromeRenderer": 1347698688
+        }
+      },
+      {
+        "simS": 1945.2,
+        "wall": "2026-11-10T03:31:01.307Z",
+        "bytes": {
+          "node": 681213952,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 641220608,
+          "chromeRenderer": 1359511552
+        }
+      },
+      {
+        "simS": 1975.2,
+        "wall": "2026-11-10T03:31:31.357Z",
+        "bytes": {
+          "node": 680476672,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 642351104,
+          "chromeRenderer": 1371799552
+        }
+      },
+      {
+        "simS": 2005.2,
+        "wall": "2026-11-10T03:32:01.400Z",
+        "bytes": {
+          "node": 680493056,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 643465216,
+          "chromeRenderer": 1374273536
+        }
+      },
+      {
+        "simS": 2035.2,
+        "wall": "2026-11-10T03:32:31.446Z",
+        "bytes": {
+          "node": 680706048,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 644546560,
+          "chromeRenderer": 1379483648
+        }
+      },
+      {
+        "simS": 2065.2,
+        "wall": "2026-11-10T03:33:01.492Z",
+        "bytes": {
+          "node": 680722432,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 645660672,
+          "chromeRenderer": 1387511808
+        }
+      },
+      {
+        "simS": 2095.2,
+        "wall": "2026-11-10T03:33:31.539Z",
+        "bytes": {
+          "node": 680738816,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 646758400,
+          "chromeRenderer": 1401487360
+        }
+      },
+      {
+        "simS": 2125.5,
+        "wall": "2026-11-10T03:34:01.599Z",
+        "bytes": {
+          "node": 680755200,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 648036352,
+          "chromeRenderer": 1404698624
+        }
+      },
+      {
+        "simS": 2155.5,
+        "wall": "2026-11-10T03:34:31.645Z",
+        "bytes": {
+          "node": 680771584,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 649183232,
+          "chromeRenderer": 1415151616
+        }
+      },
+      {
+        "simS": 2185.5,
+        "wall": "2026-11-10T03:35:01.699Z",
+        "bytes": {
+          "node": 680771584,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 650231808,
+          "chromeRenderer": 1423179776
+        }
+      },
+      {
+        "simS": 2215.5,
+        "wall": "2026-11-10T03:35:31.746Z",
+        "bytes": {
+          "node": 680787968,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 651362304,
+          "chromeRenderer": 1434845184
+        }
+      },
+      {
+        "simS": 2245.4,
+        "wall": "2026-11-10T03:36:01.795Z",
+        "bytes": {
+          "node": 680804352,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 652509184,
+          "chromeRenderer": 1442742272
+        }
+      },
+      {
+        "simS": 2275.7,
+        "wall": "2026-11-10T03:36:31.855Z",
+        "bytes": {
+          "node": 680820736,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 653606912,
+          "chromeRenderer": 1446969344
+        }
+      },
+      {
+        "simS": 2305.7,
+        "wall": "2026-11-10T03:37:01.901Z",
+        "bytes": {
+          "node": 680820736,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 654802944,
+          "chromeRenderer": 1452703744
+        }
+      },
+      {
+        "simS": 2335.7,
+        "wall": "2026-11-10T03:37:31.950Z",
+        "bytes": {
+          "node": 680820736,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 655917056,
+          "chromeRenderer": 1470021632
+        }
+      },
+      {
+        "simS": 2365.7,
+        "wall": "2026-11-10T03:38:01.995Z",
+        "bytes": {
+          "node": 680853504,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 657047552,
+          "chromeRenderer": 1472331776
+        }
+      },
+      {
+        "simS": 2396,
+        "wall": "2026-11-10T03:38:32.044Z",
+        "bytes": {
+          "node": 680869888,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 658178048,
+          "chromeRenderer": 1480982528
+        }
+      },
+      {
+        "simS": 2426,
+        "wall": "2026-11-10T03:39:02.093Z",
+        "bytes": {
+          "node": 685473792,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 659259392,
+          "chromeRenderer": 1490681856
+        }
+      },
+      {
+        "simS": 2455.9,
+        "wall": "2026-11-10T03:39:32.142Z",
+        "bytes": {
+          "node": 685490176,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 660406272,
+          "chromeRenderer": 1496924160
+        }
+      },
+      {
+        "simS": 2485.9,
+        "wall": "2026-11-10T03:40:02.192Z",
+        "bytes": {
+          "node": 685506560,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 661553152,
+          "chromeRenderer": 1503903744
+        }
+      },
+      {
+        "simS": 2515.9,
+        "wall": "2026-11-10T03:40:32.237Z",
+        "bytes": {
+          "node": 685522944,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 662650880,
+          "chromeRenderer": 1514176512
+        }
+      },
+      {
+        "simS": 2556.2,
+        "wall": "2026-11-10T03:41:12.424Z",
+        "bytes": {
+          "node": 685555712,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 664322048,
+          "chromeRenderer": 1522319360
+        }
+      },
+      {
+        "simS": 2586.2,
+        "wall": "2026-11-10T03:41:42.465Z",
+        "bytes": {
+          "node": 685555712,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 665452544,
+          "chromeRenderer": 1535033344
+        }
+      },
+      {
+        "simS": 2616.2,
+        "wall": "2026-11-10T03:42:12.513Z",
+        "bytes": {
+          "node": 685572096,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 666566656,
+          "chromeRenderer": 1538916352
+        }
+      },
+      {
+        "simS": 2646.4,
+        "wall": "2026-11-10T03:42:42.563Z",
+        "bytes": {
+          "node": 685604864,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 667697152,
+          "chromeRenderer": 1552400384
+        }
+      },
+      {
+        "simS": 2676.4,
+        "wall": "2026-11-10T03:43:12.610Z",
+        "bytes": {
+          "node": 685621248,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 668762112,
+          "chromeRenderer": 1561083904
+        }
+      },
+      {
+        "simS": 2706.4,
+        "wall": "2026-11-10T03:43:42.655Z",
+        "bytes": {
+          "node": 685637632,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 669892608,
+          "chromeRenderer": 1563590656
+        }
+      },
+      {
+        "simS": 2736.4,
+        "wall": "2026-11-10T03:44:12.704Z",
+        "bytes": {
+          "node": 685654016,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 671023104,
+          "chromeRenderer": 1573961728
+        }
+      },
+      {
+        "simS": 2766.4,
+        "wall": "2026-11-10T03:44:42.751Z",
+        "bytes": {
+          "node": 685654016,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 672104448,
+          "chromeRenderer": 1580613632
+        }
+      },
+      {
+        "simS": 2796.7,
+        "wall": "2026-11-10T03:45:12.816Z",
+        "bytes": {
+          "node": 685670400,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 673234944,
+          "chromeRenderer": 1588723712
+        }
+      },
+      {
+        "simS": 2826.7,
+        "wall": "2026-11-10T03:45:42.865Z",
+        "bytes": {
+          "node": 685686784,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 674332672,
+          "chromeRenderer": 1599193088
+        }
+      },
+      {
+        "simS": 2856.7,
+        "wall": "2026-11-10T03:46:12.921Z",
+        "bytes": {
+          "node": 691011584,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 675446784,
+          "chromeRenderer": 1605779456
+        }
+      },
+      {
+        "simS": 2886.7,
+        "wall": "2026-11-10T03:46:42.964Z",
+        "bytes": {
+          "node": 691011584,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 676544512,
+          "chromeRenderer": 1614610432
+        }
+      },
+      {
+        "simS": 2916.7,
+        "wall": "2026-11-10T03:47:13.013Z",
+        "bytes": {
+          "node": 691011584,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 677658624,
+          "chromeRenderer": 1623195648
+        }
+      },
+      {
+        "simS": 2946.9,
+        "wall": "2026-11-10T03:47:43.056Z",
+        "bytes": {
+          "node": 691027968,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 678805504,
+          "chromeRenderer": 1628782592
+        }
+      },
+      {
+        "simS": 2976.9,
+        "wall": "2026-11-10T03:48:13.107Z",
+        "bytes": {
+          "node": 691044352,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 679936000,
+          "chromeRenderer": 1637466112
+        }
+      },
+      {
+        "simS": 3006.9,
+        "wall": "2026-11-10T03:48:43.154Z",
+        "bytes": {
+          "node": 691060736,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 681033728,
+          "chromeRenderer": 1643593728
+        }
+      },
+      {
+        "simS": 3036.9,
+        "wall": "2026-11-10T03:49:13.201Z",
+        "bytes": {
+          "node": 691060736,
+          "other": 1622016,
+          "ardupilot": 6832128,
+          "chromeOther": 682164224,
+          "chromeRenderer": 1651851264
+        }
+      },
+      {
+        "simS": 3066.9,
+        "wall": "2026-11-10T03:49:43.247Z",
+        "bytes": {
+          "node": 691077120,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 683261952,
+          "chromeRenderer": 1660616704
+        }
+      },
+      {
+        "simS": 3097.2,
+        "wall": "2026-11-10T03:50:13.307Z",
+        "bytes": {
+          "node": 691093504,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 684408832,
+          "chromeRenderer": 1668939776
+        }
+      },
+      {
+        "simS": 3127.2,
+        "wall": "2026-11-10T03:50:43.357Z",
+        "bytes": {
+          "node": 691109888,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 685572096,
+          "chromeRenderer": 1679867904
+        }
+      },
+      {
+        "simS": 3167.4,
+        "wall": "2026-11-10T03:51:23.555Z",
+        "bytes": {
+          "node": 691126272,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 687030272,
+          "chromeRenderer": 1687207936
+        }
+      },
+      {
+        "simS": 3197.4,
+        "wall": "2026-11-10T03:51:53.605Z",
+        "bytes": {
+          "node": 691142656,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 688177152,
+          "chromeRenderer": 1695727616
+        }
+      },
+      {
+        "simS": 3227.4,
+        "wall": "2026-11-10T03:52:23.653Z",
+        "bytes": {
+          "node": 691159040,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 689324032,
+          "chromeRenderer": 1711980544
+        }
+      },
+      {
+        "simS": 3257.4,
+        "wall": "2026-11-10T03:52:53.701Z",
+        "bytes": {
+          "node": 691175424,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 694845440,
+          "chromeRenderer": 1726332928
+        }
+      },
+      {
+        "simS": 3287.4,
+        "wall": "2026-11-10T03:53:23.749Z",
+        "bytes": {
+          "node": 691175424,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 695959552,
+          "chromeRenderer": 1731002368
+        }
+      },
+      {
+        "simS": 3317.7,
+        "wall": "2026-11-10T03:53:53.802Z",
+        "bytes": {
+          "node": 691191808,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 697090048,
+          "chromeRenderer": 1738735616
+        }
+      },
+      {
+        "simS": 3347.7,
+        "wall": "2026-11-10T03:54:23.843Z",
+        "bytes": {
+          "node": 691208192,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 698171392,
+          "chromeRenderer": 1746092032
+        }
+      },
+      {
+        "simS": 3377.7,
+        "wall": "2026-11-10T03:54:53.889Z",
+        "bytes": {
+          "node": 691224576,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 699301888,
+          "chromeRenderer": 1753989120
+        }
+      },
+      {
+        "simS": 3407.7,
+        "wall": "2026-11-10T03:55:23.933Z",
+        "bytes": {
+          "node": 691240960,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 700399616,
+          "chromeRenderer": 1758855168
+        }
+      },
+      {
+        "simS": 3437.7,
+        "wall": "2026-11-10T03:55:53.982Z",
+        "bytes": {
+          "node": 691240960,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 701513728,
+          "chromeRenderer": 1767424000
+        }
+      },
+      {
+        "simS": 3467.7,
+        "wall": "2026-11-10T03:56:24.032Z",
+        "bytes": {
+          "node": 649281536,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 702644224,
+          "chromeRenderer": 1774714880
+        }
+      },
+      {
+        "simS": 3497.9,
+        "wall": "2026-11-10T03:56:54.076Z",
+        "bytes": {
+          "node": 649297920,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 703709184,
+          "chromeRenderer": 1782300672
+        }
+      },
+      {
+        "simS": 3527.9,
+        "wall": "2026-11-10T03:57:24.148Z",
+        "bytes": {
+          "node": 649314304,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 704806912,
+          "chromeRenderer": 1793097728
+        }
+      },
+      {
+        "simS": 3557.9,
+        "wall": "2026-11-10T03:57:54.193Z",
+        "bytes": {
+          "node": 640892928,
+          "other": 1622016,
+          "ardupilot": 6832128,
+          "chromeOther": 705904640,
+          "chromeRenderer": 1797636096
+        }
+      },
+      {
+        "simS": 3587.9,
+        "wall": "2026-11-10T03:58:24.240Z",
+        "bytes": {
+          "node": 625934336,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 696795136,
+          "chromeRenderer": 1806647296
+        }
+      },
+      {
+        "simS": 3617.9,
+        "wall": "2026-11-10T03:58:54.293Z",
+        "bytes": {
+          "node": 625770496,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 690651136,
+          "chromeRenderer": 1812480000
+        }
+      },
+      {
+        "simS": 3648.2,
+        "wall": "2026-11-10T03:59:24.336Z",
+        "bytes": {
+          "node": 614367232,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 684294144,
+          "chromeRenderer": 1811185664
+        }
+      },
+      {
+        "simS": 3678.2,
+        "wall": "2026-11-10T03:59:54.379Z",
+        "bytes": {
+          "node": 614367232,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 685490176,
+          "chromeRenderer": 1822212096
+        }
+      },
+      {
+        "simS": 3708.1,
+        "wall": "2026-11-10T04:00:24.427Z",
+        "bytes": {
+          "node": 614449152,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 683999232,
+          "chromeRenderer": 1820098560
+        }
+      },
+      {
+        "simS": 3738.1,
+        "wall": "2026-11-10T04:00:54.472Z",
+        "bytes": {
+          "node": 611614720,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 678051840,
+          "chromeRenderer": 1827078144
+        }
+      },
+      {
+        "simS": 3778.4,
+        "wall": "2026-11-10T04:01:34.702Z",
+        "bytes": {
+          "node": 609157120,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 676069376,
+          "chromeRenderer": 1825849344
+        }
+      },
+      {
+        "simS": 3808.4,
+        "wall": "2026-11-10T04:02:04.751Z",
+        "bytes": {
+          "node": 609697792,
+          "other": 1638400,
+          "ardupilot": 6832128,
+          "chromeOther": 677199872,
+          "chromeRenderer": 1833566208
+        }
+      },
+      {
+        "simS": 3838.6,
+        "wall": "2026-11-10T04:02:34.801Z",
+        "bytes": {
+          "node": 577241088,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 611418112,
+          "chromeRenderer": 1664155648
+        }
+      },
+      {
+        "simS": 3868.6,
+        "wall": "2026-11-10T04:03:04.849Z",
+        "bytes": {
+          "node": 577241088,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 612581376,
+          "chromeRenderer": 1670873088
+        }
+      },
+      {
+        "simS": 3898.6,
+        "wall": "2026-11-10T04:03:34.895Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 613662720,
+          "chromeRenderer": 1677475840
+        }
+      },
+      {
+        "simS": 3928.6,
+        "wall": "2026-11-10T04:04:04.948Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 614858752,
+          "chromeRenderer": 1684193280
+        }
+      },
+      {
+        "simS": 3958.6,
+        "wall": "2026-11-10T04:04:34.994Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 616005632,
+          "chromeRenderer": 1692418048
+        }
+      },
+      {
+        "simS": 3988.9,
+        "wall": "2026-11-10T04:05:05.060Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 617119744,
+          "chromeRenderer": 1698906112
+        }
+      },
+      {
+        "simS": 4018.9,
+        "wall": "2026-11-10T04:05:35.107Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 618266624,
+          "chromeRenderer": 1710063616
+        }
+      },
+      {
+        "simS": 4048.9,
+        "wall": "2026-11-10T04:06:05.159Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 619364352,
+          "chromeRenderer": 1719156736
+        }
+      },
+      {
+        "simS": 4078.9,
+        "wall": "2026-11-10T04:06:35.207Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 620740608,
+          "chromeRenderer": 1729183744
+        }
+      },
+      {
+        "simS": 4108.9,
+        "wall": "2026-11-10T04:07:05.259Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 621871104,
+          "chromeRenderer": 1732706304
+        }
+      },
+      {
+        "simS": 4139.1,
+        "wall": "2026-11-10T04:07:35.306Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 623017984,
+          "chromeRenderer": 1739636736
+        }
+      },
+      {
+        "simS": 4169.1,
+        "wall": "2026-11-10T04:08:05.366Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 624148480,
+          "chromeRenderer": 1757446144
+        }
+      },
+      {
+        "simS": 4199.1,
+        "wall": "2026-11-10T04:08:35.415Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 625328128,
+          "chromeRenderer": 1760985088
+        }
+      },
+      {
+        "simS": 4229.1,
+        "wall": "2026-11-10T04:09:05.465Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 626442240,
+          "chromeRenderer": 1767129088
+        }
+      },
+      {
+        "simS": 4259.1,
+        "wall": "2026-11-10T04:09:35.512Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 627572736,
+          "chromeRenderer": 1789673472
+        }
+      },
+      {
+        "simS": 4289.4,
+        "wall": "2026-11-10T04:10:05.562Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 628670464,
+          "chromeRenderer": 1793130496
+        }
+      },
+      {
+        "simS": 4319.4,
+        "wall": "2026-11-10T04:10:35.607Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 629800960,
+          "chromeRenderer": 1799356416
+        }
+      },
+      {
+        "simS": 4349.4,
+        "wall": "2026-11-10T04:11:05.652Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 630882304,
+          "chromeRenderer": 1803436032
+        }
+      },
+      {
+        "simS": 4389.6,
+        "wall": "2026-11-10T04:11:45.848Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5881856,
+          "chromeOther": 633618432,
+          "chromeRenderer": 1811939328
+        }
+      },
+      {
+        "simS": 4419.6,
+        "wall": "2026-11-10T04:12:15.894Z",
+        "bytes": {
+          "node": 577241088,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 634503168,
+          "chromeRenderer": 1822162944
+        }
+      },
+      {
+        "simS": 4449.6,
+        "wall": "2026-11-10T04:12:45.942Z",
+        "bytes": {
+          "node": 577241088,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 635568128,
+          "chromeRenderer": 1829289984
+        }
+      },
+      {
+        "simS": 4479.6,
+        "wall": "2026-11-10T04:13:15.987Z",
+        "bytes": {
+          "node": 577241088,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 636649472,
+          "chromeRenderer": 1838858240
+        }
+      },
+      {
+        "simS": 4509.6,
+        "wall": "2026-11-10T04:13:46.035Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 637763584,
+          "chromeRenderer": 1843134464
+        }
+      },
+      {
+        "simS": 4539.9,
+        "wall": "2026-11-10T04:14:16.081Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 638877696,
+          "chromeRenderer": 1862008832
+        }
+      },
+      {
+        "simS": 4569.9,
+        "wall": "2026-11-10T04:14:46.126Z",
+        "bytes": {
+          "node": 577257472,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 640008192,
+          "chromeRenderer": 1865170944
+        }
+      },
+      {
+        "simS": 4599.9,
+        "wall": "2026-11-10T04:15:16.171Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 641122304,
+          "chromeRenderer": 1873149952
+        }
+      },
+      {
+        "simS": 4629.9,
+        "wall": "2026-11-10T04:15:46.218Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 642269184,
+          "chromeRenderer": 1871675392
+        }
+      },
+      {
+        "simS": 4659.9,
+        "wall": "2026-11-10T04:16:16.286Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 643383296,
+          "chromeRenderer": 1884635136
+        }
+      },
+      {
+        "simS": 4690.1,
+        "wall": "2026-11-10T04:16:46.335Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 644530176,
+          "chromeRenderer": 1890566144
+        }
+      },
+      {
+        "simS": 4720.1,
+        "wall": "2026-11-10T04:17:16.382Z",
+        "bytes": {
+          "node": 577273856,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 645660672,
+          "chromeRenderer": 1901297664
+        }
+      },
+      {
+        "simS": 4750.1,
+        "wall": "2026-11-10T04:17:46.426Z",
+        "bytes": {
+          "node": 577290240,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 646823936,
+          "chromeRenderer": 1909342208
+        }
+      },
+      {
+        "simS": 4780.1,
+        "wall": "2026-11-10T04:18:16.477Z",
+        "bytes": {
+          "node": 577290240,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 647938048,
+          "chromeRenderer": 1918042112
+        }
+      },
+      {
+        "simS": 4810.1,
+        "wall": "2026-11-10T04:18:46.523Z",
+        "bytes": {
+          "node": 577290240,
+          "other": 1622016,
+          "ardupilot": 5865472,
+          "chromeOther": 649068544,
+          "chromeRenderer": 1927872512
+        }
+      },
+      {
+        "simS": 4840.4,
+        "wall": "2026-11-10T04:19:16.573Z",
+        "bytes": {
+          "node": 577306624,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 650149888,
+          "chromeRenderer": 1931280384
+        }
+      },
+      {
+        "simS": 4870.4,
+        "wall": "2026-11-10T04:19:46.614Z",
+        "bytes": {
+          "node": 577306624,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 651296768,
+          "chromeRenderer": 1938882560
+        }
+      },
+      {
+        "simS": 4900.4,
+        "wall": "2026-11-10T04:20:16.658Z",
+        "bytes": {
+          "node": 577323008,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 652427264,
+          "chromeRenderer": 1948581888
+        }
+      },
+      {
+        "simS": 4930.4,
+        "wall": "2026-11-10T04:20:46.707Z",
+        "bytes": {
+          "node": 577323008,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 653524992,
+          "chromeRenderer": 1951612928
+        }
+      },
+      {
+        "simS": 4960.4,
+        "wall": "2026-11-10T04:21:16.755Z",
+        "bytes": {
+          "node": 577323008,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 654655488,
+          "chromeRenderer": 1960689664
+        }
+      },
+      {
+        "simS": 5000.6,
+        "wall": "2026-11-10T04:21:56.955Z",
+        "bytes": {
+          "node": 578076672,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 656179200,
+          "chromeRenderer": 1969782784
+        }
+      },
+      {
+        "simS": 5030.6,
+        "wall": "2026-11-10T04:22:27.001Z",
+        "bytes": {
+          "node": 578076672,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 657260544,
+          "chromeRenderer": 1978089472
+        }
+      },
+      {
+        "simS": 5060.8,
+        "wall": "2026-11-10T04:22:57.047Z",
+        "bytes": {
+          "node": 577339392,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 658391040,
+          "chromeRenderer": 1990787072
+        }
+      },
+      {
+        "simS": 5090.9,
+        "wall": "2026-11-10T04:23:27.094Z",
+        "bytes": {
+          "node": 577355776,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 659521536,
+          "chromeRenderer": 1996816384
+        }
+      },
+      {
+        "simS": 5120.8,
+        "wall": "2026-11-10T04:23:57.141Z",
+        "bytes": {
+          "node": 577355776,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 660586496,
+          "chromeRenderer": 2005368832
+        }
+      },
+      {
+        "simS": 5150.8,
+        "wall": "2026-11-10T04:24:27.187Z",
+        "bytes": {
+          "node": 577355776,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 661700608,
+          "chromeRenderer": 2014199808
+        }
+      },
+      {
+        "simS": 5180.8,
+        "wall": "2026-11-10T04:24:57.235Z",
+        "bytes": {
+          "node": 577372160,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 662781952,
+          "chromeRenderer": 2019360768
+        }
+      },
+      {
+        "simS": 5210.8,
+        "wall": "2026-11-10T04:25:27.293Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 663912448,
+          "chromeRenderer": 2031550464
+        }
+      },
+      {
+        "simS": 5241.1,
+        "wall": "2026-11-10T04:25:57.337Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 665026560,
+          "chromeRenderer": 2041380864
+        }
+      },
+      {
+        "simS": 5271.1,
+        "wall": "2026-11-10T04:26:27.400Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 666124288,
+          "chromeRenderer": 2046803968
+        }
+      },
+      {
+        "simS": 5301.1,
+        "wall": "2026-11-10T04:26:57.442Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 667238400,
+          "chromeRenderer": 2055897088
+        }
+      },
+      {
+        "simS": 5331.1,
+        "wall": "2026-11-10T04:27:27.491Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 668352512,
+          "chromeRenderer": 2060058624
+        }
+      },
+      {
+        "simS": 5361.3,
+        "wall": "2026-11-10T04:27:57.532Z",
+        "bytes": {
+          "node": 577421312,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 669450240,
+          "chromeRenderer": 2072576000
+        }
+      },
+      {
+        "simS": 5391.3,
+        "wall": "2026-11-10T04:28:27.579Z",
+        "bytes": {
+          "node": 577437696,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 670580736,
+          "chromeRenderer": 2078834688
+        }
+      },
+      {
+        "simS": 5421.3,
+        "wall": "2026-11-10T04:28:57.625Z",
+        "bytes": {
+          "node": 577437696,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 671694848,
+          "chromeRenderer": 2085289984
+        }
+      },
+      {
+        "simS": 5451.3,
+        "wall": "2026-11-10T04:29:27.673Z",
+        "bytes": {
+          "node": 577437696,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 672841728,
+          "chromeRenderer": 2093219840
+        }
+      },
+      {
+        "simS": 5481.3,
+        "wall": "2026-11-10T04:29:57.757Z",
+        "bytes": {
+          "node": 577699840,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 673955840,
+          "chromeRenderer": 2101018624
+        }
+      },
+      {
+        "simS": 5511.6,
+        "wall": "2026-11-10T04:30:27.804Z",
+        "bytes": {
+          "node": 578994176,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 675102720,
+          "chromeRenderer": 2109292544
+        }
+      },
+      {
+        "simS": 5541.6,
+        "wall": "2026-11-10T04:30:57.853Z",
+        "bytes": {
+          "node": 578994176,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 676265984,
+          "chromeRenderer": 2116517888
+        }
+      },
+      {
+        "simS": 5571.6,
+        "wall": "2026-11-10T04:31:27.895Z",
+        "bytes": {
+          "node": 578994176,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 677380096,
+          "chromeRenderer": 2120220672
+        }
+      },
+      {
+        "simS": 5611.8,
+        "wall": "2026-11-10T04:32:08.103Z",
+        "bytes": {
+          "node": 579010560,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 678903808,
+          "chromeRenderer": 2154676224
+        }
+      },
+      {
+        "simS": 5641.8,
+        "wall": "2026-11-10T04:32:38.149Z",
+        "bytes": {
+          "node": 579026944,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 680017920,
+          "chromeRenderer": 2153693184
+        }
+      },
+      {
+        "simS": 5671.8,
+        "wall": "2026-11-10T04:33:08.202Z",
+        "bytes": {
+          "node": 578961408,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 680198144,
+          "chromeRenderer": 2091958272
+        }
+      },
+      {
+        "simS": 5701.8,
+        "wall": "2026-11-10T04:33:38.251Z",
+        "bytes": {
+          "node": 578961408,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 681345024,
+          "chromeRenderer": 2099183616
+        }
+      },
+      {
+        "simS": 5732.1,
+        "wall": "2026-11-10T04:34:08.303Z",
+        "bytes": {
+          "node": 578961408,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 682475520,
+          "chromeRenderer": 2107686912
+        }
+      },
+      {
+        "simS": 5762.1,
+        "wall": "2026-11-10T04:34:38.351Z",
+        "bytes": {
+          "node": 578961408,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 683573248,
+          "chromeRenderer": 2116485120
+        }
+      },
+      {
+        "simS": 5792.1,
+        "wall": "2026-11-10T04:35:08.414Z",
+        "bytes": {
+          "node": 579502080,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 684703744,
+          "chromeRenderer": 2121744384
+        }
+      },
+      {
+        "simS": 5822.1,
+        "wall": "2026-11-10T04:35:38.462Z",
+        "bytes": {
+          "node": 579502080,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 685801472,
+          "chromeRenderer": 2128871424
+        }
+      },
+      {
+        "simS": 5852.1,
+        "wall": "2026-11-10T04:36:08.512Z",
+        "bytes": {
+          "node": 579502080,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 686931968,
+          "chromeRenderer": 2136653824
+        }
+      },
+      {
+        "simS": 5882.3,
+        "wall": "2026-11-10T04:36:38.562Z",
+        "bytes": {
+          "node": 579747840,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 688029696,
+          "chromeRenderer": 2144960512
+        }
+      },
+      {
+        "simS": 5912.3,
+        "wall": "2026-11-10T04:37:08.612Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 689127424,
+          "chromeRenderer": 2150350848
+        }
+      },
+      {
+        "simS": 5942.3,
+        "wall": "2026-11-10T04:37:38.657Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 690241536,
+          "chromeRenderer": 2156511232
+        }
+      },
+      {
+        "simS": 5972.3,
+        "wall": "2026-11-10T04:38:08.708Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 691322880,
+          "chromeRenderer": 2183561216
+        }
+      },
+      {
+        "simS": 6002.3,
+        "wall": "2026-11-10T04:38:38.757Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 692436992,
+          "chromeRenderer": 2182922240
+        }
+      },
+      {
+        "simS": 6032.6,
+        "wall": "2026-11-10T04:39:08.801Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 693469184,
+          "chromeRenderer": 2181562368
+        }
+      },
+      {
+        "simS": 6062.6,
+        "wall": "2026-11-10T04:39:38.851Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 694566912,
+          "chromeRenderer": 2171371520
+        }
+      },
+      {
+        "simS": 6092.6,
+        "wall": "2026-11-10T04:40:08.963Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 695681024,
+          "chromeRenderer": 2179137536
+        }
+      },
+      {
+        "simS": 6122.6,
+        "wall": "2026-11-10T04:40:39.013Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 696745984,
+          "chromeRenderer": 2186805248
+        }
+      },
+      {
+        "simS": 6152.8,
+        "wall": "2026-11-10T04:41:09.060Z",
+        "bytes": {
+          "node": 579764224,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 697892864,
+          "chromeRenderer": 2193653760
+        }
+      },
+      {
+        "simS": 6182.8,
+        "wall": "2026-11-10T04:41:39.101Z",
+        "bytes": {
+          "node": 579780608,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 699006976,
+          "chromeRenderer": 2203746304
+        }
+      },
+      {
+        "simS": 6223.1,
+        "wall": "2026-11-10T04:42:19.307Z",
+        "bytes": {
+          "node": 580583424,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 700612608,
+          "chromeRenderer": 2200846336
+        }
+      },
+      {
+        "simS": 6253.1,
+        "wall": "2026-11-10T04:42:49.355Z",
+        "bytes": {
+          "node": 580583424,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 701825024,
+          "chromeRenderer": 2212462592
+        }
+      },
+      {
+        "simS": 6283.1,
+        "wall": "2026-11-10T04:43:19.404Z",
+        "bytes": {
+          "node": 580583424,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 702955520,
+          "chromeRenderer": 2212675584
+        }
+      },
+      {
+        "simS": 6313.1,
+        "wall": "2026-11-10T04:43:49.453Z",
+        "bytes": {
+          "node": 580583424,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 704069632,
+          "chromeRenderer": 2218246144
+        }
+      },
+      {
+        "simS": 6343.1,
+        "wall": "2026-11-10T04:44:19.498Z",
+        "bytes": {
+          "node": 580599808,
+          "other": 1622016,
+          "ardupilot": 5865472,
+          "chromeOther": 705216512,
+          "chromeRenderer": 2229092352
+        }
+      },
+      {
+        "simS": 6373.3,
+        "wall": "2026-11-10T04:44:49.546Z",
+        "bytes": {
+          "node": 580599808,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 706363392,
+          "chromeRenderer": 2236383232
+        }
+      },
+      {
+        "simS": 6403.3,
+        "wall": "2026-11-10T04:45:19.596Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 707428352,
+          "chromeRenderer": 2245427200
+        }
+      },
+      {
+        "simS": 6433.3,
+        "wall": "2026-11-10T04:45:49.687Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 708542464,
+          "chromeRenderer": 2270117888
+        }
+      },
+      {
+        "simS": 6463.3,
+        "wall": "2026-11-10T04:46:19.746Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 709672960,
+          "chromeRenderer": 2269478912
+        }
+      },
+      {
+        "simS": 6493.6,
+        "wall": "2026-11-10T04:46:49.848Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 710819840,
+          "chromeRenderer": 2277769216
+        }
+      },
+      {
+        "simS": 6523.6,
+        "wall": "2026-11-10T04:47:19.897Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 711933952,
+          "chromeRenderer": 2279620608
+        }
+      },
+      {
+        "simS": 6553.5,
+        "wall": "2026-11-10T04:47:49.944Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 713031680,
+          "chromeRenderer": 2285125632
+        }
+      },
+      {
+        "simS": 6583.5,
+        "wall": "2026-11-10T04:48:19.994Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 714178560,
+          "chromeRenderer": 2297626624
+        }
+      },
+      {
+        "simS": 6613.5,
+        "wall": "2026-11-10T04:48:50.056Z",
+        "bytes": {
+          "node": 580616192,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 715276288,
+          "chromeRenderer": 2302115840
+        }
+      },
+      {
+        "simS": 6643.8,
+        "wall": "2026-11-10T04:49:20.106Z",
+        "bytes": {
+          "node": 580632576,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 716406784,
+          "chromeRenderer": 2309111808
+        }
+      },
+      {
+        "simS": 6673.8,
+        "wall": "2026-11-10T04:49:50.153Z",
+        "bytes": {
+          "node": 580632576,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 717537280,
+          "chromeRenderer": 2319876096
+        }
+      },
+      {
+        "simS": 6703.8,
+        "wall": "2026-11-10T04:50:20.201Z",
+        "bytes": {
+          "node": 580632576,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 718602240,
+          "chromeRenderer": 2327986176
+        }
+      },
+      {
+        "simS": 6733.8,
+        "wall": "2026-11-10T04:50:50.255Z",
+        "bytes": {
+          "node": 580632576,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 719699968,
+          "chromeRenderer": 2338586624
+        }
+      },
+      {
+        "simS": 6764,
+        "wall": "2026-11-10T04:51:20.302Z",
+        "bytes": {
+          "node": 580665344,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 720781312,
+          "chromeRenderer": 2344157184
+        }
+      },
+      {
+        "simS": 6794,
+        "wall": "2026-11-10T04:51:50.352Z",
+        "bytes": {
+          "node": 580665344,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 721911808,
+          "chromeRenderer": 2345517056
+        }
+      },
+      {
+        "simS": 6834.3,
+        "wall": "2026-11-10T04:52:30.545Z",
+        "bytes": {
+          "node": 580796416,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 724992000,
+          "chromeRenderer": 2372468736
+        }
+      },
+      {
+        "simS": 6864.3,
+        "wall": "2026-11-10T04:53:00.590Z",
+        "bytes": {
+          "node": 580796416,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 726007808,
+          "chromeRenderer": 2371239936
+        }
+      },
+      {
+        "simS": 6894.3,
+        "wall": "2026-11-10T04:53:30.631Z",
+        "bytes": {
+          "node": 580796416,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 727121920,
+          "chromeRenderer": 2381791232
+        }
+      },
+      {
+        "simS": 6924.3,
+        "wall": "2026-11-10T04:54:00.673Z",
+        "bytes": {
+          "node": 580796416,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 728236032,
+          "chromeRenderer": 2383593472
+        }
+      },
+      {
+        "simS": 6954.3,
+        "wall": "2026-11-10T04:54:30.720Z",
+        "bytes": {
+          "node": 580796416,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 729317376,
+          "chromeRenderer": 2395029504
+        }
+      },
+      {
+        "simS": 6984.3,
+        "wall": "2026-11-10T04:55:00.779Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 730431488,
+          "chromeRenderer": 2398863360
+        }
+      },
+      {
+        "simS": 7014.5,
+        "wall": "2026-11-10T04:55:30.823Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 731545600,
+          "chromeRenderer": 2404106240
+        }
+      },
+      {
+        "simS": 7044.5,
+        "wall": "2026-11-10T04:56:00.872Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 732692480,
+          "chromeRenderer": 2408792064
+        }
+      },
+      {
+        "simS": 7074.5,
+        "wall": "2026-11-10T04:56:30.919Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 733790208,
+          "chromeRenderer": 2418720768
+        }
+      },
+      {
+        "simS": 7104.5,
+        "wall": "2026-11-10T04:57:00.970Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 734937088,
+          "chromeRenderer": 2427060224
+        }
+      },
+      {
+        "simS": 7134.5,
+        "wall": "2026-11-10T04:57:31.019Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 736083968,
+          "chromeRenderer": 2440216576
+        }
+      },
+      {
+        "simS": 7164.8,
+        "wall": "2026-11-10T04:58:01.064Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 737214464,
+          "chromeRenderer": 2450767872
+        }
+      },
+      {
+        "simS": 7194.8,
+        "wall": "2026-11-10T04:58:31.107Z",
+        "bytes": {
+          "node": 580288512,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 738328576,
+          "chromeRenderer": 2453389312
+        }
+      },
+      {
+        "simS": 7224.8,
+        "wall": "2026-11-10T04:59:01.158Z",
+        "bytes": {
+          "node": 580304896,
+          "other": 1638400,
+          "ardupilot": 5865472,
+          "chromeOther": 739508224,
+          "chromeRenderer": 2462105600
+        }
+      }
+    ]
+  },
+  "ratio5s": [
+    1.001,
+    1.001,
+    1,
+    1,
+    1.001,
+    1,
+    1,
+    0.999,
+    1,
+    1,
+    0.999,
+    1,
+    1.001,
+    1.001,
+    1,
+    1,
+    0.999,
+    0.999,
+    1,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1.001,
+    0.999,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1.001,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    0.999,
+    1.001,
+    1.001,
+    1,
+    0.999,
+    1.001,
+    1,
+    0.999,
+    1,
+    1,
+    1.001,
+    1.001,
+    1.001,
+    0.999,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    1.002,
+    1,
+    0.999,
+    1.001,
+    1.001,
+    1.001,
+    1.001,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    1.001,
+    1.001,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0.999,
+    1.001,
+    1,
+    1,
+    1,
+    0.999,
+    1.001,
+    1.001,
+    1,
+    1.001,
+    1,
+    1.001,
+    1.001,
+    1,
+    1.001,
+    1,
+    0.999,
+    1,
+    0.999,
+    1,
+    1,
+    1.001,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    0.999,
+    1,
+    1.001,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    0.999,
+    0.999,
+    1,
+    1,
+    1.001,
+    1,
+    0.999,
+    1,
+    1,
+    1,
+    1.001,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    0.999,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1.001,
+    0.999,
+    1,
+    0.999,
+    0.999,
+    1,
+    1.001,
+    1,
+    1.001,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    0.999,
+    0.999,
+    1.001,
+    1,
+    1.001,
+    0.999,
+    1,
+    0.999,
+    1,
+    1,
+    1,
+    0.999,
+    1,
+    0.999,
+    1.001,
+    1,
+    1,
+    1,
+    0.999,
+    0.999,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1.001,
+    1,
+    0.999,
+    1,
+    1,
+    0.999,
+    1,
+    0.999,
+    1,
+    0.999,
+    1,
+    1.001,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    0.999,
+    1,
+    1.001,
+    1,
+    1,
+    1
+  ],
+  "frames": [
+    {
+      "simS": 71.5,
+      "count": 601,
+      "medianMs": 16.66500000000815,
+      "p99Ms": 16.670000000012806,
+      "maxMs": 16.670000000012806
+    },
+    {
+      "simS": 682.8,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.67000000004191,
+      "maxMs": 16.67000000004191
+    },
+    {
+      "simS": 1293.7,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000158325,
+      "maxMs": 16.670000000158325
+    },
+    {
+      "simS": 1905,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000158325,
+      "maxMs": 16.670000000158325
+    },
+    {
+      "simS": 2515.9,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000391155,
+      "maxMs": 16.670000000391155
+    },
+    {
+      "simS": 3127.2,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000391155,
+      "maxMs": 16.670000000391155
+    },
+    {
+      "simS": 3738.1,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000391155,
+      "maxMs": 16.670000000391155
+    },
+    {
+      "simS": 4349.4,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000856817,
+      "maxMs": 16.670000000856817
+    },
+    {
+      "simS": 4960.4,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000856817,
+      "maxMs": 16.670000000856817
+    },
+    {
+      "simS": 5571.6,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000856817,
+      "maxMs": 16.670000000856817
+    },
+    {
+      "simS": 6182.8,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000856817,
+      "maxMs": 16.670000000856817
+    },
+    {
+      "simS": 6794,
+      "count": 601,
+      "medianMs": 16.665000000037253,
+      "p99Ms": 16.670000000856817,
+      "maxMs": 16.670000000856817
+    }
+  ]
+}
