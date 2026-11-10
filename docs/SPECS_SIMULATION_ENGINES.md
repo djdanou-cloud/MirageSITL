@@ -9031,7 +9031,7 @@ which a calibrated rotor flew outside its bench data.
 
 **The calibration record and its binding.** A fit is stored as a
 `propulsion-calibration` item of the project store
-(`@mirage/aircraft/propulsion-calibration`, payload schema 2; schema 1 below): the combination
+(`@mirage/aircraft/propulsion-calibration`, payload schema 3; schemas 1 and 2 below): the combination
 key, the measurement set's SHA-256, the motor and propeller cards, the date the
 bench measured, the polar's catalog ID and the SHA-256 of the BET module it was
 fitted with, and the fit itself (s_L, s_D, iterations, the RMS thrust and torque
@@ -9206,8 +9206,29 @@ fit on `naca6409-extended-v1` moves from lift ×0.733 and drag ×1.209 (10 itera
 0.00140 N·m) to lift ×0.582 and drag ×1.284 (7 iterations, RMS 0.178 N and 0.00353 N·m); the motor
 fit (R 0.197 Ω, I₀ 0.417 A) reads the bench only and does not move. A calibration record fitted on an
 extended polar before this fix holds scales fitted without the augmentation, and it now flies with
-it. The record does not say which binding it was fitted on, so nothing refuses it: such a
-calibration has to be fitted again.
+it.
+
+By the stakeholder's decision of 2026-11-10 ("Yes, refuse them") such records are refused. The
+calibration record's payload schema becomes 3, which marks a fit with the augmentation kept. A schema
+2 record still validates, since stored versions are immutable. On a NeuralFoil polar, which has no
+augmentation to lose, it binds as before. On an extended polar (catalog provenance `extended-model`,
+polars 3 and 4) `bindCalibration` refuses it ("This calibration was fitted before 2026-11-09 on an
+extended polar without its rotational lift augmentation; fit it again to bind it"), and so does
+`savePropulsionCalibration`. `calibrationRefusal` gives the reason for each schema, schema 1 keeping
+its refusal; `savePropulsionCalibration` stores only schema 3 fits ("Only a new fit (calibration
+schema 3) is saved; fit it again" where no other refusal applies); and the Components tab shows the
+matching note under a motor whose bound calibration is refused (test ID `calibration-stale-N`). A
+profile version that bound such a record keeps its scales until it is fitted again.
+
+Checks of the schema, declared before the change. `tests/propulsion-calibration.test.ts`: new fits are
+schema 3; a schema 2 copy of the S19 quad's fit on the NeuralFoil polar binds with its scales but is not
+saved, and schema 4 is refused; a schema 2 copy of the fit on `naca6409-extended-v1` reads,
+`calibrationRefusal` names the augmentation, and it is refused on saving and on binding. Both tests
+failed before the change, since the records were still schema 2, and pass with it: 8 passed, and 36
+with `tests/tmotor-bench-fit.test.ts` and `tests/profile-dynamics.test.ts`.
+`tests/browser/propulsion-calibration.spec.ts` (2 passed in Playwright's Chromium) binds three copies
+of the T-Motor calibration in turn: schema 2 on polar 1 shows no note, schema 2 on polar 3 the
+augmentation note, and schema 1 the dynamic-inflow note.
 
 ## Profile-driven dynamics (TASK-144)
 

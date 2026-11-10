@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { readComponentCard } from "@mirage/aircraft/components";
 import { readMeasurementSet } from "@mirage/aircraft/measurements";
 import { profileDraft, propulsionCalibrationsOf, type AircraftProfile } from "@mirage/aircraft/profile";
-import { bindCalibration, calibrateMotor, fittedOnFlightBinding, readPropulsionCalibration, savePropulsionCalibration, type PropulsionCalibration } from "@mirage/aircraft/propulsion-calibration";
+import { AUGMENTATION_REFUSAL, bindCalibration, calibrateMotor, calibrationRefusal, readPropulsionCalibration, savePropulsionCalibration, type PropulsionCalibration } from "@mirage/aircraft/propulsion-calibration";
 import { resolveComponents } from "@mirage/aircraft/resolve-components";
 import type { StoredVersion } from "@mirage/project/schema";
 import type { ProjectStore } from "@mirage/project/store";
@@ -23,16 +23,17 @@ export function CalibrationSection({ store, entry, motorId, measurementSet, onSa
   const [busy, setBusy] = useState(false);
   const profile = entry.value;
   const bound = propulsionCalibrationsOf(profile).find(item => item.measurementSet === measurementSet);
-  // A bound calibration of schema 1 was fitted before 2026-11-08 to the rotor without the flight's dynamic inflow.
-  const [staticBinding, setStaticBinding] = useState(false);
+  // A bound calibration that `calibrationRefusal` refuses: schema 1, fitted before 2026-11-08 to the rotor without the flight's dynamic
+  // inflow, or schema 2 on an extended polar, fitted before 2026-11-09 without its rotational lift augmentation.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const boundRecord = bound?.record ?? null;
   useEffect(() => {
     let current = true;
-    setStaticBinding(false);
+    setRefusal(null);
     if (boundRecord !== null) {
       void resolveVersions(store, [boundRecord], readPropulsionCalibration).then(({ values }) => {
         const calibration = values.get(boundRecord);
-        if (current && calibration) setStaticBinding(!fittedOnFlightBinding(calibration));
+        if (current && calibration) setRefusal(calibrationRefusal(calibration));
       });
     }
     return () => { current = false; };
@@ -70,9 +71,11 @@ export function CalibrationSection({ store, entry, motorId, measurementSet, onSa
         {bound ? `Calibrated (lift ×${bound.liftScale.toFixed(4)}, drag ×${bound.dragScale.toFixed(4)}) from the set measured on ${bound.measuredOn}; it is never used for another combination.`
           : "Not calibrated: the BET rotor flies on its catalog polar."}
       </p>
-      {staticBinding && (
+      {refusal !== null && (
         <p className="hint" data-testid={`calibration-stale-${motorId}`}>
-          This calibration was fitted before 2026-11-08 to the rotor without the flight&apos;s dynamic inflow, so its scales were fitted to another rotor than the one that flies. Fit it again and bind the new fit.
+          {refusal === AUGMENTATION_REFUSAL
+            ? "This calibration was fitted before 2026-11-09 on an extended polar without its rotational lift augmentation, so its scales were fitted to another rotor than the one that flies. Fit it again and bind the new fit."
+            : "This calibration was fitted before 2026-11-08 to the rotor without the flight's dynamic inflow, so its scales were fitted to another rotor than the one that flies. Fit it again and bind the new fit."}
         </p>
       )}
       <div className="button-row"><button type="button" onClick={fit} disabled={busy}>Fit to the bench data</button></div>

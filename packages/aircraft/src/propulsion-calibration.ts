@@ -1,6 +1,7 @@
 import { fitPropulsion, type PropulsionFit } from '@mirage/physics/propulsion-calibration';
 import { buildProfileDynamics, profileRotorDefinition } from '@mirage/physics/profile-dynamics';
 import { validateModelManifest } from '@mirage/physics/model-manifest';
+import { catalogPolarByNumericId } from '@mirage/physics/polar-catalog';
 import { deriveVehicleManifest, type ResolvedComponents } from './derive-manifest.ts';
 import { motorCombination, motorSetKeys } from './calculation-mode.ts';
 import { combinationKey, measurementSetBench, type MeasurementSet } from './measurements.ts';
@@ -15,15 +16,21 @@ import type { ProjectStore } from '@mirage/project/store';
 // is kept and shown; none is judged (SA-01). Configuration-time code only.
 
 /**
- * Schema 2 (2026-11-08, stakeholder decision "Yes align"): the fit solved the rotor exactly as the flight binds it, dynamic inflow
- * included (`profileRotorDefinition`). Schema 1 fits solved it without dynamic inflow: they stay readable, since stored versions are
- * immutable, but `bindCalibration` refuses them and the Components tab asks for a new fit.
+ * Schema 3 (2026-11-10, stakeholder decision "Yes, refuse them"): schema 2 with an extended polar's rotational lift augmentation kept
+ * by the scaled polar. Schema 2 (2026-11-08, stakeholder decision "Yes align"): the fit solved the rotor exactly as the flight binds it,
+ * dynamic inflow included (`profileRotorDefinition`), but `scaledPolar` dropped the augmentation, so a schema 2 fit on an extended
+ * polar was made without it; on a NeuralFoil polar, which has none, schema 2 and 3 fits are the same. Schema 1 fits solved the rotor
+ * without dynamic inflow. Older schemas stay readable, since stored versions are immutable; `calibrationRefusal` says which
+ * `bindCalibration` refuses, and the Components tab asks for a new fit.
  */
-export const PROPULSION_CALIBRATION_SCHEMA_VERSION = 2;
+export const PROPULSION_CALIBRATION_SCHEMA_VERSION = 3;
+/** The schema of fits on the flight's binding made while the scaled polar dropped an extended polar's augmentation. */
+export const PROPULSION_CALIBRATION_NO_AUGMENTATION_SCHEMA = 2;
 /** The schema of fits made before the static solve took the flight's binding. */
 export const PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA = 1;
 export interface PropulsionCalibration {
-  readonly schemaVersion: typeof PROPULSION_CALIBRATION_SCHEMA_VERSION | typeof PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA;
+  readonly schemaVersion: typeof PROPULSION_CALIBRATION_SCHEMA_VERSION | typeof PROPULSION_CALIBRATION_NO_AUGMENTATION_SCHEMA
+    | typeof PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA;
   readonly combinationKey: string;
   /** The measurement-set version fitted, and the cards of the combination's motor and propeller. */
   readonly measurementSet: string;
@@ -89,8 +96,9 @@ function fitOf(value: unknown): PropulsionFit {
 /** A propulsion calibration from unknown; registered for the `propulsion-calibration` kind. */
 export function validatePropulsionCalibration(value: unknown): PropulsionCalibration {
   const v = exact(value, ['schemaVersion', 'combinationKey', 'measurementSet', 'motorCard', 'propellerCard', 'measuredOn', 'polarId', 'betModuleSha256', 'fit'], 'the payload');
-  const schemaVersion = v.schemaVersion === PROPULSION_CALIBRATION_SCHEMA_VERSION || v.schemaVersion === PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA
-    ? v.schemaVersion : fail(`schemaVersion must be ${PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA} or ${PROPULSION_CALIBRATION_SCHEMA_VERSION}`);
+  const schemaVersion = v.schemaVersion === PROPULSION_CALIBRATION_SCHEMA_VERSION || v.schemaVersion === PROPULSION_CALIBRATION_NO_AUGMENTATION_SCHEMA
+    || v.schemaVersion === PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA
+    ? v.schemaVersion : fail(`schemaVersion must be ${PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA}, ${PROPULSION_CALIBRATION_NO_AUGMENTATION_SCHEMA} or ${PROPULSION_CALIBRATION_SCHEMA_VERSION}`);
   const measuredOn = typeof v.measuredOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.measuredOn) ? v.measuredOn : fail('measuredOn must be YYYY-MM-DD');
   const polarId = finite(v.polarId, 'polarId');
   if (!Number.isInteger(polarId) || polarId < 1) fail('polarId must be a catalog polar ID');
@@ -102,10 +110,12 @@ export function validatePropulsionCalibration(value: unknown): PropulsionCalibra
 }
 export const readPropulsionCalibration = (stored: StoredVersion): PropulsionCalibration => validatePropulsionCalibration(stored.record.payload);
 
-/** Stores a calibration with the measurement set and the two cards it was fitted from as its dependencies. */
+/** Why a new fit of an older schema is not saved when no refusal applies to it: only a fit made now is stored. */
+export const OLD_SCHEMA_SAVE_REFUSAL = `Only a new fit (calibration schema ${PROPULSION_CALIBRATION_SCHEMA_VERSION}) is saved; fit it again`;
+/** Stores a calibration with the measurement set and the two cards it was fitted from as its dependencies; only a fit of the current schema. */
 export function savePropulsionCalibration(store: ProjectStore, projectId: string, name: string, calibration: PropulsionCalibration): Promise<StoredVersion> {
   const payload = validatePropulsionCalibration(calibration);
-  if (payload.schemaVersion !== PROPULSION_CALIBRATION_SCHEMA_VERSION) throw new Error(STATIC_BINDING_REFUSAL);
+  if (payload.schemaVersion !== PROPULSION_CALIBRATION_SCHEMA_VERSION) throw new Error(calibrationRefusal(payload) ?? OLD_SCHEMA_SAVE_REFUSAL);
   const dependencies = [...new Set([payload.measurementSet, payload.motorCard, payload.propellerCard])].sort();
   return store.createItem(projectId, 'propulsion-calibration', { name: name.slice(0, 128), payload, dependencies });
 }
@@ -136,12 +146,27 @@ export async function calibrateMotor(input: {
 }
 /** Why a schema 1 calibration is not bound: it was fitted to another rotor than the one the flight binds. */
 export const STATIC_BINDING_REFUSAL = 'This calibration was fitted before 2026-11-08 to the rotor without the flight\'s dynamic inflow; fit it again to bind it';
-/** True for a calibration fitted to the rotor as the flight binds it (schema 2). */
-export const fittedOnFlightBinding = (calibration: PropulsionCalibration): boolean => calibration.schemaVersion === PROPULSION_CALIBRATION_SCHEMA_VERSION;
+/** Why a schema 2 calibration on an extended polar is not bound: it was fitted without the polar's rotational lift augmentation. */
+export const AUGMENTATION_REFUSAL = 'This calibration was fitted before 2026-11-09 on an extended polar without its rotational lift augmentation; fit it again to bind it';
+/**
+ * Why a stored calibration is not bound, or null when it is fitted to the rotor exactly as the flight binds it: schema 3, or schema 2
+ * on a polar that is not an extended one (a NeuralFoil polar has no augmentation to lose).
+ */
+export function calibrationRefusal(calibration: PropulsionCalibration): string | null {
+  switch (calibration.schemaVersion) {
+    case PROPULSION_CALIBRATION_SCHEMA_VERSION: return null;
+    case PROPULSION_CALIBRATION_NO_AUGMENTATION_SCHEMA: return catalogPolarByNumericId(calibration.polarId)?.provenance === 'extended-model' ? AUGMENTATION_REFUSAL : null;
+    case PROPULSION_CALIBRATION_STATIC_BINDING_SCHEMA: return STATIC_BINDING_REFUSAL;
+    default: { const never: never = calibration.schemaVersion; return never; }
+  }
+}
+/** True for a calibration fitted to the rotor as the flight binds it (`calibrationRefusal` is null). */
+export const fittedOnFlightBinding = (calibration: PropulsionCalibration): boolean => calibrationRefusal(calibration) === null;
 /** The profile binding a stored calibration in place of any other of its combination; its measurement set must be bound. */
 export function bindCalibration(profile: AircraftProfile, stored: StoredVersion): AircraftProfile {
   const c = readPropulsionCalibration(stored);
-  if (!fittedOnFlightBinding(c)) throw new Error(STATIC_BINDING_REFUSAL);
+  const refusal = calibrationRefusal(c);
+  if (refusal !== null) throw new Error(refusal);
   const entry: BoundCalibration = { record: stored.sha256, combinationKey: c.combinationKey, measurementSet: c.measurementSet, measuredOn: c.measuredOn,
     liftScale: c.fit.scales.lift, dragScale: c.fit.scales.drag, resistanceOhm: c.fit.motor?.resistanceOhm ?? null, noLoadCurrentA: c.fit.motor?.noLoadCurrentA ?? null,
     rpmMin: c.fit.envelope.rpmMin, rpmMax: c.fit.envelope.rpmMax, densityKgM3: c.fit.envelope.densityKgM3 };
