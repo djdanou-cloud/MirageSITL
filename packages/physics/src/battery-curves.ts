@@ -32,6 +32,22 @@ function chenEmptyCharge(): number {
 /** z_e of the declaration: eq. (2) at 3.3 V. */
 export const CHEN_2006_EMPTY_CHARGE = chenEmptyCharge();
 
+/** Chen and Rincón-Mora 2006, eq. (3): the series resistance of their cell, ohm, at charge z in [0, 1]. */
+export function chen2006SeriesOhm(z: number): number {
+  return 0.1562 * Math.exp(-24.37 * z) + 0.07446;
+}
+/**
+ * The series resistance's charge multiplier of a curve (TASK-104, second increment): for `chen-2006` eq. (3) under the curve's own
+ * mapping z = z_e + (1 − z_e)·s, normalised to 1 at full charge; `linear` has none (null), a constant resistance.
+ */
+export function seriesResistanceTable(curve: OpenCircuitCurve): number[] | null {
+  if (curve === 'linear') return null;
+  const ze = CHEN_2006_EMPTY_CHARGE, full = chen2006SeriesOhm(1), table: number[] = [];
+  for (let i = 0; i < TABLE_POINTS; i++) table.push(chen2006SeriesOhm(ze + (1 - ze) * (i / (TABLE_POINTS - 1))) / full);
+  table[TABLE_POINTS - 1] = 1;
+  return table;
+}
+
 /**
  * The pack table of a curve for `cells` in series between the card's empty and full cell voltages. Its ends are
  * exactly cells·empty and cells·full, the resolver's open-circuit voltages, so the manifest's check holds bit for bit.

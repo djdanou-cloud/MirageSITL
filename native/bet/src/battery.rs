@@ -230,6 +230,8 @@ pub struct PackModel {
     pub capacity_retention: f64,
     /// Growth of every resistance, at least 1.
     pub resistance_growth: f64,
+    /// Multiplier of the series resistance at charges 0, 0.05, ..., 1, each above 0 (TASK-104, second increment); all ones in v2.
+    pub series_table: [f64; TABLE_POINTS],
 }
 /// The state a dynamic pack carries between steps.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -273,10 +275,14 @@ impl PackModel {
         let (low, high) = (self.table_v[i], self.table_v[i + 1]);
         low + (high - low) * (x - i as f64) + (temperature_k - self.reference_k) * self.entropic_v_per_k
     }
-    /// Series resistance at a temperature, from its value at the reference, ohm.
-    pub fn series_ohm(&self, reference_ohm: f64, temperature_k: f64) -> f64 {
+    /// Series resistance at a temperature and charge, from its value at the reference, ohm.
+    pub fn series_ohm(&self, reference_ohm: f64, temperature_k: f64, soc: f64) -> f64 {
         let arrhenius = if self.activation_k == 0.0 { 1.0 } else { (self.activation_k * (1.0 / temperature_k - 1.0 / self.reference_k)).exp() };
-        reference_ohm * self.resistance_growth * arrhenius
+        let x = soc * (TABLE_POINTS - 1) as f64;
+        let i = (x as usize).min(TABLE_POINTS - 2);
+        let (low, high) = (self.series_table[i], self.series_table[i + 1]);
+        // A table of ones multiplies by exactly 1, so a v2 pack keeps its bits.
+        reference_ohm * self.resistance_growth * arrhenius * (low + (high - low) * (x - i as f64))
     }
 }
 
@@ -286,7 +292,8 @@ impl Battery {
         let m = &model;
         let scalars = [m.activation_k, m.reference_k, m.heat_capacity_j_per_k, m.still_air_w_per_k, m.airflow_w_per_k,
             m.entropic_v_per_k, m.capacity_retention, m.resistance_growth];
-        if !finite(&m.table_v) || !finite(&m.branch_ohm) || !finite(&m.branch_f) || !finite(&scalars)
+        if !finite(&m.table_v) || !finite(&m.branch_ohm) || !finite(&m.branch_f) || !finite(&scalars) || !finite(&m.series_table)
+            || m.series_table.iter().any(|v| *v <= 0.0)
             || m.table_v[0] != self.empty || m.table_v[TABLE_POINTS - 1] != self.full
             || m.table_v[0] <= 0.0 || m.table_v.windows(2).any(|w| w[1] < w[0])
             || (0..2).any(|k| m.branch_ohm[k] < 0.0 || (m.branch_ohm[k] > 0.0) != (m.branch_f[k] > 0.0) || m.branch_f[k] < 0.0)
@@ -316,7 +323,7 @@ impl Battery {
     /// branch voltages, and the series resistance plus each branch's share; and the decay factors.
     fn linearized(&self, model: &PackModel, state: &PackState, dt: f64) -> (f64, f64, [f64; 2], f64) {
         let open = model.open_circuit_v(state.soc, state.temperature_k);
-        let series = model.series_ohm(self.resistance, state.temperature_k);
+        let series = model.series_ohm(self.resistance, state.temperature_k, state.soc);
         let (mut u, mut r, mut decay) = (open, series, [1.0; 2]);
         for k in 0..2 {
             if model.branch_ohm[k] == 0.0 { continue; }
@@ -349,7 +356,7 @@ impl Battery {
         if !finite(&[current_a, dt]) || dt <= 0.0 { return Err(BatteryError); }
         let (u, r, decay, open) = self.linearized(&model, state, dt);
         let voltage = if state.soc == 0.0 && current_a == 0.0 { 0.0 } else { u - current_a * r };
-        let series = model.series_ohm(self.resistance, state.temperature_k);
+        let series = model.series_ohm(self.resistance, state.temperature_k, state.soc);
         let mut branch_v = state.branch_v;
         let mut heat = current_a * current_a * series - current_a * state.temperature_k * model.entropic_v_per_k;
         for k in 0..2 {

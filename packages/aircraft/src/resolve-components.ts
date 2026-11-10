@@ -1,5 +1,5 @@
 import { catalogPolar, catalogPolarForAirfoil } from '@mirage/physics/polar-catalog';
-import { openCircuitTableV } from '@mirage/physics/battery-curves';
+import { openCircuitTableV, seriesResistanceTable } from '@mirage/physics/battery-curves';
 import type { BatteryDynamicsSpec } from '@mirage/physics/vehicle-manifest';
 import { LIMIT_RATINGS_SCHEMA_VERSION, type LimitRatings, type MotorRatings } from '@mirage/physics/limit-monitor';
 import { checkProfileCards, type BatteryCard, type ComponentCard, type EscCard, type MotorCard, type PropellerCard } from './components.ts';
@@ -237,10 +237,13 @@ function batteryDynamics(v: BatteryCard['values'], cellFullV: number, cellEmptyV
   if (!thermal) assume('pack-temperature-held', subject, 'The pack\'s temperature stays at the air\'s: the card does not state its heat capacity and both conductances.');
   const retention = v.capacityRetention ?? null, growth = v.resistanceGrowth ?? null;
   if (retention === null || growth === null) assume('pack-new', subject, 'The pack is taken as new where its card does not state its retained capacity or resistance growth.');
+  const table = seriesResistanceTable(curve);
   return { dynamics: {
     openCircuitTableV: openCircuitTableV(curve, v.cellsSeries, cellEmptyV, cellFullV),
     branches, activationK: activation ?? 0, referenceK: 298.15,
     heatCapacityJPerK: thermal ? heat : 0, stillAirConductanceWPerK: thermal ? still : 0, airflowConductanceWPerK: thermal ? airflow : 0,
     entropicVPerK: entropic ?? 0, capacityRetention: retention ?? 1, resistanceGrowth: growth ?? 1,
+    // The curve preset carries the series resistance's charge dependence (second increment); linear has none.
+    ...(table ? { seriesResistanceTable: table } : {}),
   } };
 }

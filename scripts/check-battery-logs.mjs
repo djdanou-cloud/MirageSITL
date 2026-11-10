@@ -22,7 +22,7 @@ if (!process.execArgv.includes(TRANSFORM)) {
   process.exit(child.status ?? 1);
 }
 const { readDataFlash } = await import("../packages/dataflash/src/reader.ts");
-const { openCircuitTableV } = await import("../packages/physics/src/battery-curves.ts");
+const { openCircuitTableV, seriesResistanceTable } = await import("../packages/physics/src/battery-curves.ts");
 const { BetBus } = await import("../packages/wasm-bet/src/bus.ts");
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -35,6 +35,8 @@ if (!dir || !existsSync(dir)) { console.error("BLOCKED_EXTERNAL: --dir with the 
 const card = JSON.parse(readFileSync(join(ROOT, "tests/fixtures/components/pavo-battery-3s-850.json"), "utf8")).values;
 const CELLS = card.cellsSeries, CAPACITY_C = card.capacityAh * 3600, CARD_R0 = card.internalResistanceOhm;
 const TABLES = { linear: openCircuitTableV("linear", CELLS, card.cellEmptyV, card.cellFullV), "chen-2006": openCircuitTableV("chen-2006", CELLS, card.cellEmptyV, card.cellFullV) };
+// The series resistance by charge each curve carries (TASK-104, second increment); linear has none.
+const SERIES = { linear: null, "chen-2006": seriesResistanceTable("chen-2006") };
 const FIT_LOG = "stakeholder-pavo-log_34_UnknownDate.bin";
 const MIN_CELL_V = 3.0, MIN_CURRENT_A = 0.5, SUBSTEP_S = 1 / 400;
 
@@ -51,7 +53,7 @@ const chargeAt = (table, voltage) => {
 };
 /** One held-current step of the pack at the reference temperature (no heat in this comparison: the logs hold no temperature). */
 function step(model, state, current, dt) {
-  let u = openCircuit(model.table, state.soc), r = model.r0;
+  let u = openCircuit(model.table, state.soc), r = model.r0 * (model.series ? openCircuit(model.series, state.soc) : 1);
   const decay = [1, 1];
   for (let k = 0; k < model.branches.length; k++) {
     const { r: rk, c: ck } = model.branches[k], a = Math.exp(-dt / (rk * ck));
@@ -68,10 +70,12 @@ let mirrorCheck;
 {
   execFileSync(process.execPath, ["scripts/build-wasm.mjs"], { cwd: ROOT, stdio: "pipe" });
   const module = new WebAssembly.Module(readFileSync(join(ROOT, "packages/wasm-bet/dist/mirage_bet.scalar.wasm")));
-  const model = { table: TABLES["chen-2006"], r0: 0.08, branches: [{ r: 0.03, c: 800 }, { r: 0.05, c: 6000 }] };
+  const model = { table: TABLES["chen-2006"], series: SERIES["chen-2006"], r0: 0.08, branches: [{ r: 0.03, c: 800 }, { r: 0.05, c: 6000 }] };
   const bus = new BetBus(module, { openCircuitFullV: model.table[20], openCircuitEmptyV: model.table[0], internalResistanceOhm: model.r0,
     capacityAh: card.capacityAh, currentLimitA: 200, dynamics: { openCircuitTableV: model.table, branches: model.branches.map(b => ({ resistanceOhm: b.r, capacitanceF: b.c })),
-      activationK: 0, referenceK: 298.15, heatCapacityJPerK: 0, stillAirConductanceWPerK: 0, airflowConductanceWPerK: 0, entropicVPerK: 0, capacityRetention: 1, resistanceGrowth: 1 } }, 400);
+      activationK: 0, referenceK: 298.15, heatCapacityJPerK: 0, stillAirConductanceWPerK: 0, airflowConductanceWPerK: 0, entropicVPerK: 0, capacityRetention: 1, resistanceGrowth: 1,
+      seriesResistanceTable: model.series } }, 400);
+  // From 0.95 down past 0.2, where the charge table rises (40,000 steps of 40 to 110 W on 0.85 Ah reach about 0.1).
   const state = { soc: 0.95, v: [0, 0] }, x = bus.input;
   x[0] = state.soc; x[3] = 0; x[4] = 0; x[5] = 298.15; x[6] = 298.15; x[7] = 0;
   let worst = 0;
@@ -125,7 +129,7 @@ function compare(flight, model) {
   return { samples: n, excluded, rmsV: Math.sqrt(sum / Math.max(1, n)), largestV: worst, startCharge: chargeAt(model.table, rows[0].v + rows[0].i * model.r0) };
 }
 
-const modelOf = (curve, [r0, r1, t1, r2, t2]) => ({ table: TABLES[curve], r0, branches: [{ r: r1, c: t1 / r1 }, { r: r2, c: t2 / r2 }] });
+const modelOf = (curve, [r0, r1, t1, r2, t2]) => ({ table: TABLES[curve], series: SERIES[curve], r0, branches: [{ r: r1, c: t1 / r1 }, { r: r2, c: t2 / r2 }] });
 /** Nelder–Mead on the logarithms of R0, R1, τ1, R2, τ2, from the declared start, minimising the RMS error on the fit log alone. */
 function fit(curve, flight) {
   const cost = x => compare(flight, modelOf(curve, x.map(Math.exp))).rmsV;
@@ -158,13 +162,13 @@ if (!files.includes(FIT_LOG)) { console.error(`BLOCKED_EXTERNAL: ${FIT_LOG} is n
 const flights = files.map(flightOf);
 const fitFlight = flights.find(f => f.file === FIT_LOG);
 const fittedLinear = fit("linear", fitFlight), fittedChen = fit("chen-2006", fitFlight);
-const paper = { table: TABLES["chen-2006"], r0: CELLS * 0.07446, branches: [{ r: CELLS * 0.04669, c: 703.6 / CELLS }, { r: CELLS * 0.04984, c: 4475 / CELLS }] };
+const paper = { table: TABLES["chen-2006"], series: SERIES["chen-2006"], r0: CELLS * 0.07446, branches: [{ r: CELLS * 0.04669, c: 703.6 / CELLS }, { r: CELLS * 0.04984, c: 4475 / CELLS }] };
 const v = fittedLinear.values, w = fittedChen.values;
 const models = {
-  A: { label: "TASK-092: linear curve, the card's 0.0771 ohm", model: { table: TABLES.linear, r0: CARD_R0, branches: [] } },
+  A: { label: "TASK-092: linear curve, the card's 0.0771 ohm", model: { table: TABLES.linear, series: null, r0: CARD_R0, branches: [] } },
   B: { label: "linear curve, R0 R1 tau1 R2 tau2 fitted on log 34", model: modelOf("linear", [v.r0Ohm, v.r1Ohm, v.tau1S, v.r2Ohm, v.tau2S]) },
-  C: { label: "chen-2006 curve, R0 R1 tau1 R2 tau2 fitted on log 34", model: modelOf("chen-2006", [w.r0Ohm, w.r1Ohm, w.tau1S, w.r2Ohm, w.tau2S]) },
-  D: { label: "chen-2006 curve, the paper's own cell (eq. 3 to 7 at s >= 0.2), three in series", model: paper },
+  C: { label: "chen-2006 curve with its series resistance by charge, R0 R1 tau1 R2 tau2 fitted on log 34", model: modelOf("chen-2006", [w.r0Ohm, w.r1Ohm, w.tau1S, w.r2Ohm, w.tau2S]) },
+  D: { label: "chen-2006 curve with its series resistance by charge, the paper's own cell (eq. 3 to 7 at s >= 0.2), three in series", model: paper },
 };
 const logs = flights.map(f => ({
   file: f.file, sha256: f.sha256, fitted: f.file === FIT_LOG, samplesInFlight: f.rows.length,
@@ -172,7 +176,7 @@ const logs = flights.map(f => ({
   models: f.rows.length > 1 ? Object.fromEntries(Object.entries(models).map(([key, m]) => [key, compare(f, m.model)])) : null,
 }));
 const report = {
-  schema: "mirage-battery-logs/1", task: "TASK-104", status: "REPORTED", judged: false,
+  schema: "mirage-battery-logs/2", task: "TASK-104", status: "REPORTED", judged: false,
   declared: "SPECS_SIMULATION_ENGINES, Battery v2, Comparison with measured discharges (2026-11-09)",
   card: "tests/fixtures/components/pavo-battery-3s-850.json", cells: CELLS, capacityAh: card.capacityAh, cellWindowV: [card.cellEmptyV, card.cellFullV],
   mirrorCheck, fitLog: FIT_LOG, fits: { B: fittedLinear, C: fittedChen }, models: Object.fromEntries(Object.entries(models).map(([k, m]) => [k, m.label])),

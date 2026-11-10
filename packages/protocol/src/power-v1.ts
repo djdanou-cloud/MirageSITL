@@ -4,11 +4,16 @@
  * The physics Worker is the only writer and publishes the latest step into one
  * seqlock record; Main reads it at display rate. Writer and reader use
  * preallocated scratch; neither allocates after construction.
+ *
+ * Version 2 (TASK-104, second increment) adds the pack temperature at record
+ * byte 88, which version 1 kept reserved, and refuses a version 1 buffer. The
+ * identifiers keep their v1 names.
  */
 import { publishAtomicFrame, tryReadAtomicFrame } from './atomic-v2.ts';
 
 export const POWER_MAGIC_V1 = 0x4d505752;
-export const POWER_VERSION_V1 = 1;
+/** The record version: 2 since TASK-104 (SPECS_SHARED_MEMORY, "Power telemetry"). */
+export const POWER_VERSION_V1 = 2;
 export const POWER_HEADER_BYTES_V1 = 64;
 export const POWER_MOTOR_CAPACITY_V1 = 16;
 export const POWER_MOTOR_STRIDE_V1 = 32;
@@ -22,15 +27,15 @@ export const PowerHeaderV1 = Object.freeze({ Magic: 0, Version: 1, HeaderBytes: 
 /** Record byte offsets, relative to the record at byte 64. */
 export const PowerRecordV1 = Object.freeze({
   seqlock: 0, sampleId: 4, tickLo: 8, tickHi: 12, epoch: 16, modelId: 20, motorCount: 24, batteryWarning: 28, batteryLimited: 32,
-  droppedEvents: 36, stateOfCharge: 40, voltageV: 48, currentA: 56, powerW: 64, remainingAh: 72, capacityAh: 80, motors: 96,
+  droppedEvents: 36, stateOfCharge: 40, voltageV: 48, currentA: 56, powerW: 64, remainingAh: 72, capacityAh: 80, packTemperatureK: 88, motors: 96,
   motor: Object.freeze({ rpm: 0, motorCurrentA: 4, busCurrentA: 8, electricalPowerW: 12, command: 16, warning: 20, limited: 24 }),
 });
 
 /**
  * What the writer copies. The physics `PowerTelemetry` has this shape:
  * five doubles per motor (rpm, motor current, bus current, electrical power,
- * command) and six battery slots (state of charge, voltage, current, power,
- * remaining Ah, capacity Ah).
+ * command) and seven battery slots (state of charge, voltage, current, power,
+ * remaining Ah, capacity Ah, pack temperature K: 0 without a dynamic pack).
  */
 export interface PowerTelemetrySource {
   readonly motorCount: number;
@@ -46,6 +51,8 @@ export interface PowerSnapshotV1 {
   sampleId: number; tickLo: number; tickHi: number; epoch: number; modelId: number; motorCount: number;
   batteryWarning: number; batteryLimited: number; droppedEvents: number;
   stateOfCharge: number; voltageV: number; currentA: number; powerW: number; remainingAh: number; capacityAh: number;
+  /** The pack's temperature, K; 0 for a pack without TASK-104 dynamics. */
+  packTemperatureK: number;
   /** Per motor: rpm, motor current A, bus current A, electrical power W, command; `POWER_MOTOR_CAPACITY_V1` rows. */
   readonly motors: Float32Array;
   readonly motorWarning: Uint32Array;
@@ -53,7 +60,7 @@ export interface PowerSnapshotV1 {
 }
 export function newPowerSnapshotV1(): PowerSnapshotV1 {
   return { sampleId: 0, tickLo: 0, tickHi: 0, epoch: 0, modelId: 0, motorCount: 0, batteryWarning: 0, batteryLimited: 0, droppedEvents: 0,
-    stateOfCharge: 0, voltageV: 0, currentA: 0, powerW: 0, remainingAh: 0, capacityAh: 0,
+    stateOfCharge: 0, voltageV: 0, currentA: 0, powerW: 0, remainingAh: 0, capacityAh: 0, packTemperatureK: 0,
     motors: new Float32Array(POWER_MOTOR_CAPACITY_V1 * 5), motorWarning: new Uint32Array(POWER_MOTOR_CAPACITY_V1),
     motorLimited: new Uint32Array(POWER_MOTOR_CAPACITY_V1) };
 }
@@ -105,6 +112,7 @@ export class PowerWriterV1 {
       v.setUint32(R.batteryWarning, source.batteryMasks[0]!, true); v.setUint32(R.batteryLimited, source.batteryMasks[1]!, true);
       v.setFloat64(R.stateOfCharge, b[0]!, true); v.setFloat64(R.voltageV, b[1]!, true); v.setFloat64(R.currentA, b[2]!, true);
       v.setFloat64(R.powerW, b[3]!, true); v.setFloat64(R.remainingAh, b[4]!, true); v.setFloat64(R.capacityAh, b[5]!, true);
+      v.setFloat64(R.packTemperatureK, b.length > 6 ? b[6]! : 0, true);
       for (let i = 0; i < n; i++) {
         const at = R.motors + i * POWER_MOTOR_STRIDE_V1, row = i * 5;
         v.setFloat32(at + M.rpm, m[row]!, true); v.setFloat32(at + M.motorCurrentA, m[row + 1]!, true);
@@ -143,6 +151,7 @@ export class PowerReaderV1 {
       out.stateOfCharge = v.getFloat64(R.stateOfCharge, true); out.voltageV = v.getFloat64(R.voltageV, true);
       out.currentA = v.getFloat64(R.currentA, true); out.powerW = v.getFloat64(R.powerW, true);
       out.remainingAh = v.getFloat64(R.remainingAh, true); out.capacityAh = v.getFloat64(R.capacityAh, true);
+      out.packTemperatureK = v.getFloat64(R.packTemperatureK, true);
       for (let i = 0; i < POWER_MOTOR_CAPACITY_V1; i++) {
         const at = R.motors + i * POWER_MOTOR_STRIDE_V1, row = i * 5;
         out.motors[row] = v.getFloat32(at + M.rpm, true); out.motors[row + 1] = v.getFloat32(at + M.motorCurrentA, true);

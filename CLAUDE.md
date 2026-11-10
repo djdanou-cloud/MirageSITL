@@ -164,8 +164,9 @@ implementation.
   motor's heat fly on the ESC drive with G1 passing, HAL mailbox v2 motor speeds
   drive the browser firmware's notch, and ESC desynchronization is the TASK-166
   effect `esc.desync`, every value of it an engineering choice; the notch's
-  attenuation of a vibration belongs to the deferred TASK-114. TASK-104 was DONE
-  (2026-11-09, approved that day) and is reopened on 2026-11-10 to finish it: a pack whose battery card names an open-circuit
+  attenuation of a vibration belongs to the deferred TASK-114. TASK-104 is DONE
+  (2026-11-09, approved that day; finished 2026-11-10 with the series resistance by charge and
+  the pack temperature on the Run tab): a pack whose battery card names an open-circuit
   curve flies the second-order Thevenin pack (shared bus records v2), and ArduCopter's
   sag-compensated low-battery warning behaves as declared on it; its comparison with
   the stakeholder's logged discharges is shown for the stakeholder to judge (SA-01).

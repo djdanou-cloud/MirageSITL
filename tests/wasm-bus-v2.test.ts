@@ -5,7 +5,7 @@ import { validateComponentCard, type ComponentCard } from '@mirage/aircraft/comp
 import { deriveVehicleManifest } from '@mirage/aircraft/derive-manifest';
 import { validateAircraftProfile, withPropellerPolars } from '@mirage/aircraft/profile';
 import { resolveComponents } from '@mirage/aircraft/resolve-components';
-import { CHEN_2006_EMPTY_CHARGE, chen2006CellV, openCircuitTableV } from '@mirage/physics/battery-curves';
+import { CHEN_2006_EMPTY_CHARGE, chen2006CellV, openCircuitTableV, seriesResistanceTable } from '@mirage/physics/battery-curves';
 import { BetFlightDynamics, type BetFlightConfiguration } from '@mirage/physics/bet-dynamics';
 import { BatteryColumn } from '@mirage/physics/limit-monitor';
 import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
@@ -41,6 +41,17 @@ describe('open-circuit curves (check 7)', () => {
     expect(table[0]).toBe(cells * empty);
     expect(table[20]).toBe(cells * full);
     expect(openCircuitTableV('linear', 4, 3.3, 4.2).every((v, i, t) => i === 0 || v >= t[i - 1]!)).toBe(true);
+  });
+  // Second increment, check 2: the series resistance's charge table against eq. (3) under the same mapping, within 1e-12.
+  it('chen-2006 carries eq. (3) as the series resistance by charge; linear carries none', () => {
+    const eq3 = (z: number) => 0.1562 * Math.exp(-24.37 * z) + 0.07446, ze = CHEN_2006_EMPTY_CHARGE;
+    const table = seriesResistanceTable('chen-2006');
+    if (!table) throw new Error('No table');
+    expect(table).toHaveLength(21);
+    for (let i = 0; i < 21; i++) expect(Math.abs(table[i]! - eq3(ze + (1 - ze) * i / 20) / eq3(1)), `point ${i}`).toBeLessThan(1e-12);
+    expect(table[20]).toBe(1);
+    expect(Math.abs(table[0]! - 2.0678)).toBeLessThan(1e-4);
+    expect(seriesResistanceTable('linear')).toBeNull();
   });
 });
 
@@ -119,6 +130,8 @@ describe('the pack in the flight', () => {
     const keys = Object.keys(v2);
     const fresh = await configuration(card('battery', v2, 2));
     expect(fresh.drive?.battery.dynamics?.branches).toHaveLength(2);
+    // The chen-2006 preset brings its resistance table, so the flight runs shared bus records v3.
+    expect(fresh.drive?.battery.dynamics?.seriesResistanceTable).toHaveLength(21);
     const plain = await configuration(card('battery'));
     expect(plain.drive?.battery.dynamics).toBeUndefined();
     expect(keys).toHaveLength(12);

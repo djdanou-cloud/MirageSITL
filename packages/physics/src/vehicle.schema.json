@@ -555,7 +555,8 @@
             "airflowConductanceWPerK": { "type": "number", "minimum": 0 },
             "entropicVPerK": { "type": "number" },
             "capacityRetention": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
-            "resistanceGrowth": { "type": "number", "minimum": 1 }
+            "resistanceGrowth": { "type": "number", "minimum": 1 },
+            "seriesResistanceTable": { "type": "array", "minItems": 21, "maxItems": 21, "items": { "type": "number", "exclusiveMinimum": 0 } }
           }
         }
       }

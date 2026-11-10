@@ -24,12 +24,17 @@ describe('power telemetry v1 channel', () => {
     const buffer = createPowerChannelV1(), view = new DataView(buffer);
     expect(POWER_BYTES_V1).toBe(672);
     expect(buffer.byteLength).toBe(672);
-    expect([0, 4, 8, 12, 16, 20].map(at => view.getUint32(at, true))).toEqual([POWER_MAGIC_V1, 1, 64, 608, 16, 0]);
+    // Version 2 since TASK-104 (the pack temperature at record byte 88).
+    expect([0, 4, 8, 12, 16, 20].map(at => view.getUint32(at, true))).toEqual([POWER_MAGIC_V1, 2, 64, 608, 16, 0]);
     expect(POWER_MAGIC_V1).toBe(0x4d505752);
     for (let at = 24; at < 672; at += 4) expect(view.getUint32(at, true)).toBe(0);
     expect(() => validatePowerChannelV1(new SharedArrayBuffer(672))).toThrow('power telemetry v1');
     expect(() => validatePowerChannelV1(new SharedArrayBuffer(676))).toThrow('power telemetry v1');
     expect(() => validatePowerChannelV1(new ArrayBuffer(672))).toThrow('power telemetry v1');
+    // TASK-104: a version 1 buffer is refused.
+    const old = createPowerChannelV1();
+    new DataView(old).setUint32(4, 1, true);
+    expect(() => validatePowerChannelV1(old)).toThrow('power telemetry v1');
     // ABI v2 keeps its size: the channel is a separate buffer.
     expect(SHARED_BYTES_V2).toBe(49280);
   });
@@ -42,13 +47,13 @@ describe('power telemetry v1 channel', () => {
       t.motors.set([1000 + i, 10.25 + i, 5.5 + i, 120.125 + i, i / 16], i * 5);
       t.motorWarning[i] = i % 32; t.motorLimited[i] = i % 2;
     }
-    t.battery.set([0.75, 15.5, 42.25, 15.5 * 42.25, 3.75, 5]); t.batteryMasks.set([1, 3]);
+    t.battery.set([0.75, 15.5, 42.25, 15.5 * 42.25, 3.75, 5, 301.25]); t.batteryMasks.set([1, 3]);
     writer.publish(t, 0x89abcdef, 7, 3, 144, 5);
     const view = new DataView(buffer), at = 64;
     expect(view.getUint32(20, true)).toBe(1);
     expect(view.getUint32(at, true)).toBe(2); // seqlock even after one publication
     expect([4, 8, 12, 16, 20, 24, 28, 32, 36].map(o => view.getUint32(at + o, true))).toEqual([1, 0x89abcdef, 7, 3, 144, 16, 1, 3, 5]);
-    expect([40, 48, 56, 64, 72, 80].map(o => view.getFloat64(at + o, true))).toEqual([0.75, 15.5, 42.25, 15.5 * 42.25, 3.75, 5]);
+    expect([40, 48, 56, 64, 72, 80, 88].map(o => view.getFloat64(at + o, true))).toEqual([0.75, 15.5, 42.25, 15.5 * 42.25, 3.75, 5, 301.25]);
     for (let i = 0; i < 16; i++) {
       const m = at + 96 + i * 32;
       expect([0, 4, 8, 12, 16].map(o => view.getFloat32(m + o, true))).toEqual([1000 + i, 10.25 + i, 5.5 + i, 120.125 + i, i / 16]);
@@ -56,12 +61,12 @@ describe('power telemetry v1 channel', () => {
     }
     expect(reader.latest(out)).toBe(true);
     expect(out).toMatchObject({ sampleId: 1, tickLo: 0x89abcdef, tickHi: 7, epoch: 3, modelId: 144, motorCount: 16, batteryWarning: 1,
-      batteryLimited: 3, droppedEvents: 5, stateOfCharge: 0.75, voltageV: 15.5, currentA: 42.25, remainingAh: 3.75, capacityAh: 5 });
+      batteryLimited: 3, droppedEvents: 5, stateOfCharge: 0.75, voltageV: 15.5, currentA: 42.25, remainingAh: 3.75, capacityAh: 5, packTemperatureK: 301.25 });
     expect(Array.from(out.motors.subarray(5, 10))).toEqual([1001, 11.25, 6.5, 121.125, 1 / 16]);
     // A model without an electrical drive publishes no motors and a zeroed battery.
     writer.publish(null, 9, 0, 3, 1, 0);
     expect(reader.latest(out)).toBe(true);
-    expect(out).toMatchObject({ sampleId: 2, motorCount: 0, voltageV: 0, batteryLimited: 0 });
+    expect(out).toMatchObject({ sampleId: 2, motorCount: 0, voltageV: 0, batteryLimited: 0, packTemperatureK: 0 });
     expect(Array.from(out.motorWarning)).toEqual(new Array(POWER_MOTOR_CAPACITY_V1).fill(0));
   });
   it('refuses a torn record and leaves the snapshot unchanged', () => {

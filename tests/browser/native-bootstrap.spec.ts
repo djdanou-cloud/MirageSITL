@@ -68,7 +68,9 @@ test('bootstrap BET kernel builds reproducibly and runs in Chromium', async ({ p
       // The ESC shaper and the motor's heat in the flight: the same specification, second increment of TASK-105.
       'bet_esc_shaper_version', 'bet_esc_shaper_step', 'bet_motor_thermal_version', 'bet_motor_thermal_step',
       // Shared bus records v2, a dynamic pack: the same specification, "Battery v2 (TASK-104)".
-      'bet_bus_v2_version'].sort());
+      'bet_bus_v2_version',
+      // Version 3, the series resistance by charge: the same section, second increment.
+      'bet_bus_v3_version'].sort());
     expect(result.abi).toBe(1);
     expect(result.bodyAbi).toBe(1);
     cases.forEach((c, i) => {

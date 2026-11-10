@@ -65,6 +65,8 @@ export interface BatteryDynamicsSpec {
   readonly activationK: number; readonly referenceK: number; readonly heatCapacityJPerK: number;
   readonly stillAirConductanceWPerK: number; readonly airflowConductanceWPerK: number; readonly entropicVPerK: number;
   readonly capacityRetention: number; readonly resistanceGrowth: number;
+  /** TASK-104, second increment: the series resistance's charge multiplier at 21 charges; absent, constant. */
+  readonly seriesResistanceTable?: readonly number[];
 }
 export interface AirframeDrag {
   /** Row-major symmetric drag-area tensor (C_D·A), body FRD, m^2, of the airframe without its rotors (TASK-096). */

@@ -18,6 +18,9 @@ export const BUS_V2 = {
   output: { branch1Voltage: 56, branch2Voltage: 64, temperature: 72, heat: 80, openCircuitVoltage: 88 },
 } as const;
 
+/** Input v3 (TASK-104, second increment): input v2 with the series resistance's charge table at byte 376. */
+export const BUS_V3 = { version: 3, inputBytes: 576, seriesResistanceTable: 376 } as const;
+
 /** One RC branch of a dynamic pack (TASK-104). */
 export interface BusBatteryBranch { readonly resistanceOhm: number; readonly capacitanceF: number }
 /** The second-order Thevenin pack of TASK-104; SI units. */
@@ -40,6 +43,8 @@ export interface BusBatteryDynamics {
   readonly capacityRetention: number;
   /** Growth of every resistance, at least 1. */
   readonly resistanceGrowth: number;
+  /** The series resistance's multiplier at charges 0, 0.05, ..., 1, each above 0; present, the records are version 3. */
+  readonly seriesResistanceTable?: readonly number[];
 }
 
 /** Linear open-circuit voltage pack; SI units, capacity in ampere-hours. With `dynamics`, the TASK-104 pack. */
@@ -51,9 +56,10 @@ export interface BusBattery {
 
 /** Writes a bus input record for `battery` at `at`: version 1, or version 2 with its dynamics; charge, powers and state left zero. */
 export function writeBusRecord(view: DataView, at: number, battery: BusBattery): number {
-  const d = battery.dynamics, bytes = d ? BUS_V2.inputBytes : BUS_V1.inputBytes, I = BUS_V1.input;
+  const d = battery.dynamics, table = d?.seriesResistanceTable, I = BUS_V1.input;
+  const bytes = table ? BUS_V3.inputBytes : d ? BUS_V2.inputBytes : BUS_V1.inputBytes;
   new Uint8Array(view.buffer, at, bytes).fill(0);
-  view.setUint32(at, d ? BUS_V2.version : BUS_V1.version, true);
+  view.setUint32(at, table ? BUS_V3.version : d ? BUS_V2.version : BUS_V1.version, true);
   view.setFloat64(at + I.openCircuitFull, battery.openCircuitFullV, true); view.setFloat64(at + I.openCircuitEmpty, battery.openCircuitEmptyV, true);
   view.setFloat64(at + I.internalResistance, battery.internalResistanceOhm, true);
   view.setFloat64(at + I.capacityCoulomb, battery.capacityAh * 3600, true); view.setFloat64(at + I.currentLimit, battery.currentLimitA, true);
@@ -68,6 +74,10 @@ export function writeBusRecord(view: DataView, at: number, battery: BusBattery):
     view.setFloat64(at + J.airflowConductance, d.airflowConductanceWPerK, true); view.setFloat64(at + J.entropicCoefficient, d.entropicVPerK, true);
     view.setFloat64(at + J.capacityRetention, d.capacityRetention, true); view.setFloat64(at + J.resistanceGrowth, d.resistanceGrowth, true);
     for (let i = 0; i < BUS_V2.tablePoints; i++) view.setFloat64(at + J.openCircuitTable + 8 * i, d.openCircuitTableV[i]!, true);
+    if (table) {
+      if (table.length !== BUS_V2.tablePoints) throw new Error('Invalid bus battery dynamics');
+      for (let i = 0; i < BUS_V2.tablePoints; i++) view.setFloat64(at + BUS_V3.seriesResistanceTable + 8 * i, table[i]!, true);
+    }
   }
   return bytes;
 }
@@ -110,10 +120,11 @@ export class BetBus {
     this.dynamic = battery.dynamics !== undefined;
     if (!(e.memory instanceof WebAssembly.Memory) || !(e.__heap_base instanceof WebAssembly.Global) ||
         typeof e.__heap_base.value !== 'number' || !callable(e.bet_bus_version) || e.bet_bus_version() !== BUS_V1.version ||
-        !callable(e.bet_bus_step) || (this.dynamic && (!callable(e.bet_bus_v2_version) || e.bet_bus_v2_version() !== BUS_V2.version)))
+        !callable(e.bet_bus_step) || (this.dynamic && (!callable(e.bet_bus_v2_version) || e.bet_bus_v2_version() !== BUS_V2.version)) ||
+        (battery.dynamics?.seriesResistanceTable !== undefined && (!callable(e.bet_bus_v3_version) || e.bet_bus_v3_version() !== BUS_V3.version)))
       throw new Error('Missing shared bus export');
     this.dtS = 1 / hz; this.memory = e.memory; this.nativeStep = e.bet_bus_step;
-    this.inputAt = Math.ceil(e.__heap_base.value / 64) * 64; this.outputAt = this.inputAt + BUS_V2.inputBytes;
+    this.inputAt = Math.ceil(e.__heap_base.value / 64) * 64; this.outputAt = this.inputAt + BUS_V3.inputBytes;
     const end = this.outputAt + BUS_V1.outputBytes;
     if (this.memory.buffer.byteLength < end) this.memory.grow(Math.ceil((end - this.memory.buffer.byteLength) / 65536));
     this.buffer = this.memory.buffer; this.view = new DataView(this.buffer);

@@ -165,4 +165,29 @@ test('the power panel keeps a rating warning apart from a modeled limit on a run
   await expect(events.locator('li[data-kind="limited"]').first()).toBeVisible();
   await expect(events.locator('li[data-kind="warning"]').first()).toBeVisible();
   await expect(events).toContainText('Battery: pack current at its limit');
+  // TASK-104: a pack without dynamics has no temperature, and the panel shows none.
+  await expect(panel.getByTestId('power-pack-temperature')).toHaveCount(0);
+});
+
+// TASK-104, second increment: power telemetry v2 carries a dynamic pack's temperature, which the panel shows in °C.
+test('the power panel shows a dynamic pack\'s temperature', async ({ page }) => {
+  await page.goto('/');
+  await page.route('**/power-temperature-test', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Pack temperature check</title>' +
+    '<script type="module">import R from "/@react-refresh";R.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};' +
+    'window.$RefreshSig$=()=>(t)=>t;window.__vite_plugin_react_preamble_installed__=true;</script><main id="root"></main>',
+    headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' } }));
+  await page.goto('/power-temperature-test');
+  await page.evaluate(async urls => {
+    const p = await import(urls.protocol) as typeof import('@mirage/protocol');
+    const host = await import(urls.host) as typeof import('./power-panel-host');
+    const power = p.createPowerChannelV1(), writer = new p.PowerWriterV1(power);
+    const root = document.getElementById('root');
+    if (!root) throw new Error('No root element');
+    // The panel only listens to the Worker's limit events; an idle module Worker of the application is enough.
+    host.mountPowerPanel(root, power, new Worker(urls.worker, { type: 'module' }));
+    writer.publish({ motorCount: 1, motors: new Float64Array(5), motorWarning: new Uint32Array(1), motorLimited: new Uint32Array(1),
+      battery: new Float64Array([0.5, 15.2, 8, 121.6, 2.5, 5, 301.25]), batteryMasks: new Uint32Array(2) }, 1, 0, 1, 104, 0);
+  }, { protocol: viteFileUrl(new URL('../../packages/protocol/src/index.ts', import.meta.url)), host: viteFileUrl(new URL('./power-panel-host.tsx', import.meta.url)),
+    worker: viteFileUrl(new URL('../../apps/web/src/physics.worker.ts', import.meta.url)) });
+  await expect(page.getByTestId('power-pack-temperature')).toHaveText('Temperature28.1 °C');
 });

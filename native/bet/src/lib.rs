@@ -282,6 +282,10 @@ mod wasm_exports {
     #[no_mangle]
     pub extern "C" fn bet_bus_v2_version() -> u32 { crate::bus_abi::VERSION_V2 }
 
+    /// Shared battery bus record version 3 (TASK-104, second increment), accepted beside versions 1 and 2.
+    #[no_mangle]
+    pub extern "C" fn bet_bus_v3_version() -> u32 { crate::bus_abi::VERSION_V3 }
+
     /// One shared-bus step over validated, disjoint caller-owned records.
     #[no_mangle]
     pub extern "C" fn bet_bus_step(input_ptr: u32, out_ptr: u32, dt: f64) -> i32 {

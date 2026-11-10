@@ -8,15 +8,19 @@ use crate::bus_solve::{self, MotorLoad};
 
 /// Record version 1 (TASK-092).
 pub const VERSION: u32 = 1;
-/// Record version 2 (TASK-104); `bet_bus_step` and the bus solve accept both.
+/// Record version 2 (TASK-104); `bet_bus_step` and the bus solve accept every version.
 pub const VERSION_V2: u32 = 2;
+/// Record version 3 (TASK-104, second increment): version 2 with the series resistance's charge table.
+pub const VERSION_V3: u32 = 3;
 /// Input record bytes, version 1.
 pub const INPUT_BYTES: u32 = 128;
 /// Input record bytes, version 2 (TASK-104).
 pub const INPUT_V2_BYTES: u32 = 384;
+/// Input record bytes, version 3 (TASK-104, second increment).
+pub const INPUT_V3_BYTES: u32 = 576;
 /// Input bytes of a record version, or `None` for an unknown one.
 pub fn input_bytes(version: u32) -> Option<u32> {
-    match version { 1 => Some(INPUT_BYTES), 2 => Some(INPUT_V2_BYTES), _ => None }
+    match version { 1 => Some(INPUT_BYTES), 2 => Some(INPUT_V2_BYTES), 3 => Some(INPUT_V3_BYTES), _ => None }
 }
 /// Output record bytes.
 pub const OUTPUT_BYTES: u32 = 128;
@@ -44,11 +48,14 @@ fn battery_of(input: &[u8]) -> Result<Battery, i32> {
     Battery::new(value(input, 8), value(input, 16), value(input, 24), value(input, 32), value(input, 40)).map_err(|_| -3)
 }
 
-/// A version 2 record's pack, state and air (TASK-104).
+/// A version 2 or 3 record's pack, state and air (TASK-104).
 fn pack_of(input: &[u8]) -> Result<(Battery, PackState, PackAir), i32> {
-    if input.len() != INPUT_V2_BYTES as usize { return Err(-2); }
-    if word(input, 0) != 2 { return Err(-7); }
-    if word(input, 4) != 0 || !input[376..384].iter().all(|b| *b == 0) { return Err(-3); }
+    let version = if input.len() >= 8 { word(input, 0) } else { 0 };
+    let (bytes, reserved) = match version { 2 => (INPUT_V2_BYTES, 376), 3 => (INPUT_V3_BYTES, 544), _ => return Err(-7) };
+    if input.len() != bytes as usize { return Err(-2); }
+    if word(input, 4) != 0 || !input[reserved..bytes as usize].iter().all(|b| *b == 0) { return Err(-3); }
+    let mut series_table = [1.0; TABLE_POINTS];
+    if version == 3 { for (i, v) in series_table.iter_mut().enumerate() { *v = value(input, 376 + 8 * i); } }
     let mut table_v = [0.0; TABLE_POINTS];
     for (i, v) in table_v.iter_mut().enumerate() { *v = value(input, 208 + 8 * i); }
     let model = PackModel {
@@ -63,6 +70,7 @@ fn pack_of(input: &[u8]) -> Result<(Battery, PackState, PackAir), i32> {
         entropic_v_per_k: value(input, 184),
         capacity_retention: value(input, 192),
         resistance_growth: value(input, 200),
+        series_table,
     };
     let battery = Battery::new(value(input, 8), value(input, 16), value(input, 24), value(input, 32), value(input, 40))
         .and_then(|b| b.with_model(model)).map_err(|_| -3)?;
@@ -76,7 +84,7 @@ fn pack_of(input: &[u8]) -> Result<(Battery, PackState, PackAir), i32> {
 pub fn solve(input: &[u8], loads: &[MotorLoad], out: &mut [u8], dt: f64) -> i32 {
     if out.len() != SOLUTION_BYTES as usize { return -2; }
     if input.len() < 8 { return -2; }
-    let solved = if word(input, 0) == 2 {
+    let solved = if word(input, 0) == 2 || word(input, 0) == 3 {
         let (battery, state, air) = match pack_of(input) { Ok(pack) => pack, Err(status) => return status };
         if value(input, 56) != 0.0 { return -3; }
         bus_solve::solve_at(&battery, &state, &air, value(input, 64), dt, loads)
@@ -100,7 +108,7 @@ pub fn solve(input: &[u8], loads: &[MotorLoad], out: &mut [u8], dt: f64) -> i32 
 /// A negative status leaves the output unchanged.
 pub fn step(input: &[u8], out: &mut [u8], dt: f64) -> i32 {
     if out.len() != OUTPUT_BYTES as usize { return -2; }
-    if input.len() >= 8 && word(input, 0) == 2 { return step_v2(input, out, dt); }
+    if input.len() >= 8 && (word(input, 0) == 2 || word(input, 0) == 3) { return step_v2(input, out, dt); }
     let battery = match battery_of(input) { Ok(battery) => battery, Err(status) => return status };
     let motors = [value(input, 56)];
     let Ok(o) = battery.step(value(input, 48), &motors, value(input, 64), dt) else { return -3; };

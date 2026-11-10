@@ -130,6 +130,10 @@ export function PowerPanel({ reader, events, refreshMs = 250 }: {
                 <dt>Remaining</dt>
                 <dd>{number(s.remainingAh, 3)} of {number(s.capacityAh, 2)} Ah ({number(s.stateOfCharge * 100, 1)} %)</dd>
               </div>
+              {/* TASK-104: only a pack with dynamics has a temperature; without one the panel is as before. */}
+              {s.packTemperatureK > 0 && (
+                <div data-testid="power-pack-temperature"><dt>Temperature</dt><dd>{number(s.packTemperatureK - 273.15, 1)} °C</dd></div>
+              )}
               <div>
                 <dt>Status</dt>
                 <dd><Badges warning={s.batteryWarning} limited={s.batteryLimited} warnings={BATTERY_WARNINGS} limits={BATTERY_LIMITS} /></dd>

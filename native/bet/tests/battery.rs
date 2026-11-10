@@ -57,7 +57,7 @@ fn linear_table() -> [f64; TABLE_POINTS] {
 }
 fn neutral() -> PackModel {
     PackModel { table_v: linear_table(), branch_ohm: [0.0; 2], branch_f: [0.0; 2], activation_k: 0.0, reference_k: 298.15,
-        heat_capacity_j_per_k: 0.0, still_air_w_per_k: 0.0, airflow_w_per_k: 0.0, entropic_v_per_k: 0.0, capacity_retention: 1.0, resistance_growth: 1.0 }
+        heat_capacity_j_per_k: 0.0, still_air_w_per_k: 0.0, airflow_w_per_k: 0.0, entropic_v_per_k: 0.0, capacity_retention: 1.0, resistance_growth: 1.0, series_table: [1.0; TABLE_POINTS] }
 }
 fn two_branches() -> PackModel { PackModel { branch_ohm: [0.02, 0.03], branch_f: [500.0, 2000.0], ..neutral() } }
 fn pack(model: PackModel) -> Battery { Battery::new(FULL, EMPTY, 0.05, 3600.0, 100.0).unwrap().with_model(model).unwrap() }
@@ -135,7 +135,7 @@ fn energy_closes_on_random_steps() {
         let air = PackAir { temperature_k: 280.0 + 30.0 * next(), speed_mps: 20.0 * next() };
         let p = b.step_at(&s, &air, &[demand], 5.0 * next(), 1.0 / 1200.0).unwrap();
         let o = p.output;
-        let series = model.series_ohm(0.05, s.temperature_k);
+        let series = model.series_ohm(0.05, s.temperature_k, s.soc);
         let rhs = o.voltage_v * o.current_a + o.current_a * o.current_a * series + o.current_a * (p.state.branch_v[0] + p.state.branch_v[1]);
         let lhs = p.open_circuit_v * o.current_a;
         assert!((lhs - rhs).abs() <= 1e-9 * lhs.abs().max(1e-9), "step {n}: {lhs} vs {rhs}");
@@ -177,7 +177,7 @@ fn heat_follows_its_closed_form() {
 fn temperature_laws_and_state_of_health() {
     let model = PackModel { activation_k: 3500.0, entropic_v_per_k: -4e-4, ..neutral() };
     for t in [253.15, 273.15, 298.15, 318.15] {
-        let r = model.series_ohm(0.05, t);
+        let r = model.series_ohm(0.05, t, 0.5);
         let exact = 0.05 * (3500.0 * (1.0 / t - 1.0 / 298.15)).exp();
         assert!(((r - exact) / exact).abs() < 1e-12);
         let u = model.open_circuit_v(0.5, t);
@@ -231,4 +231,64 @@ fn the_bus_solve_runs_on_the_steps_linear_pack() {
     let a = bus_solve::solve_at(&b, &state, &AIR, 2.0, dt, &loads).unwrap();
     let c = bus_solve::solve(&linear, 0.7, 2.0, dt, &loads).unwrap();
     assert_eq!(a, c);
+}
+
+// ---- TASK-104, second increment (SPECS_SIMULATION_ENGINES "Second increment"), checks 1 and 2 ----
+use mirage_bet::bus_abi;
+
+fn record(version: u32, soc: f64, branch: [f64; 2], temperature: f64, demand: f64, table: Option<[f64; TABLE_POINTS]>) -> Vec<u8> {
+    let bytes = if version == 3 { 576 } else { 384 };
+    let mut b = vec![0u8; bytes];
+    b[0..4].copy_from_slice(&version.to_le_bytes());
+    let put = |b: &mut Vec<u8>, p: usize, v: f64| b[p..p + 8].copy_from_slice(&v.to_le_bytes());
+    for (p, v) in [(8, FULL), (16, EMPTY), (24, 0.05), (32, 3600.0), (40, 100.0), (48, soc), (56, demand), (64, 2.0), (72, branch[0]), (80, branch[1]),
+        (88, temperature), (96, 290.0), (104, 3.0), (112, 0.02), (120, 500.0), (128, 0.03), (136, 2000.0), (144, 3000.0), (152, 298.15), (160, 80.0),
+        (168, 0.3), (176, 0.2), (184, 2e-4), (192, 0.95), (200, 1.1)] { put(&mut b, p, v); }
+    for (i, v) in linear_table().iter().enumerate() { put(&mut b, 208 + 8 * i, *v); }
+    if let Some(t) = table { for (i, v) in t.iter().enumerate() { put(&mut b, 376 + 8 * i, *v); } }
+    b
+}
+fn read(b: &[u8], p: usize) -> f64 { f64::from_le_bytes(b[p..p + 8].try_into().unwrap()) }
+
+/// Check 1: a version 3 record whose table is all ones is version 2 bit for bit over 4000 steps.
+#[test]
+fn a_v3_record_of_ones_is_v2_bit_for_bit() {
+    let (mut a, mut b) = ([0u8; 128], [0u8; 128]);
+    let (mut soc, mut branch, mut temperature) = (1.0, [0.0; 2], 298.15);
+    for n in 0..4000 {
+        let demand = [-80.0, 0.0, 250.0, 900.0, 40.0][n % 5];
+        assert_eq!(bus_abi::step(&record(2, soc, branch, temperature, demand, None), &mut a, 1.0 / 800.0), 0);
+        assert_eq!(bus_abi::step(&record(3, soc, branch, temperature, demand, Some([1.0; TABLE_POINTS])), &mut b, 1.0 / 800.0), 0, "step {n}");
+        assert_eq!(a, b, "step {n}");
+        (soc, branch, temperature) = (read(&a, 0), [read(&a, 56), read(&a, 64)], read(&a, 72));
+    }
+    // A table value of zero, a 576-byte record naming version 2, and version 4 are refused.
+    let mut bad = [1.0; TABLE_POINTS];
+    bad[3] = 0.0;
+    assert_eq!(bus_abi::step(&record(3, 0.5, [0.0; 2], 298.15, 100.0, Some(bad)), &mut a, 1.0 / 800.0), -3);
+    let mut named = record(3, 0.5, [0.0; 2], 298.15, 100.0, Some([1.0; TABLE_POINTS]));
+    named[0] = 2;
+    assert_eq!(bus_abi::step(&named, &mut a, 1.0 / 800.0), -2);
+    // An unknown version is held to version 1's 128 bytes, as before, so a 576-byte version 4 is refused by its length.
+    named[0] = 4;
+    assert_eq!(bus_abi::step(&named, &mut a, 1.0 / 800.0), -2);
+    assert_eq!(bus_abi::step(&named[..128], &mut a, 1.0 / 800.0), -7);
+}
+
+/// Check 2: R0(T, s) against its closed form within 1e-12 relative at 30 points of T and s.
+#[test]
+fn series_resistance_by_temperature_and_charge() {
+    let mut table = [0.0; TABLE_POINTS];
+    for (i, v) in table.iter_mut().enumerate() { *v = 1.0 + 2.0 * (-24.0 * i as f64 / 20.0).exp(); }
+    let model = PackModel { activation_k: 3200.0, resistance_growth: 1.3, series_table: table, ..neutral() };
+    for (k, t) in [253.15_f64, 283.15, 298.15, 313.15, 333.15].into_iter().enumerate() {
+        for s in [0.0_f64, 0.013, 0.05, 0.37, 0.8, 1.0] {
+            let x: f64 = s * 20.0;
+            let i = (x as usize).min(19);
+            let m = table[i] + (table[i + 1] - table[i]) * (x - i as f64);
+            let exact = 0.05 * 1.3 * (3200.0 * (1.0 / t - 1.0 / 298.15)).exp() * m;
+            let r = model.series_ohm(0.05, t, s);
+            assert!(((r - exact) / exact).abs() < 1e-12, "T {k} s {s}: {r} vs {exact}");
+        }
+    }
 }

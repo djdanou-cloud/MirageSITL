@@ -1,5 +1,5 @@
 /** Bound-rotor step interface v2 (TASK-088) on v1 arenas; no hot-path host objects or views. */
-import { BUS_V1, BUS_V2, writeBusRecord, type BusBattery } from './bus.ts';
+import { BUS_V1, BUS_V2, BUS_V3, writeBusRecord, type BusBattery } from './bus.ts';
 import { encodeBoundRotor, type BoundRotorDefinition } from './rotor.ts';
 
 /** Byte offsets of the 256-byte input and output records (SPECS_SIMULATION_ENGINES.md). */
@@ -105,7 +105,7 @@ export class BetRotorEngineV2 {
       this.input[row] = 1.225; this.input[row + 1] = 1.789e-5; this.input[row + 2] = 340;
     }
     this.tableAt = at; at += Math.ceil(this.count * 8 / 64) * 64;
-    this.busAt = at; at += BUS_V2.inputBytes;
+    this.busAt = at; at += BUS_V3.inputBytes;
     this.solutionAt = at; at += BUS_SOLUTION_V1.outputBytes;
     if (at > 64 * 1024 * 1024) throw new Error('Bound rotor memory budget exceeded');
     if (this.memory.buffer.byteLength < at) this.memory.grow(Math.ceil((at - this.memory.buffer.byteLength) / 65536));

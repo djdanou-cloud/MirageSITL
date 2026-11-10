@@ -9019,6 +9019,25 @@ so a run without a dynamic pack shows the panel as before.
 5. G1: the TASK-104 allocation graph runs a v3 pack, 0 GC events and under 0.01 B/step over 1,000,000 steps.
 6. The logged-discharge comparison and check 9 are run again; (C) and (D) now carry m(s). Shown, not judged (SA-01).
 
+Results of the second increment (2026-11-10; Apple M5, macOS 27.2, Node 24, Rust 1.97.0). Native: `cargo test -p mirage-bet`
+181 passed, 2 of them new: a v3 record of ones equal to v2 bit for bit over 4000 steps, and R₀(T, s) within 1e-12 of its closed
+form at 30 points. My own rejection case for a 576-byte version 4 expected the version status (−7) and got the length status (−2):
+an unknown version is held to version 1's 128 bytes, as before, and the test now checks both. `native/bet/tests/drive.rs` now names
+version 4 as the unknown one and refuses 128-byte records naming 2 or 3 by their length. TypeScript: `tests/wasm-bus-v2.test.ts`
+6 passed (the `chen-2006` table within 1e-12 of eq. (3), 2.0678 at s = 0; a `chen-2006` pack in the flight runs records v3),
+`tests/power-channel.test.ts` 5 (the temperature at byte 88 round trip, a v1 buffer refused), `tests/browser/power-panel.spec.ts` 3
+headless (the panel shows "Temperature 28.1 °C" for a dynamic pack and no temperature without one) and
+`tests/browser/native-bootstrap.spec.ts` with `bet_bus_v3_version`. G1: `node scripts/check-bet-runtime.mjs --allocation` exit 0, graph `battery-v2-esc-drive-weather-pad-four-rotor` now on records v3, 0.002 B/step and 0 GC events over 1,000,000 steps; its pack of 1,000,000 Ah stays near full charge, where the table is 1, so the graph shows the v3 path allocates nothing, not the multiplier's size.
+
+Check 9 again, on the `chen-2006` pack now running records v3: with `BATT_FS_VOLTSRC 0` "Battery 1 is low 14.88V" at 55.0 s in the
+climb (14.7 A); with `BATT_FS_VOLTSRC 1` nothing in the climb and "Battery 1 is low 14.81V" at 90.9 s, 25.2 s into the hover; no
+lockstep frame lost or resent. The comparison again (report schema 2, the mirror equal to the WASM v3 bus exactly over 40,000 steps
+from charge 0.95): (C) refitted with m(s) on log 34, R₀ 0.0657 Ω, R₁ 0.0678 Ω, τ₁ 7.78 s, R₂ 0.120 Ω, τ₂ 127 s, RMS 12.3 mV; on the
+17 other logs (C) 20 to 185 mV RMS, median 81, below (A) on 16 (log 32 again the exception, as explained above); (A) and (B) are
+unchanged; (D) 491 to 978 mV, median 832. The affected unit tests: 36 files, 371 passed, with `tests/drive-chain.test.ts`'s golden
+failing with the same hash as on fb6aa5f (`0319387a…`) and `tests/motor-check-sitl.test.ts` timing out before its first step while
+the allocation check ran beside it; alone it passed, 7 of 7.
+
 ## Propulsion calibration: TASK-145
 
 In measured mode (TASK-140), TASK-145 fits the BET rotor and the DC motor of
