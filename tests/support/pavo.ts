@@ -19,7 +19,8 @@ export const PAVO_FILES = Object.freeze({
   motor: 'fixtures/components/pavo-motor-1303-8000kv.json',
   propeller: 'fixtures/components/pavo-gemfan-2219-3.json',
   esc: 'fixtures/components/pavo-esc-aio.json',
-  battery: 'fixtures/components/pavo-battery-3s-850.json',
+  // Card schema 2 of 2026-11-14 (TASK-104): the pack fitted on log 34, the stakeholder's choice; schema 1 stays as the earlier version.
+  battery: 'fixtures/components/pavo-battery-3s-850-v2.json',
   profile: 'fixtures/aircraft/pavo-quad.json',
 });
 export const PAVO_POLAR = 'naca6409-neuralfoil-v1';
@@ -112,10 +113,11 @@ export function heldAt(module: WebAssembly.Module, configuration: BetFlightConfi
 }
 
 /** The command on every motor that holds the weight at zero climb, by bisection to 1e-5 of the weight. */
-export function hoverCommand(module: WebAssembly.Module, configuration: BetFlightConfiguration, weightN: number): number {
+export function hoverCommand(module: WebAssembly.Module, configuration: BetFlightConfiguration, weightN: number,
+  window: { readonly settleS: number; readonly measureS: number } = { settleS: 0.3, measureS: 0.3 }): number {
   let low = 0.05, high = 0.95;
   for (let i = 0; i < 40; i++) {
-    const middle = 0.5 * (low + high), force = heldAt(module, configuration, middle, { settleS: 0.3, measureS: 0.3 }).forceUpN;
+    const middle = 0.5 * (low + high), force = heldAt(module, configuration, middle, window).forceUpN;
     if (Math.abs(force - weightN) <= 1e-5 * weightN) return middle;
     if (force < weightN) low = middle; else high = middle;
   }

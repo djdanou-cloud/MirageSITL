@@ -5,6 +5,7 @@ import { propellerClearance } from '@mirage/aircraft/clearance';
 import { frameConfiguration } from '@mirage/aircraft/frame-parameters';
 import { derivePropellerGeometry } from '@mirage/aircraft/propeller-geometry';
 import { buildProfileDynamics } from '@mirage/physics/profile-dynamics';
+import { openCircuitTableV, seriesResistanceTable } from '@mirage/physics/battery-curves';
 import { buildPavo, heldAt, hoverCommand, PAVO_FILES } from './support/pavo.ts';
 
 // The stakeholder's BetaFPV Pavo20 Pro II (SPECS_SIMULATION_ENGINES "The Pavo20 Pro II profile"), built from its cards as the U35
@@ -93,6 +94,28 @@ describe('the Pavo20 Pro II profile', () => {
     expect(references.propeller).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  // TASK-104, the stakeholder's choice of 2026-11-14: the Pavo flies the pack fitted on log 34 (model C of
+  // scripts/check-battery-logs.mjs), so its derived battery must be that model exactly: the chen-2006 curve on the card's cell
+  // window, the fitted series resistance and branches from the committed report, the curve's charge multiplier, and the neutral
+  // values the comparison used where the card states none (no temperature dependence, the temperature held, a new pack).
+  it('flies the pack fitted on log 34, exactly the log comparison\'s model C', async () => {
+    const { derived, resolved } = await buildPavo();
+    const report = read('../test-results/validation/battery-logs.json') as { fitLog: string; fits: { C: { values: { r0Ohm: number; r1Ohm: number; c1F: number; r2Ohm: number; c2F: number } } } };
+    const fit = report.fits.C.values, battery = derived.manifest.battery;
+    expect(report.fitLog).toBe('stakeholder-pavo-log_34_UnknownDate.bin');
+    if (!battery?.dynamics) throw new Error('The Pavo has no battery v2 dynamics');
+    expect(battery.internalResistanceOhm).toBe(fit.r0Ohm);
+    expect(battery.capacityAh).toBe(0.85);
+    expect(battery.dynamics.openCircuitTableV).toEqual(openCircuitTableV('chen-2006', 3, 3.3, 4.35));
+    expect(battery.dynamics.seriesResistanceTable).toEqual(seriesResistanceTable('chen-2006'));
+    expect(battery.dynamics.branches).toEqual([{ resistanceOhm: fit.r1Ohm, capacitanceF: fit.c1F }, { resistanceOhm: fit.r2Ohm, capacitanceF: fit.c2F }]);
+    expect(battery.dynamics).toMatchObject({ activationK: 0, heatCapacityJPerK: 0, stillAirConductanceWPerK: 0, airflowConductanceWPerK: 0,
+      entropicVPerK: 0, capacityRetention: 1, resistanceGrowth: 1 });
+    const ids = new Set<string>(resolved.assumptions.map(item => item.id));
+    for (const id of ['pack-curve-chen-2006', 'pack-resistance-no-temperature', 'pack-no-entropic', 'pack-temperature-held', 'pack-new']) expect(ids.has(id), id).toBe(true);
+    for (const id of ['pack-no-fast-branch', 'pack-no-slow-branch']) expect(ids.has(id), id).toBe(false);
+  });
+
   it('generates the real aircraft\'s outputs, with X_REV\'s spins on the scripting matrix, and its propellers clear', async () => {
     const { profile, derived } = await buildPavo();
     const frame = frameConfiguration(profile);
@@ -112,9 +135,12 @@ describe('the Pavo20 Pro II profile', () => {
   it('holds its weight at zero climb, and reports the speed it needs', async () => {
     const { derived } = await buildPavo();
     const configuration = buildProfileDynamics(derived.manifest).configuration, weightN = 0.169 * 9.80665;
-    const command = hoverCommand(module, configuration, weightN);
+    // The command is found over the same window it is checked over: the fitted pack's branches (TASK-104, 2026-11-14) keep the
+    // voltage falling for tens of seconds, so a command found over an earlier window carries about 0.25 % less over this one.
+    const window = { settleS: 0.5, measureS: 1 };
+    const command = hoverCommand(module, configuration, weightN, window);
     expect(command > 0.05 && command < 0.95, `command ${command}`).toBe(true);
-    const held = heldAt(module, configuration, command, { settleS: 0.5, measureS: 1 });
+    const held = heldAt(module, configuration, command, window);
     expect(Math.abs(held.forceUpN / weightN - 1)).toBeLessThan(1e-3);
     expect(held.fluctuationSteps).toBe(0);
     const out = process.env.MIRAGE_PAVO_OUT;

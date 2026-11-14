@@ -1227,7 +1227,9 @@ SERVO1 to SERVO4 on motors 2, 3, 4 and 1, QUAD/X_REV (FRAME_CLASS 1, FRAME_TYPE 
 three cells) and a pack resistance of 0.0771 ohm (ArduPilot's own BAT.Res estimate, its median over
 log 34), all from the logs. The logs set BATT_CAPACITY 720 mAh; the card keeps the stakeholder's
 850 mAh. The propeller guards are open rings, not ducts, as the stakeholder said; BetaFPV's page calls
-them ducts with an 8 to 11 % thrust gain. The model represents neither. Assumed, each with its basis:
+them ducts with an 8 to 11 % thrust gain. The model represents neither. Since 2026-11-14 the Pavo flies
+its battery card's schema 2 version, `pavo-battery-3s-850-v2.json`: the pack fitted on log 34 (model C
+of "Battery v2"), the stakeholder's choice; the 0.0771 ohm card stays as its earlier version. Assumed, each with its basis:
 
 | Value | Assumed | Basis |
 | --- | --- | --- |
@@ -1690,6 +1692,9 @@ counter-rotating lower rotor partly recovers and which would lower the coaxial t
 spreading wake in place of the straight cylinder; the tunnel and the rigs' structure. And a property of
 the model found here: near zero collective the coupled pair has no steady state. Nothing was fitted to
 Harrington; the model and both variants' methods stay as declared.
+
+The stakeholder's judgement (2026-11-14, SA-01): the coaxial model is accepted as it is for Phase 1,
+with rotor 1 inside its band and rotor 2 above its bands as shown above.
 
 Measured rotor wakes: NASA MTB2 (TASK-101, 2026-11-08), declared before the model's prediction
 was computed and after a first look at the measured thrusts. The data are NASA Ames's second
@@ -9251,6 +9256,13 @@ from charge 0.95): (C) refitted with m(s) on log 34, R₀ 0.0657 Ω, R₁ 0.0678
 unchanged; (D) 491 to 978 mV, median 832. The affected unit tests: 36 files, 371 passed, with `tests/drive-chain.test.ts`'s golden
 failing with the same hash as on fb6aa5f (`0319387a…`) and `tests/motor-check-sitl.test.ts` timing out before its first step while
 the allocation check ran beside it; alone it passed, 7 of 7.
+
+The stakeholder's decisions (2026-11-14, SA-01). Model C is adopted for the Pavo: its battery card's
+schema 2 version, `tests/fixtures/components/pavo-battery-3s-850-v2.json`, states the `chen-2006` curve and
+the series resistance and both branches fitted on log 34, and `tests/pavo-profile.test.ts` checks that the
+derived pack is exactly model C. The schema 1 card stays as the earlier version and as model A's card. The
+pack temperature will not be measured: the card states no thermal value, so the Pavo's pack temperature
+stays the air's, and the heat balance remains an unchecked estimate.
 
 ## Propulsion calibration: TASK-145
 

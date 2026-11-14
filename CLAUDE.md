@@ -169,7 +169,10 @@ implementation.
   the pack temperature on the Run tab): a pack whose battery card names an open-circuit
   curve flies the second-order Thevenin pack (shared bus records v2), and ArduCopter's
   sag-compensated low-battery warning behaves as declared on it; its comparison with
-  the stakeholder's logged discharges is shown for the stakeholder to judge (SA-01).
+  the stakeholder's logged discharges is shown for the stakeholder to judge (SA-01). On
+  2026-11-14 the stakeholder adopted the pack fitted on log 34 for the Pavo (its battery
+  card's schema 2 version) and chose not to measure the pack temperature, which stays an
+  unchecked estimate.
   Terrain planes in sessions and live terrain admission remain open.
 * **JSBSim WASM, contact backend, and UIUC propellers (TASK-030, TASK-031, TASK-086):**
   `node scripts/build-jsbsim.mjs` requires verified `JSBSIM_SOURCE_DIR` and
@@ -483,7 +486,7 @@ implementation.
   (`scripts/geodata/setup-macos.sh`); the installer now builds the physics modules, which a
   clean machine lacked. Repeated flights found a contact fault the first 51 PASS missed: a list
   of the engine's bounding-volume tree grew inside a step, about 5 flights in 36, and the engine
-  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits on the stakeholder's judgement of TASK-101's coaxial comparison (TASK-099 and TASK-100 are DONE, the stakeholder judging their comparisons on 2026-11-08);
+  patches now size those lists from the tree (TASK-095). TASK-190 is DONE, and TASK-191 waits only for the matrix to be flown again on the current physics, at a time the stakeholder chooses: the stakeholder accepted TASK-101's coaxial model as it is on 2026-11-14 (TASK-099 and TASK-100 are DONE, the stakeholder judging their comparisons on 2026-11-08);
   TASK-145 and TASK-184 are DONE on T-Motor's datasheet and a forum flight log (2026-11-07). A-06 passes: three more runs on V4.7.2 after five on `8ab6afd`, and one
   failing run with a 50.01 ms interval of unproven cause. TASK-098's inflow ended the quad's
   stock-settings oscillation, so A-13's 40 Hz filter is the stakeholder's to keep or drop. TASK-090's
@@ -584,8 +587,8 @@ implementation.
   model 0.06 to 0.08 high), and the model's torque is 21 to 32 % low everywhere from its
   section drag. On 2026-11-10 the lower rotor's field on the upper one was added (a vortex
   cylinder, `upstream` in the coupler) and TASK-101 is DONE: rotor 1's interference is now
-  inside its band in both variants, rotor 2's overshoots, and the comparisons are shown for
-  the stakeholder's judgement. TASK-103 adds the rotor table mode
+  inside its band in both variants, rotor 2's overshoots, and the stakeholder accepted the
+  coaxial model as it is on 2026-11-14. TASK-103 adds the rotor table mode
   (`packages/wasm-bet/src/rotor-map.ts`, configuration version 6): five axes with a
   Reynolds scale, selected per rotor in `BetFlightConfiguration.rotorMaps`, not yet in
   the profile. TASK-103 is DONE: 9 of 111 left-out stand points miss the declared

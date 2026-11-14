@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 2,
+  "units": "SI",
+  "type": "battery",
+  "example": false,
+  "manufacturer": null,
+  "model": "3S 850 mAh pack of the Pavo20 Pro II",
+  "sources": [
+    {
+      "id": "stakeholder",
+      "kind": "specification",
+      "description": "The stakeholder's note of 2026-11-08 about the BetaFPV Pavo20 Pro II (sources/stakeholder-pavo.txt; data/flight-logs/inventory.json): a 3S 850 mAh battery; not a datasheet.",
+      "sha256": null,
+      "date": "2026-11-08"
+    },
+    {
+      "id": "log-parameters",
+      "kind": "specification",
+      "description": "The aircraft's own parameters in stakeholder-pavo-log_34_UnknownDate.bin: MOT_BAT_VOLT_MAX 13.05 V and MOT_BAT_VOLT_MIN 9.9 V over three cells (4.35 V and 3.3 V per cell); the owner's settings, not a cell datasheet. The same log's BATT_CAPACITY is 720 mAh.",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "date": "2026-11-08"
+    },
+    {
+      "id": "log-34-fit",
+      "kind": "measured",
+      "description": "Fitted on the stakeholder's stakeholder-pavo-log_34_UnknownDate.bin by scripts/check-battery-logs.mjs (model C, test-results/validation/battery-logs.json): the series resistance and both RC branches that minimise the RMS voltage error over that flight with the chen-2006 curve (12.3 mV RMS); on the 17 logs not used in the fit the error is 20 to 185 mV RMS. A fit to flight voltage and current, not a bench measurement; adopted by the stakeholder on 2026-11-14.",
+      "sha256": "6ba5d9d22ed1d80a98af4fdd9e2d9885b17b9ca4ddac166401c6c33aded29548",
+      "date": "2026-11-14"
+    },
+    {
+      "id": "chen-2006",
+      "kind": "specification",
+      "description": "The open-circuit curve shape of Chen and Rincón-Mora, Accurate electrical battery model capable of predicting runtime and I-V performance, IEEE Trans. Energy Conversion 21(2), 2006, eq. (2), scaled onto the card's cell window; chosen because it fits the stakeholder's logs better than the linear curve (TASK-104).",
+      "sha256": "8b759509bc72970a0ace5de8254b647fa91bb87360186c3af29a96487fb51907",
+      "date": "2026-11-10"
+    }
+  ],
+  "values": {
+    "cellsSeries": 3,
+    "capacityAh": 0.85,
+    "internalResistanceOhm": 0.06567806191707756,
+    "cellFullV": 4.35,
+    "cellEmptyV": 3.3,
+    "maxDischargeCurrentA": null,
+    "massKg": null,
+    "openCircuitCurve": "chen-2006",
+    "rcFastResistanceOhm": 0.06784107325260805,
+    "rcFastCapacitanceF": 114.6340402051997,
+    "rcSlowResistanceOhm": 0.12035646757119771,
+    "rcSlowCapacitanceF": 1054.9084401339524,
+    "resistanceActivationK": null,
+    "heatCapacityJPerK": null,
+    "stillAirConductanceWPerK": null,
+    "airflowConductanceWPerK": null,
+    "entropicCoefficientVPerK": null,
+    "capacityRetention": null,
+    "resistanceGrowth": null
+  },
+  "provenance": {
+    "cellsSeries": "stakeholder",
+    "capacityAh": "stakeholder",
+    "internalResistanceOhm": "log-34-fit",
+    "cellFullV": "log-parameters",
+    "cellEmptyV": "log-parameters",
+    "maxDischargeCurrentA": null,
+    "massKg": null,
+    "openCircuitCurve": "chen-2006",
+    "rcFastResistanceOhm": "log-34-fit",
+    "rcFastCapacitanceF": "log-34-fit",
+    "rcSlowResistanceOhm": "log-34-fit",
+    "rcSlowCapacitanceF": "log-34-fit",
+    "resistanceActivationK": null,
+    "heatCapacityJPerK": null,
+    "stillAirConductanceWPerK": null,
+    "airflowConductanceWPerK": null,
+    "entropicCoefficientVPerK": null,
+    "capacityRetention": null,
+    "resistanceGrowth": null
+  },
+  "applicability": "Three cells and 0.85 Ah as the stakeholder states them (the logs set BATT_CAPACITY 720 mAh); cell voltages from the owner's MOT_BAT_VOLT_* settings, which suit a high-voltage pack; chemistry not known. Schema 2 (2026-11-14): the chen-2006 curve and the series resistance and RC branches fitted on log 34, the stakeholder's choice; the pack's thermal values are not known (the logs hold no temperature and the stakeholder chose not to measure it), so its temperature stays the air's."
+}
